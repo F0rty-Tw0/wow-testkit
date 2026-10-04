@@ -1,0 +1,2 @@
+tests/test_assert.lua
+tests/test_fs.lua
