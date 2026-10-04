@@ -1,0 +1,1 @@
+-- A.lua: Multi fixture stub.

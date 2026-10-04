@@ -1,0 +1,1 @@
+-- Vanilla.lua: Suffix fixture stub.

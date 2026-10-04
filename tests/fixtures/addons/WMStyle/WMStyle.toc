@@ -1,0 +1,4 @@
+## Interface: 120100, 16001
+## Title: WMStyle
+
+Core.lua

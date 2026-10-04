@@ -1,0 +1,1 @@
+-- Both.lua: Multi fixture stub.
