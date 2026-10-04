@@ -27,7 +27,8 @@ local function proxy(groups)
   })
 end
 
-local function compile(src, chunkName, env)
+-- Compiles source text into a function running in env; refuses precompiled chunks.
+function M.compile(src, chunkName, env)
   if src:byte(1) == BYTECODE_MARK then
     return nil, chunkName:sub(2) .. ": precompiled chunks are not allowed"
   end
@@ -54,7 +55,7 @@ local function runFile(dir, name, values)
   local src, err = fs.readFile(dir .. "/" .. name)
   local fn
   if src then
-    fn, err = compile(src, "@" .. name, env)
+    fn, err = M.compile(src, "@" .. name, env)
   end
   if not fn then
     return false, err

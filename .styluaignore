@@ -1,2 +1,5 @@
 # Deliberately invalid Lua (loader error-path fixture).
 tests/fixtures/docs_bad/
+
+# Generated API manifests (tools/generate.lua).
+api/

@@ -42,7 +42,7 @@ local Unit = {
       },
 
       Returns = {
-        { Name = "result", Type = "bool", Nilable = false },
+        { Name = "result", Type = "bool", Nilable = false, NeverSecret = true },
       },
     },
     {
@@ -84,6 +84,19 @@ local Unit = {
         { Name = "result", Type = "bool", Nilable = false },
       },
     },
+    {
+      Name = "UnitIsPlayer",
+      Type = "Function",
+      ReturnsNeverSecret = true,
+
+      Arguments = {
+        { Name = "unit", Type = "UnitToken", Nilable = false },
+      },
+
+      Returns = {
+        { Name = "result", Type = "bool", Nilable = false },
+      },
+    },
   },
 
   Events = {
@@ -92,6 +105,7 @@ local Unit = {
       Type = "Event",
       LiteralName = "UNIT_HEALTH",
       SynchronousEvent = true,
+      SecretInChatMessagingLockdown = true,
       Payload = {
         { Name = "unitTarget", Type = "UnitTokenVariant", Nilable = false },
       },
@@ -108,6 +122,13 @@ local Unit = {
       Fields = {
         { Name = "Male", Type = "UnitSex", EnumValue = 0 },
         { Name = "Female", Type = "UnitSex", EnumValue = 1 },
+      },
+    },
+    {
+      Name = "UnitSexInfo",
+      Type = "Structure",
+      Fields = {
+        { Name = "sex", Type = "UnitSex", Nilable = false },
       },
     },
   },

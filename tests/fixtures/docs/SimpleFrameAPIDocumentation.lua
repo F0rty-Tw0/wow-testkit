@@ -18,10 +18,27 @@ local SimpleFrameAPI = {
         { Name = "offsetY", Type = "uiUnit", Nilable = true },
       },
     },
+    {
+      Name = "GetAnchorInfo",
+      Type = "Function",
+      ConstSecretAccessor = true,
+
+      Returns = {
+        { Name = "info", Type = "SimpleFrameAnchorInfo", Nilable = false },
+      },
+    },
   },
 
   Events = {},
-  Tables = {},
+  Tables = {
+    {
+      Name = "SimpleFrameAnchorInfo",
+      Type = "Structure",
+      Fields = {
+        { Name = "point", Type = "FramePoint", Nilable = false },
+      },
+    },
+  },
   Predicates = {},
 }
 
