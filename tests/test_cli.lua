@@ -1,0 +1,121 @@
+-- tk CLI: `tk test [flavor...] [--update] [--addon <path>]` runs an addon's scenarios and prints a summary.
+local A = require("assert")
+local fs = require("fs")
+local Cli = require("bin.tk")
+
+local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
+local HOVER_FIXTURE = TEST_DIR .. "/fixtures/addons/Hover"
+local GOLDEN = "/tests/scenarios/golden/hover/tooltip.retail.txt"
+
+math.randomseed(os.time())
+
+local function tempDir(name)
+  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
+  return base .. "/wow-testkit-cli-" .. os.time() .. "-" .. math.random(1, 1000000) .. "/" .. name
+end
+
+local function copyTree(from, to)
+  fs.mkdirp(to)
+  for _, name in ipairs(fs.list(from)) do
+    if fs.isdir(from .. "/" .. name) then
+      copyTree(from .. "/" .. name, to .. "/" .. name)
+    else
+      fs.writeFile(to .. "/" .. name, assert(fs.readFile(from .. "/" .. name)))
+    end
+  end
+end
+
+-- A temp copy of the Hover fixture, so goldens never land in the repo.
+local function hoverCopy()
+  local root = tempDir("Hover")
+  copyTree(HOVER_FIXTURE, root)
+  return root
+end
+
+-- Runs Cli.main(argv); returns the exit code and the collected output.
+local function run(argv)
+  local out = {}
+  local code = Cli.main(argv, function(text)
+    out[#out + 1] = text
+  end)
+  return code, table.concat(out)
+end
+
+local function test_test_command_passes_the_hover_scenario()
+  local code, out = run({ "test", "--addon", hoverCopy() })
+  A.contains(out, "PASS hover retail")
+  A.contains(out, "PASS hover vanilla")
+  A.eq(code, 0)
+end
+
+local function test_first_run_writes_the_golden_and_second_run_matches_it()
+  local root = hoverCopy()
+  local _, first = run({ "test", "retail", "--addon", root })
+  A.contains(first, "1 golden written")
+  A.truthy(fs.exists(root .. GOLDEN), "golden written under the addon root")
+  local code, second = run({ "test", "retail", "--addon", root })
+  A.contains(second, "0 goldens written")
+  A.eq(code, 0)
+end
+
+local function test_golden_mismatch_fails_first_with_the_diff()
+  local root = hoverCopy()
+  run({ "test", "retail", "--addon", root })
+  fs.writeFile(root .. GOLDEN, "L: [ffffff]Nope\n")
+  local code, out = run({ "test", "retail", "--addon", root })
+  A.eq(out:sub(1, #"FAIL hover retail: "), "FAIL hover retail: ")
+  A.contains(out, "line 1")
+  A.eq(code, 1)
+end
+
+local function test_update_rewrites_a_differing_golden()
+  local root = hoverCopy()
+  run({ "test", "retail", "--addon", root })
+  local accepted = fs.readFile(root .. GOLDEN)
+  fs.writeFile(root .. GOLDEN, "L: [ffffff]Nope\n")
+  local code = run({ "test", "retail", "--update", "--addon", root })
+  A.eq(code, 0)
+  A.eq(fs.readFile(root .. GOLDEN), accepted)
+end
+
+local function test_flavor_filter_runs_only_that_flavor()
+  local code, out = run({ "test", "retail", "--addon", hoverCopy() })
+  A.contains(out, "PASS hover retail")
+  A.eq(out:find("vanilla", 1, true), nil)
+  A.eq(code, 0)
+end
+
+local function test_scenario_file_that_cannot_run_fails()
+  local root = hoverCopy()
+  fs.writeFile(root .. "/tests/scenarios/scn_broken.lua", "return 42\n")
+  local code, out = run({ "test", "retail", "--addon", root })
+  A.contains(out, "FAIL broken -: ")
+  A.contains(out, "PASS hover retail")
+  A.eq(code, 1)
+end
+
+local function test_unknown_command_exits_2()
+  local code, out = run({ "frobnicate" })
+  A.contains(out, "usage")
+  A.eq(code, 2)
+end
+
+local function test_addon_without_scenarios_exits_2()
+  local root = tempDir("Empty")
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Empty.toc", "## Interface: 120100\n")
+  local code, out = run({ "test", "--addon", root })
+  A.contains(out, "no scenarios")
+  A.eq(code, 2)
+end
+
+return function()
+  test_test_command_passes_the_hover_scenario()
+  test_first_run_writes_the_golden_and_second_run_matches_it()
+  test_golden_mismatch_fails_first_with_the_diff()
+  test_update_rewrites_a_differing_golden()
+  test_flavor_filter_runs_only_that_flavor()
+  test_scenario_file_that_cannot_run_fails()
+  test_unknown_command_exits_2()
+  test_addon_without_scenarios_exits_2()
+end
