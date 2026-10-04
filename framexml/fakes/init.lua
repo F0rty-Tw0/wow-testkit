@@ -11,6 +11,7 @@ local STAGE1 = {
   "framexml.fakes.colors",
   "framexml.fakes.strings",
   "framexml.fakes.slash",
+  "framexml.fakes.tooltip",
   "framexml.fakes.frames",
 }
 
