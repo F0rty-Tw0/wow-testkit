@@ -31,6 +31,13 @@ files["tests/fixtures/addons/Hover/*.lua"] = {
   read_globals = { "CreateFrame", "Enum", "GameTooltip", "HoverDB", "TooltipDataProcessor", "UnitName" },
 }
 
+-- Canary fixture addons (canaries/<layer>/<name>/<variant>/): written like real addons against the world's
+-- WoW globals; the directive canaries' global writes are the behavior under test.
+files["canaries/*/*/*/*.lua"] = {
+  globals = { "CanaryForeverFile", "CanaryMainlineOnly" },
+  read_globals = { "C_PlayerInfo", "CreateFrame", "UIParent", "UnitHealth", "UnitName" },
+}
+
 -- Synthetic API documentation files run inside the docs loader's sandbox.
 files["tests/fixtures/docs*/*.lua"] = {
   read_globals = { "APIDocumentation", "Enum", "Constants" },

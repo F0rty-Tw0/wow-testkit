@@ -1,0 +1,5 @@
+## Interface: 120100
+## Interface-Mainline: 120100
+## Title: CanaryTemplate
+
+Main.lua
