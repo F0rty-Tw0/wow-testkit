@@ -6,6 +6,8 @@ local M = {}
 local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local FrameXML = require("framexml.fakes")
+local Golden = require("golden")
+local Snapshot = require("snapshot")
 local Units = require("units")
 local Widgets = require("ui.widgets")
 local World = require("world")
@@ -35,7 +37,8 @@ local function installWorld(w)
   FrameXML.installStage1(w)
 end
 
--- opts: { addon, root, flavor, saved, config }. s.ns / s.info exist only after s:login.
+-- opts: { addon, root, flavor, saved, config, golden? = { root, scenario, update } }. s.ns / s.info exist only
+-- after s:login. With golden, s:snapshot checks goldens under golden.root and the world runs in golden mode.
 function M.new(opts)
   local w = World.new({ flavor = opts.flavor })
   local ok, err = pcall(installWorld, w)
@@ -43,6 +46,8 @@ function M.new(opts)
     w:destroy()
     error(err, 0)
   end
+  local golden = opts.golden or {}
+  w.goldenMode = opts.golden ~= nil
   return setmetatable({
     w = w,
     flavor = w.flavor,
@@ -50,6 +55,9 @@ function M.new(opts)
     root = opts.root,
     saved = opts.saved,
     config = opts.config,
+    goldenRoot = golden.root,
+    scenarioName = golden.scenario,
+    update = golden.update,
     notes = {},
   }, Scenario)
 end
@@ -122,6 +130,35 @@ function Scenario:slash(text)
   return w:run(ENGINE, w.slash, w, text)
 end
 
+local function snapshotText(target)
+  if target:GetObjectType() == "GameTooltip" then
+    return Snapshot.tooltip(target)
+  end
+  return Snapshot.frame(target)
+end
+
+-- Checks target's snapshot against the golden file "<name>.<flavor>.txt". A mismatch is recorded as an error
+-- (failing the report) instead of thrown; a newly written golden adds a note. The snapshot's own widget reads
+-- are not counted as unscripted.
+function Scenario:snapshot(name, target)
+  local w = self.w
+  if not self.goldenRoot then
+    error("s:snapshot needs a golden root; run the scenario through Scenario.runFile", 2)
+  end
+  local unscripted = {}
+  for key, count in pairs(w.unscripted) do
+    unscripted[key] = count
+  end
+  local text = snapshotText(target)
+  w.unscripted = unscripted
+  local ok, result = pcall(Golden.check, self.goldenRoot, self.scenarioName, name, self.flavor, text, self.update)
+  if not ok then
+    w:recordError(result)
+  elseif result == "written" then
+    self:note("golden written: " .. self.scenarioName .. "/" .. name .. "." .. self.flavor .. ".txt")
+  end
+end
+
 local function unscriptedList(unscripted)
   local list = {}
   for name, count in pairs(unscripted) do
@@ -133,7 +170,8 @@ local function unscriptedList(unscripted)
   return list
 end
 
--- status: "fail" when any error was recorded, else "skipped" when the addon was skipped, else "pass".
+-- status: "fail" when any error was recorded, else "skipped" when the addon was skipped (reason says why), else
+-- "pass".
 function Scenario:report()
   local w, info = self.w, self.info
   local status = "pass"
@@ -149,6 +187,7 @@ function Scenario:report()
   return {
     flavor = self.flavor,
     status = status,
+    reason = info and info.reason,
     errors = copyList(w.errors),
     unscripted = unscriptedList(w.unscripted),
     warnings = copyList(w.warnings),
@@ -175,7 +214,8 @@ end
 
 -- One flavor: a thrown error from fn is recorded in the world (so it fails the report); the world is always destroyed.
 local function runFlavor(flavor, fn, opts)
-  local okNew, s = pcall(M.new, { addon = opts.addon, root = opts.root, flavor = flavor, saved = opts.saved, config = opts.config })
+  local newOpts = { addon = opts.addon, root = opts.root, flavor = flavor, saved = opts.saved, config = opts.config, golden = opts.golden }
+  local okNew, s = pcall(M.new, newOpts)
   if not okNew then
     return failedReport(flavor, s, nil)
   end
@@ -191,7 +231,7 @@ local function runFlavor(flavor, fn, opts)
   return report
 end
 
--- Runs fn(s) on each flavor with a fresh scenario built from opts { addon, root, saved, config }.
+-- Runs fn(s) on each flavor with a fresh scenario built from opts { addon, root, saved, config, golden }.
 -- Returns { [flavor] = report }.
 function M.matrix(flavors, fn, opts)
   local results = {}
@@ -206,16 +246,18 @@ local function scenarioName(path)
   return (file:gsub("^scn_", ""):gsub("%.lua$", ""))
 end
 
--- path: a file returning { run = function(s) end, flavors?, saved?, config? }; opts: { addon, root, flavors? }.
--- Returns { name, results = { [flavor] = report } }.
+-- path: a file returning { run = function(s) end, flavors?, saved?, config? }; opts: { addon, root, flavors?,
+-- update? }. Snapshots check goldens under the addon root. Returns { name, results = { [flavor] = report } }.
 function M.runFile(path, opts)
   local file = assert(loadfile(path))()
   if type(file) ~= "table" or type(file.run) ~= "function" then
     error("scenario file " .. path .. " must return a table with a run function", 2)
   end
   local flavors = opts.flavors or file.flavors or Flavors.list
-  local matrixOpts = { addon = opts.addon, root = opts.root, saved = file.saved, config = file.config }
-  return { name = scenarioName(path), results = M.matrix(flavors, file.run, matrixOpts) }
+  local name = scenarioName(path)
+  local golden = { root = opts.root, scenario = name, update = opts.update }
+  local matrixOpts = { addon = opts.addon, root = opts.root, saved = file.saved, config = file.config, golden = golden }
+  return { name = name, results = M.matrix(flavors, file.run, matrixOpts) }
 end
 
 return M
