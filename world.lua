@@ -4,12 +4,17 @@ local M = {}
 
 local Flavors = require("tools.flavors")
 local Manifest = require("manifest")
+local Luaext = require("luaext")
 local WorldApi = require("world_api")
+local WorldEvents = require("world_events")
 
 local unpack = unpack
 
 local World = {}
 World.__index = World
+for name, fn in pairs(WorldEvents.methods) do
+  World[name] = fn
+end
 
 local CONTEXTS = { addon = true, blizzard = true, scenario = true }
 local CONTEXT_LIST = "addon, blizzard, scenario"
@@ -119,6 +124,7 @@ local function installBase(w, row)
   end
   w:set("WOW_PROJECT_ID", row.projectId)
   w:install("GetBuildInfo", buildInfo(row))
+  Luaext.install(w)
 end
 
 local function snapshotGlobals()
@@ -152,6 +158,7 @@ function M.new(opts)
     snapshotMt = debug.getmetatable(_G),
     snapshot = snapshotGlobals(),
   }, World)
+  WorldEvents.reset(w)
   active = w
   local ok, err = pcall(installBase, w, row)
   if not ok then
@@ -170,6 +177,7 @@ function World:destroy()
     local entry = self.restores[i]
     rawset(entry[1], entry[2], entry[3])
   end
+  WorldEvents.reset(self)
   debug.setmetatable(_G, self.snapshotMt)
   for k in pairs(_G) do
     if self.snapshot[k] == nil then
