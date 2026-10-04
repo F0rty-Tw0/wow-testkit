@@ -61,10 +61,15 @@ local function countCall(w, name, signature, args)
   return Validate.check(signature, args, w.realType, { name = name, flavor = w.flavor })
 end
 
+-- Records that a call to name was answered with defaults: w.unscripted lists what a scenario forgot to fake.
+function M.markUnscripted(w, name)
+  w.unscripted[name] = (w.unscripted[name] or 0) + 1
+end
+
 local function unscripted(w, name, signature)
   local out = signature and M.defaults(signature) or { n = 0 }
   if not signature or out.n > 0 then
-    w.unscripted[name] = (w.unscripted[name] or 0) + 1
+    M.markUnscripted(w, name)
   end
   return unpack(out, 1, out.n)
 end
