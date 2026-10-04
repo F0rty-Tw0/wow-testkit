@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lua51:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1"
+      - name: Test (Lua 5.1)
+        run: LUA51="lua tests/run.lua" bash scripts/test.sh
+
+  lua54:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+      - name: Test pure modules (Lua 5.4)
+        run: |
+          status=0
+          while IFS= read -r f || [ -n "$f" ]; do
+            [ -n "$f" ] || continue
+            lua tests/run.lua "$f" || status=1
+          done < tests/pure.txt
+          exit $status
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lunarmodules/luacheck@v1
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check .
