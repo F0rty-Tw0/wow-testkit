@@ -7,6 +7,7 @@ local M = {}
 
 local Behaviour = require("ui.behaviour")
 local Inherits = require("ui.inherits")
+local Templates = require("ui.templates")
 local Validate = require("validate")
 local WorldApi = require("world_api")
 
@@ -15,6 +16,8 @@ local unpack = unpack
 local NO_VALUES = { n = 0 }
 local GETTER_PATTERNS = { "^Get(%u.*)$", "^Is(%u.*)$" }
 local SETTER_PATTERN = "^Set(%u.*)$"
+-- A template child whose type the flavor's Ketho WidgetAPI lacks is created as a plain frame.
+local FALLBACK_CHILD_TYPE = "Frame"
 
 -- Per Ketho widget table (one per flavor): lowercase type -> type, and type -> plan. Plans are pure data.
 local catalogs = setmetatable({}, { __mode = "k" })
@@ -150,9 +153,53 @@ local function create(w, typeName, name, parent)
   return obj
 end
 
--- applyTemplates(w, frame, templates): Task 12 fills this in (XML templates); CreateFrame passes its template
--- argument through. Default: no-op.
-function M.applyTemplates() end
+-- Copies a mixin table's fields onto frame, like the client's Mixin(frame, mixin).
+local function copyMixin(frame, mixin)
+  for key, value in pairs(mixin) do
+    frame[key] = value
+  end
+end
+
+local function applyTemplate(w, frame, st, entry)
+  for _, child in ipairs(entry.children) do
+    local childType = w.globals.widgets[child.type] and child.type or FALLBACK_CHILD_TYPE
+    frame[child.key] = create(w, childType, nil, frame)
+  end
+  if entry.size then
+    st.width, st.height = entry.size[1], entry.size[2]
+  end
+  st.protected = st.protected or entry.protected
+  for _, name in ipairs(entry.mixins) do
+    st.mixins[#st.mixins + 1] = name
+    local mixin = rawget(_G, name)
+    if type(mixin) == "table" then
+      copyMixin(frame, mixin)
+    end
+  end
+end
+
+-- Applies a comma-separated template list in order (ui/templates.lua) when CreateFrame gets one. An unknown
+-- template adds nothing and is counted in w.unscripted["template:<Name>"].
+function M.applyTemplates(w, frame, templates)
+  if type(templates) ~= "string" then
+    return
+  end
+  local st = w.ui.state[frame]
+  st.mixins = st.mixins or {}
+  for name in templates:gmatch("[^,%s]+") do
+    local entry = Templates.TEMPLATES[name]
+    if entry then
+      applyTemplate(w, frame, st, entry)
+    else
+      WorldApi.markUnscripted(w, "template:" .. name)
+    end
+  end
+end
+
+-- True when a Secure* template made frame protected.
+function M.isProtected(w, frame)
+  return w.ui.state[frame].protected == true
+end
 
 local function createFrame(w)
   return function(frameType, name, parent, template)
