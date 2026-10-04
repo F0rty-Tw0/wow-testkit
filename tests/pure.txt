@@ -1,2 +1,4 @@
 tests/test_assert.lua
 tests/test_fs.lua
+tests/test_home.lua
+tests/test_serialize.lua
