@@ -169,6 +169,13 @@ local function test_effective_level_falls_back_to_level()
   end)
 end
 
+local function test_pvp_field_answers_unit_is_pvp()
+  withUnits("retail", function(w)
+    w:unit("target", { pvp = true })
+    A.eq(_G.UnitIsPVP("target"), true)
+  end)
+end
+
 return function()
   test_mouseover_aliases_registered_unit()
   test_unit_name_returns_name_and_realm()
@@ -187,4 +194,5 @@ return function()
   test_unset_field_counts_as_unscripted()
   test_tokens_are_case_insensitive()
   test_effective_level_falls_back_to_level()
+  test_pvp_field_answers_unit_is_pvp()
 end

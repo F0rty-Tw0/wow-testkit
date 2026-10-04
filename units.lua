@@ -31,6 +31,7 @@ local FIELD_ANSWERS = {
   UnitIsFriend = { "isFriend" },
   UnitInParty = { "inParty" },
   UnitInRaid = { "inRaid" },
+  UnitIsPVP = { "pvp" },
 }
 
 -- Fields that answer nil when unset instead of the manifest default (UnitName's realm is nil for same-realm units).
