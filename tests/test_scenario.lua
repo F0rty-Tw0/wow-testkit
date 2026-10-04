@@ -10,6 +10,8 @@ local ADDONS_DIR = TEST_DIR .. "/fixtures/addons"
 local BASIC_SCENARIO = TEST_DIR .. "/fixtures/scenarios/scn_basic.lua"
 local GOLDEN_MODE_SCENARIO = TEST_DIR .. "/fixtures/scenarios/scn_golden_mode.lua"
 local HOVER = { addon = "Hover", root = ADDONS_DIR .. "/Hover" }
+local POLY = { addon = "Poly", root = ADDONS_DIR .. "/Poly" }
+local RETAIL_ONLY = { addon = "RetailOnly", root = ADDONS_DIR .. "/RetailOnly" }
 local BOB = { name = "Bob", isPlayer = true, classFile = "MAGE", className = "Mage", raceName = "Orc", level = 80 }
 
 -- A Hover scenario on flavor, always destroyed.
@@ -66,6 +68,20 @@ local function test_login_error_fails_the_report_with_its_addon_source()
   A.contains(tostring(report.errors[1].source), "addon:Hover/")
 end
 
+local function test_run_continues_after_a_handler_error()
+  local opts = { addon = HOVER.addon, root = HOVER.root, saved = { HoverDB = { boom = true } } }
+  local texts
+  local report = Scenario.matrix({ "retail" }, function(s)
+    s:login()
+    s:unit("mouseover", BOB)
+    s:hover("mouseover")
+    texts = tooltipTexts()
+  end, opts).retail
+  A.eq(report.status, "fail")
+  A.contains(tostring(report.errors[1].message), "boom")
+  A.contains(texts, "Hi Bob")
+end
+
 local function test_run_file_runs_every_flavor_by_default()
   local result = Scenario.runFile(BASIC_SCENARIO, HOVER)
   A.eq(result.name, "basic")
@@ -87,6 +103,26 @@ local function test_matrix_destroys_every_world()
   end, HOVER)
   local w = World.new({ flavor = "retail" })
   w:destroy()
+end
+
+local function copyOf(t)
+  local out = {}
+  for k, v in pairs(t) do
+    out[k] = v
+  end
+  return out
+end
+
+local function test_addon_library_writes_do_not_leak_across_flavors()
+  local tableBefore, stringBefore = copyOf(table), copyOf(string)
+  local hadPoly = {}
+  Scenario.matrix({ "retail", "mists" }, function(s)
+    s:login()
+    hadPoly[s.flavor] = s.ns.hadPoly
+  end, POLY)
+  A.same(hadPoly, { retail = false, mists = false })
+  A.same(copyOf(table), tableBefore, "table")
+  A.same(copyOf(string), stringBefore, "string")
 end
 
 local function test_thrown_run_error_fails_only_that_flavor()
@@ -148,6 +184,22 @@ local function test_snapshot_reads_are_not_counted_as_unscripted()
   A.same(report.unscripted, {})
 end
 
+local function test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_golden()
+  local root = tempRoot()
+  local opts = { addon = RETAIL_ONLY.addon, root = RETAIL_ONLY.root, golden = { root = root, scenario = "skip" } }
+  local results = Scenario.matrix({ "retail", "vanilla" }, function(s)
+    s:login()
+    assert(s.ns.ok, "addon state not set")
+    s:snapshot("t", _G.GameTooltip)
+  end, opts)
+  A.eq(results.retail.status, "pass")
+  A.eq(results.vanilla.status, "skipped")
+  A.eq(results.vanilla.reason, "not declared")
+  A.same(results.vanilla.errors, {})
+  A.truthy(fs.exists(root .. "/tests/scenarios/golden/skip/t.retail.txt"), "retail golden written")
+  A.eq(fs.exists(root .. "/tests/scenarios/golden/skip/t.vanilla.txt"), false)
+end
+
 local function test_run_file_turns_on_golden_mode()
   local opts = { addon = HOVER.addon, root = HOVER.root, flavors = { "retail" } }
   A.eq(Scenario.runFile(GOLDEN_MODE_SCENARIO, opts).results.retail.status, "pass")
@@ -158,12 +210,15 @@ return function()
   test_hover_runs_the_tooltip_set_unit_hook_on_vanilla()
   test_login_fires_player_login_once()
   test_login_error_fails_the_report_with_its_addon_source()
+  test_run_continues_after_a_handler_error()
   test_run_file_runs_every_flavor_by_default()
   test_run_file_reports_an_undeclared_flavor_as_skipped()
   test_matrix_destroys_every_world()
+  test_addon_library_writes_do_not_leak_across_flavors()
   test_thrown_run_error_fails_only_that_flavor()
   test_snapshot_mismatch_fails_the_report_without_throwing()
   test_snapshot_writes_a_missing_golden_with_a_note()
   test_snapshot_reads_are_not_counted_as_unscripted()
   test_run_file_turns_on_golden_mode()
+  test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_golden()
 end

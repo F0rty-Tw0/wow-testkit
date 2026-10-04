@@ -94,6 +94,17 @@ local function test_scenario_file_that_cannot_run_fails()
   A.eq(code, 1)
 end
 
+local function test_all_skipped_run_warns_and_exits_1()
+  local root = tempDir("RetailOnly")
+  copyTree(TEST_DIR .. "/fixtures/addons/RetailOnly", root)
+  fs.mkdirp(root .. "/tests/scenarios")
+  fs.writeFile(root .. "/tests/scenarios/scn_login.lua", "return { run = function(s) s:login() end }\n")
+  local code, out = run({ "test", "vanilla", "tbc", "--addon", root })
+  A.contains(out, "SKIP login vanilla (not declared)")
+  A.contains(out, "nothing passed or failed")
+  A.eq(code, 1)
+end
+
 local function test_unknown_command_exits_2()
   local code, out = run({ "frobnicate" })
   A.contains(out, "usage")
@@ -116,6 +127,7 @@ return function()
   test_update_rewrites_a_differing_golden()
   test_flavor_filter_runs_only_that_flavor()
   test_scenario_file_that_cannot_run_fails()
+  test_all_skipped_run_warns_and_exits_1()
   test_unknown_command_exits_2()
   test_addon_without_scenarios_exits_2()
 end

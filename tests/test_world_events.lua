@@ -118,6 +118,18 @@ local function test_advance_rejects_negative_seconds()
   end)
 end
 
+local function test_negative_delay_fires_now_without_moving_clock_back()
+  withWorld("retail", function(w)
+    local seen
+    _G.C_Timer.After(-5, function()
+      seen = _G.GetTime()
+    end)
+    w:advance(0)
+    A.eq(seen, 1000)
+    A.eq(_G.GetTime(), 1000)
+  end)
+end
+
 local function test_zero_interval_ticker_hits_loop_guard()
   withWorld("retail", function(w)
     local c = counter()
@@ -308,6 +320,7 @@ return function()
   test_timer_scheduled_during_advance_within_window_fires()
   test_timer_callback_runs_in_addon_context()
   test_advance_rejects_negative_seconds()
+  test_negative_delay_fires_now_without_moving_clock_back()
   test_zero_interval_ticker_hits_loop_guard()
   test_fire_unknown_event_names_event_and_flavor()
   test_register_unknown_event_errors()

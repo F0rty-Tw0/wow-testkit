@@ -8,6 +8,9 @@ local START_TIME = 1000.0
 local ADDON_SOURCE_PATTERN = 'addon:[^:\r\n"%]]+'
 local TRUNCATED_SOURCE_PATTERN = '%.%.%.([^:\r\n"%]]+):%d+:'
 local MAX_TIMER_FIRES = 10000
+-- Localized: addon code may assign a global named debug.
+local getinfo = debug.getinfo
+local ADDON_CHUNK_PREFIX = "@addon:"
 
 local methods = {}
 M.methods = methods
@@ -129,7 +132,9 @@ function Timer:IsCancelled()
 end
 
 -- Schedules callback(handle) after seconds; iterations nil repeats forever. Returns the handle.
+-- A negative delay counts as 0, so firing the timer never moves the clock backwards.
 function methods:schedule(seconds, callback, iterations)
+  seconds = math.max(seconds, 0)
   self.timerSeq = self.timerSeq + 1
   local timer = setmetatable({
     world = self,
@@ -237,9 +242,25 @@ end
 
 -- Events ------------------------------------------------------------------------------------------------------
 
+-- The level, as error() in the caller counts it, of the nearest addon chunk on the stack; fallback when no addon
+-- code is on it. Widget methods reach the kit through tail calls, so a fixed level can land on a lost frame.
+local function addonLevel(fallback)
+  local level = 3
+  while true do
+    local info = getinfo(level, "S")
+    if not info then
+      return fallback
+    end
+    if info.source:sub(1, #ADDON_CHUNK_PREFIX) == ADDON_CHUNK_PREFIX then
+      return level - 1
+    end
+    level = level + 1
+  end
+end
+
 local function checkEvent(w, event)
   if not (w.manifest.events[event] or w.globals.events[event]) then
-    error("unknown event '" .. tostring(event) .. "' on " .. w.flavor, 3)
+    error("unknown event '" .. tostring(event) .. "' on " .. w.flavor, addonLevel(3))
   end
 end
 

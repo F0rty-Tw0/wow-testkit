@@ -23,6 +23,14 @@ local CONTAINS_BINDINGS = false
 local Scenario = {}
 Scenario.__index = Scenario
 
+-- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor
+-- as skipped instead of failed.
+local SKIPPED = setmetatable({}, {
+  __tostring = function()
+    return "addon skipped on this flavor; the scenario stops at s:login"
+  end,
+})
+
 local function copyList(list)
   local out = {}
   for i, v in ipairs(list or {}) do
@@ -76,7 +84,8 @@ function Scenario:fireIfKnown(event, ...)
   w:run(ENGINE, w.fire, w, event, ...)
 end
 
--- Loads the addon, applies saved variables and fires the login events. opts.saved overrides s.saved.
+-- Loads the addon, applies saved variables and fires the login events. opts.saved overrides s.saved. When the
+-- addon is skipped on the flavor (not declared), raises SKIPPED so the rest of the run does not execute.
 function Scenario:login(opts)
   if opts and opts.saved ~= nil then
     self.saved = opts.saved
@@ -84,7 +93,7 @@ function Scenario:login(opts)
   local w = self.w
   self.ns, self.info = w:run(ENGINE, Addon.load, w, { name = self.addon, root = self.root })
   if self.info.status == "skipped" then
-    return
+    error(SKIPPED, 0)
   end
   Addon.applySaved(w, self.info, self.saved)
   self:fireIfKnown("ADDON_LOADED", self.addon, CONTAINS_BINDINGS)
@@ -170,15 +179,15 @@ local function unscriptedList(unscripted)
   return list
 end
 
--- status: "fail" when any error was recorded, else "skipped" when the addon was skipped (reason says why), else
+-- status: "skipped" when the addon was skipped (reason says why), else "fail" when any error was recorded, else
 -- "pass".
 function Scenario:report()
   local w, info = self.w, self.info
   local status = "pass"
-  if #w.errors > 0 then
-    status = "fail"
-  elseif info and info.status == "skipped" then
+  if info and info.status == "skipped" then
     status = "skipped"
+  elseif #w.errors > 0 then
+    status = "fail"
   end
   local notes = copyList(info and info.report)
   for _, text in ipairs(self.notes) do
@@ -212,7 +221,8 @@ local function guarded(fn, s)
   return ok, err, traceback
 end
 
--- One flavor: a thrown error from fn is recorded in the world (so it fails the report); the world is always destroyed.
+-- One flavor: a thrown error from fn is recorded in the world (so it fails the report), except SKIPPED; the world
+-- is always destroyed.
 local function runFlavor(flavor, fn, opts)
   local newOpts = { addon = opts.addon, root = opts.root, flavor = flavor, saved = opts.saved, config = opts.config, golden = opts.golden }
   local okNew, s = pcall(M.new, newOpts)
@@ -220,7 +230,7 @@ local function runFlavor(flavor, fn, opts)
     return failedReport(flavor, s, nil)
   end
   local ok, err, traceback = s.w:run("scenario", guarded, fn, s)
-  if not ok then
+  if not ok and err ~= SKIPPED then
     s.w:recordError(err, traceback)
   end
   local okReport, report = pcall(s.report, s)

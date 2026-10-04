@@ -17,6 +17,7 @@ local UNSCRIPTED_TOP = 10
 local SCENARIO_DIR = "/tests/scenarios"
 local SCENARIO_FILE = "^scn_(.+)%.lua$"
 local GOLDEN_WRITTEN = "^golden written: "
+local NOTHING_RAN = "WARNING: nothing passed or failed (every scenario was skipped); check the TOC and the flavor filter\n"
 
 -- { flavors?, update?, root } from argv[2..], or nil plus a message.
 local function parseTest(argv)
@@ -145,7 +146,7 @@ local function rowLine(row)
   return "FAIL " .. id
 end
 
--- Prints the summary; returns the number of failed rows.
+-- Prints the summary; returns the counts { pass, fail, skipped, written }.
 local function report(rows, write)
   local counts = { pass = 0, fail = 0, skipped = 0, written = 0 }
   for _, row in ipairs(rows) do
@@ -163,7 +164,18 @@ local function report(rows, write)
   write(unscriptedLine(rows) .. "\n")
   local goldens = counts.written == 1 and "golden" or "goldens"
   write(string.format("%d passed, %d failed, %d skipped, %d %s written\n", counts.pass, counts.fail, counts.skipped, counts.written, goldens))
-  return counts.fail
+  return counts
+end
+
+-- A run where nothing passed or failed proves nothing, so it fails with a warning.
+local function exitCode(counts, write)
+  if counts.fail > 0 then
+    return EXIT_FAIL
+  elseif counts.pass == 0 then
+    write(NOTHING_RAN)
+    return EXIT_FAIL
+  end
+  return EXIT_OK
 end
 
 local function testCommand(argv, write)
@@ -181,7 +193,7 @@ local function testCommand(argv, write)
     write("no scenarios: " .. opts.root .. SCENARIO_DIR .. "/scn_*.lua\n")
     return EXIT_USAGE
   end
-  return report(runScenarios(opts, addon, paths), write) > 0 and EXIT_FAIL or EXIT_OK
+  return exitCode(report(runScenarios(opts, addon, paths), write), write)
 end
 
 -- Runs argv (without the program name); all output goes through write. Returns the exit code.

@@ -9,6 +9,8 @@ local MYTHIC_SUMMARY = "C_PlayerInfo.GetPlayerMythicPlusRatingSummary"
 local DOTTED_PERMISSIVE = "C_AccountServices.IsAccountSaveEnabled"
 local RETAIL_TOC_VERSION = 120100
 local NEW_LIMIT_SECONDS = 5
+-- SecureOnly in retail's manifest (checked 2026-10-04): Blizzard code only, never visible to addons.
+local SECURE_ONLY = "C_CombatLogSecure.AddEventFilter"
 
 -- Runs first, so the retail manifest load is included in the cold timing.
 local function test_retail_world_new_is_fast()
@@ -44,6 +46,31 @@ local function test_destroy_removes_api_and_restores_set_globals()
   A.eq(rawget(_G, "TK_NS"), nil)
   A.eq(_G.TK_PREEXISTING, "before")
   _G.TK_PREEXISTING = nil
+end
+
+local function copyOf(t)
+  local out = {}
+  for k, v in pairs(t) do
+    out[k] = v
+  end
+  return out
+end
+
+local function test_destroy_restores_host_library_tables_exactly()
+  local libraries = { string = string, table = table, math = math, os = os, coroutine = coroutine }
+  local before = {}
+  for name, lib in pairs(libraries) do
+    before[name] = copyOf(lib)
+  end
+  withWorld("retail", function()
+    for _, lib in pairs(libraries) do
+      rawset(lib, "tkAdded", true)
+    end
+    rawset(string, "reverse", function() end)
+  end)
+  for name, lib in pairs(libraries) do
+    A.same(copyOf(lib), before[name], name)
+  end
 end
 
 local function test_destroy_restores_globals_metatable()
@@ -154,6 +181,13 @@ local function test_run_rejects_unknown_context()
   end)
 end
 
+local function test_secure_only_function_is_not_installed()
+  withWorld("retail", function(w)
+    A.eq(w.manifest.functions[SECURE_ONLY].secureOnly, true)
+    A.eq(lookup(SECURE_ONLY), nil)
+  end)
+end
+
 local function test_build_info_and_project_on_retail()
   withWorld("retail", function()
     A.same({ _G.GetBuildInfo() }, { "12.1.0", "69933", "Oct 1 2026", RETAIL_TOC_VERSION })
@@ -180,6 +214,7 @@ return function()
   test_retail_world_new_is_fast()
   test_vanilla_lacks_mythic_plus_summary_retail_has_it()
   test_destroy_removes_api_and_restores_set_globals()
+  test_destroy_restores_host_library_tables_exactly()
   test_destroy_restores_globals_metatable()
   test_forever_library_extensions_restored_on_destroy()
   test_install_api_gate()
@@ -192,6 +227,7 @@ return function()
   test_run_pops_context_on_error_and_rethrows_original()
   test_run_nests_contexts_and_returns_results()
   test_run_rejects_unknown_context()
+  test_secure_only_function_is_not_installed()
   test_build_info_and_project_on_retail()
   test_project_id_on_vanilla()
   test_enums_and_constants_installed()

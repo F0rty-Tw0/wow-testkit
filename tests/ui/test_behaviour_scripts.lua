@@ -1,6 +1,10 @@
 -- Widget script and event methods: delegation to the world's script registry and event bus.
 local A = require("assert")
+local Addon = require("addon")
 local HW = require("tests.helpers.widgets")
+
+local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
+local BAD_EVENT_ROOT = TEST_DIR .. "/../fixtures/addons/BadEvent"
 
 local withWidgets = HW.withWidgets
 
@@ -58,6 +62,14 @@ local function test_register_unknown_event_errors_naming_event_and_flavor()
   end)
 end
 
+local function test_unknown_event_error_points_at_the_addon_line()
+  withWidgets("retail", function(w)
+    Addon.load(w, { name = "BadEvent", root = BAD_EVENT_ROOT })
+    A.eq(#w.errors, 1)
+    A.contains(tostring(w.errors[1].message), "addon:BadEvent/BadEvent.lua:3:")
+  end)
+end
+
 local function test_registered_event_reaches_on_event()
   withWidgets("retail", function(w)
     local f = _G.CreateFrame("Frame")
@@ -103,6 +115,7 @@ return function()
   test_hook_script_rejects_unsupported_handler()
   test_hooked_script_runs_after_script()
   test_register_unknown_event_errors_naming_event_and_flavor()
+  test_unknown_event_error_points_at_the_addon_line()
   test_registered_event_reaches_on_event()
   test_unregister_all_events_clears_registrations()
   test_unregister_event_stops_delivery()
