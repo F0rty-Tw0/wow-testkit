@@ -270,6 +270,23 @@ local function test_record_error_finds_source_in_traceback()
   end)
 end
 
+local function test_record_error_resolves_truncated_chunk_name_to_registered_one()
+  withWorld("retail", function(w)
+    w:registerChunk("addon:Foo/Deep/Path/File.lua")
+    w:recordError("...p/Path/File.lua:3: boom", "stack traceback:")
+    A.eq(w.errors[1].source, "addon:Foo/Deep/Path/File.lua")
+  end)
+end
+
+local function test_record_error_leaves_ambiguous_truncated_name_unresolved()
+  withWorld("retail", function(w)
+    w:registerChunk("addon:Foo/A/File.lua")
+    w:registerChunk("addon:Bar/A/File.lua")
+    w:recordError("...A/File.lua:3: boom", "stack traceback:")
+    A.eq(w.errors[1].source, nil)
+  end)
+end
+
 local function test_destroy_clears_timers_scripts_and_events()
   local w = World.new({ flavor = "retail" })
   local obj, c = {}, counter()
@@ -303,5 +320,7 @@ return function()
   test_set_script_nil_clears_script_keeps_hooks()
   test_record_error_sets_addon_source()
   test_record_error_finds_source_in_traceback()
+  test_record_error_resolves_truncated_chunk_name_to_registered_one()
+  test_record_error_leaves_ambiguous_truncated_name_unresolved()
   test_destroy_clears_timers_scripts_and_events()
 end

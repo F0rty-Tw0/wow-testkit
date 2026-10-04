@@ -6,6 +6,7 @@ local unpack = unpack
 
 local START_TIME = 1000.0
 local ADDON_SOURCE_PATTERN = 'addon:[^:\r\n"%]]+'
+local TRUNCATED_SOURCE_PATTERN = '%.%.%.([^:\r\n"%]]+):%d+:'
 local MAX_TIMER_FIRES = 10000
 
 local methods = {}
@@ -58,13 +59,49 @@ function M.reset(w)
   w.timerSeq = 0
   w.scripts = setmetatable({}, { __mode = "k" })
   w.eventFrames = {}
+  w.chunks = {}
+end
+
+-- Registers a full chunk name ("addon:Name/path.lua"), so recordError can resolve the "...tail" form Lua 5.1 gives
+-- chunk names longer than LUA_IDSIZE.
+function methods:registerChunk(name)
+  self.chunks[name] = true
+end
+
+-- The one registered chunk name ending in tail; nil when none or several do.
+local function resolveTail(chunks, tail)
+  local found
+  for name in pairs(chunks) do
+    if name:sub(-#tail) == tail then
+      if found then
+        return nil
+      end
+      found = name
+    end
+  end
+  return found
+end
+
+local function sourceIn(w, text)
+  if not text then
+    return nil
+  end
+  text = tostring(text)
+  local source = text:match(ADDON_SOURCE_PATTERN)
+  if source then
+    return source
+  end
+  for tail in text:gmatch(TRUNCATED_SOURCE_PATTERN) do
+    source = resolveTail(w.chunks, tail)
+    if source then
+      return source
+    end
+  end
+  return nil
 end
 
 function methods:recordError(message, traceback)
-  local source = tostring(message):match(ADDON_SOURCE_PATTERN)
-  if not source and traceback then
-    source = tostring(traceback):match(ADDON_SOURCE_PATTERN)
-  end
+  local source = sourceIn(self, message) or sourceIn(self, traceback)
   self.errors[#self.errors + 1] = { message = message, traceback = traceback, source = source }
 end
 

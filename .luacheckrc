@@ -21,6 +21,11 @@ files["tests/**/*.lua"] = {
   globals = { "arg" },
 }
 
+-- Addon loader fixture: its global write is the behavior under test.
+files["tests/fixtures/addons/Mini/C.lua"] = {
+  globals = { "MiniGlobal" },
+}
+
 -- Synthetic API documentation files run inside the docs loader's sandbox.
 files["tests/fixtures/docs*/*.lua"] = {
   read_globals = { "APIDocumentation", "Enum", "Constants" },
