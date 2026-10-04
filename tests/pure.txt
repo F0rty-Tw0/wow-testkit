@@ -2,3 +2,5 @@ tests/test_assert.lua
 tests/test_fs.lua
 tests/test_home.lua
 tests/test_serialize.lua
+tests/tools/test_flavors.lua
+tests/tools/test_docs.lua

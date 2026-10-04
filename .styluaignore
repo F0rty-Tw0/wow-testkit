@@ -1,0 +1,2 @@
+# Deliberately invalid Lua (loader error-path fixture).
+tests/fixtures/docs_bad/

@@ -9,6 +9,7 @@ jobs = 4
 exclude_files = {
   ".luacheckrc",
   "api/", -- generated
+  "tests/fixtures/docs_bad/", -- deliberately invalid Lua
 }
 
 ignore = {
@@ -18,4 +19,9 @@ ignore = {
 -- Runners set `arg` for --script mode; fixtures read it.
 files["tests/**/*.lua"] = {
   globals = { "arg" },
+}
+
+-- Synthetic API documentation files run inside the docs loader's sandbox.
+files["tests/fixtures/docs*/*.lua"] = {
+  read_globals = { "APIDocumentation", "Enum", "Constants" },
 }
