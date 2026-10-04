@@ -1,0 +1,13 @@
+## Interface: 120100
+## Interface-Mainline: 120100
+## Interface-Forever: 16001
+## Interface-Vanilla: 11509
+## Interface-Classic: 11509
+## Interface-TBC: 20506
+## Interface-BCC: 20506
+## Interface-Mists: 50504
+## Interface-MoP: 50504
+## Title: Hover
+## SavedVariables: HoverDB
+
+Hover.lua
