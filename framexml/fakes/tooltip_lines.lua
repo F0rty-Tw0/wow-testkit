@@ -58,7 +58,7 @@ end
 
 local function levelText(w, unit, isPlayer)
   local level = M.ask(w, "UnitLevel", unit)
-  if level == UNKNOWN_LEVEL then
+  if level == nil or level == UNKNOWN_LEVEL then
     level = UNKNOWN_LEVEL_TEXT
   end
   if isPlayer then

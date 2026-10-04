@@ -65,6 +65,14 @@ local function test_unknown_level_shows_question_marks()
   A.eq(data.lines[2].leftText, "Level ??")
 end
 
+local function test_absent_level_shows_question_marks_not_nil()
+  local texts = leftTexts(buildFor("vanilla", { name = "Bob" }))
+  for _, text in ipairs(texts) do
+    A.eq(text:find("nil", 1, true), nil, "no line says nil: " .. text)
+  end
+  A.eq(texts[2], "Level ??")
+end
+
 local function test_guild_faction_and_pvp_lines()
   local fixture = { name = "Bob", isPlayer = true, className = "Mage", raceName = "Orc", level = 80 }
   fixture.guild, fixture.faction, fixture.pvp = "Wardens", "Horde", true
@@ -88,6 +96,7 @@ return function()
   test_npc_name_line_uses_reaction_color()
   test_realm_is_appended_to_name()
   test_unknown_level_shows_question_marks()
+  test_absent_level_shows_question_marks_not_nil()
   test_guild_faction_and_pvp_lines()
   test_level_line_has_none_type()
 end
