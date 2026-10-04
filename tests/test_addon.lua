@@ -135,6 +135,61 @@ local function test_long_chunk_name_error_keeps_full_source()
   end)
 end
 
+local function test_addon_code_cannot_reach_host_only_globals()
+  withWorld("retail", function(w)
+    local ns = load(w, "Sandbox")
+    A.same(w.errors, {})
+    local seen = ns.seen
+    A.same(seen, {
+      gRequire = "nil",
+      io = "nil",
+      package = "nil",
+      loadfile = "nil",
+      dofile = "nil",
+      debug = "nil",
+      gIo = "nil",
+      gG = true,
+    })
+  end)
+end
+
+local function test_addon_os_keeps_only_the_time_functions()
+  withWorld("retail", function(w)
+    local ns = load(w, "Sandbox")
+    A.eq(ns.osTime, "number")
+    A.eq(ns.osExecute, "nil")
+  end)
+end
+
+local function test_addon_getfenv_and_loadstring_do_not_reach_the_real_globals()
+  withWorld("retail", function(w)
+    local ns = load(w, "Sandbox")
+    A.eq(ns.loadstring, "function")
+    A.eq(ns.getfenv, "function")
+    A.eq(ns.fenvRequire, "nil")
+    A.eq(ns.loadstringRequire, "nil")
+    A.eq(ns.loadstringIo, "nil")
+  end)
+end
+
+local function test_addon_rawget_and_pairs_on_g_see_globals_but_not_host_only_names()
+  withWorld("retail", function(w)
+    local ns = load(w, "Sandbox")
+    A.eq(ns.rawRequire, "nil")
+    A.eq(ns.pairsIo, false)
+    A.eq(ns.pairsFoo, true)
+  end)
+end
+
+local function test_addon_write_through_g_is_a_global_removed_on_destroy()
+  withWorld("retail", function(w)
+    local ns = load(w, "Sandbox")
+    A.eq(rawget(_G, "SandboxFoo"), 1)
+    A.eq(ns.rawFoo, 1)
+  end)
+  A.eq(rawget(_G, "SandboxFoo"), nil)
+end
+
 local function test_apply_saved_sets_saved_variable_globals()
   withWorld("retail", function(w)
     local _, info = load(w, "Mini")
@@ -158,4 +213,9 @@ return function()
   test_missing_xml_and_xml_script_are_errors()
   test_long_chunk_name_error_keeps_full_source()
   test_apply_saved_sets_saved_variable_globals()
+  test_addon_code_cannot_reach_host_only_globals()
+  test_addon_os_keeps_only_the_time_functions()
+  test_addon_getfenv_and_loadstring_do_not_reach_the_real_globals()
+  test_addon_rawget_and_pairs_on_g_see_globals_but_not_host_only_names()
+  test_addon_write_through_g_is_a_global_removed_on_destroy()
 end

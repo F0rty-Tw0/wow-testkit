@@ -19,16 +19,125 @@ local function requireSentinel(flavor)
   end
 end
 
--- Reads fall through to _G; writes land in _G (raw, so w:destroy's snapshot removes them). The require sentinel
--- is raw in the environment, so it shadows any host require.
-local function newEnv(flavor)
-  local env = setmetatable({}, {
-    __index = _G,
+-- Host-only names WoW's client does not have; addon code never sees their host values, whatever path it reads _G
+-- through. A global the addon itself assigns under one of these names stays visible.
+local HOST_ONLY = { "require", "io", "package", "loadfile", "dofile", "debug", "module", "load" }
+local HOST_VALUES = {}
+for _, name in ipairs(HOST_ONLY) do
+  HOST_VALUES[name] = rawget(_G, name)
+end
+local OS_KEPT = { "time", "date", "clock", "difftime" }
+
+local hostOs, hostLoadstring, hostGetfenv, hostSetfenv = os, loadstring, getfenv, setfenv
+local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
+
+local function keptOs()
+  local out = {}
+  for _, name in ipairs(OS_KEPT) do
+    out[name] = hostOs[name]
+  end
+  return out
+end
+
+-- Values the view answers instead of _G's: host-only names map to false (see hidden); functions that would hand
+-- out the real _G hand out the view instead.
+local function overridesFor(view, flavor)
+  local overrides = { _G = view, os = keptOs() }
+  for _, name in ipairs(HOST_ONLY) do
+    overrides[name] = false
+  end
+  if flavor == "forever" then
+    overrides.require = requireSentinel(flavor)
+  end
+  overrides.getfenv = function(f)
+    if f == nil then
+      f = 1
+    end
+    local env = hostGetfenv(type(f) == "number" and f > 0 and f + 1 or f)
+    return env == _G and view or env
+  end
+  overrides.loadstring = function(src, chunkName)
+    local fn, err = hostLoadstring(src, chunkName)
+    return fn and hostSetfenv(fn, view), err
+  end
+  return overrides
+end
+
+-- True when key is a host-only name still holding its host value.
+local function hidden(overrides, key)
+  return overrides[key] == false and hostRawget(_G, key) == HOST_VALUES[key]
+end
+
+-- What the view answers for key; raw reads _G without its metatable.
+local function answer(overrides, key, raw)
+  local value = overrides[key]
+  if hidden(overrides, key) then
+    return nil
+  elseif value then
+    return value
+  elseif raw then
+    return hostRawget(_G, key)
+  end
+  return _G[key]
+end
+
+-- rawget/rawset/next/pairs given the view work on _G with the view's answers (hidden names skipped).
+local function addRawAccess(overrides, view)
+  local function viewNext(_, key)
+    local k = hostNext(_G, key)
+    while k ~= nil and hidden(overrides, k) do
+      k = hostNext(_G, k)
+    end
+    if k ~= nil then
+      return k, answer(overrides, k, true)
+    end
+  end
+  overrides.next = function(t, key)
+    if t == view then
+      return viewNext(t, key)
+    end
+    return hostNext(t, key)
+  end
+  overrides.pairs = function(t)
+    if t == view then
+      return viewNext, t, nil
+    end
+    return hostPairs(t)
+  end
+  overrides.rawget = function(t, key)
+    if t == view then
+      return answer(overrides, key, true)
+    end
+    return hostRawget(t, key)
+  end
+  overrides.rawset = function(t, key, value)
+    hostRawset(t == view and _G or t, key, value)
+    return t
+  end
+end
+
+-- The addon's _G: reads see _G through the overrides; writes land in _G (raw, so w:destroy's snapshot removes
+-- them). Kit code keeps its own upvalues, so hiding names here never affects it.
+local function newView(flavor)
+  local view = {}
+  local overrides = overridesFor(view, flavor)
+  addRawAccess(overrides, view)
+  return setmetatable(view, {
+    __index = function(_, key)
+      return answer(overrides, key, false)
+    end,
     __newindex = function(_, key, value)
-      rawset(_G, key, value)
+      hostRawset(_G, key, value)
     end,
   })
-  rawset(env, "require", requireSentinel(flavor))
+end
+
+-- The per-addon environment: the view plus the require sentinel, raw in the environment so it shadows any host
+-- require.
+local function newEnv(flavor)
+  local view = newView(flavor)
+  local env = setmetatable({}, { __index = view, __newindex = view })
+  hostRawset(env, "require", requireSentinel(flavor))
   return env
 end
 
