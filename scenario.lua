@@ -206,6 +206,9 @@ function Scenario:report()
   for _, text in ipairs(self.notes) do
     notes[#notes + 1] = text
   end
+  for _, text in ipairs(w.notes or {}) do
+    notes[#notes + 1] = text
+  end
   return {
     flavor = self.flavor,
     status = status,

@@ -1,0 +1,158 @@
+-- Menu frames: renders a menu level (list of entries) into real Button frames and tracks the open levels in w.menus.
+-- UIDropDownMenu levels use Blizzard's DropDownList<L> names; Menu API levels are unnamed frames under UIParent.
+local M = {}
+
+local Core = require("framexml.fakes.core")
+
+local MAX_LEVELS = 3
+-- S9 (assumed): the shipped DropDownList frames come from UIDropDownMenu.xml, which the mirror does not hold; the
+-- same template makes them Buttons. Mainline Interface/AddOns/Blizzard_SharedXML/Mainline/UIDropDownMenu.lua:345
+-- builds extra lists with CreateFrame("Button", "DropDownList"..n, nil, "UIDropDownListTemplate").
+local LIST_TYPE = "Button"
+local NO_MOUSE_KINDS = { title = true, divider = true }
+
+-- The frame that holds the level's entries: DropDownList<L> by name, else a fresh unnamed Frame under UIParent.
+local function containerFor(w, level)
+  if level.frame then
+    return level.frame
+  end
+  if level.namePrefix then
+    return _G[level.namePrefix]
+  end
+  return w.ui.create("Frame", nil, _G.UIParent)
+end
+
+-- Entry i's Button: reused from the container's pool, else created (named <namePrefix>Button<i> when the level has a prefix).
+local function buttonAt(w, level, container, index)
+  local pool = w.menuPool[container]
+  if not pool then
+    pool = {}
+    w.menuPool[container] = pool
+  end
+  if pool[index] then
+    return pool[index]
+  end
+  local name = level.namePrefix and (level.namePrefix .. "Button" .. index)
+  local button = w.ui.create("Button", name, container)
+  button.NormalText = button:CreateFontString(name and (name .. "NormalText"))
+  pool[index] = button
+  return button
+end
+
+-- The level's position in w.menus, or nil when it is not open.
+local function depthOf(w, level)
+  for depth, open in ipairs(w.menus) do
+    if open == level then
+      return depth
+    end
+  end
+  return nil
+end
+
+local function enterEntry(w, level, entry, index)
+  local depth = depthOf(w, level)
+  if entry.hasSubmenu then
+    level.openSubmenu(index)
+  elseif depth then
+    M.close(w, depth + 1)
+  end
+end
+
+-- Kit scripts for one entry, set through the world so an addon's SetScript replaces them; titles and dividers get none.
+local function setEntryScripts(w, level, entry, index, button)
+  local interactive = not NO_MOUSE_KINDS[entry.kind]
+  button:EnableMouse(interactive)
+  local onClick, onEnter
+  if interactive then
+    onClick = function(_, mouseButton)
+      level.pick(index, mouseButton)
+    end
+    onEnter = function()
+      enterEntry(w, level, entry, index)
+    end
+  end
+  w:setScript(button, "OnClick", onClick)
+  w:setScript(button, "OnEnter", onEnter)
+end
+
+local function fillButton(w, level, entry, index, button)
+  button.NormalText:SetText(entry.text or "")
+  if entry.enabled == false then
+    button:Disable()
+  else
+    button:Enable()
+  end
+  setEntryScripts(w, level, entry, index, button)
+  button:Show()
+  entry.frame = button
+end
+
+-- Renders level into frames: sets level.frame and each entry.frame; buttons past the entry count are hidden.
+function M.render(w, level)
+  local container = containerFor(w, level)
+  level.frame = container
+  for index, entry in ipairs(level.entries) do
+    fillButton(w, level, entry, index, buttonAt(w, level, container, index))
+  end
+  for index = #level.entries + 1, #(w.menuPool[container] or {}) do
+    w.menuPool[container][index]:Hide()
+  end
+end
+
+-- True when focus is the container or one of its descendants.
+local function focusInside(focus, container)
+  local current = focus
+  while current do
+    if current == container then
+      return true
+    end
+    current = current:GetParent()
+  end
+  return false
+end
+
+-- S3 (assumed): hiding a shown frame under the cursor fires its OnLeave (Interface/AddOns/Blizzard_Menu/Menu.lua:1077,
+-- "causing the OnLeave to be called"); motion = false because a hide is not mouse movement (wiki UIHANDLER_OnLeave).
+-- The focus clears before OnLeave runs, as Input.leave does.
+local function hideLevel(w, level)
+  local container = level.frame
+  container:Hide()
+  local focus = w.input.mouseFocus
+  if focus and focusInside(focus, container) then
+    w.input.mouseFocus = nil
+    w:callScript(focus, "OnLeave", false)
+  end
+end
+
+-- Closes level depth and every deeper level, deepest first.
+function M.close(w, depth)
+  for i = #w.menus, depth, -1 do
+    hideLevel(w, w.menus[i])
+    w.menus[i] = nil
+  end
+end
+
+-- Opens level at depth (1 is the first menu): closes it and deeper levels first, then renders and shows it.
+function M.open(w, depth, level)
+  M.close(w, depth)
+  if depth > #w.menus + 1 then
+    error("open: depth " .. depth .. " leaves a gap", 2)
+  end
+  w.menus[depth] = level
+  M.render(w, level)
+  level.frame:Show()
+end
+
+function M.install(w)
+  w.menus = {}
+  w.notes = {}
+  w.menuPool = {}
+  for i = 1, MAX_LEVELS do
+    local list = Core.createNamed(w, LIST_TYPE, "DropDownList" .. i, _G.UIParent)
+    if list then
+      list:Hide()
+    end
+  end
+end
+
+return M
