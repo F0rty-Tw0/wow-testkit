@@ -84,4 +84,99 @@ function methods.SetScript(w, obj, st, script, fn)
   return BehaviourScripts.methods.SetScript(w, obj, st, script, fn)
 end
 
+-- Button and CheckButton. State: st.disabled (nil = enabled), st.checked, st.clicks (set of "<Button>Up|Down";
+-- nil = left button up only).
+local ANY_BUTTONS = { "LeftButton", "RightButton", "MiddleButton", "Button4", "Button5" }
+local DEFAULT_CLICKS = { LeftButtonUp = true }
+
+-- source: assumed (row I1) OnEnable/OnDisable fire only when the enabled state changes.
+local function setEnabled(w, obj, st, enabled)
+  local disabled = not enabled
+  if (st.disabled or false) == disabled then
+    return
+  end
+  st.disabled = disabled
+  w:callScript(obj, enabled and "OnEnable" or "OnDisable")
+end
+
+local function enable(w, obj, st)
+  setEnabled(w, obj, st, true)
+end
+
+local function disable(w, obj, st)
+  setEnabled(w, obj, st, false)
+end
+
+local function isEnabled(_, _, st)
+  return not st.disabled
+end
+
+local function addClicks(clicks, name)
+  local direction = name:match("^Any(%a+)$")
+  if not direction then
+    clicks[name] = true
+    return
+  end
+  for _, button in ipairs(ANY_BUTTONS) do
+    clicks[button .. direction] = true
+  end
+end
+
+-- source: confirmed (row I2) RegisterForClicks("AnyUp" | "<Button>Up|Down", ...) replaces the registered set.
+local function registerForClicks(_, _, st, ...)
+  local clicks = {}
+  for i = 1, select("#", ...) do
+    addClicks(clicks, (select(i, ...)))
+  end
+  st.clicks = clicks
+end
+
+function M.isRegistered(w, frame, button, direction)
+  local clicks = w.ui.state[frame].clicks or DEFAULT_CLICKS
+  return clicks[button .. direction] == true
+end
+
+-- source: assumed (row I4) a CheckButton flips its checked state before PreClick.
+function M.runClick(w, frame, button, down)
+  local st = w.ui.state[frame]
+  if st.plan.isA.checkbutton then
+    st.checked = not st.checked
+  end
+  w:callScript(frame, "PreClick", button, down)
+  w:callScript(frame, "OnClick", button, down)
+  w:callScript(frame, "PostClick", button, down)
+end
+
+-- source: confirmed (row I3) Click() ignores registration, mouse and visibility; a disabled button does nothing.
+local function click(w, obj, st, button)
+  if st.disabled then
+    return
+  end
+  M.runClick(w, obj, button or "LeftButton", false)
+end
+
+local function setChecked(_, _, st, checked)
+  st.checked = checked and true or false
+end
+
+local function getChecked(_, _, st)
+  return st.checked == true
+end
+
+local buttonMethods = {
+  Enable = enable,
+  Disable = disable,
+  IsEnabled = isEnabled,
+  RegisterForClicks = registerForClicks,
+  Click = click,
+}
+for name, impl in pairs(buttonMethods) do
+  M.typed[name] = M.onlyFor("button", impl)
+end
+M.typed.SetEnabled = M.onlyFor("button", function(w, obj, st, enabled)
+  setEnabled(w, obj, st, enabled and true or false)
+end)
+M.typed.SetChecked = M.onlyFor("checkbutton", setChecked)
+M.typed.GetChecked = M.onlyFor("checkbutton", getChecked)
+
 return M

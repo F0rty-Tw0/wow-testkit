@@ -1,6 +1,8 @@
 -- Widget input methods: mouse state, mouse-over queries, Button and CheckButton clicks, EditBox focus and text.
 local A = require("assert")
+local BehaviourInput = require("ui.behaviour_input")
 local HW = require("tests.helpers.widgets")
+local Rec = require("tests.helpers.input")
 
 local withWidgets = HW.withWidgets
 
@@ -108,6 +110,128 @@ local function test_mouse_queries_are_not_counted_as_unscripted()
   end)
 end
 
+local function test_disable_and_enable_fire_their_scripts_only_on_change_assumed() -- (I1)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "OnEnable", "OnDisable" })
+    A.eq(b:IsEnabled(), true)
+    b:Enable()
+    b:Disable()
+    b:Disable()
+    b:SetEnabled(true)
+    A.same(log, { { "OnDisable" }, { "OnEnable" } })
+    A.eq(b:IsEnabled(), true)
+  end)
+end
+
+local function test_click_runs_the_three_scripts_with_button_and_down_false() -- (I3)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "PreClick", "OnClick", "PostClick" })
+    b:Click()
+    b:Click("RightButton")
+    A.same(log, {
+      { "PreClick", "LeftButton", false },
+      { "OnClick", "LeftButton", false },
+      { "PostClick", "LeftButton", false },
+      { "PreClick", "RightButton", false },
+      { "OnClick", "RightButton", false },
+      { "PostClick", "RightButton", false },
+    })
+  end)
+end
+
+local function test_check_button_click_flips_the_state_before_the_scripts_assumed() -- (I4)
+  withWidgets("retail", function()
+    local c = _G.CreateFrame("CheckButton")
+    local seen = {}
+    for _, script in ipairs({ "PreClick", "OnClick" }) do
+      c:SetScript(script, function(self)
+        seen[#seen + 1] = script .. "=" .. tostring(self:GetChecked())
+      end)
+    end
+    c:Click()
+    A.same(seen, { "PreClick=true", "OnClick=true" })
+    c:Click()
+    A.eq(c:GetChecked(), false)
+  end)
+end
+
+local function test_register_for_clicks_defaults_to_left_button_up() -- (I2)
+  withWidgets("retail", function(w)
+    local b = _G.CreateFrame("Button")
+    A.eq(BehaviourInput.isRegistered(w, b, "LeftButton", "Up"), true)
+    A.eq(BehaviourInput.isRegistered(w, b, "LeftButton", "Down"), false)
+    A.eq(BehaviourInput.isRegistered(w, b, "RightButton", "Up"), false)
+  end)
+end
+
+local function test_register_for_clicks_accepts_any_and_named_types() -- (I2)
+  withWidgets("retail", function(w)
+    local b = _G.CreateFrame("Button")
+    b:RegisterForClicks("AnyUp")
+    A.eq(BehaviourInput.isRegistered(w, b, "RightButton", "Up"), true)
+    A.eq(BehaviourInput.isRegistered(w, b, "LeftButton", "Down"), false)
+    b:RegisterForClicks("RightButtonDown", "LeftButtonUp")
+    A.eq(BehaviourInput.isRegistered(w, b, "RightButton", "Down"), true)
+    A.eq(BehaviourInput.isRegistered(w, b, "RightButton", "Up"), false)
+    A.eq(BehaviourInput.isRegistered(w, b, "LeftButton", "Up"), true)
+  end)
+end
+
+local function test_click_on_a_disabled_button_does_nothing() -- (I3)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "PreClick", "OnClick", "PostClick" })
+    b:Disable()
+    b:Click()
+    A.same(log, {})
+  end)
+end
+
+local function test_click_skips_mouse_and_visibility_checks() -- (I3)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "OnClick" })
+    b:EnableMouse(false)
+    b:Hide()
+    b:Click()
+    A.eq(#log, 1)
+  end)
+end
+
+local function test_enable_on_another_widget_type_keeps_the_generic_no_op()
+  withWidgets("retail", function(w)
+    _G.CreateFrame("Slider"):Enable()
+    A.eq(w.unscripted["Slider:Enable"], 1)
+  end)
+end
+
+local function test_set_checked_round_trips_and_fires_no_script()
+  withWidgets("retail", function()
+    local c = _G.CreateFrame("CheckButton")
+    local log = Rec.record(c, { "OnClick" })
+    c:SetChecked(true)
+    A.eq(c:GetChecked(), true)
+    c:SetChecked(false)
+    A.eq(c:GetChecked(), false)
+    A.same(log, {})
+  end)
+end
+
+local function test_run_click_passes_down_true()
+  withWidgets("retail", function(w)
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "PreClick", "OnClick", "PostClick" })
+    BehaviourInput.runClick(w, b, "LeftButton", true)
+    A.same(log, {
+      { "PreClick", "LeftButton", true },
+      { "OnClick", "LeftButton", true },
+      { "PostClick", "LeftButton", true },
+    })
+  end)
+end
+
 return function()
   test_widgets_install_creates_the_input_state()
   test_button_check_button_and_edit_box_start_mouse_enabled_assumed()
@@ -117,4 +241,14 @@ return function()
   test_enable_mouse_motion_sets_motion_only()
   test_is_mouse_over_covers_descendants_and_motion_focus_is_exact()
   test_mouse_queries_are_not_counted_as_unscripted()
+  test_disable_and_enable_fire_their_scripts_only_on_change_assumed()
+  test_click_runs_the_three_scripts_with_button_and_down_false()
+  test_check_button_click_flips_the_state_before_the_scripts_assumed()
+  test_register_for_clicks_defaults_to_left_button_up()
+  test_register_for_clicks_accepts_any_and_named_types()
+  test_click_on_a_disabled_button_does_nothing()
+  test_click_skips_mouse_and_visibility_checks()
+  test_enable_on_another_widget_type_keeps_the_generic_no_op()
+  test_set_checked_round_trips_and_fires_no_script()
+  test_run_click_passes_down_true()
 end
