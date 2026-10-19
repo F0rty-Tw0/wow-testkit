@@ -3,6 +3,7 @@ local A = require("assert")
 local fs = require("fs")
 local Flavors = require("tools.flavors")
 local Scenario = require("scenario")
+local Rec = require("tests.helpers.input")
 local World = require("world")
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
@@ -205,10 +206,37 @@ local function test_run_file_turns_on_golden_mode()
   A.eq(Scenario.runFile(GOLDEN_MODE_SCENARIO, opts).results.retail.status, "pass")
 end
 
+-- (I10, user ruling 2026-10-20) over the world: WorldFrame only when its motion is enabled, else no focus.
+local function test_hover_leaves_no_focus_when_world_frame_motion_is_off() -- (I10)
+  withHover("retail", function(s)
+    local b = _G.CreateFrame("Button", nil, _G.UIParent)
+    local log = Rec.record(b, { "OnLeave" })
+    s:enter(b)
+    s:unit("mouseover", BOB)
+    s:hover("mouseover")
+    A.same(log, { { "OnLeave", true } })
+    A.eq(s.w.input.mouseFocus, nil)
+    A.same(_G.GetMouseFoci(), {})
+  end)
+end
+
+local function test_hover_focuses_the_world_frame_when_its_motion_is_on() -- (I10)
+  withHover("retail", function(s)
+    s.w:run("blizzard", function()
+      _G.WorldFrame:SetMouseMotionEnabled(true)
+    end)
+    s:unit("mouseover", BOB)
+    s:hover("mouseover")
+    A.eq(s.w.input.mouseFocus, _G.WorldFrame)
+  end)
+end
+
 return function()
   test_hover_runs_the_unit_post_call_on_retail()
   test_hover_runs_the_tooltip_set_unit_hook_on_vanilla()
   test_login_fires_player_login_once()
+  test_hover_leaves_no_focus_when_world_frame_motion_is_off()
+  test_hover_focuses_the_world_frame_when_its_motion_is_on()
   test_login_error_fails_the_report_with_its_addon_source()
   test_run_continues_after_a_handler_error()
   test_run_file_runs_every_flavor_by_default()

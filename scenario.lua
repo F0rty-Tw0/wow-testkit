@@ -7,6 +7,7 @@ local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local FrameXML = require("framexml.fakes")
 local Golden = require("golden")
+local Input = require("input")
 local Snapshot = require("snapshot")
 local Units = require("units")
 local Widgets = require("ui.widgets")
@@ -22,6 +23,7 @@ local CONTAINS_BINDINGS = false
 
 local Scenario = {}
 Scenario.__index = Scenario
+require("scenario_input").extend(Scenario)
 
 -- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor
 -- as skipped instead of failed.
@@ -107,10 +109,21 @@ function Scenario:unit(token, data)
   self.w:unit(token, data)
 end
 
+-- (I10) The mouse moves off any frame (it gets OnLeave) and over the world; WorldFrame holds the focus only when
+-- its motion is enabled.
+local function moveMouseToWorld(w)
+  local focus = w.input.mouseFocus
+  if focus and focus ~= _G.WorldFrame then
+    Input.leave(w, focus)
+  end
+  w.input.mouseFocus = _G.WorldFrame:IsMouseMotionEnabled() and _G.WorldFrame or nil
+end
+
 -- Points mouseover at unit (a unit without a fixture gets an empty one, answering defaults), then shows the unit
 -- tooltip the way the client does on UPDATE_MOUSEOVER_UNIT.
 function Scenario:hover(unit)
   local w = self.w
+  w:run(ENGINE, moveMouseToWorld, w)
   if not w.unitState.byToken[unit:lower()] then
     self:note("hover: no fixture for '" .. unit .. "'; using defaults")
     w:unit(unit, {})
