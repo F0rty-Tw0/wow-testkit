@@ -11,6 +11,8 @@ KETHO_REPO="Ketho/BlizzardInterfaceResources"
 KETHO_FILES=(GlobalAPI Frames FrameXML WidgetAPI Events Templates)
 DOCS_PATH="Interface/AddOns/Blizzard_APIDocumentationGenerated"
 MIN_DOC_FILES=400
+# Reference only, never loaded by the kit: Blizzard's menu code, read when checking the kit's menu fakes.
+REFERENCE_PATHS=("Interface/AddOns/Blizzard_Menu/" "Interface/AddOns/Blizzard_SharedXML/*/UIDropDownMenu.lua")
 
 die() {
   echo "fetch.sh: $*" >&2
@@ -35,9 +37,10 @@ else
   echo "Cloning $branch into $gethe_dir"
   mkdir -p "$(dirname "$gethe_dir")"
   git -c core.longpaths=true clone --depth 1 --filter=blob:none --sparse --branch "$branch" "$GETHE_URL" "$gethe_dir"
-  git_ sparse-checkout set --no-cone "version.txt" "$DOCS_PATH/"
   echo "COMMIT" >>"$gethe_dir/.git/info/exclude" # keep the recorded commit out of `git status`
 fi
+# Every fetch, so an existing mirror picks up paths added here later.
+git_ sparse-checkout set --no-cone "/version.txt" "$DOCS_PATH/" "${REFERENCE_PATHS[@]}"
 
 [[ -z $(git_ status --porcelain) ]] || die "checkout of $branch is not clean: $(git_ status --porcelain | head -5)"
 doc_count=$(find "$gethe_dir/$DOCS_PATH" -maxdepth 1 -name '*.lua' | wc -l)
