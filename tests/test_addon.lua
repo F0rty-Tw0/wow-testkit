@@ -9,6 +9,7 @@ local withWorld = H.withWorld
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local ADDONS_DIR = TEST_DIR .. "/fixtures/addons"
+local SMOKE_DIR = TEST_DIR .. "/fixtures/smoke"
 local LONG_CHUNK = "addon:LongPath/Deeply/Nested/Folder/Structure/For/Testing/Truncation/Of/Chunk/Names.lua"
 
 math.randomseed(os.time())
@@ -200,12 +201,31 @@ local function test_apply_saved_sets_saved_variable_globals()
   A.eq(rawget(_G, "MiniDB"), nil)
 end
 
+local function test_no_toc_for_flavor_is_skipped()
+  withWorld("vanilla", function(w)
+    local _, info = Addon.load(w, { name = "MainlineToc", root = SMOKE_DIR .. "/MainlineToc" })
+    A.eq(info.status, "skipped")
+    A.eq(info.reason, "no TOC for this flavor")
+    A.same(info.report, {})
+  end)
+end
+
+local function test_unknown_addon_name_is_an_error()
+  withWorld("vanilla", function(w)
+    local ok, err = pcall(Addon.load, w, { name = "Nope", root = SMOKE_DIR .. "/MainlineToc" })
+    A.eq(ok, false)
+    A.contains(tostring(err), "cannot read TOC")
+  end)
+end
+
 return function()
   test_files_run_in_order_sharing_one_namespace()
   test_addon_globals_reach_g_and_go_on_destroy()
   test_require_fallback_fails_like_a_nil_global_on_retail()
   test_require_fallback_fails_with_invalid_import_on_forever()
   test_undeclared_flavor_is_skipped_without_running_files()
+  test_no_toc_for_flavor_is_skipped()
+  test_unknown_addon_name_is_an_error()
   test_load_error_is_recorded_and_later_files_still_run()
   test_outdated_interface_loads_with_a_report_line()
   test_ahead_interface_loads_with_a_report_line()

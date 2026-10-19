@@ -172,11 +172,25 @@ local function versionNote(declared, flavor)
   return string.format("TOC interface is %s for %s (client %d); loaded anyway", declared, flavor, row.tocVersion)
 end
 
+-- True when root holds a TOC for name on any flavor (a flavor-suffixed one or the bare <name>.toc).
+local function hasAnyToc(root, name)
+  for _, flavor in ipairs(Flavors.list) do
+    if fs.exists(Toc.select(root, name, flavor)) then
+      return true
+    end
+  end
+  return false
+end
+
 -- opts: { name, root }. Returns ns, info = { status = "loaded"|"skipped", reason, toc, declared, report,
--- savedVariables, savedVariablesPerCharacter }.
+-- savedVariables, savedVariablesPerCharacter }. No TOC for this flavor but one for another: skipped, with only
+-- status, reason and report. No TOC for the name at all: an error.
 function M.load(w, opts)
   local name, root = opts.name, opts.root
   local tocPath = Toc.select(root, name, w.flavor)
+  if not fs.exists(tocPath) and hasAnyToc(root, name) then
+    return {}, { status = "skipped", reason = "no TOC for this flavor", report = {} }
+  end
   local parsed = Toc.parse(assert(fs.readFile(tocPath), "cannot read TOC " .. tocPath))
   local info = {
     toc = tocPath,
