@@ -6,6 +6,7 @@ local fs = require("fs")
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local ADDONS_DIR = TEST_DIR .. "/fixtures/addons"
+local SMOKE_DIR = TEST_DIR .. "/fixtures/smoke"
 
 local function parseFixture(name)
   return Toc.parse(assert(fs.readFile(ADDONS_DIR .. "/" .. name .. "/" .. name .. ".toc")))
@@ -74,6 +75,35 @@ local function test_missing_interface_is_not_declared()
   A.eq(Toc.declared({}, "retail"), "not-declared")
 end
 
+local function test_declared_outdated_within_version_line()
+  A.eq(Toc.declared({ Interface = "120001" }, "retail"), "outdated")
+end
+
+local function test_declared_outdated_within_version_line_on_mists()
+  A.eq(Toc.declared({ ["Interface-Mists"] = "50400" }, "mists"), "outdated")
+end
+
+local function test_declared_outdated_within_version_line_on_tbc()
+  A.eq(Toc.declared({ ["Interface-TBC"] = "20400" }, "tbc"), "outdated")
+end
+
+local function test_declared_old_vanilla_value_not_outdated_on_vanilla()
+  A.eq(Toc.declared({ ["Interface-Vanilla"] = "11404" }, "vanilla"), "not-declared")
+end
+
+local function test_declared_other_major_not_declared()
+  A.eq(Toc.declared({ Interface = "50503" }, "retail"), "not-declared")
+end
+
+local function test_declared_same_major_higher_not_declared()
+  A.eq(Toc.declared({ Interface = "120200" }, "retail"), "not-declared")
+end
+
+local function test_declared_vanilla_value_not_outdated_on_forever()
+  A.eq(Toc.declared({ Interface = "11508" }, "forever"), "not-declared")
+  A.eq(Toc.declared({ Interface = "11404" }, "forever"), "not-declared")
+end
+
 local function test_select_prefers_flavor_suffix_toc()
   A.eq(Toc.select(ADDONS_DIR .. "/Suffix", "Suffix", "vanilla"), ADDONS_DIR .. "/Suffix/Suffix_Vanilla.toc")
   A.eq(Toc.select(ADDONS_DIR .. "/Suffix", "Suffix", "retail"), ADDONS_DIR .. "/Suffix/Suffix.toc")
@@ -140,6 +170,16 @@ local function test_unreadable_xml_is_reported()
   A.contains(report[1], "Missing.xml")
 end
 
+local function test_addon_name_from_folder()
+  A.eq(Toc.addonName(ADDONS_DIR .. "/Multi"), "Multi")
+end
+
+local function test_addon_name_ambiguous()
+  local name, message = Toc.addonName(SMOKE_DIR .. "/NoName")
+  A.eq(name, nil)
+  A.contains(message, "found 2 TOC names")
+end
+
 return function()
   test_parse_reads_meta_keys_as_written()
   test_parse_skips_comments_and_blank_lines()
@@ -150,6 +190,13 @@ return function()
   test_interface_list_belongs_by_major_minor()
   test_lower_patch_is_outdated_higher_patch_is_ahead()
   test_missing_interface_is_not_declared()
+  test_declared_outdated_within_version_line()
+  test_declared_outdated_within_version_line_on_mists()
+  test_declared_outdated_within_version_line_on_tbc()
+  test_declared_old_vanilla_value_not_outdated_on_vanilla()
+  test_declared_other_major_not_declared()
+  test_declared_same_major_higher_not_declared()
+  test_declared_vanilla_value_not_outdated_on_forever()
   test_select_prefers_flavor_suffix_toc()
   test_mainline_only_file_loads_on_retail_and_forever_not_vanilla()
   test_game_type_list_matches_any_listed_type()
@@ -158,4 +205,6 @@ return function()
   test_xml_include_expands_relative_to_its_directory()
   test_unsupported_xml_content_and_directives_are_reported()
   test_unreadable_xml_is_reported()
+  test_addon_name_from_folder()
+  test_addon_name_ambiguous()
 end

@@ -1,5 +1,5 @@
--- Addon TOC files: picks a flavor's TOC, parses its metadata and file lines, checks the declared interface
--- version, and lists the Lua files a flavor loads (game-type directives applied, XML Script/Include expanded).
+-- Addon TOC files: names the addon, picks a flavor's TOC, parses its metadata and file lines, checks the declared
+-- interface version, and lists the Lua files a flavor loads (game-type directives applied, XML Script/Include expanded).
 local M = {}
 
 local Flavors = require("tools.flavors")
@@ -50,6 +50,38 @@ function M.select(root, name, flavor)
   return root .. "/" .. name .. ".toc"
 end
 
+-- The TOC base name with any flavor suffix (_Mainline, _Vanilla, ...) removed.
+local function tocBase(file)
+  local base = file:match("^(.+)%.toc$")
+  for _, flavor in ipairs(Flavors.list) do
+    for _, suffix in ipairs(Flavors.get(flavor).tocSuffixes) do
+      if base and base:sub(-#suffix) == suffix then
+        return base:sub(1, -#suffix - 1)
+      end
+    end
+  end
+  return base
+end
+
+-- The addon name: the TOC named after the root folder, else the only TOC base name there.
+function M.addonName(root)
+  local names, seen = {}, {}
+  for _, file in ipairs(fs.list(root)) do
+    local base = tocBase(file)
+    if base and not seen[base] then
+      seen[base] = true
+      names[#names + 1] = base
+    end
+  end
+  local folder = (root == "." and os.getenv("PWD") or root):gsub("\\", "/"):match("([^/]+)/*$")
+  if folder and seen[folder] then
+    return folder
+  elseif #names == 1 then
+    return names[1]
+  end
+  return nil, "cannot tell which TOC is the addon's in " .. root .. " (found " .. #names .. " TOC names)"
+end
+
 -- "Core\X.lua [AllowLoadGameType vanilla, tbc]" -> { path = "Core/X.lua", directives = { AllowLoadGameType = set } }
 local function parseFileLine(line)
   local directives = {}
@@ -94,12 +126,35 @@ local function interfaceValues(meta, row)
   return meta[INTERFACE_KEY] or ""
 end
 
--- "load" | "outdated" | "ahead" | "not-declared". Only values of the flavor's major.minor count; a higher patch
--- wins over a lower one (the TOC already covers the current patch).
+local function majorOf(version)
+  return math.floor(version / 10000)
+end
+
+-- Out of date within the client's version line: a lower value of the client's major, when no other flavor shares
+-- that major. Assumption: the engine code that decides out of date versus incompatible is not visible.
+local function outdatedInLine(items, flavor, row)
+  local major = majorOf(row.tocVersion)
+  for _, name in ipairs(Flavors.list) do
+    if name ~= flavor and majorOf(Flavors.get(name).tocVersion) == major then
+      return false
+    end
+  end
+  for _, item in ipairs(items) do
+    local version = tonumber(item)
+    if version and majorOf(version) == major and version < row.tocVersion then
+      return true
+    end
+  end
+  return false
+end
+
+-- "load" | "outdated" | "ahead" | "not-declared". Values of the flavor's major.minor count first; a higher patch
+-- wins over a lower one (the TOC already covers the current patch). With none, see outdatedInLine.
 function M.declared(meta, flavor)
   local row = Flavors.get(flavor)
+  local items = splitList(interfaceValues(meta, row))
   local lower, higher = false, false
-  for _, item in ipairs(splitList(interfaceValues(meta, row))) do
+  for _, item in ipairs(items) do
     local version = tonumber(item)
     if version and Flavors.majorMinorOf(version) == row.majorMinor then
       if version == row.tocVersion then
@@ -112,7 +167,7 @@ function M.declared(meta, flavor)
   if higher then
     return "ahead"
   end
-  return lower and "outdated" or "not-declared"
+  return (lower or outdatedInLine(items, flavor, row)) and "outdated" or "not-declared"
 end
 
 local function reportIgnoredDirectives(file, report)
