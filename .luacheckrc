@@ -47,6 +47,13 @@ files["tests/fixtures/addons/Sandbox/*.lua"] = {
   globals = { "SandboxFoo" },
 }
 
+-- Smoke fixture addons: runaway loops through C_Timer and coroutines; Clobber's write to coroutine is the
+-- behavior under test.
+files["tests/fixtures/smoke/**/*.lua"] = {
+  read_globals = { "C_Timer" },
+  globals = { "coroutine" },
+}
+
 -- Canary fixture addons (canaries/<layer>/<name>/<variant>/): written like real addons against the world's
 -- WoW globals; the directive canaries' global writes are the behavior under test.
 files["canaries/*/*/*/*.lua"] = {
