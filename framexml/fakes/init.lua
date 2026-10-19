@@ -14,6 +14,7 @@ local STAGE1 = {
   "framexml.fakes.slash",
   "framexml.fakes.tooltip",
   "framexml.fakes.menu_frames",
+  "framexml.fakes.dropdown",
   "framexml.fakes.frames",
 }
 
