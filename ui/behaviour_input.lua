@@ -179,4 +179,41 @@ end)
 M.typed.SetChecked = M.onlyFor("checkbutton", setChecked)
 M.typed.GetChecked = M.onlyFor("checkbutton", getChecked)
 
+-- EditBox. Focus lives in w.input.editFocus (one box at a time); it is updated before the focus scripts run.
+local function setFocus(w, obj)
+  local old = w.input.editFocus
+  if old == obj then
+    return
+  end
+  w.input.editFocus = obj
+  if old then
+    w:callScript(old, "OnEditFocusLost")
+  end
+  w:callScript(obj, "OnEditFocusGained")
+end
+
+local function clearFocus(w, obj)
+  if w.input.editFocus ~= obj then
+    return
+  end
+  w.input.editFocus = nil
+  w:callScript(obj, "OnEditFocusLost")
+end
+
+local function hasFocus(w, obj)
+  return w.input.editFocus == obj
+end
+
+-- source: confirmed (row I6) SetText fires OnTextSet(self), then OnTextChanged(self, false).
+local function setEditText(w, obj, st, text)
+  st.text = tostring(text or "")
+  w:callScript(obj, "OnTextSet")
+  w:callScript(obj, "OnTextChanged", false)
+end
+
+M.typed.SetFocus = M.onlyFor("editbox", setFocus)
+M.typed.ClearFocus = M.onlyFor("editbox", clearFocus)
+M.typed.HasFocus = M.onlyFor("editbox", hasFocus)
+M.typed.SetText = M.onlyFor("editbox", setEditText)
+
 return M
