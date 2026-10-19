@@ -7,6 +7,7 @@ on:
 jobs:
   lua51:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: leafo/gh-actions-lua@v10
@@ -17,6 +18,7 @@ jobs:
 
   lua54:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: leafo/gh-actions-lua@v10
@@ -33,6 +35,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: lunarmodules/luacheck@v1
