@@ -7,11 +7,13 @@ local M = {}
 local BehaviourText = require("ui.behaviour_text")
 local BehaviourRender = require("ui.behaviour_render")
 local BehaviourScripts = require("ui.behaviour_scripts")
+local BehaviourInput = require("ui.behaviour_input")
 
 local unpack = unpack
 
 local methods = {}
 M.methods = methods
+M.typed = BehaviourInput.typed
 
 local ANCHOR_FIELDS = 5
 
@@ -241,14 +243,6 @@ end
 
 -- Mouse and movement ------------------------------------------------------------------------------------------
 
-function methods.EnableMouse(_, _, st, enable)
-  st.mouse = enable and true or false
-end
-
-function methods.IsMouseEnabled(_, _, st)
-  return st.mouse == true
-end
-
 function methods.EnableMouseWheel(_, _, st, enable)
   st.mouseWheel = enable and true or false
 end
@@ -270,7 +264,8 @@ function methods.StartMoving() end
 
 function methods.StopMovingOrSizing() end
 
-for _, module in ipairs({ BehaviourText, BehaviourRender, BehaviourScripts }) do
+-- BehaviourInput goes last: its SetScript wraps BehaviourScripts's.
+for _, module in ipairs({ BehaviourText, BehaviourRender, BehaviourScripts, BehaviourInput }) do
   for name, fn in pairs(module.methods) do
     methods[name] = fn
   end
