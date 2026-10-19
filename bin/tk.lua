@@ -3,15 +3,19 @@
 --   python tools/run51.py --script bin/tk.lua test [...]    -> runs the command, returns its exit code
 -- `tk test [flavor...] [--update] [--addon <path>]` runs <addon>/tests/scenarios/scn_*.lua on each flavor and
 -- prints failures first, then one line per scenario and flavor, the most common unscripted calls and the totals.
+-- `tk smoke <dir> [flavor...]` runs every addon folder in <dir> through the built-in smoke scenario and prints
+-- one scoreboard.
 local fs = require("fs")
 local Flavors = require("tools.flavors")
 local Scenario = require("scenario")
+local Smoke = require("smoke")
+local Toc = require("toc")
 
 local Cli = {}
 
 local isModule = (...) == "bin.tk"
 
-local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>]\n"
+local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...]\n"
 local EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 local UNSCRIPTED_TOP = 10
 local SCENARIO_DIR = "/tests/scenarios"
@@ -44,36 +48,22 @@ local function parseTest(argv)
   return opts
 end
 
--- The TOC base name with any flavor suffix (_Mainline, _Vanilla, ...) removed.
-local function tocBase(file)
-  local base = file:match("^(.+)%.toc$")
-  for _, flavor in ipairs(Flavors.list) do
-    for _, suffix in ipairs(Flavors.get(flavor).tocSuffixes) do
-      if base and base:sub(-#suffix) == suffix then
-        return base:sub(1, -#suffix - 1)
-      end
+-- { dir, flavors? } from argv[2..], or nil plus a message. A repeated flavor runs once, in first-seen order.
+local function parseSmoke(argv)
+  local dir, flavors, seen = argv[2], {}, {}
+  if not dir then
+    return nil, "smoke needs a directory"
+  end
+  for i = 3, #argv do
+    if not pcall(Flavors.get, argv[i]) then
+      return nil, "unknown flavor '" .. argv[i] .. "'; flavors: " .. table.concat(Flavors.list, ", ")
+    end
+    if not seen[argv[i]] then
+      seen[argv[i]] = true
+      flavors[#flavors + 1] = argv[i]
     end
   end
-  return base
-end
-
--- The addon name: the TOC named after the root folder, else the only TOC base name there.
-local function addonName(root)
-  local names, seen = {}, {}
-  for _, file in ipairs(fs.list(root)) do
-    local base = tocBase(file)
-    if base and not seen[base] then
-      seen[base] = true
-      names[#names + 1] = base
-    end
-  end
-  local folder = (root == "." and os.getenv("PWD") or root):gsub("\\", "/"):match("([^/]+)/*$")
-  if folder and seen[folder] then
-    return folder
-  elseif #names == 1 then
-    return names[1]
-  end
-  return nil, "cannot tell which TOC is the addon's in " .. root .. " (found " .. #names .. " TOC names)"
+  return { dir = dir:gsub("\\", "/"):gsub("(.)/+$", "%1"), flavors = #flavors > 0 and flavors or nil }
 end
 
 local function scenarioPaths(root)
@@ -182,7 +172,7 @@ local function testCommand(argv, write)
   local opts, err = parseTest(argv)
   local addon
   if opts then
-    addon, err = addonName(opts.root)
+    addon, err = Toc.addonName(opts.root)
   end
   if not addon then
     write(err .. "\n" .. USAGE)
@@ -196,10 +186,21 @@ local function testCommand(argv, write)
   return exitCode(report(runScenarios(opts, addon, paths), write), write)
 end
 
+local function smokeCommand(argv, write)
+  local opts, err = parseSmoke(argv)
+  if not opts then
+    write(err .. "\n" .. USAGE)
+    return EXIT_USAGE
+  end
+  return Smoke.run(opts, write)
+end
+
 -- Runs argv (without the program name); all output goes through write. Returns the exit code.
 function Cli.main(argv, write)
   if argv[1] == "test" then
     return testCommand(argv, write)
+  elseif argv[1] == "smoke" then
+    return smokeCommand(argv, write)
   end
   write(USAGE)
   return EXIT_USAGE

@@ -1,4 +1,5 @@
--- tk CLI: `tk test [flavor...] [--update] [--addon <path>]` runs an addon's scenarios and prints a summary.
+-- tk CLI: `tk test [flavor...] [--update] [--addon <path>]` runs an addon's scenarios and prints a summary;
+-- `tk smoke <dir> [flavor...]` prints the smoke scoreboard for a folder of addons.
 local A = require("assert")
 local fs = require("fs")
 local Cli = require("bin.tk")
@@ -120,6 +121,30 @@ local function test_addon_without_scenarios_exits_2()
   A.eq(code, 2)
 end
 
+local function test_dispatches_smoke()
+  local code, out = run({ "smoke", TEST_DIR .. "/fixtures/smoke", "retail" })
+  A.contains(out, "\nGood          PASS (0u)\n")
+  A.eq(code, 0)
+end
+
+local function test_smoke_duplicate_flavor_runs_once()
+  local code, out = run({ "smoke", TEST_DIR .. "/fixtures/smoke", "retail", "retail" })
+  A.contains(out, "\n13 addons, 13 runs: 3 pass, 10 fail, 0 skipped\n")
+  A.eq(code, 0)
+end
+
+local function test_smoke_unknown_flavor_exits_2()
+  local code, out = run({ "smoke", TEST_DIR .. "/fixtures/smoke", "pandaria" })
+  A.contains(out, "usage")
+  A.eq(code, 2)
+end
+
+local function test_smoke_without_dir_exits_2()
+  local code, out = run({ "smoke" })
+  A.contains(out, "usage")
+  A.eq(code, 2)
+end
+
 return function()
   test_test_command_passes_the_hover_scenario()
   test_first_run_writes_the_golden_and_second_run_matches_it()
@@ -130,4 +155,8 @@ return function()
   test_all_skipped_run_warns_and_exits_1()
   test_unknown_command_exits_2()
   test_addon_without_scenarios_exits_2()
+  test_dispatches_smoke()
+  test_smoke_duplicate_flavor_runs_once()
+  test_smoke_unknown_flavor_exits_2()
+  test_smoke_without_dir_exits_2()
 end
