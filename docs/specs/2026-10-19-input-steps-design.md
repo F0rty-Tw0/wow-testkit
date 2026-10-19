@@ -81,8 +81,9 @@ earlier ones (`ui/behaviour.lua:273-277`). Every method here therefore branches 
 - Mouse state: `EnableMouse` (today in `ui/behaviour.lua:244`) sets click and motion together;
   `SetMouseClickEnabled`, `SetMouseMotionEnabled`, `IsMouseClickEnabled`, `IsMouseMotionEnabled` set and read them
   separately; `IsMouseEnabled` is true when either is. Defaults: Button, CheckButton and EditBox start with mouse
-  enabled; setting an `OnEnter`/`OnLeave` script enables motion and an `OnMouseDown`/`OnMouseUp`/`OnClick` script
-  enables click **(source: all defaults; assumed when unsettled)**.
+  enabled; setting an `OnEnter`, `OnLeave`, `OnMouseDown` or `OnMouseUp` script implies `EnableMouse(true)` (click and
+  motion both; wiki `API_ScriptRegion_EnableMouse`, user ruling 2026-10-20); `OnClick` enables nothing
+  **(source: the per-type defaults; assumed when unsettled)**.
 - `IsMouseOver()`: true when the frame or one of its descendants is `w.input.mouseFocus`. `IsMouseMotionFocus()`:
   true when the frame is `w.input.mouseFocus`.
 
@@ -124,7 +125,8 @@ check.
 
 The existing `s:hover(unit)` hovers a unit in the 3D world, not a frame. It keeps its tooltip behavior and gains
 one step first: the current frame focus, if any, gets `OnLeave(self, true)`, and `w.input.mouseFocus` becomes
-`WorldFrame` (the frame the client reports while the mouse is over the world) **(source)**. It has no blocked
+`WorldFrame` when `WorldFrame:IsMouseMotionEnabled()`, else nil, so `GetMouseFoci()` returns `{}` over the world
+unless motion was enabled on `WorldFrame` (wiki `API_GetMouseFoci`, user ruling 2026-10-20). It has no blocked
 check.
 
 `Input.type(w, box, text)`: `SetFocus` the box, then for each UTF-8 character (code point, not byte) append it to
