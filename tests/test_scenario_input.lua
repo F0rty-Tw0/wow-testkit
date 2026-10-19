@@ -1,10 +1,24 @@
 -- Input steps: click, enter, leave, type and press on frames and names, blocked-step errors.
 local A = require("assert")
+local Flavors = require("tools.flavors")
 local Scenario = require("scenario")
 local Rec = require("tests.helpers.input")
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local HOVER = { addon = "Hover", root = TEST_DIR .. "/fixtures/addons/Hover" }
+local CLICKY = { addon = "Clicky", root = TEST_DIR .. "/fixtures/addons/Clicky" }
+local INPUT_SCENARIO = TEST_DIR .. "/fixtures/scenarios/scn_input.lua"
+local EXPECTED_LOG = table.concat({
+  "ClickyButton:click:LeftButton:false",
+  "ClickyCheck:click:checked=true",
+  "ClickyButton:enter:true",
+  "ClickyButton:leave:true",
+  "ClickyCheck:enter:true",
+  "ClickyCheck:leave:true",
+  "ClickyBox:text:h:true",
+  "ClickyBox:text:hi:true",
+  "ClickyBox:enter-pressed:hi",
+}, ";")
 
 -- A Scenario on flavor with the Hover addon (never logged in), always destroyed.
 local function withScenario(flavor, fn)
@@ -131,6 +145,15 @@ local function test_handler_error_in_a_click_is_recorded_and_the_step_goes_on()
   A.eq(found, true)
 end
 
+local function test_scn_input_clicks_hovers_and_types_on_every_flavor()
+  local result = Scenario.runFile(INPUT_SCENARIO, CLICKY)
+  for _, flavor in ipairs(Flavors.list) do
+    local report = result.results[flavor]
+    A.eq(report.status, "pass", flavor)
+    A.contains(report.notes, "log: " .. EXPECTED_LOG, flavor)
+  end
+end
+
 return function()
   test_click_resolves_a_name_and_a_frame()
   test_click_on_a_missing_name_throws_not_a_frame()
@@ -139,4 +162,5 @@ return function()
   test_type_and_press_steps_drive_an_edit_box_by_name()
   test_blocked_step_fails_the_flavor_and_skips_later_steps()
   test_handler_error_in_a_click_is_recorded_and_the_step_goes_on()
+  test_scn_input_clicks_hovers_and_types_on_every_flavor()
 end
