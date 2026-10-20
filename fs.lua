@@ -4,9 +4,9 @@ local M = {}
 
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 local EACCES = 13
--- Localized: addon code may assign a global named io or os.
-local ioOpen, ioPopen = io.open, io.popen
-local osRename, osExecute = os.rename, os.execute
+-- Localized: addon code may assign a global named io or os. The tables, not their functions, so a test can still
+-- swap a function such as os.rename.
+local io, os = io, os
 
 local function host()
   return rawget(_G, "__tk_fs")
@@ -17,7 +17,7 @@ local function shellPath(path)
 end
 
 function M.readFile(path)
-  local file, err = ioOpen(path, "rb")
+  local file, err = io.open(path, "rb")
   if not file then
     return nil, err
   end
@@ -27,14 +27,14 @@ function M.readFile(path)
 end
 
 function M.writeFile(path, text)
-  local file = assert(ioOpen(path, "wb"))
+  local file = assert(io.open(path, "wb"))
   assert(file:write(text))
   assert(file:close())
 end
 
 -- Renaming a path onto itself succeeds (or is refused with EACCES) only when it exists.
 local function renameProbe(path)
-  local ok, _, code = osRename(path, path)
+  local ok, _, code = os.rename(path, path)
   return ok ~= nil or code == EACCES
 end
 
@@ -59,7 +59,7 @@ function M.mkdirp(path)
   if bridge then
     bridge.mkdirp(path)
   elseif not M.isdir(path) then
-    osExecute((IS_WINDOWS and "mkdir " or "mkdir -p ") .. shellPath(path))
+    os.execute((IS_WINDOWS and "mkdir " or "mkdir -p ") .. shellPath(path))
   end
 end
 
@@ -71,7 +71,7 @@ function M.mkdir(path)
   if bridge then
     return bridge.mkdir(path)
   end
-  local result = osExecute("mkdir " .. shellPath(path) .. (IS_WINDOWS and " 2>nul" or " 2>/dev/null"))
+  local result = os.execute("mkdir " .. shellPath(path) .. (IS_WINDOWS and " 2>nul" or " 2>/dev/null"))
   if result == 0 or result == true then
     return true
   end
@@ -87,7 +87,7 @@ function M.list(dir)
     return bridge.list(dir)
   end
   local names = {}
-  local pipe = assert(ioPopen((IS_WINDOWS and "dir /b " or "ls -1 ") .. shellPath(dir) .. " 2>" .. (IS_WINDOWS and "nul" or "/dev/null")))
+  local pipe = assert(io.popen((IS_WINDOWS and "dir /b " or "ls -1 ") .. shellPath(dir) .. " 2>" .. (IS_WINDOWS and "nul" or "/dev/null")))
   for name in pipe:lines() do
     names[#names + 1] = name
   end

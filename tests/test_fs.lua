@@ -24,6 +24,20 @@ local function test_mkdirp_tolerates_existing_dir()
   A.truthy(fs.isdir(dir), "still a dir")
 end
 
+-- Addon code may clear the global os. Under run51 the bridge serves these calls; the pure run (no bridge) goes
+-- through os.rename and os.execute.
+local function test_dir_calls_work_while_the_global_os_is_cleared()
+  local dir, hostOs = tempDir(), os
+  rawset(_G, "os", nil)
+  local ok, err = pcall(function()
+    fs.mkdirp(dir .. "/a/b")
+    A.eq(fs.mkdir(dir .. "/c"), true)
+    A.same({ fs.isdir(dir .. "/a/b"), fs.exists(dir .. "/c") }, { true, true })
+  end)
+  rawset(_G, "os", hostOs)
+  assert(ok, err)
+end
+
 local function test_mkdir_creates_once_then_reports_an_existing_dir()
   local dir = tempDir() .. "/once"
   A.eq(fs.mkdir(dir), true)
@@ -41,20 +55,6 @@ end
 
 local function test_exists_is_false_for_missing_path()
   A.eq(fs.exists(tempDir() .. "/missing"), false)
-end
-
--- Addon code may clear the global os. Under run51 the bridge serves these calls; the pure run (no bridge) goes
--- through os.rename and os.execute.
-local function test_dir_calls_work_while_the_global_os_is_cleared()
-  local dir, hostOs = tempDir(), os
-  rawset(_G, "os", nil)
-  local ok, err = pcall(function()
-    fs.mkdirp(dir .. "/a/b")
-    A.eq(fs.mkdir(dir .. "/c"), true)
-    A.same({ fs.isdir(dir .. "/a/b"), fs.exists(dir .. "/c") }, { true, true })
-  end)
-  rawset(_G, "os", hostOs)
-  assert(ok, err)
 end
 
 return function()
