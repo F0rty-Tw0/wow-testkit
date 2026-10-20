@@ -78,6 +78,25 @@ local function test_add_button_outside_a_build_joins_the_shown_list()
   end)
 end
 
+-- AddButton sets up only DropDownList<level>Button<index> (Mainline :439, Classic :398), so an addon's script on
+-- an earlier button of the shown list stays.
+local function test_add_button_to_the_shown_list_leaves_earlier_buttons_scripts_alone()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      addItem("One", level)
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    local clicks = 0
+    _G.DropDownList1Button1:SetScript("OnClick", function()
+      clicks = clicks + 1
+    end)
+    addItem("Late", 1)
+    Input.click(w, _G.DropDownList1Button1, "LeftButton")
+    A.eq(clicks, 1)
+    A.eq(#w.menus, 1)
+  end)
+end
+
 -- Mainline UIDropDownMenu.lua:4, Classic :5.
 local function test_max_levels_starts_at_the_client_value()
   for flavor, levels in pairs({ retail = 3, forever = 3, mists = 2, vanilla = 2, tbc = 2 }) do
@@ -254,4 +273,5 @@ return function()
   test_add_button_without_a_level_in_a_submenu_init_joins_level_one()
   test_add_button_to_a_deeper_level_during_a_level_one_build_is_dropped()
   test_add_button_outside_a_build_joins_the_shown_list()
+  test_add_button_to_the_shown_list_leaves_earlier_buttons_scripts_alone()
 end

@@ -221,7 +221,7 @@ local function addButton(w, info, level)
   w.dropdown.infos[target][#entries] = copy
   local callChecked = type(copy.checked) == "function" and not copy.notCheckable
   if target == shown or callChecked then
-    MenuFrames.render(w, target)
+    MenuFrames.renderEntry(w, target, #entries) -- only the new button (Mainline :439, Classic :398)
   end
   if callChecked then
     entry.checked = copy.checked(entry.frame) and true or false

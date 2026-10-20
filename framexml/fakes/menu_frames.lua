@@ -92,13 +92,20 @@ local function fillButton(w, level, entry, index, button)
   entry.frame = button
 end
 
--- Renders level into frames: sets level.frame and each entry.frame; buttons past the entry count are hidden.
-function M.render(w, level)
+-- Renders entry index of level into its Button alone: sets level.frame and the entry's frame.
+function M.renderEntry(w, level, index)
   local container = containerFor(w, level)
   level.frame = container
-  for index, entry in ipairs(level.entries) do
-    fillButton(w, level, entry, index, buttonAt(w, level, container, index))
+  fillButton(w, level, level.entries[index], index, buttonAt(w, level, container, index))
+end
+
+-- Renders level into frames: sets level.frame and each entry.frame; buttons past the entry count are hidden.
+function M.render(w, level)
+  for index = 1, #level.entries do
+    M.renderEntry(w, level, index)
   end
+  local container = containerFor(w, level)
+  level.frame = container
   for index = #level.entries + 1, #(w.menuPool[container] or {}) do
     w.menuPool[container][index]:Hide()
   end
