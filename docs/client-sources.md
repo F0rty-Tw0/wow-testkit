@@ -118,6 +118,7 @@ branches; which family a branch loads follows the Menu API grouping (Mainline: `
 | Rule | Verdict | Source |
 |---|---|---|
 | F1 `SetParent` to the frame itself or one of its descendants raises `<name>:SetParent(): Would create a loop parenting to <parent>` and keeps the old parent | assumed (no Lua or wiki page shows it) | Forum report of the client error: WoWInterface thread t-45328 (2012), `kgPanel16:SetParent(): Would create a loop parenting to kgPanel16`. The wiki page `API_ScriptRegion_SetParent` lists no errors. The kit names an unnamed frame by its type and raises at the caller's line |
+| F2 `CreateFrame(type, name)` sets `_G[name]` with the whole name as one key, dots included (`"My.Frame"` is not `My.Frame`) | assumed (no Lua shows the engine side) | wiki `API_CreateFrame`: `name` is the "Globally accessible name to assign to the frame, or `nil` for an anonymous frame."; the page names no path splitting |
 
 ## GameTooltip
 
