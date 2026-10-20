@@ -6,6 +6,9 @@ local M = {}
 
 local TemplateApply = require("ui.template_apply")
 
+-- Localized: addon code may assign a global named select.
+local select = select
+
 local API_GATE = { gate = "api" }
 -- Ketho's FrameXML list decides which flavors get it.
 local KETHO_GATE = { gate = "framexml", flavors = {} }

@@ -1,6 +1,7 @@
 -- Mixin, CreateFromMixins and CreateAndInitFromMixin.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local MixinFake = require("framexml.fakes.mixin")
 
 local withFrameXML = HF.withFrameXML
 
@@ -37,8 +38,25 @@ local function test_create_and_init_from_mixin_calls_init_with_the_arguments()
   end
 end
 
+-- Addon writes land raw in _G, so an addon can clear select; Mixin called afterwards must still work. The functions
+-- come straight from M.install, past the world's installed wrapper, so only mixin.lua's own lookups are under test.
+local function test_mixin_still_works_after_an_addon_clears_select()
+  local installed = {}
+  MixinFake.install({
+    install = function(_, name, fn)
+      installed[name] = fn
+    end,
+  })
+  local select = _G.select
+  _G.select = nil
+  local ok, object = pcall(installed.Mixin, {}, { a = 1 })
+  _G.select = select
+  A.same({ ok, object }, { true, { a = 1 } })
+end
+
 return function()
   test_mixin_copies_each_mixin_onto_the_object_and_returns_it()
+  test_mixin_still_works_after_an_addon_clears_select()
   test_create_from_mixins_returns_a_new_table_with_their_fields()
   test_create_and_init_from_mixin_calls_init_with_the_arguments()
 end
