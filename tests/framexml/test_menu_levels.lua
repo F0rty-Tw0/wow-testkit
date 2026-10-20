@@ -36,6 +36,28 @@ local function test_entering_a_disabled_entry_whose_submenu_is_open_keeps_it()
   end)
 end
 
+-- Row M17 (assumed): the two menu systems share one stack, so opening either closes the other's open lists.
+local function test_opening_either_menu_system_closes_the_other_assumed()
+  withFrameXML("retail", function(w)
+    local dd = _G.CreateFrame("Frame", "LevelsDD", _G.UIParent, "UIDropDownMenuTemplate")
+    _G.UIDropDownMenu_Initialize(dd, function()
+      local info = _G.UIDropDownMenu_CreateInfo()
+      info.text = "Drop"
+      _G.UIDropDownMenu_AddButton(info, 1)
+    end)
+    _G.ToggleDropDownMenu(1, nil, dd)
+    local menu = _G.MenuUtil.CreateContextMenu(nil, function(_, root)
+      root:CreateButton("Menu", function() end)
+    end)
+    A.eq(_G.DropDownList1:IsShown(), false)
+    A.eq(w.menus[1].frame, menu)
+    _G.ToggleDropDownMenu(1, nil, dd)
+    A.eq(menu:IsShown(), false)
+    A.eq(w.menus[1].frame, _G.DropDownList1)
+  end)
+end
+
 return function()
   test_entering_a_disabled_entry_whose_submenu_is_open_keeps_it()
+  test_opening_either_menu_system_closes_the_other_assumed()
 end
