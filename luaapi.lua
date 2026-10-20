@@ -8,6 +8,8 @@ local M = {}
 local Luaext = require("luaext")
 local WorldApi = require("world_api")
 
+-- Localized: addon code may assign a global named select.
+local select = select
 local TWO_32 = 2 ^ 32
 local BITS = 32
 local ROUND_HALF = 0.5

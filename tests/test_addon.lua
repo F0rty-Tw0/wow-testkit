@@ -145,6 +145,16 @@ local function test_apply_saved_sets_saved_variable_globals()
   A.eq(rawget(_G, "MiniDB"), nil)
 end
 
+-- wiki TOC_format: SavedVariables are "Global variables"; no page splits a dotted name, so it is one key (as F2).
+local function test_apply_saved_sets_a_dotted_name_as_one_global_assumed()
+  local saved, nested
+  withWorld("retail", function(w)
+    Addon.applySaved(w, { savedVariables = { "Dotted.DB" }, savedVariablesPerCharacter = {} }, { ["Dotted.DB"] = 5 })
+    saved, nested = rawget(_G, "Dotted.DB"), rawget(_G, "Dotted")
+  end)
+  A.same({ saved, nested, rawget(_G, "Dotted.DB") }, { 5, nil, nil })
+end
+
 local function test_no_toc_for_flavor_is_skipped()
   withWorld("vanilla", function(w)
     local _, info = Addon.load(w, { name = "MainlineToc", root = SMOKE_DIR .. "/MainlineToc" })
@@ -177,4 +187,5 @@ return function()
   test_missing_xml_and_xml_script_are_errors()
   test_long_chunk_name_error_keeps_full_source()
   test_apply_saved_sets_saved_variable_globals()
+  test_apply_saved_sets_a_dotted_name_as_one_global_assumed()
 end

@@ -4,6 +4,7 @@
 local M = {}
 
 local unpack = unpack
+local select = select
 -- Localized: addon code may assign a global named os.
 local osClock = os.clock
 

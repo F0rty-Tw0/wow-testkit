@@ -1,6 +1,7 @@
 -- TOC selection, parsing, declared-interface check and per-flavor file lists. Pure: also runs on the system Lua.
 local A = require("assert")
 local Flavors = require("tools.flavors")
+local Tmp = require("tests.helpers.tmp")
 local Toc = require("toc")
 local fs = require("fs")
 
@@ -151,6 +152,38 @@ local function test_plunderstorm_or_wowhack_only_file_loads_on_no_flavor_assumed
   end
 end
 
+-- wiki TOC_format (Template:GameTypes): the Forever client's game types are forever and camelot, its TOC suffixes
+-- _Forever and _Camelot; Forever patch 1.60.1 "Added Camelot game type ... with Forever game type and TOC suffix
+-- alias."
+local function test_forever_game_type_file_loads_on_forever_only()
+  local parsed = Toc.parse("Forever.lua [AllowLoadGameType Forever]\n")
+  for _, flavor in ipairs(Flavors.list) do
+    local files, report = Toc.filesFor(parsed, flavor, function() end)
+    A.same({ files, report }, { flavor == "forever" and { "Forever.lua" } or {}, {} }, flavor)
+  end
+end
+
+-- An addon root holding one empty TOC per suffix given.
+local function tocRoot(name, suffixes)
+  local root = Tmp.dir("toc") .. "/" .. name
+  fs.mkdirp(root)
+  for _, suffix in ipairs(suffixes) do
+    fs.writeFile(root .. "/" .. name .. suffix .. ".toc", "")
+  end
+  return root
+end
+
+local function test_forever_suffixed_toc_wins_over_mainline_on_forever()
+  local root = tocRoot("Fv", { "_Forever", "_Mainline" })
+  A.same({ Toc.select(root, "Fv", "forever"), Toc.addonName(root) }, { root .. "/Fv_Forever.toc", "Fv" })
+end
+
+-- The wiki gives no order between the two suffixes; camelot is the game type, forever its alias.
+local function test_camelot_suffixed_toc_wins_over_forever_assumed()
+  local root = tocRoot("Cm", { "_Camelot", "_Forever" })
+  A.eq(Toc.select(root, "Cm", "forever"), root .. "/Cm_Camelot.toc")
+end
+
 local function test_xml_expands_to_its_scripts_in_place()
   A.same((filesOn("Multi", "retail")), { "A.lua", "Only.lua", "Any.lua", "X.lua" })
 end
@@ -231,6 +264,9 @@ return function()
   test_unknown_game_type_loads_everywhere_and_is_reported()
   test_wrath_or_cata_only_file_loads_on_no_flavor_assumed()
   test_plunderstorm_or_wowhack_only_file_loads_on_no_flavor_assumed()
+  test_forever_game_type_file_loads_on_forever_only()
+  test_forever_suffixed_toc_wins_over_mainline_on_forever()
+  test_camelot_suffixed_toc_wins_over_forever_assumed()
   test_xml_expands_to_its_scripts_in_place()
   test_xml_include_expands_relative_to_its_directory()
   test_unsupported_xml_content_and_directives_are_reported()

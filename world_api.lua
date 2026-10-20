@@ -5,6 +5,8 @@ local M = {}
 local Validate = require("validate")
 
 local unpack = unpack
+-- Localized: addon code may assign a global named select.
+local select = select
 
 local DEFAULT_BY_LUA = { number = 0, string = "", boolean = false }
 

@@ -26,7 +26,7 @@ local hostOs, hostLoadstring, hostGetfenv, hostSetfenv = os, loadstring, getfenv
 local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
 local hostGetmetatable, hostSetmetatable, hostRawMetatable = getmetatable, setmetatable, debug.getmetatable
 local hostType, hostSelect, hostError, hostPcall = type, select, error, pcall
-local hostSub, hostGetinfo = string.sub, debug.getinfo
+local hostSub, hostGsub, hostGetinfo, hostTonumber = string.sub, string.gsub, debug.getinfo, tonumber
 
 local function keptOs()
   local out = {}
@@ -36,27 +36,70 @@ local function keptOs()
   return out
 end
 
+-- Runs hostFn, the host getfenv or setfenv, for the override name that addon code called with (f, ...): under pcall
+-- here, a level counted from the addon's function is three deeper. Errors are re-raised at the addon's line under
+-- name, as Lua 5.1's C function raises them. An override called in tail position (`return getfenv()`) has replaced
+-- the addon's function, so level 1 reaches nothing: that raises saying so. As a coroutine body the override has no
+-- caller at all, and level 1 is an invalid level.
+local function callHostFenv(name, hostFn, ...)
+  local f = ...
+  local level = hostType(f) ~= "function" and hostTonumber(f)
+  local caller = hostGetinfo(3, "S")
+  if level == 1 and caller and caller.what == "tail" then
+    hostError("'" .. name .. "' cannot reach the calling function: a tail call (return " .. name .. "(...)) replaced it", 0)
+  end
+  local ok, result = hostPcall(hostFn, level and level > 0 and level + 3 or f, hostSelect(2, ...))
+  if not ok then
+    result = hostGsub(result, "^bad argument (#%d) to '%?'", "bad argument %1 to '" .. name .. "'")
+    result = level and hostGsub(result, "at level %d+$", "at level " .. level) or result
+    hostError(result, 3)
+  end
+  return result
+end
+
+-- setfenv(0, t) sets the world's addon thread environment (w.addonThreadEnv, read by getfenv(0) and loadstring),
+-- never the host thread's, so kit code loaded meanwhile keeps the real _G. A function whose environment is the
+-- host's _G is kit (or host) code, the client's C functions: refused with Lua 5.1's message for those.
+local function addSetfenv(overrides, w)
+  overrides.setfenv = function(...)
+    local f, env = ...
+    local level = hostType(f) ~= "function" and hostTonumber(f)
+    if level == 0 and hostType(env) == "table" then
+      w.addonThreadEnv = env
+      return
+    end
+    local info = level and level > 0 and hostGetinfo(level + 1, "f")
+    local target = info and info.func or f
+    if hostType(env) == "table" and hostType(target) == "function" and hostGetfenv(target) == _G then
+      hostError("'setfenv' cannot change environment of given object", 2)
+    end
+    local fn = callHostFenv("setfenv", hostSetfenv, ...)
+    return fn
+  end
+end
+
 -- Values the view answers instead of _G's: host-only names map to false (see hidden); functions that would hand
--- out the real _G hand out the view instead.
-local function overridesFor(view, flavor)
+-- out the real _G, or an addon's environment (w.addonEnvs), hand out the view instead: the client has one _G.
+local function overridesFor(view, w)
   local overrides = { _G = view, os = keptOs() }
   for _, name in ipairs(HOST_ONLY) do
     overrides[name] = false
   end
-  if flavor == "forever" then
-    overrides.require = requireSentinel(flavor)
+  if w.flavor == "forever" then
+    overrides.require = requireSentinel(w.flavor)
   end
   overrides.getfenv = function(f)
     if f == nil then
       f = 1
     end
-    local env = hostGetfenv(type(f) == "number" and f > 0 and f + 1 or f)
-    return env == _G and view or env
+    local env = f == 0 and w.addonThreadEnv or callHostFenv("getfenv", hostGetfenv, f)
+    return (env == _G or w.addonEnvs[env]) and view or env
   end
   overrides.loadstring = function(src, chunkName)
     local fn, err = hostLoadstring(src, chunkName)
-    return fn and hostSetfenv(fn, view), err
+    return fn and hostSetfenv(fn, w.addonThreadEnv or view), err
   end
+  addSetfenv(overrides, w)
   return overrides
 end
 
@@ -201,7 +244,7 @@ end
 -- metatable's __index runs only for absent globals and its __newindex only for new ones.
 local function newView(w)
   local view = {}
-  local overrides = overridesFor(view, w.flavor)
+  local overrides = overridesFor(view, w)
   addRawAccess(overrides, view)
   addGlobalsMetatable(overrides, view, w)
   return hostSetmetatable(view, {
@@ -229,11 +272,13 @@ local function newView(w)
 end
 
 -- The per-addon environment: the view plus the require sentinel, raw in the environment so it shadows any host
--- require.
+-- require. Both are registered in w.addonEnvs, so getfenv in any addon answers that addon's _G for them.
 function M.newEnv(w)
   local view = newView(w)
   local env = setmetatable({}, { __index = view, __newindex = view })
   hostRawset(env, "require", requireSentinel(w.flavor))
+  w.addonEnvs = w.addonEnvs or {}
+  w.addonEnvs[env], w.addonEnvs[view] = true, true
   return env
 end
 
