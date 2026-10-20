@@ -105,6 +105,11 @@ local function printFindings(report)
     ignored[#ignored + 1] = name .. "=" .. report.ignoredFields[name]
   end
   print("ignored doc fields: " .. table.concat(ignored, " "))
+  local dropped = {}
+  for _, namespace in ipairs(sortedKeys(report.dropped)) do
+    dropped[#dropped + 1] = namespace .. "=" .. report.dropped[namespace]
+  end
+  print("dropped (no function of the namespace in Ketho's GlobalAPI): " .. table.concat(dropped, " "))
 end
 
 local function printReport(result, errors, sizes)
