@@ -277,6 +277,7 @@ ns.c = select(2, pcall(function() local mt = getmetatable() return mt end))
 ns.d = select(2, pcall(function() local t = setmetatable(5, {}) return t end))
 ns.e = select(2, pcall(function() local t = setmetatable(_G) return t end))
 ns.f = getmetatable(locked)
+ns.g = select(2, pcall(function() local t = setmetatable() return t end))
 ]]
 
 -- Runs source as a plain Lua chunk named like the addon's file, outside any sandbox; returns its ns.
@@ -291,7 +292,7 @@ local function test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
     local ns = loadSource(w, "MtMisuse", METATABLE_MISUSE)
     local plain = plainRun(METATABLE_MISUSE, "addon:MtMisuse/Core.lua")
     A.eq(ns.a, "addon:MtMisuse/Core.lua:2: bad argument #2 to 'setmetatable' (nil or table expected)")
-    for _, key in ipairs({ "a", "b", "c", "d", "e", "f" }) do
+    for _, key in ipairs({ "a", "b", "c", "d", "e", "f", "g" }) do
       A.eq(ns[key], plain[key], key)
     end
   end)
@@ -325,8 +326,15 @@ end
 
 local STRICT_GLOBALS = [[
 local _, ns = ...
+local TAG = {}
 local mt = {
-  __index = function(_, k) error("read of undeclared global " .. k, 2) end,
+  __index = function(_, k)
+    if k == "LevelOne" then error("level one " .. k) end
+    if k == "Arith" then local n = nil return n + 1 end
+    if k == "Tagged" then error(TAG) end
+    if k == "Nested" then return UndeclaredInner end
+    error("read of undeclared global " .. k, 2)
+  end,
   __newindex = function(_, k) error("write of undeclared global " .. k, 2) end,
 }
 setmetatable(_G, mt)
@@ -334,12 +342,17 @@ ns.read = select(2, pcall(function() local x = UndeclaredRead return x end))
 ns.write = select(2, pcall(function() UndeclaredWrite = 1 end))
 ns.viaG = select(2, pcall(function() local x = _G.UndeclaredViaG return x end))
 ns.own = select(2, pcall(function() local x = mt.__index(nil, "Direct") return x end))
+ns.levelOne = select(2, pcall(function() local x = LevelOne return x end))
+ns.arith = select(2, pcall(function() local x = Arith return x end))
+ns.tagged = select(2, pcall(function() local x = Tagged return x end)) == TAG
+ns.nested = select(2, pcall(function() local x = Nested return x end))
+ns.gsub = select(2, pcall(function() local s = string.gsub("abc", "%w+", _G) return s end))
 setmetatable(_G, nil)
 ]]
 
 -- STRICT_GLOBALS as a plain chunk whose globals table is a fresh one holding only what it calls.
 local function plainStrict(chunkName)
-  local env = { setmetatable = setmetatable, select = select, pcall = pcall, error = error }
+  local env = { setmetatable = setmetatable, select = select, pcall = pcall, error = error, string = string }
   env._G = env
   local ns = {}
   setfenv(assert(loadstring(STRICT_GLOBALS, "@" .. chunkName)), env)(nil, ns)
@@ -350,8 +363,9 @@ local function test_globals_handler_errors_name_the_addon_line_like_plain_lua()
   HF.withFrameXML("retail", function(w)
     local ns = loadSource(w, "MtStrict", STRICT_GLOBALS)
     local plain = plainStrict("addon:MtStrict/Core.lua")
-    A.eq(ns.read, "addon:MtStrict/Core.lua:7: read of undeclared global UndeclaredRead")
-    for _, key in ipairs({ "read", "write", "viaG", "own" }) do
+    A.eq(ns.read, "addon:MtStrict/Core.lua:14: read of undeclared global UndeclaredRead")
+    A.same({ ns.tagged, ns.gsub }, { true, "read of undeclared global abc" })
+    for _, key in ipairs({ "read", "write", "viaG", "own", "levelOne", "arith", "tagged", "nested", "gsub" }) do
       A.eq(ns[key], plain[key], key)
     end
   end)
