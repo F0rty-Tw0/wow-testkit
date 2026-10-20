@@ -207,6 +207,19 @@ local function test_plain_dropdown_button_keeps_the_button_text_methods() -- (D1
   end)
 end
 
+-- DropdownButton.lua:334-339: DropdownButtonMixin:UpdateToMenuSelections is empty, so a Text child the addon adds to a
+-- plain dropdown is never written by the selection.
+local function test_plain_dropdown_buttons_text_child_does_not_follow_the_selection() -- (D10)
+  withFrameXML("retail", function()
+    local dd = _G.CreateFrame("DropdownButton", nil, _G.UIParent)
+    dd.Text = dd:CreateFontString()
+    dd:SetupMenu(radios({ value = 1 }))
+    dd:OpenMenu()
+    dd:CloseMenu()
+    A.eq(dd.Text:GetText(), nil)
+  end)
+end
+
 local function test_template_text_methods_come_from_its_mixin() -- (D10)
   withFrameXML("retail", function()
     local mixin = _G.WowStyle1DropdownMixin
@@ -220,6 +233,7 @@ end
 
 return function()
   test_plain_dropdown_button_keeps_the_button_text_methods()
+  test_plain_dropdown_buttons_text_child_does_not_follow_the_selection()
   test_template_text_methods_come_from_its_mixin()
   test_setup_menu_on_an_open_menu_shows_the_new_generators_entries()
   test_template_on_show_generates_the_menu_set_up_while_hidden()
