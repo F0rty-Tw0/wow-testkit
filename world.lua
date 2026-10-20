@@ -131,7 +131,8 @@ local function installBase(w, row)
   LuaApi.install(w)
 end
 
--- { [library table] = shallow copy } for each library the host has.
+-- { [library table] = shallow copy } for each library the host has, plus the string metatable (addon code reaches
+-- it through getmetatable("")).
 local function snapshotLibraries()
   local snapshot = {}
   for _, name in ipairs(LIBRARIES) do
@@ -139,6 +140,10 @@ local function snapshotLibraries()
     if type(lib) == "table" then
       snapshot[lib] = shallowCopy(lib)
     end
+  end
+  local stringMt = debug.getmetatable("")
+  if stringMt then
+    snapshot[stringMt] = shallowCopy(stringMt)
   end
   return snapshot
 end
@@ -185,6 +190,8 @@ function M.new(opts)
     created = {},
     restores = {},
     snapshotMt = debug.getmetatable(_G),
+    stringMt = debug.getmetatable(""),
+    threadEnv = getfenv(0),
     snapshot = snapshotGlobals(),
     libraries = snapshotLibraries(),
   }, World)
@@ -199,15 +206,17 @@ function M.new(opts)
 end
 
 -- Restores _G and the host library tables exactly as snapshotted (added keys removed, replaced values and _G's
--- metatable restored).
+-- metatable restored), the string metatable and the running thread's environment (getfenv(0)).
 function World:destroy()
   if active ~= self then
     return
   end
+  setfenv(0, self.threadEnv)
   for i = #self.restores, 1, -1 do
     local entry = self.restores[i]
     rawset(entry[1], entry[2], entry[3])
   end
+  debug.setmetatable("", self.stringMt)
   restoreLibraries(self.libraries)
   WorldEvents.reset(self)
   debug.setmetatable(_G, self.snapshotMt)

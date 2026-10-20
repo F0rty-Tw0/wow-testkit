@@ -83,6 +83,28 @@ local function test_destroy_restores_globals_metatable()
   setmetatable(_G, nil)
 end
 
+local function test_destroy_restores_the_string_metatable_exactly()
+  local mt = debug.getmetatable("")
+  local before = copyOf(mt)
+  withWorld("retail", function()
+    mt.__add = function(a, b)
+      return a .. b
+    end
+    mt.__index = {}
+    debug.setmetatable("", { __index = string })
+  end)
+  A.eq(debug.getmetatable(""), mt)
+  A.same(copyOf(mt), before)
+end
+
+local function test_destroy_restores_the_thread_environment()
+  local env = getfenv(0)
+  withWorld("retail", function()
+    setfenv(0, setmetatable({}, { __index = env }))
+  end)
+  A.eq(getfenv(0), env)
+end
+
 local function test_forever_library_extensions_restored_on_destroy()
   local realRequire = require
   withWorld("forever", function()
@@ -216,6 +238,8 @@ return function()
   test_destroy_removes_api_and_restores_set_globals()
   test_destroy_restores_host_library_tables_exactly()
   test_destroy_restores_globals_metatable()
+  test_destroy_restores_the_string_metatable_exactly()
+  test_destroy_restores_the_thread_environment()
   test_forever_library_extensions_restored_on_destroy()
   test_install_api_gate()
   test_install_framexml_gate_uses_flavors()
