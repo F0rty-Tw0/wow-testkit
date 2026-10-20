@@ -1,5 +1,6 @@
 -- Clicky fixture helpers for scenario tests: its paths, a temp copy to write goldens into, and golden reading.
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
 local M = {}
@@ -23,8 +24,7 @@ end
 
 -- A temp copy of the Clicky fixture; returns its root. Scenario goldens go here, never into the repo.
 function M.clickyCopy()
-  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
-  local root = base .. "/wow-testkit-clicky-" .. os.time() .. "-" .. math.random(1, 1000000)
+  local root = Tmp.dir("clicky")
   copyTree(M.ROOT, root)
   return root
 end

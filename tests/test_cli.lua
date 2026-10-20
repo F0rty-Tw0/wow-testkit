@@ -1,6 +1,7 @@
 -- tk CLI: `tk test [flavor...] [--update] [--addon <path>]` runs an addon's scenarios and prints a summary;
 -- `tk smoke <dir> [flavor...]` prints the smoke scoreboard for a folder of addons.
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 local Cli = require("bin.tk")
 
@@ -8,11 +9,8 @@ local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*
 local HOVER_FIXTURE = TEST_DIR .. "/fixtures/addons/Hover"
 local GOLDEN = "/tests/scenarios/golden/hover/tooltip.retail.txt"
 
-math.randomseed(os.time())
-
 local function tempDir(name)
-  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
-  return base .. "/wow-testkit-cli-" .. os.time() .. "-" .. math.random(1, 1000000) .. "/" .. name
+  return Tmp.dir("cli") .. "/" .. name
 end
 
 local function copyTree(from, to)

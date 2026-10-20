@@ -1,11 +1,9 @@
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
-math.randomseed(os.time())
-
 local function tempDir()
-  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
-  return base .. "/wow-testkit-" .. os.time() .. "-" .. math.random(1, 1000000)
+  return Tmp.dir("fs")
 end
 
 local function test_mkdirp_creates_nested_dirs_and_write_then_list_finds_file()

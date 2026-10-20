@@ -1,13 +1,11 @@
 -- Golden files: snapshot text compared to tests/scenarios/golden/<scenario>/<snapshot>.<flavor>.txt under a root.
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 local Golden = require("golden")
 
-math.randomseed(os.time())
-
 local function tempRoot()
-  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
-  return base .. "/wow-testkit-golden-" .. os.time() .. "-" .. math.random(1, 1000000)
+  return Tmp.dir("golden")
 end
 
 local function goldenPath(root)
