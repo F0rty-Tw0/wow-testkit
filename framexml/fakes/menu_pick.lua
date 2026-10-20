@@ -114,9 +114,11 @@ function M.forLevel(w, level)
     if result[1] and result[2] then
       response = result[2]
     end
+    -- A level the responder closed (or replaced by opening a menu) gets no response; while it is open, level 1 is of the
+    -- same menu, since a Menu API menu only opens at level 1 and its submenus only under its own levels.
     -- grug: unsourced; the client would apply the response to the menu manager, which the kit does not model.
     local depth = M.depthOf(w, level)
-    if not depth or w.menus[1].state ~= level.state then
+    if not depth then
       return
     end
     respond(w, level, depth, index, response)
