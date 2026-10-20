@@ -169,15 +169,18 @@ local function openUnitPopup(w, which, contextData)
   w.notes[#w.notes + 1] = UNIT_NOTE
 end
 
--- M10 (Menu.lua:2639-2660): stores fn under tag; nothing is returned (the client returns a handle). Called only from
--- the installed Menu.ModifyMenu, so error level 3 blames the addon's line.
+-- M10 (Menu.lua:2639-2660): stores fn under tag; nothing is returned (the client returns a handle). Only the tag is
+-- checked (:2640); like the client's Callback wrapper (:2653-2655), any fn is kept, so a non-function fails when the
+-- menu is generated (M13). Called only from the installed Menu.ModifyMenu, so error level 3 blames the addon's line.
 local function modifyMenu(w, tag, fn)
-  if type(tag) ~= "string" or type(fn) ~= "function" then
-    error("Menu.ModifyMenu: tag must be a string and fn a function", 3)
+  if type(tag) ~= "string" then
+    error("Menu.ModifyMenu: tag must be a string", 3)
   end
   local list = w.menuApi.modifiers[tag] or {}
   w.menuApi.modifiers[tag] = list
-  list[#list + 1] = fn
+  list[#list + 1] = function(...)
+    return fn(...)
+  end
 end
 
 function M.install(w)
