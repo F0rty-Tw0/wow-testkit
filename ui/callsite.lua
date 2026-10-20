@@ -1,6 +1,7 @@
--- The error() level of the first caller outside the kit's widget layer and FrameXML fakes. Widget methods reach their
--- bodies through a different number of tail calls per method (bind, BehaviourInput's SetScript wrapper), and Lua 5.1
--- counts each lost tail call as a level, so a fixed level can land on a frame with no position.
+-- The error() level of the first caller outside the kit's widget layer, FrameXML fakes and hooksecurefunc wrappers.
+-- Widget methods reach their bodies through a different number of tail calls per method (bind, BehaviourInput's
+-- SetScript wrapper), and Lua 5.1 counts each lost tail call as a level, so a fixed level can land on a frame with no
+-- position.
 local M = {}
 
 local fs = require("fs")
@@ -19,7 +20,10 @@ local function isKit(info)
     return false
   end
   local rest = source:sub(#KIT_ROOT + 2)
-  local named = rest:match("^ui[/\\]") ~= nil or rest:match("^framexml[/\\]") ~= nil or rest:match("^world[%w_]*%.lua$") ~= nil
+  local named = rest:match("^ui[/\\]") ~= nil
+    or rest:match("^framexml[/\\]") ~= nil
+    or rest:match("^world[%w_]*%.lua$") ~= nil
+    or rest == "luaext.lua" -- hooksecurefunc's wrapper calls the hooked global
   return named and fs.exists(KIT_ROOT .. rest)
 end
 

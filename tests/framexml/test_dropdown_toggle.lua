@@ -92,7 +92,19 @@ local function test_initialize_on_the_open_frame_after_a_submenu_adds_to_the_sho
   end)
 end
 
+-- hooksecurefunc's wrapper (luaext.lua) sits between the caller and the fake; the error still names the caller.
+local function test_a_hooked_toggle_misuse_error_names_the_caller()
+  withFrameXML("retail", function()
+    _G.hooksecurefunc("ToggleDropDownMenu", function() end)
+    local message = A.errors(function()
+      _G.ToggleDropDownMenu(1)
+    end, "no dropdown frame")
+    A.truthy(message:find("^tests[/\\]framexml[/\\]test_dropdown_toggle%.lua:%d+: ToggleDropDownMenu: "), message)
+  end)
+end
+
 return function()
+  test_a_hooked_toggle_misuse_error_names_the_caller()
   test_initialize_on_the_open_frame_after_a_submenu_adds_to_the_shown_list_one()
   test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()
   test_an_addon_error_without_a_position_in_a_submenu_init_is_recorded_unchanged()
