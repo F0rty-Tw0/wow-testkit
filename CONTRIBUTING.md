@@ -1,23 +1,24 @@
-# wow-testkit
+# Contributing
 
-Shared offline test kit for World of Warcraft addons. It loads an addon's Lua files outside the game, on all five
-game flavors (Retail, the Classic flavors and WoW: Forever), with stubbed WoW APIs, so addon tests run on plain
-Lua 5.1 in CI. The kit itself is written in Lua 5.1 and follows the constraints below.
+The kit is written in Lua 5.1 and runs addon tests outside the game on plain Lua 5.1 in CI.
 
-## Constraints
+## Code constraints
 
 - Lua 5.1 syntax everywhere. Pure modules are also tested on Lua 5.4.
 - Every module: `local M = {} ... return M`, 2-space indent, camelCase functions, PascalCase module tables,
   UPPER_CASE constants, no globals. Functions under ~40 lines, files ~300 lines.
 - Kit modules are required by repo-relative path (`require("assert")`, `require("ui.widgets")`); every runner puts
   the kit root first on `package.path` (`<root>/?.lua;<root>/?/init.lua`).
-- Tests: one behavior per test, named `test_<behavior>`; the test file mirrors the source file; a test file returns
-  a function that calls its tests.
-- TDD: write the test, run it, watch it fail for the stated reason, implement, watch it pass.
 - Filesystem access only through `fs.lua`. Never call `os.execute("mkdir -p ...")` directly elsewhere: on Windows
   Lua routes `os.execute` through cmd.exe.
+- A fake that simulates client behavior cites its source: add a row to `docs/client-sources.md` with the Blizzard
+  `path:line` or wiki page, and name the test of an `assumed` row with the suffix `_assumed`.
 
 ## Tests
+
+- One behavior per test, named `test_<behavior>`; the test file mirrors the source file; a test file returns a
+  function that calls its tests.
+- Write the test first, run it and watch it fail for the stated reason, then implement and watch it pass.
 
 ```bash
 bash scripts/test.sh                                   # everything; non-zero exit on any failure
