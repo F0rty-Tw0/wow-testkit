@@ -297,6 +297,17 @@ local function test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
   end)
 end
 
+-- Known gap: the overrides are Lua functions, so `return setmetatable(...)` is a real tail call that drops the
+-- addon's frame, and the error has no location; plain Lua's C setmetatable keeps it.
+local function test_tail_called_setmetatable_misuse_has_no_location()
+  HF.withFrameXML("retail", function(w)
+    local source = "local _, ns = ...\nns.a = select(2, pcall(function() return setmetatable({}, 5) end))\n"
+    local ns = loadSource(w, "MtTail", source)
+    A.eq(ns.a, "bad argument #2 to 'setmetatable' (nil or table expected)")
+    A.eq(plainRun(source, "addon:MtTail/Core.lua").a, "addon:MtTail/Core.lua:2: " .. ns.a)
+  end)
+end
+
 local GLOBALS_PROTECTED = [[
 local _, ns = ...
 setmetatable(_G, { __metatable = "locked", __index = function() return "x" end })
@@ -474,6 +485,7 @@ return function()
   test_second_addon_sees_the_first_addons_globals_metatable_assumed()
   test_setmetatable_on_g_with_a_non_table_errors_at_the_callers_line()
   test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
+  test_tail_called_setmetatable_misuse_has_no_location()
   test_protected_globals_metatable_is_hidden_and_kept()
   test_globals_handler_errors_name_the_addon_line_like_plain_lua()
   test_globals_index_handler_gets_the_addons_g_not_the_real_one_assumed()
