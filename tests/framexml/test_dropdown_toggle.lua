@@ -105,7 +105,7 @@ end
 
 -- C_Timer calls the callback from C in the client, so no Lua line called the fake; the kit's timer closure is in
 -- luaext.lua, which callsite.lua skips whole, so the walk ends past every Lua caller and the message has no position.
-local function test_a_toggle_misuse_error_from_a_timer_has_no_position_assumed() -- (S19)
+local function test_a_toggle_misuse_error_from_a_timer_has_no_position_assumed() -- (S22)
   withFrameXML("retail", function(w)
     _G.C_Timer.After(0, _G.ToggleDropDownMenu)
     w:advance(0)

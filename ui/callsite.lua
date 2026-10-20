@@ -5,7 +5,7 @@
 -- luaext.lua is skipped whole, not only hooksecurefunc's wrapper: its other callers of addon-supplied functions
 -- (the C_Timer closures, securecall) stand in for C functions, which have no Lua line in the client. A misuse error
 -- through them, such as C_Timer.After(0, ToggleDropDownMenu), walks past them to a C frame and carries no position,
--- not a luaext.lua line that would mean nothing to the addon author (row S19, assumed).
+-- not a luaext.lua line that would mean nothing to the addon author (row S22, assumed).
 local M = {}
 
 local fs = require("fs")
