@@ -42,15 +42,16 @@ function methods:try(fn, ...)
   end))
 end
 
--- try() under "addon" context.
+-- try() under "addon" context. Returns the packed result ({ n, ok, ... }).
 function methods:callAsAddon(fn, ...)
   local stack = self.stack
   local depth = #stack
   stack[depth + 1] = "addon"
-  self:try(fn, ...)
+  local results = self:try(fn, ...)
   for i = #stack, depth + 1, -1 do
     stack[i] = nil
   end
+  return results
 end
 
 function M.reset(w)
