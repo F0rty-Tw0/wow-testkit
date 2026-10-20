@@ -57,7 +57,25 @@ local function test_an_addon_error_with_a_position_in_a_submenu_init_is_recorded
   A.truthy(message:find("^tests[/\\]framexml[/\\]test_dropdown_toggle%.lua:%d+: x$"), message)
 end
 
+-- S1 closes only when the open menu is the toggled frame (Mainline :1069, Classic :1008): a Toggle on another frame
+-- while list 1 is shown reopens list 1 for that frame.
+local function test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()
+  withFrameXML("retail", function(w)
+    local first = newDropdown("FirstToggleDD")
+    local second = _G.CreateFrame("Frame", "SecondToggleDD", _G.UIParent, "UIDropDownMenuTemplate")
+    _G.UIDropDownMenu_Initialize(second, function(_, level)
+      addItem("Second", { notCheckable = true }, level)
+    end, "MENU")
+    _G.ToggleDropDownMenu(1, nil, first)
+    _G.ToggleDropDownMenu(1, nil, second)
+    A.eq(_G.DropDownList1:IsShown(), true)
+    A.eq(w.menus[1].owner, second)
+    A.eq(w.menus[1].entries[1].text, "Second")
+  end)
+end
+
 return function()
+  test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()
   test_an_addon_error_without_a_position_in_a_submenu_init_is_recorded_unchanged()
   test_an_addon_error_with_a_position_in_a_submenu_init_is_recorded_unchanged()
 end
