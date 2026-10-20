@@ -170,7 +170,10 @@ function M.new(opts)
 end
 
 -- Restores _G and the host library tables exactly as snapshotted (added keys removed, replaced values and _G's
--- metatable restored), the string metatable and the running thread's environment (getfenv(0)).
+-- metatable restored), the string metatable and the running thread's environment (getfenv(0)). That is the thread
+-- destroy runs on: called from another coroutine than World.new's, it leaves World.new's thread as it is. Addon code
+-- never changes a host thread's environment (addon_env.lua setfenv), so only host code that does must call destroy
+-- from that thread.
 function World:destroy()
   if active ~= self then
     return
