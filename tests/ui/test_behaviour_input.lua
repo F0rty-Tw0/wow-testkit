@@ -3,6 +3,7 @@ local A = require("assert")
 local BehaviourInput = require("ui.behaviour_input")
 local HW = require("tests.helpers.widgets")
 local Rec = require("tests.helpers.input")
+local Widgets = require("ui.widgets")
 
 local withWidgets = HW.withWidgets
 
@@ -146,15 +147,20 @@ local function test_click_passes_is_down_to_the_scripts() -- (I3)
     local b = _G.CreateFrame("Button")
     local log = Rec.record(b, { "PreClick", "OnClick", "PostClick" })
     b:Click("RightButton", true)
-    b:Click("LeftButton", 1)
     A.same(log, {
       { "PreClick", "RightButton", true },
       { "OnClick", "RightButton", true },
       { "PostClick", "RightButton", true },
-      { "PreClick", "LeftButton", true },
-      { "OnClick", "LeftButton", true },
-      { "PostClick", "LeftButton", true },
     })
+  end)
+end
+
+local function test_click_turns_a_non_boolean_is_down_into_a_boolean_assumed() -- (I3)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "OnClick" })
+    b:Click("LeftButton", 1)
+    A.same(log, { { "OnClick", "LeftButton", true } })
   end)
 end
 
@@ -213,6 +219,31 @@ local function test_nested_mouse_click_keeps_the_outer_click_in_progress() -- (I
   end)
 end
 
+local function test_click_after_an_erroring_intrinsic_click_handler_still_runs()
+  for _, script in ipairs({ "PreClick", "OnClick", "PostClick" }) do
+    withWidgets("retail", function(w)
+      local clicks = 0
+      Widgets.registerIntrinsic(w, "Pill", "Button", {
+        scripts = {
+          [script] = function()
+            clicks = clicks + 1
+            if clicks == 1 then
+              error("kit boom", 0)
+            end
+          end,
+        },
+      })
+      local pill = _G.CreateFrame("Pill")
+      local message = A.errors(function()
+        pill:Click()
+      end)
+      A.eq(message, "kit boom", script) -- re-raised as is, with no position of runClick's own
+      pill:Click()
+      A.eq(clicks, 2, script)
+    end)
+  end
+end
+
 local function test_check_button_click_flips_the_state_before_the_scripts_assumed() -- (I4)
   withWidgets("retail", function()
     local c = _G.CreateFrame("CheckButton")
@@ -261,7 +292,7 @@ local function test_click_on_a_disabled_button_does_nothing() -- (I3)
   end)
 end
 
-local function test_click_skips_mouse_and_visibility_checks() -- (I3)
+local function test_click_skips_mouse_and_visibility_checks_assumed() -- (I3)
   withWidgets("retail", function()
     local b = _G.CreateFrame("Button")
     local log = Rec.record(b, { "OnClick" })
@@ -369,6 +400,52 @@ local function test_set_text_on_an_edit_box_fires_on_text_changed_with_user_inpu
   end)
 end
 
+local function test_set_text_with_the_same_text_fires_no_on_text_changed() -- (I6)
+  withWidgets("retail", function()
+    local box = _G.CreateFrame("EditBox")
+    box:SetText("hi")
+    local log = Rec.record(box, { "OnTextChanged" })
+    box:SetText("hi")
+    A.same(log, {})
+  end)
+end
+
+local function test_set_text_of_empty_text_on_a_fresh_box_fires_no_on_text_changed() -- (I6)
+  withWidgets("retail", function()
+    local box = _G.CreateFrame("EditBox")
+    local log = Rec.record(box, { "OnTextChanged" })
+    box:SetText("")
+    box:SetText()
+    A.same(log, {})
+  end)
+end
+
+local function test_set_text_with_the_same_text_still_fires_on_text_set_assumed() -- (I6)
+  withWidgets("retail", function()
+    local box = _G.CreateFrame("EditBox")
+    box:SetText("hi")
+    local log = Rec.record(box, { "OnTextSet" })
+    box:SetText("hi")
+    A.same(log, { { "OnTextSet" } })
+  end)
+end
+
+local function test_on_text_changed_that_sets_its_own_text_does_not_recurse() -- (I6)
+  withWidgets("retail", function(w)
+    local box = _G.CreateFrame("EditBox")
+    local calls = 0
+    -- the shape of Blizzard's ColorPickerHexBoxMixin:OnTextChanged (row I6)
+    box:SetScript("OnTextChanged", function(self)
+      calls = calls + 1
+      self:SetText((self:GetText():gsub("[^A-Fa-f0-9]", "")))
+    end)
+    box:SetText("ab-c")
+    A.eq(box:GetText(), "abc")
+    A.eq(calls, 2)
+    A.eq(#w.errors, 0)
+  end)
+end
+
 local function test_set_text_on_other_types_is_unchanged()
   withWidgets("retail", function()
     local fontString = _G.CreateFrame("Frame"):CreateFontString()
@@ -386,6 +463,10 @@ return function()
   test_set_focus_on_the_focused_box_fires_nothing()
   test_clear_focus_fires_lost_and_clears_only_for_the_focused_box()
   test_set_text_on_an_edit_box_fires_on_text_changed_with_user_input_false()
+  test_set_text_with_the_same_text_fires_no_on_text_changed()
+  test_set_text_of_empty_text_on_a_fresh_box_fires_no_on_text_changed()
+  test_set_text_with_the_same_text_still_fires_on_text_set_assumed()
+  test_on_text_changed_that_sets_its_own_text_does_not_recurse()
   test_set_text_on_other_types_is_unchanged()
   test_widgets_install_creates_the_input_state()
   test_button_check_button_and_edit_box_start_mouse_enabled_assumed()
@@ -398,14 +479,16 @@ return function()
   test_disable_and_enable_fire_their_scripts_only_on_change_assumed()
   test_click_runs_the_three_scripts_with_button_and_down_false()
   test_click_passes_is_down_to_the_scripts()
+  test_click_turns_a_non_boolean_is_down_into_a_boolean_assumed()
   test_click_during_its_own_click_does_nothing()
   test_click_after_an_erroring_click_script_still_runs()
   test_nested_mouse_click_keeps_the_outer_click_in_progress()
+  test_click_after_an_erroring_intrinsic_click_handler_still_runs()
   test_check_button_click_flips_the_state_before_the_scripts_assumed()
   test_register_for_clicks_defaults_to_left_button_up()
   test_register_for_clicks_accepts_any_and_named_types()
   test_click_on_a_disabled_button_does_nothing()
-  test_click_skips_mouse_and_visibility_checks()
+  test_click_skips_mouse_and_visibility_checks_assumed()
   test_enable_on_another_widget_type_keeps_the_generic_no_op()
   test_set_checked_round_trips_and_fires_no_script()
   test_run_click_passes_down_true()

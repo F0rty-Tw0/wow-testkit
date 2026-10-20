@@ -136,9 +136,15 @@ function M.isRegistered(w, frame, button, direction)
   return clicks[button .. direction] == true
 end
 
+local function fireClickScripts(w, frame, button, down)
+  w:callScript(frame, "PreClick", button, down)
+  w:callScript(frame, "OnClick", button, down)
+  w:callScript(frame, "PostClick", button, down)
+end
+
 -- source: assumed (row I4) a CheckButton flips its checked state before PreClick. Addon errors in the scripts are
--- recorded, not raised, so st.clicking always returns to its value before this click (a nested click keeps the outer
--- one in progress).
+-- recorded, not raised; an intrinsic (kit) handler's error is raised after st.clicking returns to its value before
+-- this click (a nested click keeps the outer one in progress).
 function M.runClick(w, frame, button, down)
   local st = w.ui.state[frame]
   if st.plan.isA.checkbutton then
@@ -146,14 +152,16 @@ function M.runClick(w, frame, button, down)
   end
   local wasClicking = st.clicking
   st.clicking = true
-  w:callScript(frame, "PreClick", button, down)
-  w:callScript(frame, "OnClick", button, down)
-  w:callScript(frame, "PostClick", button, down)
+  local ok, err = pcall(fireClickScripts, w, frame, button, down)
   st.clicking = wasClicking
+  if not ok then
+    error(err, 0)
+  end
 end
 
--- source: confirmed (row I3) Click() ignores registration, mouse and visibility, passes isDown to the scripts as a
--- boolean (false when omitted), and does nothing on a disabled button or one already being clicked.
+-- source: confirmed (row I3) Click() ignores registration, passes isDown to the scripts (false when omitted), and
+-- does nothing on a disabled button or one already being clicked; assumed (row I3, kit choice) it skips the mouse and
+-- visibility checks and turns a non-boolean isDown into a boolean.
 local function click(w, obj, st, button, isDown)
   if st.disabled or st.clicking then
     return
@@ -210,11 +218,16 @@ local function hasFocus(w, obj)
   return w.input.editFocus == obj
 end
 
--- source: confirmed (row I6) SetText fires OnTextSet(self), then OnTextChanged(self, false).
+-- source: confirmed (row I6) SetText fires OnTextSet(self), then OnTextChanged(self, false) only when the text
+-- changed, so a handler that sets its own text does not recurse; assumed (row I6) OnTextSet fires for unchanged text.
+-- A fresh box (st.text nil) counts as "".
 local function setEditText(w, obj, st, text)
+  local old = st.text or ""
   st.text = tostring(text or "")
   w:callScript(obj, "OnTextSet")
-  w:callScript(obj, "OnTextChanged", false)
+  if st.text ~= old then
+    w:callScript(obj, "OnTextChanged", false)
+  end
 end
 
 M.typed.SetFocus = M.onlyFor("editbox", setFocus)

@@ -43,7 +43,36 @@ local function test_exists_is_false_for_missing_path()
   A.eq(fs.exists(tempDir() .. "/missing"), false)
 end
 
+-- Without the run51 bridge, on a read-only mount (os.rename fails with EROFS) a readable file still exists.
+local function test_exists_finds_a_file_that_cannot_be_renamed()
+  local file = tempDir() .. "/x.txt"
+  fs.writeFile(file, "x")
+  local bridge, rename = rawget(_G, "__tk_fs"), os.rename
+  rawset(_G, "__tk_fs", nil)
+  rawset(os, "rename", function()
+    return nil, "Read-only file system", 30
+  end)
+  local ok, found = pcall(fs.exists, file)
+  rawset(os, "rename", rename)
+  rawset(_G, "__tk_fs", bridge)
+  A.eq(ok, true, tostring(found))
+  A.eq(found, true)
+end
+
+-- Without the run51 bridge a directory, which io.open cannot open on Windows, still exists.
+local function test_exists_finds_a_directory_without_the_bridge()
+  local dir = tempDir()
+  local bridge = rawget(_G, "__tk_fs")
+  rawset(_G, "__tk_fs", nil)
+  local ok, found = pcall(fs.exists, dir)
+  rawset(_G, "__tk_fs", bridge)
+  A.eq(ok, true, tostring(found))
+  A.eq(found, true)
+end
+
 return function()
+  test_exists_finds_a_file_that_cannot_be_renamed()
+  test_exists_finds_a_directory_without_the_bridge()
   test_mkdirp_creates_nested_dirs_and_write_then_list_finds_file()
   test_mkdir_creates_once_then_reports_an_existing_dir()
   test_mkdir_raises_when_the_dir_cannot_be_created()
