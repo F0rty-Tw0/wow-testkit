@@ -150,7 +150,25 @@ local function test_frame_without_the_template_has_no_value_text_and_still_works
   end)
 end
 
+-- D12: DropdownSelectionTextMixin:OnLoad sets the selection translator (MenuTemplates.lua:724-728), so a plain
+-- DropdownButton that got the template's mixin and ran its OnLoad by hand follows the selection like a template frame.
+local function test_plain_dropdown_with_the_mixin_and_its_on_load_follows_the_selection() -- (D12)
+  withFrameXML("retail", function()
+    local dd = _G.CreateFrame("DropdownButton", nil, _G.UIParent)
+    dd[TEXT_KEY] = dd:CreateFontString()
+    for key, value in pairs(_G.WowStyle1DropdownMixin) do
+      dd[key] = value
+    end
+    dd:OnLoad()
+    dd:SetupMenu(radios({ value = 2 }))
+    dd:OpenMenu()
+    dd:CloseMenu()
+    A.eq(dd[TEXT_KEY]:GetText(), "Two")
+  end)
+end
+
 return function()
+  test_plain_dropdown_with_the_mixin_and_its_on_load_follows_the_selection()
   test_override_text_wins_over_default_text()
   test_override_text_with_nil_does_nothing()
   test_set_text_and_get_text_store_and_show_the_value_text()

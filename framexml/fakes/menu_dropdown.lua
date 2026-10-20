@@ -1,6 +1,6 @@
 -- DropdownButton: the intrinsic widget type of the Menu API (registered per world, so only worlds that have the Menu API
 -- fake know it). It opens a Menu API menu from a generator; a WowStyle1DropdownTemplate frame also shows the selection or
--- a default text in its Text child. Sources: docs/client-sources.md "DropdownButton and attributes" (D1-D10); client
+-- a default text in its Text child. Sources: docs/client-sources.md "DropdownButton and attributes" (D1-D12); client
 -- paths are relative to
 -- Interface/AddOns/Blizzard_Menu/.
 local M = {}
@@ -46,21 +46,12 @@ local function collectSelected(w, node, out)
   end
 end
 
--- True when the frame got the template's mixin; a plain DropdownButton's UpdateToMenuSelections does nothing
--- (row D10, DropdownButton.lua:334-339).
-local function hasSelectionText(w, obj)
-  for _, name in ipairs(w.ui.state[obj].mixins or {}) do
-    if name == MIXIN_NAME then
-      return true
-    end
-  end
-  return false
-end
-
 -- source: confirmed (row D6) MenuTemplates.lua:760-795 (UpdateToMenuSelections): after OverrideText nothing follows the
 -- selection; else the selected texts joined, else the default text. d.root is the description the selection is read from.
+-- Only a frame whose mixin OnLoad ran follows it (row D12); a plain DropdownButton's UpdateToMenuSelections does nothing
+-- (row D10, DropdownButton.lua:334-339).
 local function updateSelection(w, obj, d)
-  if d.overridden or not hasSelectionText(w, obj) then
+  if d.overridden or not d.followsSelection then
     return
   end
   local selected = {}
@@ -211,11 +202,13 @@ local function newMixin(w)
   end
   local mixin = {}
   -- source: confirmed (row D11) MenuTemplates.lua:931-932 ValidateIsDropdownButtonIntrinsic(self) (DropdownButton.lua:1-11),
-  -- an assertsafe: the message goes to the error handler and creation carries on (ErrorUtil.lua:8-30).
+  -- an assertsafe: the message goes to the error handler and creation carries on (ErrorUtil.lua:8-30). Then
+  -- DropdownSelectionTextMixin:OnLoad sets the selection translator (row D12, MenuTemplates.lua:724-728, :934).
   function mixin.OnLoad(self)
     if self.intrinsic ~= "DropdownButton" then
       w:reportError(string.format("%s element is not a DropdownButton.", self:GetDebugName()))
     end
+    dropdownOf(self).followsSelection = true
   end
   -- source: confirmed (row D6) MenuTemplates.lua:674-681.
   function mixin.GetText(self)
