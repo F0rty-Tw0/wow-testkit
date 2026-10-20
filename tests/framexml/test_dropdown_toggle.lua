@@ -129,7 +129,21 @@ local function test_initialize_at_a_level_with_no_list_names_the_caller_assumed(
   end)
 end
 
+-- Initialize stores and calls init only when it is truthy (Mainline :83-86, Classic :82-85), so false keeps the
+-- frame's earlier init.
+local function test_initialize_with_a_false_init_keeps_the_earlier_one()
+  for _, flavor in ipairs({ "retail", "vanilla" }) do
+    withFrameXML(flavor, function(w)
+      local frame = newDropdown("FalseInitDD")
+      _G.UIDropDownMenu_Initialize(frame, false)
+      _G.ToggleDropDownMenu(1, nil, frame)
+      A.eq(w.menus[1].entries[1].text, "More", flavor)
+    end)
+  end
+end
+
 return function()
+  test_initialize_with_a_false_init_keeps_the_earlier_one()
   test_initialize_at_a_level_with_no_list_names_the_caller_assumed()
   test_a_hooked_toggle_misuse_error_names_the_caller()
   test_initialize_on_the_open_frame_after_a_submenu_adds_to_the_shown_list_one()

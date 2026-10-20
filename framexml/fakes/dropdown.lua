@@ -1,5 +1,5 @@
 -- UIDropDownMenu fake: Initialize/AddButton/Toggle build menu levels that MenuFrames renders; picks run the entry's func.
--- Sources: docs/client-sources.md "UIDropDownMenu" (S1, S2, S4-S8, S10-S18); client paths are
+-- Sources: docs/client-sources.md "UIDropDownMenu" (S1, S2, S4-S8, S10-S19); client paths are
 -- relative to Interface/AddOns/Blizzard_SharedXML/<Mainline|Classic>/UIDropDownMenu.lua.
 local M = {}
 
@@ -63,7 +63,7 @@ local function hideForInitialize(w, frame)
   MenuFrames.close(w, depth)
 end
 
--- S4 (Mainline :77-99, Classic :76-97): menuList, helper close, initialize (only when init is not nil),
+-- S4 (Mainline :77-99, Classic :76-97): menuList, helper close, initialize (only when init is truthy, :83/:82),
 -- init(frame, level, menuList) with level as passed, DropDownList<level or 1>.dropdown = frame (Mainline :93-94,
 -- Classic :92-93), displayMode only for "MENU" (:105-125). Returns the built level, which Toggle opens; a direct
 -- call drops it, so nothing opens.
@@ -71,7 +71,7 @@ local function initialize(w, frame, init, displayMode, level, menuList)
   frame.menuList = menuList
   hideForInitialize(w, frame)
   local built
-  if init ~= nil then
+  if init then
     frame.initialize = init
     built = build(w, frame, level or 1, level, menuList)
   end
