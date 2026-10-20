@@ -224,7 +224,24 @@ local function test_toggle_errors_name_the_caller()
   end)
 end
 
+-- An entry's submenu Toggle runs from the kit's OnEnter, which has no caller line to blame, so the recorded error
+-- names the entry instead.
+local function test_submenu_toggle_error_names_the_entered_entry()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      local info = _G.UIDropDownMenu_CreateInfo()
+      info.text, info.notCheckable, info.hasArrow = "L" .. level, true, true
+      _G.UIDropDownMenu_AddButton(info, level)
+    end)
+    _G.ToggleDropDownMenu(2, nil, frame, nil, nil, nil, nil, anchorOn(frame))
+    Input.enter(w, w.menus[2].entries[1].frame)
+    A.eq(#w.errors, 1)
+    A.eq(w.errors[1].message, "DropDownList2Button1 OnEnter: ToggleDropDownMenu: no dropdown frame")
+  end)
+end
+
 return function()
+  test_submenu_toggle_error_names_the_entered_entry()
   test_toggle_errors_name_the_caller()
   test_toggle_on_the_open_menu_frame_closes_a_shown_deeper_level()
   test_toggle_level_one_with_a_button_on_the_open_menu_closes_it()

@@ -101,6 +101,10 @@ local function openSubmenu(w, level, depth, index)
   end
   w.dropdown.pendingParent = nil
   if not ok then
+    -- An error without a position (a kit misuse error whose Callsite walk ends at the pcall) gets the entry as one.
+    if type(err) == "string" and not err:find("^[^\n]*:%d+: ") then
+      err = entryFrame:GetName() .. " OnEnter: " .. err
+    end
     error(err, 0)
   end
 end
