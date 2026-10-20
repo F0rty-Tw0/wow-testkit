@@ -53,11 +53,13 @@ local function forgetOnClassicHide(w, tooltip, tipOf)
     local original = index[name]
     local label = TOOLTIP_NAME .. ":" .. name
     index[name] = function(self, ...)
-      -- A non-widget self reaches the class method, which raises the kit's "self is not a widget" error.
-      local wasShown = w.ui.state[self] ~= nil and self:IsShown()
+      -- tipOf raises the kit's "self is not a widget" error at the caller's line; a tail call to original can't, as
+      -- Lua 5.1 reports the (tail call) frame, which has no line.
+      local tip = tipOf(w, self, label)
+      local wasShown = self:IsShown()
       original(self, ...)
       if wasShown and not self:IsShown() then
-        forget(tipOf(w, self, label))
+        forget(tip)
       end
     end
   end
