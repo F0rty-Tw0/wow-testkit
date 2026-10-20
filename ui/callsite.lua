@@ -1,6 +1,6 @@
 -- The error() level of the first caller outside the kit's widget layer. Widget methods reach their bodies through a
--- different number of tail calls per method (bind, recorders), and Lua 5.1 counts each lost tail call as a level, so
--- a fixed level can land on a frame with no position.
+-- different number of tail calls per method (bind, BehaviourInput's SetScript wrapper), and Lua 5.1 counts each
+-- lost tail call as a level, so a fixed level can land on a frame with no position.
 local M = {}
 
 local getinfo = debug.getinfo
