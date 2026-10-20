@@ -407,7 +407,10 @@ end
 local HIDDEN_NEWINDEX = [[
 local _, ns = ...
 ns.seen = {}
-setmetatable(_G, { __newindex = function(_, k) ns.seen[#ns.seen + 1] = k end })
+setmetatable(_G, { __newindex = function(t, k)
+  ns.seen[#ns.seen + 1] = k
+  ns.isG, ns.rawDebug = t == _G, rawget(t, "debug")
+end })
 io = 1
 SomeNew = 2
 ]]
@@ -417,6 +420,7 @@ local function test_globals_newindex_fires_for_a_host_only_name_assumed()
   HF.withFrameXML("retail", function(w)
     local ns = loadSource(w, "MtHidden", HIDDEN_NEWINDEX)
     A.same(ns.seen, { "io", "SomeNew" })
+    A.same({ ns.isG, ns.rawDebug }, { true, nil })
     A.eq(rawget(_G, "io"), hostIo)
   end)
 end
