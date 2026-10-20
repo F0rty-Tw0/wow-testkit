@@ -133,6 +133,15 @@ local function test_unknown_game_type_loads_everywhere_and_is_reported()
   end
 end
 
+local function test_wrath_or_cata_only_file_loads_on_no_flavor_assumed()
+  local parsed = Toc.parse("Wrath.lua [AllowLoadGameType wrath]\nCata.lua [AllowLoadGameType Cata]\n")
+  for _, flavor in ipairs(Flavors.list) do
+    local files, report = Toc.filesFor(parsed, flavor, function() end)
+    A.same(files, {}, flavor)
+    A.same(report, {}, flavor)
+  end
+end
+
 local function test_xml_expands_to_its_scripts_in_place()
   A.same((filesOn("Multi", "retail")), { "A.lua", "Only.lua", "Any.lua", "X.lua" })
 end
@@ -201,6 +210,7 @@ return function()
   test_mainline_only_file_loads_on_retail_and_forever_not_vanilla()
   test_game_type_list_matches_any_listed_type()
   test_unknown_game_type_loads_everywhere_and_is_reported()
+  test_wrath_or_cata_only_file_loads_on_no_flavor_assumed()
   test_xml_expands_to_its_scripts_in_place()
   test_xml_include_expands_relative_to_its_directory()
   test_unsupported_xml_content_and_directives_are_reported()
