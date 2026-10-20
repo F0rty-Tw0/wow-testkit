@@ -53,6 +53,8 @@ function M.extend(Scenario)
     local box = checked(self, "press", target, "type")
     self.w:run(ENGINE, Input.press, self.w, box, key)
   end
+
+  require("scenario_menu").extend(Scenario)
 end
 
 return M
