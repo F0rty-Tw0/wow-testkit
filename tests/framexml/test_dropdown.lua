@@ -231,7 +231,7 @@ end
 
 local function test_install_skips_names_the_flavor_does_not_list()
   H.withWorld("retail", function(w)
-    -- World:install reads self.globals.api (world.lua:242-243), so keep the real tables behind a metatable.
+    -- World:install reads self.globals.api (world.lua:215, World:install), so keep the real tables behind a metatable.
     w.globals = setmetatable({ framexml = { UIDropDownMenu_Initialize = true } }, { __index = w.globals })
     Dropdown.install(w)
     A.eq(type(rawget(_G, "UIDropDownMenu_Initialize")), "function")
