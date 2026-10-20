@@ -71,7 +71,42 @@ local function test_get_attribute_is_not_counted_as_unscripted()
   end)
 end
 
+-- The error and its text are assumed (row A3): no source shows the client's message for a nil name.
+local function nilNameError(call)
+  local ok, err = pcall(call)
+  A.eq(ok, false)
+  return tostring(err)
+end
+
+local function at(line)
+  return "test_behaviour_attributes%.lua:" .. line .. ": "
+end
+
+local function test_nil_attribute_name_raises_at_the_callers_line_assumed()
+  withWidgets("retail", function(w)
+    local button = _G.CreateFrame("Button")
+    local line
+    local err = nilNameError(function()
+      line = debug.getinfo(1, "l").currentline + 1
+      button:SetAttribute(nil, 1)
+    end)
+    A.truthy(err:find(at(line) .. "SetAttribute: attributeName must be a string"), err)
+    err = nilNameError(function()
+      line = debug.getinfo(1, "l").currentline + 1
+      button:GetAttribute(nil)
+    end)
+    A.truthy(err:find(at(line) .. "GetAttribute: attributeName must be a string"), err)
+    err = nilNameError(function()
+      w:run("addon", function()
+        button:SetAttribute(nil, 1)
+      end)
+    end)
+    A.contains(err, "SetAttribute: attributeName must be a string")
+  end)
+end
+
 return function()
+  test_nil_attribute_name_raises_at_the_callers_line_assumed()
   test_set_attribute_accepts_a_boolean_from_addon_code()
   test_attribute_name_is_still_checked()
   test_get_attribute_returns_the_value_for_that_name()

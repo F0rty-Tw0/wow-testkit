@@ -340,11 +340,11 @@ local function test_override_text_stops_the_value_text_following_the_selection()
   end)
 end
 
-local function test_frame_without_the_template_has_no_value_text_and_still_works()
+local function test_frame_without_the_template_has_no_value_text_and_still_works() -- (D10)
   withFrameXML("retail", function(w)
     local dd = _G.CreateFrame("DropdownButton", nil, _G.UIParent)
     dd:SetupMenu(twoEntries)
-    dd:SetDefaultText("Pick")
+    A.eq(dd.SetDefaultText, nil)
     Input.click(w, dd, "LeftButton")
     A.eq(dd:IsMenuOpen(), true)
   end)

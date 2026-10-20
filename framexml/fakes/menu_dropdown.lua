@@ -1,6 +1,7 @@
 -- DropdownButton: the intrinsic widget type of the Menu API (registered per world, so only worlds that have the Menu API
--- fake know it). It opens a Menu API menu from a generator and shows the selection or a default text in its Text child.
--- Sources: docs/client-sources.md "DropdownButton and attributes" (D1-D8); client paths are relative to
+-- fake know it). It opens a Menu API menu from a generator; a WowStyle1DropdownTemplate frame also shows the selection or
+-- a default text in its Text child. Sources: docs/client-sources.md "DropdownButton and attributes" (D1-D10); client
+-- paths are relative to
 -- Interface/AddOns/Blizzard_Menu/.
 local M = {}
 
@@ -15,6 +16,9 @@ local OPEN_BUTTON = "LeftButton"
 local TEXT_KEY = "Text"
 -- LIST_DELIMITER, the client's global string joining several selected texts (MenuTemplates.lua:789).
 local LIST_DELIMITER = ", "
+-- The template's mixin global (row D7, Mainline/MenuTemplates.xml:3), which holds the value-text methods (row D10).
+local MIXIN_NAME = "WowStyle1DropdownMixin"
+local NO_GATE = { gate = "none" }
 
 local methods = {}
 
@@ -42,10 +46,21 @@ local function collectSelected(w, node, out)
   end
 end
 
+-- True when the frame got the template's mixin; a plain DropdownButton's UpdateToMenuSelections does nothing
+-- (row D10, DropdownButton.lua:334-339).
+local function hasSelectionText(w, obj)
+  for _, name in ipairs(w.ui.state[obj].mixins or {}) do
+    if name == MIXIN_NAME then
+      return true
+    end
+  end
+  return false
+end
+
 -- source: confirmed (row D6) MenuTemplates.lua:760-795 (UpdateToMenuSelections): after OverrideText nothing follows the
 -- selection; else the selected texts joined, else the default text. d.root is the description the selection is read from.
 local function updateSelection(w, obj, d)
-  if d.overridden then
+  if d.overridden or not hasSelectionText(w, obj) then
     return
   end
   local selected = {}
@@ -56,24 +71,33 @@ local function updateSelection(w, obj, d)
   showText(w, obj, d)
 end
 
+local generate
+
 -- The menu opened for obj reports picks back: a response re-reads the selection, also after the menu closed
--- (DropdownButton.lua:279-288, SignalUpdate).
+-- (DropdownButton.lua:279-288, SignalUpdate), or runs the generator again after EnableRegenerateOnResponse (row D9,
+-- :290-300).
 local function watch(w, obj, d)
   local state = w.menus[1].state
   d.root = state.root
   state.onUpdate = function()
+    if d.regenerateOnResponse then
+      generate(w, obj, d)
+      return
+    end
     d.root = state.root
     updateSelection(w, obj, d)
   end
 end
 
 -- source: confirmed (row D5) DropdownButton.lua:255-264: a generator always runs; an open menu is rebuilt in place, a
--- closed one gets a throwaway root.
-local function generate(w, obj, d)
+-- closed one gets a throwaway root. The open menu takes the current generator first, since SetupMenu may have replaced
+-- it (:239, :195-201: the open menu gets the description the new generator built).
+function generate(w, obj, d)
   if not d.generator then
     return
   end
   if isOpen(w, obj) then
+    w.menus[1].state.generator = d.generator
     w.menus[1].rebuild()
     d.root = w.menus[1].state.root
   else
@@ -132,32 +156,103 @@ function methods.CloseMenu(w, obj, st)
   updateSelection(w, obj, st.dropdown)
 end
 
-function methods.SetDefaultText(w, obj, st, text)
-  st.dropdown.defaultText = text
-  showText(w, obj, st.dropdown)
-end
-
--- source: confirmed (row D6) MenuTemplates.lua:751-758: nil does nothing; else the text sticks over the selection.
-function methods.OverrideText(w, obj, st, text)
-  if text == nil then
-    return
+-- source: confirmed (row D2) DropdownButton.lua:143-149.
+function methods.SetMenuOpen(_, obj, _, open)
+  if open then
+    obj:OpenMenu()
+  else
+    obj:CloseMenu()
   end
-  st.dropdown.overridden = true
-  methods.SetText(w, obj, st, text)
 end
 
--- source: confirmed (row D6) MenuTemplates.lua:674-681.
-function methods.SetText(w, obj, st, text)
-  st.dropdown.text = text
-  showText(w, obj, st.dropdown)
+-- source: confirmed (row D9) DropdownButton.lua:279-288, :330-332: re-reads the selection of the last description; the
+-- generator does not run. The OnUpdate callback event is not modelled.
+function methods.SignalUpdate(w, obj, st)
+  updateSelection(w, obj, st.dropdown)
 end
 
-function methods.GetText(_, _, st)
-  return st.dropdown.text
+methods.Update = methods.SignalUpdate
+
+-- source: confirmed (row D9) DropdownButton.lua:221-231: the last generated root, nil before any; HasElements is false
+-- without one.
+function methods.GetMenuDescription(_, _, st)
+  return st.dropdown.root
+end
+
+function methods.HasElements(_, _, st)
+  local root = st.dropdown.root
+  return root ~= nil and #root.children > 0
+end
+
+-- source: confirmed (row D9) DropdownButton.lua:210-215: forgets the description and the generator, then closes the
+-- menu, whose update finds no selection.
+function methods.ClearMenuState(w, obj, st)
+  local d = st.dropdown
+  d.generator, d.root = nil, nil
+  if isOpen(w, obj) then
+    MenuFrames.close(w, 1)
+  end
+  updateSelection(w, obj, d)
+end
+
+function methods.EnableRegenerateOnResponse(_, _, st)
+  st.dropdown.regenerateOnResponse = true
+end
+
+-- source: confirmed (row D10) MenuTemplates.lua:929: WowStyle1DropdownMixin = CreateFromMixins(ButtonStateBehaviorMixin,
+-- DropdownSelectionTextMixin). The template copies it onto the frame, so its text methods shadow Button:SetText and
+-- :GetText on template frames only. Only the value-text methods are modelled.
+local function newMixin(w)
+  -- The template also lands on frames of other types (row D11), whose value text then lives here too.
+  local function dropdownOf(frame)
+    local st = w.ui.state[frame]
+    st.dropdown = st.dropdown or {}
+    return st.dropdown
+  end
+  local mixin = {}
+  -- source: confirmed (row D11) MenuTemplates.lua:931-932 ValidateIsDropdownButtonIntrinsic(self) (DropdownButton.lua:1-11),
+  -- an assertsafe: the message goes to the error handler and creation carries on (ErrorUtil.lua:8-30).
+  function mixin.OnLoad(self)
+    if self.intrinsic ~= "DropdownButton" then
+      w:reportError(string.format("%s element is not a DropdownButton.", self:GetDebugName()))
+    end
+  end
+  -- source: confirmed (row D6) MenuTemplates.lua:674-681.
+  function mixin.GetText(self)
+    return dropdownOf(self).text
+  end
+  function mixin.SetText(self, text)
+    local d = dropdownOf(self)
+    d.text = text
+    showText(w, self, d)
+  end
+  -- source: confirmed (rows D6, D9) MenuTemplates.lua:734-741.
+  function mixin.GetDefaultText(self)
+    return dropdownOf(self).defaultText
+  end
+  function mixin.SetDefaultText(self, text)
+    local d = dropdownOf(self)
+    d.defaultText = text
+    showText(w, self, d)
+  end
+  -- source: confirmed (row D6) MenuTemplates.lua:751-758: nil does nothing; else the text sticks over the selection.
+  function mixin.OverrideText(self, text)
+    if text == nil then
+      return
+    end
+    dropdownOf(self).overridden = true
+    self:SetText(text)
+  end
+  -- source: confirmed (row D5) MenuTemplates.lua:816-820, the template's <OnShow method="OnShow"/>.
+  function mixin.OnShow(self)
+    self:GenerateMenu()
+  end
+  return mixin
 end
 
 -- openMenu(w, owner, generator) -> menu frame|nil (framexml/fakes/menu.lua M.open).
 function M.install(w, openMenu)
+  w:install(MIXIN_NAME, newMixin(w), NO_GATE)
   local all = {}
   for key, fn in pairs(methods) do
     all[key] = fn

@@ -1,7 +1,8 @@
 -- XML template facts for CreateFrame's template argument: retail (Gethe wow-ui-source, branch live) only.
 -- Per template: Ketho Templates.lua type, direct inherits and mixin names (flattened over the inherits
 -- chain), the parentKey children (key and widget type) flattened over the inherits chain from the XML, the
--- XML <Size> (most derived wins), and protected for Secure* templates. Facts only: no Blizzard XML or Lua.
+-- XML <Size> (most derived wins), protected for Secure* templates, and scripts (handler name -> the mixin method the
+-- XML's method="" names, for the few handlers the kit models). Facts only: no Blizzard XML or Lua.
 -- The comment above each entry lists the inherits chain and the XML file that defines each link.
 -- Templates in use by the reference addons (WhisperMessenger, RaidGroupWrap, MouseOverTooltip), 2026-10-04.
 local M = {}
@@ -234,6 +235,9 @@ M.TEMPLATES = {
   -- source: confirmed (row D7) Blizzard_Menu/Mainline/MenuTemplates.xml:3-39: WowStyle1DropdownTemplate (no inherits; the element is the intrinsic
   -- DropdownButton). Mainline values: 120x25, Text is GameFontHighlight, justifyH LEFT. Blizzard_Menu/Classic/MenuTemplates.xml
   -- has the same keys and types at 60x24 with GameFontHighlightSmall and RIGHT; the flavorless entry takes Mainline's.
+  -- scripts: <OnLoad method="OnLoad"/> (Mainline :30, Classic :33) and <OnShow method="OnShow"/> (Mainline :31, Classic :34);
+  -- WowStyle1DropdownMixin.OnLoad checks the frame is a DropdownButton (Blizzard_Menu/MenuTemplates.lua:931-932), OnShow
+  -- is self:GenerateMenu() (:816-820). The template's other scripts are not modelled.
   WowStyle1DropdownTemplate = {
     type = "DropdownButton",
     inherits = {},
@@ -245,6 +249,7 @@ M.TEMPLATES = {
     mixins = { "WowStyle1DropdownMixin" },
     protected = false,
     size = { 120, 25 },
+    scripts = { OnLoad = "OnLoad", OnShow = "OnShow" },
   },
 }
 
