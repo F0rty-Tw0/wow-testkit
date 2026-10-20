@@ -116,29 +116,31 @@ local function test_pick_ambiguous_text_throws()
   end)
 end
 
--- The title's text is "|cff00ff00Head|r": matching "Head" proves the color escapes are stripped, and the error proves it matched.
-local function test_pick_title_throws_mouse_disabled()
+-- The title's text is "|cff00ff00Head|r": matching "Head" proves the color escapes are stripped, and the error proves
+-- it matched. A UIDropDownMenu title is a disabled Button (Mainline UIDropDownMenu.lua:466-475).
+local function test_pick_title_throws_disabled()
   withMenuScenario(function(s)
     openMenuFixture({})
     A.errors(function()
       s:pick("Head")
-    end, "pick: mouse disabled")
+    end, "pick: disabled")
   end)
 end
 
-local function test_pick_divider_throws_mouse_disabled()
+-- A divider is a title without text (S2), so the dropdown fake builds it disabled; the text here only lets pick find it.
+local function test_pick_divider_throws_disabled()
   withMenuScenario(function(s)
     local MenuFrames = require("framexml.fakes.menu_frames")
     local level = {
       namePrefix = "DropDownList1",
-      entries = { { kind = "divider", text = "sep", enabled = true, checked = false, hasSubmenu = false } },
+      entries = { { kind = "divider", text = "sep", enabled = false, checked = false, hasSubmenu = false } },
       pick = function() end,
       openSubmenu = function() end,
     }
     MenuFrames.open(s.w, 1, level)
     A.errors(function()
       s:pick("sep")
-    end, "pick: mouse disabled")
+    end, "pick: disabled")
   end)
 end
 
@@ -415,8 +417,8 @@ return function()
   test_pick_path_enters_the_submenu_then_clicks_the_last()
   test_pick_unknown_text_throws_listing_the_entries()
   test_pick_ambiguous_text_throws()
-  test_pick_title_throws_mouse_disabled()
-  test_pick_divider_throws_mouse_disabled()
+  test_pick_title_throws_disabled()
+  test_pick_divider_throws_disabled()
   test_pick_disabled_entry_throws_disabled()
   test_pick_with_no_menu_open_throws()
   test_pick_path_through_an_entry_without_a_submenu_throws()

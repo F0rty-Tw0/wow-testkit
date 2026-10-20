@@ -60,9 +60,10 @@ local function enterEntry(w, level, entry, index)
   end
 end
 
--- Kit scripts for one entry, set through the world so an addon's SetScript replaces them; titles and dividers get none.
+-- Kit scripts for one entry, set through the world so an addon's SetScript replaces them; Menu API titles and dividers
+-- get none. UIDropDownMenu ones (named levels) are disabled Buttons whose InvisibleButton takes the enter (S11).
 local function setEntryScripts(w, level, entry, index, button)
-  local interactive = not NO_MOUSE_KINDS[entry.kind]
+  local interactive = level.namePrefix ~= nil or not NO_MOUSE_KINDS[entry.kind]
   button:EnableMouse(interactive)
   local onClick, onEnter
   if interactive then

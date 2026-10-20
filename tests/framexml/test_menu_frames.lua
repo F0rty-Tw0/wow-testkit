@@ -145,14 +145,31 @@ local function test_a_replaced_entry_script_removes_the_kit_behavior()
   end)
 end
 
-local function test_titles_and_dividers_have_mouse_disabled()
+local function test_menu_api_titles_and_dividers_have_mouse_disabled()
   withFrameXML("retail", function(w)
-    local level = newLevel({ entry("title", "Head"), entry("divider") }, "DropDownList1")
+    local level = newLevel({ entry("title", "Head"), entry("divider") }, nil)
     MenuFrames.open(w, 1, level)
     for _, e in ipairs(level.entries) do
       A.contains(Input.blockedReason(w, e.frame, "click"), "mouse disabled")
       A.contains(Input.blockedReason(w, e.frame, "enter"), "mouse disabled")
     end
+  end)
+end
+
+-- A UIDropDownMenu title or divider is a disabled Button under an InvisibleButton whose OnEnter closes the deeper
+-- levels (Mainline UIDropDownMenu.lua:153-154, :466-475; Classic :180-182, :417-427), as for any disabled entry (S11).
+local function test_drop_down_titles_and_dividers_close_deeper_levels_on_enter()
+  withFrameXML("retail", function(w)
+    local disabled = { enabled = false }
+    local first, log = newLevel({ entry("title", "Head", disabled), entry("divider", nil, disabled) }, "DropDownList1")
+    MenuFrames.open(w, 1, first)
+    for _, e in ipairs(first.entries) do
+      MenuFrames.open(w, 2, newLevel({ entry("button", "B") }, "DropDownList2"))
+      Input.enter(w, e.frame)
+      A.eq(#w.menus, 1)
+      A.eq(Input.blockedReason(w, e.frame, "click"), "disabled")
+    end
+    A.same(log, {})
   end)
 end
 
@@ -283,7 +300,8 @@ return function()
   test_entry_enter_without_a_submenu_closes_deeper_levels()
   test_entering_a_disabled_entry_with_a_submenu_only_closes_deeper_levels()
   test_a_replaced_entry_script_removes_the_kit_behavior()
-  test_titles_and_dividers_have_mouse_disabled()
+  test_menu_api_titles_and_dividers_have_mouse_disabled()
+  test_drop_down_titles_and_dividers_close_deeper_levels_on_enter()
   test_disabled_entries_are_disabled_buttons()
   test_close_hides_the_level_and_deeper_ones_and_clears_menus()
   test_close_fires_on_leave_without_motion_on_the_focused_entry_assumed()
