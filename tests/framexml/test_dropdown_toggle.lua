@@ -103,7 +103,24 @@ local function test_a_hooked_toggle_misuse_error_names_the_caller()
   end)
 end
 
+-- The client indexes DropDownList<level> after init (Mainline :93-94, Classic :92-93), so a level past
+-- UIDROPDOWNMENU_MAXLEVELS whose init made no list errors there; the message and its caller line are the kit's.
+local function test_initialize_at_a_level_with_no_list_names_the_caller_assumed()
+  withFrameXML("retail", function()
+    local frame = _G.CreateFrame("Frame", "NoListDD", _G.UIParent, "UIDropDownMenuTemplate")
+    local message = A.errors(function()
+      _G.UIDropDownMenu_Initialize(frame, nil, nil, 4)
+    end, "UIDropDownMenu_Initialize: no DropDownList4")
+    A.truthy(message:find("^tests[/\\]framexml[/\\]test_dropdown_toggle%.lua:%d+: "), message)
+    _G.UIDropDownMenu_Initialize(frame, function(_, level)
+      addItem("Five", { notCheckable = true }, level)
+    end, nil, 5)
+    A.eq(_G.DropDownList5.dropdown, frame)
+  end)
+end
+
 return function()
+  test_initialize_at_a_level_with_no_list_names_the_caller_assumed()
   test_a_hooked_toggle_misuse_error_names_the_caller()
   test_initialize_on_the_open_frame_after_a_submenu_adds_to_the_shown_list_one()
   test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()

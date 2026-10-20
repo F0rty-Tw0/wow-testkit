@@ -1,5 +1,5 @@
 -- UIDropDownMenu fake: Initialize/AddButton/Toggle build menu levels that MenuFrames renders; picks run the entry's func.
--- Sources: docs/client-sources.md "UIDropDownMenu" (S1, S2, S4-S8, S10-S17); client paths are
+-- Sources: docs/client-sources.md "UIDropDownMenu" (S1, S2, S4-S8, S10-S18); client paths are
 -- relative to Interface/AddOns/Blizzard_SharedXML/<Mainline|Classic>/UIDropDownMenu.lua.
 local M = {}
 
@@ -172,7 +172,12 @@ local function initialize(w, frame, init, displayMode, level, menuList)
     frame.initialize = init
     built = build(w, frame, level or 1, level, menuList)
   end
-  _G[LIST_NAME .. (level or 1)].dropdown = frame
+  local listName = LIST_NAME .. (level or 1)
+  local list = rawget(_G, listName)
+  if not list then -- the client errors indexing it (Mainline :93-94); this message is the kit's (assumed)
+    error("UIDropDownMenu_Initialize: no " .. listName, Callsite.level())
+  end
+  list.dropdown = frame
   if displayMode == "MENU" then
     frame.displayMode = displayMode
   end
