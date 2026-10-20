@@ -125,14 +125,20 @@ local function bind(w, plan, name, impl, check)
   end
 end
 
+-- The method body for name on plan: a type-specific one (Behaviour.typed) wins over the name-keyed hand-written
+-- one, which wins over the generic Set/Get/no-op rule.
+local function implFor(plan, name, signature)
+  local typed = Behaviour.typed[name]
+  return (typed and typed(plan)) or Behaviour.methods[name] or generic(plan, name, signature)
+end
+
 local function classFor(w, typeName)
   local class = w.ui.classes[typeName]
   if not class then
     local plan = planFor(w, typeName)
     local methods = {}
     for name, entry in pairs(plan.methods) do
-      local impl = Behaviour.methods[name] or generic(plan, name, entry.signature)
-      methods[name] = bind(w, plan, name, impl, entry.check)
+      methods[name] = bind(w, plan, name, implFor(plan, name, entry.signature), entry.check)
     end
     class = { plan = plan, meta = { __index = methods } }
     w.ui.classes[typeName] = class
@@ -221,6 +227,7 @@ function M.install(w)
       return create(w, typeName, name, parent)
     end,
   }
+  w.input = { mouseFocus = nil, editFocus = nil }
   w:install("CreateFrame", createFrame(w), { gate = "none" })
   w:install("CreateFont", function(name)
     return create(w, "Font", name, nil)

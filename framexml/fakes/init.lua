@@ -20,6 +20,7 @@ function M.installStage1(w)
   if not w.ui then
     Widgets.install(w)
   end
+  require("input").install(w)
   for _, name in ipairs(STAGE1) do
     require(name).install(w)
   end
