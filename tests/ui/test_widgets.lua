@@ -134,12 +134,12 @@ local function registerPill(w, seen)
   })
 end
 
-local function test_intrinsic_type_has_its_methods_and_the_base_types()
+local function test_intrinsic_type_has_its_methods_and_reports_its_base_type_assumed()
   withWidgets("retail", function(w)
     local seen = {}
     registerPill(w, seen)
     local pill = _G.CreateFrame("pill")
-    A.eq(pill:GetObjectType(), "Pill")
+    A.eq(pill:GetObjectType(), "Button") -- D8 (assumed): an intrinsic reports its base type
     A.eq(pill:IsObjectType("Pill"), true)
     A.eq(pill:IsObjectType("Button"), true)
     A.eq(pill:IsObjectType("Frame"), true)
@@ -161,16 +161,16 @@ local function test_intrinsic_frame_runs_the_base_types_button_methods()
   end)
 end
 
-local function test_intrinsic_scripts_follow_the_base_type()
+local function test_intrinsic_scripts_follow_the_base_type_assumed()
   withWidgets("retail", function(w)
     registerPill(w, {})
     local pill = _G.CreateFrame("Pill")
-    A.eq(w.ui.state[pill].plan.scriptType, "Button")
+    A.eq(w.ui.state[pill].plan.intrinsic, "Pill")
     A.eq(pill:HasScript("OnClick"), true)
     A.eq(pill:HasScript("OnBogus"), false)
     A.errors(function()
       pill:SetScript("OnBogus", function() end)
-    end, "Pill has no script handler 'OnBogus' on retail")
+    end, "Button has no script handler 'OnBogus' on retail")
   end)
 end
 
@@ -187,11 +187,11 @@ local function test_intrinsic_init_runs_once_per_frame_and_is_not_a_method()
   end)
 end
 
-local function test_intrinsic_is_per_world_and_leaves_the_base_class_alone()
+local function test_intrinsic_is_per_world_and_leaves_the_base_class_alone_assumed()
   withWidgets("retail", function(w)
     registerPill(w, {})
     A.eq(_G.CreateFrame("Button").Poke, nil)
-    A.eq(w.ui.create("Pill", nil, nil):GetObjectType(), "Pill")
+    A.eq(w.ui.create("Pill", nil, nil):GetObjectType(), "Button") -- D8 (assumed)
   end)
   withWidgets("retail", function()
     A.errors(function()
@@ -211,6 +211,30 @@ local function test_register_intrinsic_rejects_an_unknown_base_and_an_existing_t
   end)
 end
 
+local function test_intrinsic_scripts_run_before_the_frames_handler_and_survive_set_script()
+  withWidgets("retail", function(w)
+    local order = {}
+    Widgets.registerIntrinsic(w, "Pill", "Button", {
+      scripts = {
+        OnMouseDown = function(world, obj, st, button)
+          order[#order + 1] = { "intrinsic", world, obj, st, button }
+        end,
+      },
+    })
+    local pill = _G.CreateFrame("Pill")
+    pill:SetScript("OnMouseDown", function(_, button)
+      order[#order + 1] = { "addon", button }
+    end)
+    w:callScript(pill, "OnMouseDown", "LeftButton")
+    A.eq(#order, 2)
+    A.same({ order[1][1], order[1][5], order[2][1], order[2][2] }, { "intrinsic", "LeftButton", "addon", "LeftButton" })
+    A.eq(order[1][2], w)
+    A.eq(order[1][3], pill)
+    A.eq(order[1][4], w.ui.state[pill])
+    A.eq(_G.CreateFrame("Button").OnMouseDown, nil)
+  end)
+end
+
 return function()
   test_named_frame_sets_global_until_destroy()
   test_frame_keeps_no_fields_of_its_own()
@@ -225,10 +249,11 @@ return function()
   test_create_frame_passes_template_to_hook()
   test_named_font_registers_global()
   test_font_set_font_round_trips()
-  test_intrinsic_type_has_its_methods_and_the_base_types()
+  test_intrinsic_type_has_its_methods_and_reports_its_base_type_assumed()
   test_intrinsic_frame_runs_the_base_types_button_methods()
-  test_intrinsic_scripts_follow_the_base_type()
+  test_intrinsic_scripts_follow_the_base_type_assumed()
   test_intrinsic_init_runs_once_per_frame_and_is_not_a_method()
-  test_intrinsic_is_per_world_and_leaves_the_base_class_alone()
+  test_intrinsic_is_per_world_and_leaves_the_base_class_alone_assumed()
   test_register_intrinsic_rejects_an_unknown_base_and_an_existing_type()
+  test_intrinsic_scripts_run_before_the_frames_handler_and_survive_set_script()
 end

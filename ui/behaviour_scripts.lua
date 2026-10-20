@@ -9,7 +9,7 @@ M.methods = methods
 
 -- Errors at the widget method's caller (level 3: this function, the method, its caller).
 local function checkHandler(w, st, script)
-  if not Scripts.supports(st.plan.scriptType or st.plan.type, script, w.flavor) then
+  if not Scripts.supports(st.plan.type, script, w.flavor) then
     error(string.format("%s has no script handler '%s' on %s", st.plan.type, tostring(script), w.flavor), 3)
   end
 end
@@ -29,7 +29,7 @@ function methods.GetScript(w, obj, _, script)
 end
 
 function methods.HasScript(w, _, st, script)
-  return Scripts.supports(st.plan.scriptType or st.plan.type, script, w.flavor)
+  return Scripts.supports(st.plan.type, script, w.flavor)
 end
 
 -- Events ------------------------------------------------------------------------------------------------------

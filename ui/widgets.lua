@@ -240,8 +240,10 @@ local function createFrame(w)
   end
 end
 
--- The plan of an intrinsic type: base's plan copied (the catalog's stays untouched) with the intrinsic's own methods,
--- its name as type, and the base type for script support. methods.init is the once-per-frame hook, not a method.
+-- The plan of an intrinsic type: base's plan copied (the catalog's stays untouched) with the intrinsic's own methods.
+-- It keeps the base type as its type, as the client's GetObjectType does, and the name in plan.intrinsic. Two reserved
+-- keys of methods are not methods: init, the once-per-frame hook, and scripts, handlers that run before the frame's own
+-- (plan.intrinsicScripts, see World:callScript).
 local function intrinsicPlan(base, name, baseType, methods)
   local isA, planMethods = {}, {}
   for key, value in pairs(base.isA) do
@@ -251,12 +253,14 @@ local function intrinsicPlan(base, name, baseType, methods)
   for key, entry in pairs(base.methods) do
     planMethods[key] = entry
   end
-  local plan = { type = name, scriptType = baseType, isA = isA, isFrame = base.isFrame, methods = planMethods }
-  for key, fn in pairs(methods) do
+  local plan = { type = baseType, intrinsic = name, isA = isA, isFrame = base.isFrame, methods = planMethods }
+  for key, value in pairs(methods) do
     if key == "init" then
-      plan.init = fn
+      plan.init = value
+    elseif key == "scripts" then
+      plan.intrinsicScripts = value
     else
-      planMethods[key] = { impl = fn }
+      planMethods[key] = { impl = value }
     end
   end
   return plan
