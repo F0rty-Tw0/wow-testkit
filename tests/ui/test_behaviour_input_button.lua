@@ -97,6 +97,20 @@ local function test_click_after_an_erroring_click_script_still_runs() -- (I3)
   end
 end
 
+local function test_an_erroring_pre_click_still_runs_on_click_and_post_click_assumed() -- (I13)
+  withWidgets("retail", function(w)
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "OnClick", "PostClick" })
+    b:SetScript("PreClick", function()
+      error("pre boom")
+    end)
+    b:Click()
+    A.eq(#w.errors, 1)
+    A.contains(tostring(w.errors[1].message), "pre boom")
+    A.same(log, { { "OnClick", "LeftButton", false }, { "PostClick", "LeftButton", false } })
+  end)
+end
+
 local function test_nested_mouse_click_keeps_the_outer_click_in_progress() -- (I3)
   withWidgets("retail", function(w)
     local b = _G.CreateFrame("Button")
@@ -238,6 +252,7 @@ return function()
   test_click_turns_a_non_boolean_is_down_into_a_boolean_assumed()
   test_click_during_its_own_click_does_nothing()
   test_click_after_an_erroring_click_script_still_runs()
+  test_an_erroring_pre_click_still_runs_on_click_and_post_click_assumed()
   test_nested_mouse_click_keeps_the_outer_click_in_progress()
   test_click_after_an_erroring_intrinsic_click_handler_still_runs()
   test_check_button_click_flips_the_state_before_the_scripts_assumed()
