@@ -1,45 +1,17 @@
 -- UIDropDownMenu fake: Initialize and AddButton build a level's entries; SetText, SetWidth and install.
 local A = require("assert")
+local Dropdown = require("framexml.fakes.dropdown")
 local H = require("tests.helpers.world")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
-local Dropdown = require("framexml.fakes.dropdown")
 
 local withFrameXML = HF.withFrameXML
 
-local function addItem(spec, level)
-  local info = _G.UIDropDownMenu_CreateInfo()
-  info.text = spec[1]
-  for k, v in pairs(spec[2] or {}) do
-    info[k] = v
-  end
-  _G.UIDropDownMenu_AddButton(info, level)
-end
-
--- A dropdown whose init adds items (level 1) or menuList's items (level 2); specs are { text, infoFields }.
-local function newDropdown(items, name)
-  local frame = _G.CreateFrame("Frame", name or "TestDD", _G.UIParent, "UIDropDownMenuTemplate")
-  _G.UIDropDownMenu_Initialize(frame, function(_, level, menuList)
-    for _, spec in ipairs(level == 2 and menuList or items) do
-      addItem(spec, level)
-    end
-  end, "MENU")
-  return frame
-end
-
-local function openMenu(items)
-  local frame = newDropdown(items)
-  _G.ToggleDropDownMenu(1, nil, frame)
-  return frame
-end
-
-local function texts(w, depth)
-  local out = {}
-  for i, e in ipairs(w.menus[depth or 1].entries) do
-    out[i] = e.text
-  end
-  return out
-end
+local addItem = HM.addSpec
+local newDropdown = HM.newSpecDropdown
+local openMenu = HM.openSpecMenu
+local texts = HM.openTexts
 
 local function test_initialize_calls_init_once_with_the_given_level_and_opens_nothing()
   withFrameXML("retail", function(w)

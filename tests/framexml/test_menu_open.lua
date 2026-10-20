@@ -1,6 +1,7 @@
 -- Menu API fake (menu.lua): the owner of a context menu, submenu levels and rebuild. Split from test_menu.lua (size).
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
@@ -20,9 +21,7 @@ local function test_nil_owner_becomes_ui_parent()
   end)
 end
 
-local function owner()
-  return _G.CreateFrame("Frame", nil, _G.UIParent)
-end
+local owner = HM.owner
 
 local function enter(w, depth, index)
   Input.enter(w, w.menus[depth].entries[index].frame)

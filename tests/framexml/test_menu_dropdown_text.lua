@@ -2,6 +2,7 @@
 -- Split from test_menu_dropdown.lua (size).
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
@@ -9,13 +10,7 @@ local TEXT_KEY = "Text"
 
 local function noop() end
 
-local function newDropdown(generator)
-  local dd = _G.CreateFrame("DropdownButton", nil, _G.UIParent, "WowStyle1DropdownTemplate")
-  if generator then
-    dd:SetupMenu(generator)
-  end
-  return dd
-end
+local newDropdown = HM.newDropdownButton
 
 local function twoEntries(_, root)
   root:CreateButton("One", noop)

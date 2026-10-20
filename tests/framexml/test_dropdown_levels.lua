@@ -1,6 +1,7 @@
 -- UIDropDownMenu fake levels: which DropDownList an AddButton lands in.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
@@ -11,13 +12,7 @@ local function addItem(text, level)
   _G.UIDropDownMenu_AddButton(info, level)
 end
 
-local function texts(level)
-  local out = {}
-  for i, e in ipairs(level.entries) do
-    out[i] = e.text
-  end
-  return out
-end
+local texts = HM.levelTexts
 
 -- A dropdown whose init calls add(level) at every level; returns the frame.
 local function newDropdown(add)

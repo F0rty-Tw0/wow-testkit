@@ -1,18 +1,8 @@
 -- Menu steps: menu, pick, closeMenus and openMenu on the UIDropDownMenu and Menu API fakes.
 local A = require("assert")
-local Scenario = require("scenario")
+local HMS = require("tests.helpers.menu_scenario")
 
-local MENU_ADDONS_DIR = (debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or ".") .. "/fixtures/addons"
-
--- A retail scenario world (no login), always destroyed.
-local function withMenuScenario(fn)
-  local s = Scenario.new({ addon = "Hover", root = MENU_ADDONS_DIR .. "/Hover", flavor = "retail" })
-  local ok, err = pcall(fn, s)
-  s.w:destroy()
-  if not ok then
-    error(err, 0)
-  end
-end
+local withMenuScenario = HMS.withMenuScenario
 
 -- Opens a UIDropDownMenu menu: a colored title, Open, Locked (disabled), More (submenu with Nested). picks records func calls.
 local function openMenuFixture(picks)

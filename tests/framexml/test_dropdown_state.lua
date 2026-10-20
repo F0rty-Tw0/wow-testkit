@@ -1,18 +1,12 @@
 -- UIDropDownMenu fake state: the menu level Initialize hides from, empty and failing toggles, and checked values.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
 
-local function addItem(spec, level)
-  local info = _G.UIDropDownMenu_CreateInfo()
-  info.text = spec[1]
-  for k, v in pairs(spec[2] or {}) do
-    info[k] = v
-  end
-  _G.UIDropDownMenu_AddButton(info, level)
-end
+local addItem = HM.addSpec
 
 -- A dropdown whose init adds items (level 1) or menuList's items (level 2+); specs are { text, infoFields }.
 local function newDropdown(items, name)

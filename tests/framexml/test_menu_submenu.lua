@@ -2,31 +2,16 @@
 -- Split from test_menu.lua (size).
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
 
 local function noop() end
 
-local function owner()
-  return _G.CreateFrame("Frame", nil, _G.UIParent)
-end
-
-local function open(generator)
-  return _G.MenuUtil.CreateContextMenu(owner(), generator)
-end
-
-local function field(level, name)
-  local out = {}
-  for i, entry in ipairs(level.entries) do
-    out[i] = entry[name]
-  end
-  return out
-end
-
-local function click(w, depth, index)
-  Input.click(w, w.menus[depth].entries[index].frame, "LeftButton")
-end
+local open = HM.open
+local field = HM.field
+local click = HM.click
 
 local function twoLevelMenu(picked)
   return function(_, root)

@@ -1,18 +1,12 @@
 -- UIDropDownMenu fake: which list a Toggle or Initialize opens or fills, and the errors they raise or record.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
 
-local function addItem(text, fields, level)
-  local info = _G.UIDropDownMenu_CreateInfo()
-  info.text = text
-  for k, v in pairs(fields or {}) do
-    info[k] = v
-  end
-  _G.UIDropDownMenu_AddButton(info, level)
-end
+local addItem = HM.addFields
 
 -- A dropdown whose level-1 init adds More (a submenu) and whose level-2 init runs submenu(); returns the frame.
 local function newDropdown(name, submenu)

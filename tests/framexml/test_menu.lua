@@ -2,26 +2,15 @@
 local A = require("assert")
 local Flavors = require("tools.flavors")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 
 local withFrameXML = HF.withFrameXML
 
 local function noop() end
 
-local function owner()
-  return _G.CreateFrame("Frame", nil, _G.UIParent)
-end
-
-local function open(generator)
-  return _G.MenuUtil.CreateContextMenu(owner(), generator)
-end
-
-local function field(level, name)
-  local out = {}
-  for i, entry in ipairs(level.entries) do
-    out[i] = entry[name]
-  end
-  return out
-end
+local owner = HM.owner
+local open = HM.open
+local field = HM.field
 
 local function test_installs_menu_globals_on_every_flavor()
   for _, flavor in ipairs(Flavors.list) do
