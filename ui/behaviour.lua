@@ -1,8 +1,8 @@
 -- Hand-written widget semantics: anchors, size, visibility, hierarchy, identity, mouse and movement.
 -- Each method is fn(w, obj, st, ...) where st is obj's state in w.ui.state. M.methods also carries the text
 -- (ui/behaviour_text.lua), alpha/scale/level/strata (ui/behaviour_render.lua) and script/event
--- (ui/behaviour_scripts.lua), animation (ui/behaviour_animation.lua) and attribute (ui/behaviour_attributes.lua)
--- methods.
+-- (ui/behaviour_scripts.lua), animation (ui/behaviour_animation.lua), attribute (ui/behaviour_attributes.lua) and
+-- GetDebugName (ui/behaviour_debug_name.lua) methods.
 local M = {}
 
 local Callsite = require("ui.callsite")
@@ -12,6 +12,7 @@ local BehaviourScripts = require("ui.behaviour_scripts")
 local BehaviourInput = require("ui.behaviour_input")
 local BehaviourAnimation = require("ui.behaviour_animation")
 local BehaviourAttributes = require("ui.behaviour_attributes")
+local BehaviourDebugName = require("ui.behaviour_debug_name")
 
 local unpack = unpack
 
@@ -282,7 +283,8 @@ function methods.StartMoving() end
 function methods.StopMovingOrSizing() end
 
 -- BehaviourInput goes last: its SetScript wraps BehaviourScripts's.
-for _, module in ipairs({ BehaviourText, BehaviourRender, BehaviourScripts, BehaviourAnimation, BehaviourAttributes, BehaviourInput }) do
+local MODULES = { BehaviourText, BehaviourRender, BehaviourScripts, BehaviourAnimation, BehaviourAttributes, BehaviourDebugName, BehaviourInput }
+for _, module in ipairs(MODULES) do
   for name, fn in pairs(module.methods) do
     methods[name] = fn
   end
