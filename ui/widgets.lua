@@ -6,6 +6,7 @@
 local M = {}
 
 local Behaviour = require("ui.behaviour")
+local Callsite = require("ui.callsite")
 local Inherits = require("ui.inherits")
 local Templates = require("ui.templates")
 local Validate = require("validate")
@@ -233,7 +234,7 @@ local function createFrame(w)
   return function(frameType, name, parent, template)
     local typeName = resolveType(w, frameType)
     if not typeName or not planFor(w, typeName).isFrame then
-      error(string.format("CreateFrame: unknown frame type '%s' on %s", tostring(frameType), w.flavor), 2)
+      error(string.format("CreateFrame: unknown frame type '%s' on %s", tostring(frameType), w.flavor), Callsite.level())
     end
     local frame = create(w, typeName, name, parent)
     M.applyTemplates(w, frame, template)
