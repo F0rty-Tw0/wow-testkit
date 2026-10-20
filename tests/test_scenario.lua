@@ -210,6 +210,17 @@ local function test_snapshot_checks_a_menu_value_against_its_golden()
   A.eq(fs.readFile(root .. "/tests/scenarios/golden/hover/menu.retail.txt"), "[ffffff]Open\n")
 end
 
+-- s:menu() is nil when no menu is open, so s:snapshot(name, s:menu()) must say so at the scenario's line.
+local function test_snapshot_without_a_target_throws_at_the_caller()
+  local message
+  goldenRun(tempRoot(), function(s)
+    message = A.errors(function()
+      s:snapshot("menu", nil)
+    end, "s:snapshot: no target to snapshot (got nil)")
+  end)
+  A.contains(message, "test_scenario.lua:")
+end
+
 local function test_run_file_turns_on_golden_mode()
   local opts = { addon = HOVER.addon, root = HOVER.root, flavors = { "retail" } }
   A.eq(Scenario.runFile(GOLDEN_MODE_SCENARIO, opts).results.retail.status, "pass")
@@ -273,6 +284,7 @@ return function()
   test_snapshot_writes_a_missing_golden_with_a_note()
   test_snapshot_reads_are_not_counted_as_unscripted()
   test_snapshot_checks_a_menu_value_against_its_golden()
+  test_snapshot_without_a_target_throws_at_the_caller()
   test_run_file_turns_on_golden_mode()
   test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_golden()
 end
