@@ -196,7 +196,47 @@ local function test_addon_setfenv_level_targets_the_addon_function_and_misuse_na
   end)
 end
 
+local OS_KEYS = [[
+local _, ns = ...
+ns.keys = {}
+for key in pairs(os) do
+  ns.keys[#ns.keys + 1] = key
+end
+table.sort(ns.keys)
+ns.exit = os.exit
+]]
+
+local function test_addon_os_holds_exactly_the_time_functions()
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "OsKeys", root = tempAddon("OsKeys", OS_KEYS) })
+    A.same({ errorMessages(w), ns.keys, ns.exit }, { "", { "clock", "date", "difftime", "time" }, nil })
+  end)
+end
+
+local OWN_DEBUG_READER = [[
+local _, ns = ...
+ns.seen = { debug, _G.debug, rawget(_G, "debug") }
+for key, value in pairs(_G) do
+  if key == "debug" then
+    ns.seen[4] = value
+  end
+end
+]]
+
+-- Only the host's values are hidden: a global an addon assigns under a host-only name is an ordinary global.
+local function test_a_host_only_name_an_addon_assigns_is_seen_by_other_addons()
+  local seen
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "OwnDebug", root = tempAddon("OwnDebug", "debug = 7\n") })
+    local ns = Addon.load(w, { name = "OwnDebugReader", root = tempAddon("OwnDebugReader", OWN_DEBUG_READER) })
+    seen = { errorMessages(w), ns.seen }
+  end)
+  A.same(seen, { "", { 7, 7, 7, 7 } })
+end
+
 return function()
+  test_addon_os_holds_exactly_the_time_functions()
+  test_a_host_only_name_an_addon_assigns_is_seen_by_other_addons()
   test_addon_getfenv_returns_the_addons_g()
   test_addon_setfenv_0_changes_the_addon_thread_env_but_not_the_kits()
   test_addon_setfenv_level_targets_the_addon_function_and_misuse_names_its_line()
