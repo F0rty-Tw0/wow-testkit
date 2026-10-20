@@ -1,6 +1,7 @@
 -- CreateFrame / CreateFont: method assembly from Ketho WidgetAPI, the generic Set/Get rule, argument checks.
 local A = require("assert")
 local HW = require("tests.helpers.widgets")
+local Rec = require("tests.helpers.input")
 local Widgets = require("ui.widgets")
 
 local withWidgets = HW.withWidgets
@@ -121,6 +122,95 @@ local function test_font_set_font_round_trips()
   end)
 end
 
+local function registerPill(w, seen)
+  Widgets.registerIntrinsic(w, "Pill", "Button", {
+    init = function(world, obj, st)
+      seen.inits = (seen.inits or 0) + 1
+      seen.initArgs = { world, obj, st }
+    end,
+    Poke = function(world, obj, st, ...)
+      seen.poke = { world, obj, st, ... }
+    end,
+  })
+end
+
+local function test_intrinsic_type_has_its_methods_and_the_base_types()
+  withWidgets("retail", function(w)
+    local seen = {}
+    registerPill(w, seen)
+    local pill = _G.CreateFrame("pill")
+    A.eq(pill:GetObjectType(), "Pill")
+    A.eq(pill:IsObjectType("Pill"), true)
+    A.eq(pill:IsObjectType("Button"), true)
+    A.eq(pill:IsObjectType("Frame"), true)
+    pill:Poke(1, "x")
+    A.eq(seen.poke[1], w)
+    A.eq(seen.poke[2], pill)
+    A.eq(seen.poke[3], w.ui.state[pill])
+    A.same({ seen.poke[4], seen.poke[5] }, { 1, "x" })
+  end)
+end
+
+local function test_intrinsic_frame_runs_the_base_types_button_methods()
+  withWidgets("retail", function(w)
+    registerPill(w, {})
+    local pill = _G.CreateFrame("Pill")
+    local log = Rec.record(pill, { "OnClick" })
+    pill:Click()
+    A.same(log, { { "OnClick", "LeftButton", false } })
+  end)
+end
+
+local function test_intrinsic_scripts_follow_the_base_type()
+  withWidgets("retail", function(w)
+    registerPill(w, {})
+    local pill = _G.CreateFrame("Pill")
+    A.eq(w.ui.state[pill].plan.scriptType, "Button")
+    A.eq(pill:HasScript("OnClick"), true)
+    A.eq(pill:HasScript("OnBogus"), false)
+    A.errors(function()
+      pill:SetScript("OnBogus", function() end)
+    end, "Pill has no script handler 'OnBogus' on retail")
+  end)
+end
+
+local function test_intrinsic_init_runs_once_per_frame_and_is_not_a_method()
+  withWidgets("retail", function(w)
+    local seen = {}
+    registerPill(w, seen)
+    local first = _G.CreateFrame("Pill")
+    A.eq(seen.inits, 1)
+    A.eq(seen.initArgs[2], first)
+    _G.CreateFrame("Pill")
+    A.eq(seen.inits, 2)
+    A.eq(first.init, nil)
+  end)
+end
+
+local function test_intrinsic_is_per_world_and_leaves_the_base_class_alone()
+  withWidgets("retail", function(w)
+    registerPill(w, {})
+    A.eq(_G.CreateFrame("Button").Poke, nil)
+    A.eq(w.ui.create("Pill", nil, nil):GetObjectType(), "Pill")
+  end)
+  withWidgets("retail", function()
+    A.errors(function()
+      _G.CreateFrame("Pill")
+    end, "unknown frame type 'Pill'")
+  end)
+end
+
+local function test_register_intrinsic_rejects_an_unknown_base_and_an_existing_type()
+  withWidgets("retail", function(w)
+    A.errors(function()
+      Widgets.registerIntrinsic(w, "Pill", "NoSuchBase", {})
+    end, "registerIntrinsic: unknown base type 'NoSuchBase' on retail")
+    A.errors(function()
+      Widgets.registerIntrinsic(w, "Button", "Frame", {})
+    end, "registerIntrinsic: 'Button' is already a widget type on retail")
+  end)
+end
+
 return function()
   test_named_frame_sets_global_until_destroy()
   test_frame_keeps_no_fields_of_its_own()
@@ -135,4 +225,10 @@ return function()
   test_create_frame_passes_template_to_hook()
   test_named_font_registers_global()
   test_font_set_font_round_trips()
+  test_intrinsic_type_has_its_methods_and_the_base_types()
+  test_intrinsic_frame_runs_the_base_types_button_methods()
+  test_intrinsic_scripts_follow_the_base_type()
+  test_intrinsic_init_runs_once_per_frame_and_is_not_a_method()
+  test_intrinsic_is_per_world_and_leaves_the_base_class_alone()
+  test_register_intrinsic_rejects_an_unknown_base_and_an_existing_type()
 end

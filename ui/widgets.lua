@@ -75,6 +75,10 @@ local function buildPlan(w, typeName)
 end
 
 local function planFor(w, typeName)
+  local intrinsic = w.ui.intrinsics[typeName]
+  if intrinsic then
+    return intrinsic.plan
+  end
   local plans = catalogFor(w).plans
   plans[typeName] = plans[typeName] or buildPlan(w, typeName)
   return plans[typeName]
@@ -138,7 +142,7 @@ local function classFor(w, typeName)
     local plan = planFor(w, typeName)
     local methods = {}
     for name, entry in pairs(plan.methods) do
-      methods[name] = bind(w, plan, name, implFor(plan, name, entry.signature), entry.check)
+      methods[name] = bind(w, plan, name, entry.impl or implFor(plan, name, entry.signature), entry.check)
     end
     class = { plan = plan, meta = { __index = methods } }
     w.ui.classes[typeName] = class
@@ -155,6 +159,9 @@ local function create(w, typeName, name, parent)
   Behaviour.setParent(w, obj, st, parent)
   if name ~= nil then
     w:setGlobal(name, obj)
+  end
+  if class.plan.init then
+    class.plan.init(w, obj, st)
   end
   return obj
 end
@@ -207,9 +214,23 @@ function M.isProtected(w, frame)
   return w.ui.state[frame].protected == true
 end
 
+-- The exact type name for a CreateFrame argument: a registered intrinsic first, else the flavor's catalog.
+local function resolveType(w, frameType)
+  if type(frameType) ~= "string" then
+    return nil
+  end
+  local lower = frameType:lower()
+  for name in pairs(w.ui.intrinsics) do
+    if name:lower() == lower then
+      return name
+    end
+  end
+  return catalogFor(w).types[lower]
+end
+
 local function createFrame(w)
   return function(frameType, name, parent, template)
-    local typeName = type(frameType) == "string" and catalogFor(w).types[frameType:lower()]
+    local typeName = resolveType(w, frameType)
     if not typeName or not planFor(w, typeName).isFrame then
       error(string.format("CreateFrame: unknown frame type '%s' on %s", tostring(frameType), w.flavor), 2)
     end
@@ -219,10 +240,47 @@ local function createFrame(w)
   end
 end
 
+-- The plan of an intrinsic type: base's plan copied (the catalog's stays untouched) with the intrinsic's own methods,
+-- its name as type, and the base type for script support. methods.init is the once-per-frame hook, not a method.
+local function intrinsicPlan(base, name, baseType, methods)
+  local isA, planMethods = {}, {}
+  for key, value in pairs(base.isA) do
+    isA[key] = value
+  end
+  isA[name:lower()] = true
+  for key, entry in pairs(base.methods) do
+    planMethods[key] = entry
+  end
+  local plan = { type = name, scriptType = baseType, isA = isA, isFrame = base.isFrame, methods = planMethods }
+  for key, fn in pairs(methods) do
+    if key == "init" then
+      plan.init = fn
+    else
+      planMethods[key] = { impl = fn }
+    end
+  end
+  return plan
+end
+
+-- Registers a widget type for this world only (the catalogs and plans are shared across worlds): methods are
+-- fn(w, obj, st, ...) like ui/behaviour.lua, laid over baseType's. Registering a name again replaces it.
+function M.registerIntrinsic(w, name, baseType, methods)
+  if not w.globals.widgets[baseType] then
+    error(string.format("registerIntrinsic: unknown base type '%s' on %s", tostring(baseType), w.flavor), 2)
+  end
+  if catalogFor(w).types[name:lower()] then
+    error(string.format("registerIntrinsic: '%s' is already a widget type on %s", name, w.flavor), 2)
+  end
+  local plan = intrinsicPlan(planFor(w, baseType), name, baseType, methods)
+  w.ui.intrinsics[name] = { baseType = baseType, methods = methods, plan = plan }
+  w.ui.classes[name] = nil
+end
+
 function M.install(w)
   w.ui = {
     state = setmetatable({}, { __mode = "k" }),
     classes = {},
+    intrinsics = {},
     create = function(typeName, name, parent)
       return create(w, typeName, name, parent)
     end,
