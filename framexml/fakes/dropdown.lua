@@ -101,8 +101,9 @@ local function openSubmenu(w, level, depth, index)
   end
   w.dropdown.pendingParent = nil
   if not ok then
-    -- An error without a position (a kit misuse error whose Callsite walk ends at the pcall) gets the entry as one.
-    if type(err) == "string" and not err:find("^[^\n]*:%d+: ") then
+    -- The kit's own misuse error has no position here (its Callsite walk ends at the pcall), so it gets the entry as
+    -- one; an addon's error passes through as the client records it.
+    if type(err) == "string" and err:find("^ToggleDropDownMenu: ") then
       err = entryFrame:GetName() .. " OnEnter: " .. err
     end
     error(err, 0)
