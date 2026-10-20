@@ -21,6 +21,16 @@ local function test_classic_hide_on_a_non_widget_raises_the_kit_error()
   end)
 end
 
+-- Only a shown-to-hidden change forgets the unit: Hide on a tooltip never shown since SetUnit is no change.
+local function test_classic_hide_of_a_never_shown_tooltip_keeps_the_unit_assumed()
+  withClassicMouseover(function(tooltip)
+    tooltip:SetUnit("mouseover")
+    tooltip:Hide()
+    A.same({ tooltip:GetUnit() }, { "Bob", "mouseover" })
+  end)
+end
+
 return function()
   test_classic_hide_on_a_non_widget_raises_the_kit_error()
+  test_classic_hide_of_a_never_shown_tooltip_keeps_the_unit_assumed()
 end
