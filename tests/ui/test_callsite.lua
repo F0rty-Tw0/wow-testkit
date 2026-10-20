@@ -31,8 +31,17 @@ local function test_a_kit_file_is_skipped()
   A.truthy(message:find("test_callsite%.lua:%d+: boom"), message)
 end
 
+-- The FrameXML fakes are kit too: a misuse error in a fake's global names the addon line that called it.
+local function test_a_framexml_fake_is_skipped()
+  local fake = caller(KIT_ROOT .. "framexml/fakes/dropdown.lua", raise)
+  local message = messageFrom(function()
+    fake()
+  end)
+  A.truthy(message:find("test_callsite%.lua:%d+: boom"), message)
+end
+
 local function test_a_chunk_named_like_a_missing_kit_file_is_not_skipped()
-  for _, name in ipairs({ "ui/no_such_file.lua", "world_no_such_file.lua" }) do
+  for _, name in ipairs({ "ui/no_such_file.lua", "world_no_such_file.lua", "framexml/no_such_file.lua" }) do
     local consumer = caller(KIT_ROOT .. name, raise)
     local message = messageFrom(function()
       consumer()
@@ -81,6 +90,7 @@ end
 
 return function()
   test_a_kit_file_is_skipped()
+  test_a_framexml_fake_is_skipped()
   test_a_chunk_named_like_a_missing_kit_file_is_not_skipped()
   test_a_kit_file_is_looked_up_under_the_kit_root()
   test_an_empty_kit_root_still_names_a_consumer_ui_file()
