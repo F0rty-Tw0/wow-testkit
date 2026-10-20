@@ -55,8 +55,18 @@ local function test_load_unknown_flavor_errors_listing_valid_flavors()
   end, "retail")
 end
 
+-- The defaults in tools/flavors.lua equal api/versions.lua today, so the rows are made stale first: only
+-- requiring manifest.lua can put the generated versions back.
 local function test_loading_the_kit_applies_api_versions_to_every_flavor()
   local versions = require("api.versions")
+  for _, flavor in ipairs(Flavors.list) do
+    local row = Flavors.get(flavor)
+    row.version, row.tocVersion = "0.0.1.1", 1
+  end
+  package.loaded.manifest = nil
+  local ok, err = pcall(require, "manifest")
+  package.loaded.manifest = Manifest
+  assert(ok, err)
   for _, flavor in ipairs(Flavors.list) do
     local row = Flavors.get(flavor)
     A.eq(row.version, versions[flavor].version, flavor .. " version")
