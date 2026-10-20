@@ -8,6 +8,7 @@ local LuaApi = require("luaapi")
 local Luaext = require("luaext")
 local WorldApi = require("world_api")
 local WorldEvents = require("world_events")
+local WorldSnapshot = require("world_snapshot")
 
 local unpack = unpack
 -- Host functions new and destroy use, kept as upvalues: addon writes land raw in _G, so an addon that reassigns
@@ -25,8 +26,6 @@ end
 local CONTEXTS = { addon = true, blizzard = true, scenario = true }
 local CONTEXT_LIST = "addon, blizzard, scenario"
 local BUILD_DATE = "Oct 1 2026"
--- Host library tables addon code (and the kit's LuaAPI installs) may write into; restored exactly on destroy.
-local LIBRARIES = { "string", "table", "math", "os", "coroutine", "bit" }
 
 local active = nil
 
@@ -34,13 +33,7 @@ local function pack(...)
   return { n = select("#", ...), ... }
 end
 
-local function shallowCopy(t)
-  local out = {}
-  for k, v in pairs(t) do
-    out[k] = v
-  end
-  return out
-end
+local shallowCopy = WorldSnapshot.shallowCopy
 
 local function contains(list, item)
   for _, v in ipairs(list) do
@@ -138,44 +131,6 @@ local function installBase(w, row)
   LuaApi.install(w)
 end
 
--- { [library table] = shallow copy } for each library the host has, plus the string metatable (addon code reaches
--- it through getmetatable("")).
-local function snapshotLibraries()
-  local snapshot = {}
-  for _, name in ipairs(LIBRARIES) do
-    local lib = rawget(_G, name)
-    if type(lib) == "table" then
-      snapshot[lib] = shallowCopy(lib)
-    end
-  end
-  local stringMt = getRawMetatable("")
-  if stringMt then
-    snapshot[stringMt] = shallowCopy(stringMt)
-  end
-  return snapshot
-end
-
-local function restoreLibraries(snapshot)
-  for lib, saved in pairs(snapshot) do
-    for k in pairs(lib) do
-      if saved[k] == nil then
-        rawset(lib, k, nil)
-      end
-    end
-    for k, v in pairs(saved) do
-      rawset(lib, k, v)
-    end
-  end
-end
-
-local function snapshotGlobals()
-  local snapshot = {}
-  for k, v in pairs(_G) do
-    snapshot[k] = v
-  end
-  return snapshot
-end
-
 -- opts.flavor: one of Flavors.list. Errors while another world is still active.
 function M.new(opts)
   local row = Flavors.get(opts.flavor)
@@ -199,8 +154,8 @@ function M.new(opts)
     snapshotMt = getRawMetatable(_G),
     stringMt = getRawMetatable(""),
     threadEnv = getfenv(0),
-    snapshot = snapshotGlobals(),
-    libraries = snapshotLibraries(),
+    snapshot = WorldSnapshot.snapshotGlobals(),
+    libraries = WorldSnapshot.snapshotLibraries(),
   }, World)
   WorldEvents.reset(w)
   active = w
@@ -224,7 +179,7 @@ function World:destroy()
     rawset(entry[1], entry[2], entry[3])
   end
   setRawMetatable("", self.stringMt)
-  restoreLibraries(self.libraries)
+  WorldSnapshot.restoreLibraries(self.libraries)
   setRawMetatable(_G, self.snapshotMt)
   for k in pairs(_G) do
     if self.snapshot[k] == nil then
