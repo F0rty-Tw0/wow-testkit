@@ -210,8 +210,7 @@ local function test_addon_errors_are_still_recorded_after_an_addon_sets_debug()
   withWorld("retail", function(w)
     Addon.load(w, { name = "DebugSet", root = tempAddon("DebugSet", "debug = true\n") })
     Addon.load(w, { name = "DebugBoom", root = tempAddon("DebugBoom", 'error("boom")\n') })
-    A.eq(#w.errors, 1)
-    A.contains(w.errors[1].message, "boom")
+    A.eq(errorMessages(w), "addon:DebugBoom/Core.lua:1: boom")
   end)
 end
 
