@@ -63,6 +63,20 @@ local function test_initialize_on_the_open_menu_hides_from_the_last_toggled_leve
   end)
 end
 
+-- Mainline :43-45: Initialize on another frame resets the menu level to 1 first, so every list hides even after a
+-- level-2 Toggle.
+local function test_initialize_on_another_frame_after_a_submenu_hides_every_list()
+  withFrameXML("retail", function(w)
+    openMenu({ { "More", { hasArrow = true, menuList = { { "Nested" } } } } })
+    Input.enter(w, w.menus[1].entries[1].frame)
+    A.eq(#w.menus, 2)
+    local other = _G.CreateFrame("Frame", "OtherDD", _G.UIParent, "UIDropDownMenuTemplate")
+    _G.UIDropDownMenu_Initialize(other, nil, "MENU")
+    A.eq(#w.menus, 0)
+    A.eq(_G.DropDownList1:IsShown(), false)
+  end)
+end
+
 -- Mainline :1193-1197, Classic :1133-1136: a list with no buttons is not shown.
 local function test_toggle_with_no_entries_opens_nothing()
   withFrameXML("retail", function(w)
@@ -165,6 +179,7 @@ return function()
   test_toggle_whose_init_errors_leaves_the_old_submenu_closed()
   test_initialize_then_toggle_on_click_keeps_the_menu_open()
   test_initialize_on_the_open_menu_hides_from_the_last_toggled_level()
+  test_initialize_on_another_frame_after_a_submenu_hides_every_list()
   test_toggle_with_no_entries_opens_nothing()
   test_entering_an_arrow_entry_whose_submenu_is_empty_opens_nothing()
 end
