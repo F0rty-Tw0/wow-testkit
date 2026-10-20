@@ -235,7 +235,7 @@ local function test_plain_dropdown_buttons_text_child_does_not_follow_the_select
     dd:SetupMenu(radios({ value = 1 }))
     dd:OpenMenu()
     dd:CloseMenu()
-    A.eq(dd.Text:GetText(), nil)
+    A.eq(dd.Text:GetText(), "")
   end)
 end
 

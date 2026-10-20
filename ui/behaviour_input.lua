@@ -233,12 +233,16 @@ end
 M.typed.SetFocus = M.onlyFor("editbox", setFocus)
 M.typed.ClearFocus = M.onlyFor("editbox", clearFocus)
 M.typed.HasFocus = M.onlyFor("editbox", hasFocus)
--- source: confirmed (row I12) the doc's EditBox GetText return is not nilable, so a fresh box reads "".
-local function getEditText(_, _, st)
+-- source: confirmed (rows I12, F4) the doc's EditBox and FontString GetText returns are not nilable, so no text reads "".
+local function getText(_, _, st)
   return st.text or ""
 end
 
 M.typed.SetText = M.onlyFor("editbox", setEditText)
-M.typed.GetText = M.onlyFor("editbox", getEditText)
+M.typed.GetText = function(plan)
+  if plan.isA.editbox or plan.isA.fontstring then
+    return getText
+  end
+end
 
 return M

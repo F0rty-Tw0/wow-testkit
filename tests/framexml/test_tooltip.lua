@@ -190,7 +190,7 @@ local function test_clear_lines_empties_hides_and_reuses_font_strings()
     local first = _G.GameTooltipTextLeft1
     tooltip:ClearLines()
     A.eq(tooltip:NumLines(), 0)
-    A.eq(first:GetText(), nil)
+    A.eq(first:GetText(), "")
     A.eq(first:IsShown(), false)
     tooltip:SetText("b")
     A.eq(_G.GameTooltipTextLeft1, first)
