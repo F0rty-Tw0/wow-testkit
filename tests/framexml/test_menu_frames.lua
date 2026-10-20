@@ -183,6 +183,19 @@ local function test_close_hides_the_level_and_deeper_ones_and_clears_menus()
 end
 
 -- S3 (assumed): OnLeave on hide is from Blizzard's comments; the `false` motion argument is inferred.
+-- Mainline UIDropDownMenu.lua:153-154, :471-475: a disabled entry's InvisibleButton only closes deeper levels.
+local function test_entering_a_disabled_entry_with_a_submenu_only_closes_deeper_levels()
+  withFrameXML("retail", function(w)
+    local first, log = newLevel({ entry("button", "A", { enabled = false, hasSubmenu = true }) }, "DropDownList1")
+    local second = newLevel({ entry("button", "B") }, "DropDownList2")
+    MenuFrames.open(w, 1, first)
+    MenuFrames.open(w, 2, second)
+    Input.enter(w, first.entries[1].frame)
+    A.same(log, {})
+    A.eq(#w.menus, 1)
+  end)
+end
+
 local function test_close_fires_on_leave_without_motion_on_the_focused_entry_assumed()
   withFrameXML("retail", function(w)
     local level = newLevel({ entry("button", "A") }, "DropDownList1")
@@ -195,6 +208,23 @@ local function test_close_fires_on_leave_without_motion_on_the_focused_entry_ass
     MenuFrames.close(w, 1)
     A.same(leaves, { false })
     A.eq(w.input.mouseFocus, nil)
+  end)
+end
+
+local function test_close_survives_an_on_leave_that_closes_the_menus()
+  withFrameXML("retail", function(w)
+    local first = newLevel({ entry("button", "A") }, "DropDownList1")
+    local second = newLevel({ entry("button", "B") }, "DropDownList2")
+    MenuFrames.open(w, 1, first)
+    MenuFrames.open(w, 2, second)
+    local frame = second.entries[1].frame
+    frame:SetScript("OnLeave", function()
+      MenuFrames.close(w, 1)
+    end)
+    Input.enter(w, frame)
+    MenuFrames.close(w, 1)
+    A.same(w.menus, {})
+    A.eq(_G.DropDownList1:IsShown(), false)
   end)
 end
 
@@ -251,11 +281,13 @@ return function()
   test_entry_click_runs_pick_with_index_and_button()
   test_entry_enter_with_a_submenu_calls_open_submenu()
   test_entry_enter_without_a_submenu_closes_deeper_levels()
+  test_entering_a_disabled_entry_with_a_submenu_only_closes_deeper_levels()
   test_a_replaced_entry_script_removes_the_kit_behavior()
   test_titles_and_dividers_have_mouse_disabled()
   test_disabled_entries_are_disabled_buttons()
   test_close_hides_the_level_and_deeper_ones_and_clears_menus()
   test_close_fires_on_leave_without_motion_on_the_focused_entry_assumed()
+  test_close_survives_an_on_leave_that_closes_the_menus()
   test_close_leaves_focus_outside_the_level_alone()
   test_entering_another_entry_leaves_the_old_one_once()
   test_reopening_reuses_frames_and_hides_unused_ones()

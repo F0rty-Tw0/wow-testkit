@@ -167,11 +167,13 @@ UIDropDownMenu `info` → kind: `isTitle` → title; `notCheckable` → button; 
 - Each entry is a Button with a FontString label holding the raw text (color escapes kept). Titles and dividers
   have mouse disabled; disabled entries are `Disable()`d.
 - Each entry Button gets kit-owned scripts set through the world: `OnClick` runs the pick (below); `OnEnter`
-  opens the entry's submenu when it has one, or closes deeper levels when it has none. An addon that replaces
-  these scripts on an entry frame removes that behavior, as in the client.
+  opens the entry's submenu when it has one and is enabled, or closes deeper levels otherwise: a disabled entry
+  never opens its submenu (UIDropDownMenu's `InvisibleButton` **(source)**; the Menu API rule is not checked). An
+  addon that replaces these scripts on an entry frame removes that behavior, as in the client.
 - Closing a level hides its frames; when the frame with mouse focus is among them, it gets `OnLeave(self, false)`
-  and `w.input.mouseFocus` is cleared **(source)**; a level's frames are reused when it opens again; unused entry frames are
-  hidden.
+  and `w.input.mouseFocus` is cleared **(source)**; a level leaves `w.menus` before its `OnLeave` runs, so an
+  `OnLeave` that closes menus itself is safe; a level's frames are reused when it opens again; unused entry frames
+  are hidden.
 - UIDropDownMenu levels use Blizzard's names: `DropDownList1`..`DropDownList3` are created hidden at install
   (before `framexml.fakes.frames` in STAGE1, so its lazy lookup does not make inert stand-ins for them;
   `api/<flavor>/globals.lua` lists them as frames), and `DropDownList<L>Button<i>` is created on first use.
@@ -194,8 +196,13 @@ apply without a flavor check, `ui/widgets.lua:183-197`). `EasyMenu` is listed on
 `UIDropDownMenu_Initialize` stores `frame.menuList`, `frame.initialize` (only when `init` is not nil) and
 `frame.displayMode` (only when it is `"MENU"`), and calls `init(frame, level, menuList)` right away with `level` as
 given (nil when the caller passed none; `ToggleDropDownMenu` always passes a number), as the client does; `AddButton`
-calls made then go into a hidden scratch level that is discarded and opens nothing. Initializing a frame other than
-the owner of the open level 1 closes every level first (client `UIDropDownMenu_InitializeHelper`). `AddButton` with
+calls made then go into a hidden scratch level that is discarded and opens nothing. Before `init`, Initialize hides
+levels as the client's `UIDropDownMenu_InitializeHelper` does: on the frame that owns the open level 1, the levels
+from the menu level the last `ToggleDropDownMenu` set and deeper (so an Initialize then Toggle on every click of one
+button reopens the menu instead of closing it); on any other frame, every level, and the menu level resets to 1.
+`ToggleDropDownMenu` sets that menu level; at level 1 on the frame that owns the open level 1 it closes the menu;
+otherwise it hides the target level and deeper before `init` runs (an `init` error leaves them closed) and opens
+nothing when `init` added no entries. `AddButton` with
 no Initialize or Toggle running opens nothing (the client appends to the hidden `DropDownList<level>`, which the next
 Initialize clears; the kit ignores it, and also ignores the rare append to a list that is shown).
 `ToggleDropDownMenu` with `frame = nil` at level 2 and deeper (submenus) uses the dropdown frame that owns the open
