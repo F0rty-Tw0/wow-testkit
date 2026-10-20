@@ -179,17 +179,17 @@ local function keysOf(t)
   return keys
 end
 
--- The fixture Ketho lists, with GlobalAPI replaced by these global API names.
-local function kethoListing(names)
+-- The fixture Ketho lists, with GlobalAPI replaced: global API names, then Lua library names (as Ketho splits them).
+local function kethoListing(apiNames, luaNames)
   local listing = {}
   for key, value in pairs(ketho) do
     listing[key] = value
   end
-  listing.GlobalAPI = { names, {} }
+  listing.GlobalAPI = { apiNames, luaNames }
   return listing
 end
 
-local NAMESPACED_KETHO = kethoListing({ "table.wipe", "C_StringUtil.TrimWhitespace" })
+local NAMESPACED_KETHO = kethoListing({ "C_StringUtil.TrimWhitespace" }, { "table.wipe" })
 
 local function functionKeys(fn, namespace)
   local one = { systemEntry("ADocumentation.lua", fn, namespace) }
@@ -217,6 +217,14 @@ end
 local function test_secure_only_function_in_an_unlisted_namespace_is_kept()
   local built = buildOne({ Name = "AcceptTrade", Type = "Function", Environment = "SecureOnly" }, "C_SecureTransfer")
   A.truthy(built.manifest.functions["C_SecureTransfer.AcceptTrade"], "kept")
+end
+
+-- Real Ketho lists table.count and string.trim only in its LuaAPI list (GlobalAPI[2]), never in GlobalAPI[1].
+local function test_namespace_listed_only_among_lua_names_is_kept()
+  local one = { systemEntry("ADocumentation.lua", { Name = "count", Type = "Function", Namespace = "table" }) }
+  local built = Generate.build(one, kethoListing({}, { "table.count" }), META)
+  A.truthy(built.manifest.functions["table.count"], "kept")
+  A.same(built.report.dropped, {})
 end
 
 local function test_global_function_missing_from_ketho_is_kept()
@@ -318,6 +326,7 @@ return function()
   test_function_in_a_namespace_ketho_never_lists_is_dropped_and_counted()
   test_function_missing_from_a_listed_namespace_is_kept()
   test_secure_only_function_in_an_unlisted_namespace_is_kept()
+  test_namespace_listed_only_among_lua_names_is_kept()
   test_global_function_missing_from_ketho_is_kept()
   test_duplicate_key_across_files_is_reported_and_last_file_wins()
   test_fixture_docs_have_no_duplicates()
