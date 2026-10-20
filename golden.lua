@@ -1,5 +1,5 @@
 -- Golden files: snapshot text kept at <root>/tests/scenarios/golden/<scenario>/<snapshot>.<flavor>.txt with "\n"
--- line endings and a trailing newline. A missing file (or update) writes it; a difference is an error.
+-- line endings and a trailing newline. Update writes it; without update, a missing file or a difference is an error.
 local M = {}
 
 local A = require("assert")
@@ -7,6 +7,7 @@ local fs = require("fs")
 
 local GOLDEN_DIR = "/tests/scenarios/golden/"
 local UPDATE_HINT = "rerun with --update to accept the new text"
+local MISSING_HINT = "rerun with --update to write it"
 
 local function normalize(text)
   text = text:gsub("\r\n", "\n")
@@ -16,16 +17,20 @@ local function normalize(text)
   return text
 end
 
--- Returns "written" or "ok"; errors with the first differing line, both versions and the golden path.
+-- Returns "written" (update) or "ok"; errors naming the golden path when it is missing, or with the first
+-- differing line and both versions.
 function M.check(root, scenario, snapshot, flavor, text, update)
   local dir = root .. GOLDEN_DIR .. scenario
   local path = dir .. "/" .. snapshot .. "." .. flavor .. ".txt"
   text = normalize(text)
-  local golden = fs.readFile(path)
-  if golden == nil or update == true then
+  if update == true then
     fs.mkdirp(dir)
     fs.writeFile(path, text)
     return "written"
+  end
+  local golden = fs.readFile(path)
+  if golden == nil then
+    error(string.format("golden %s is missing\n  %s", path, MISSING_HINT), 0)
   end
   -- pcall calls A.textEq directly, so its message carries no file:line prefix.
   local same, diff = pcall(A.textEq, text, normalize(golden))
