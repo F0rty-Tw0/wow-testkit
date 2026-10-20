@@ -208,7 +208,24 @@ local function test_toggle_level_one_with_a_button_on_the_open_menu_closes_it()
   end)
 end
 
+-- Misuse errors name the line that called ToggleDropDownMenu, not the fake.
+local function test_toggle_errors_name_the_caller()
+  withFrameXML("retail", function()
+    local bare = _G.CreateFrame("Frame", "BareLevelsDD", _G.UIParent, "UIDropDownMenuTemplate")
+    local where = "^tests[/\\]framexml[/\\]test_dropdown_levels%.lua:%d+: ToggleDropDownMenu: "
+    local message = A.errors(function()
+      _G.ToggleDropDownMenu(1)
+    end, "no dropdown frame")
+    A.truthy(message:find(where), message)
+    message = A.errors(function()
+      _G.ToggleDropDownMenu(1, nil, bare)
+    end, "has no initialize function")
+    A.truthy(message:find(where), message)
+  end)
+end
+
 return function()
+  test_toggle_errors_name_the_caller()
   test_toggle_on_the_open_menu_frame_closes_a_shown_deeper_level()
   test_toggle_level_one_with_a_button_on_the_open_menu_closes_it()
   test_toggle_to_level_two_with_level_one_closed_shows_list_two_alone()

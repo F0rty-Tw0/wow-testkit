@@ -3,6 +3,7 @@
 -- relative to Interface/AddOns/Blizzard_SharedXML/<Mainline|Classic>/UIDropDownMenu.lua.
 local M = {}
 
+local Callsite = require("ui.callsite")
 local MenuFrames = require("framexml.fakes.menu_frames")
 
 local LIST_NAME = "DropDownList"
@@ -228,10 +229,11 @@ end
 
 local function checkToggle(frame)
   if not frame then
-    error("ToggleDropDownMenu: no dropdown frame", 3)
+    error("ToggleDropDownMenu: no dropdown frame", Callsite.level())
   end
   if not frame.initialize then
-    error("ToggleDropDownMenu: " .. tostring(frame) .. " has no initialize function; call UIDropDownMenu_Initialize first", 3)
+    local message = "ToggleDropDownMenu: " .. tostring(frame) .. " has no initialize function; call UIDropDownMenu_Initialize first"
+    error(message, Callsite.level())
   end
 end
 
