@@ -72,6 +72,8 @@ if [[ ! -d $gethe_dir/.git ]]; then
   echo "COMMIT" >>"$gethe_dir/.git/info/exclude" # keep the recorded commit out of `git status`
 fi
 echo "Checking out $gethe_ref in $gethe_dir"
+# Each COMMIT is written last, so a run that fails partway leaves none rather than one naming the old files.
+rm -f "$gethe_dir/COMMIT"
 git_ fetch --depth 1 origin "$gethe_ref"
 git_ reset --hard FETCH_HEAD
 # Every fetch, so an existing mirror picks up paths added here later.
@@ -83,6 +85,7 @@ doc_count=$(find "$gethe_dir/$DOCS_PATH" -maxdepth 1 -name '*.lua' | wc -l)
 git_ rev-parse HEAD >"$gethe_dir/COMMIT"
 
 mkdir -p "$ketho_dir"
+rm -f "$ketho_dir/COMMIT"
 # Resolve the ref once so every file comes from the same commit, and record it for api/versions.lua.
 ketho_commit=$(gh api "repos/$KETHO_REPO/commits/$ketho_ref" --jq .sha | tr -d '\r')
 [[ $ketho_commit =~ ^[0-9a-f]{40}$ ]] || die "could not resolve $KETHO_REPO $ketho_ref to a commit: $ketho_commit"
