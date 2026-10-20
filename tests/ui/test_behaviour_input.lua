@@ -228,15 +228,16 @@ local function test_click_after_an_erroring_intrinsic_click_handler_still_runs()
           [script] = function()
             clicks = clicks + 1
             if clicks == 1 then
-              error("kit boom")
+              error("kit boom", 0)
             end
           end,
         },
       })
       local pill = _G.CreateFrame("Pill")
-      A.errors(function()
+      local message = A.errors(function()
         pill:Click()
-      end, "kit boom")
+      end)
+      A.eq(message, "kit boom", script) -- re-raised as is, with no position of runClick's own
       pill:Click()
       A.eq(clicks, 2, script)
     end)
