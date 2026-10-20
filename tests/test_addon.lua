@@ -4,6 +4,7 @@ local Tmp = require("tests.helpers.tmp")
 local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local H = require("tests.helpers.world")
+local HF = require("tests.helpers.framexml")
 local fs = require("fs")
 
 local withWorld = H.withWorld
@@ -190,6 +191,95 @@ local function test_addon_write_through_g_is_a_global_removed_on_destroy()
   A.eq(rawget(_G, "SandboxFoo"), nil)
 end
 
+-- Writes a one-file retail addon named name whose Core.lua is source; returns its root.
+local function tempAddon(name, source)
+  local root = Tmp.dir("addon") .. "/" .. name
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/" .. name .. ".toc", "## Interface: " .. Flavors.get("retail").tocVersion .. "\n\nCore.lua\n")
+  fs.writeFile(root .. "/Core.lua", source)
+  return root
+end
+
+local function loadSource(w, name, source)
+  local ns = Addon.load(w, { name = name, root = tempAddon(name, source) })
+  A.eq(errorMessages(w), "")
+  return ns
+end
+
+local GLOBALS_INDEX = [[
+local _, ns = ...
+ns.before = getmetatable(_G)
+local mt = { __index = function(_, key) return "missing:" .. key end }
+ns.returned = setmetatable(_G, mt) == _G
+ns.after = getmetatable(_G) == mt
+ns.type = type(CreateFrame)
+ns.uiParent = type(UIParent)
+OwnGlobal = 1
+ns.own = OwnGlobal
+ns.missing = NoSuchGlobal
+ns.missingViaG = _G.NoSuchGlobalViaG
+]]
+
+local function test_addon_globals_metatable_index_fires_only_for_absent_globals_assumed()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtIndex", GLOBALS_INDEX)
+    A.eq(ns.before, nil)
+    A.eq(ns.returned, true)
+    A.eq(ns.after, true)
+    A.same({ ns.type, ns.uiParent, ns.own }, { "function", "table", 1 })
+    A.same({ ns.missing, ns.missingViaG }, { "missing:NoSuchGlobal", "missing:NoSuchGlobalViaG" })
+    A.eq(rawget(_G, "OwnGlobal"), 1)
+    A.eq(_G.NoSuchGlobal, nil)
+  end)
+end
+
+local GLOBALS_NEWINDEX = [[
+local _, ns = ...
+ExistingGlobal = 1
+ns.seen = {}
+setmetatable(_G, { __newindex = function(t, key, value)
+  ns.seen[#ns.seen + 1] = key
+  rawset(t, key, value)
+end })
+ExistingGlobal = 2
+NewGlobal = 3
+]]
+
+local function test_addon_globals_metatable_newindex_fires_only_for_new_globals_assumed()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtNewIndex", GLOBALS_NEWINDEX)
+    A.same(ns.seen, { "NewGlobal" })
+    A.same({ rawget(_G, "ExistingGlobal"), rawget(_G, "NewGlobal") }, { 2, 3 })
+  end)
+end
+
+local function test_second_addon_sees_the_first_addons_globals_metatable_assumed()
+  HF.withFrameXML("retail", function(w)
+    loadSource(w, "MtFirst", 'SharedMt = { __index = function() return "first" end }\nsetmetatable(_G, SharedMt)\n')
+    local ns = loadSource(w, "MtSecond", "local _, ns = ...\nns.same = getmetatable(_G) == SharedMt\nns.missing = Nope\n")
+    A.same({ ns.same, ns.missing }, { true, "first" })
+  end)
+end
+
+local function test_setmetatable_on_g_with_a_non_table_errors_at_the_callers_line()
+  HF.withFrameXML("retail", function(w)
+    Addon.load(w, { name = "MtBad", root = tempAddon("MtBad", "local x = 1\nsetmetatable(_G, 5)\n") })
+    A.contains(errorMessages(w), "MtBad/Core.lua:2: bad argument #2 to 'setmetatable' (nil or table expected)")
+  end)
+end
+
+local function test_globals_metatable_is_gone_after_destroy()
+  local hostMt = debug.getmetatable(_G)
+  HF.withFrameXML("retail", function(w)
+    loadSource(w, "MtGone", 'setmetatable(_G, { __index = function() return "x" end })\n')
+  end)
+  A.eq(debug.getmetatable(_G), hostMt)
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtFresh", "local _, ns = ...\nns.mt = getmetatable(_G)\nns.missing = Nope\n")
+    A.same({ ns.mt, ns.missing }, { nil, nil })
+  end)
+end
+
 local function test_apply_saved_sets_saved_variable_globals()
   withWorld("retail", function(w)
     local _, info = load(w, "Mini")
@@ -237,4 +327,9 @@ return function()
   test_addon_getfenv_and_loadstring_do_not_reach_the_real_globals()
   test_addon_rawget_and_pairs_on_g_see_globals_but_not_host_only_names()
   test_addon_write_through_g_is_a_global_removed_on_destroy()
+  test_addon_globals_metatable_index_fires_only_for_absent_globals_assumed()
+  test_addon_globals_metatable_newindex_fires_only_for_new_globals_assumed()
+  test_second_addon_sees_the_first_addons_globals_metatable_assumed()
+  test_setmetatable_on_g_with_a_non_table_errors_at_the_callers_line()
+  test_globals_metatable_is_gone_after_destroy()
 end

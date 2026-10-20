@@ -30,6 +30,7 @@ local OS_KEPT = { "time", "date", "clock", "difftime" }
 
 local hostOs, hostLoadstring, hostGetfenv, hostSetfenv = os, loadstring, getfenv, setfenv
 local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
+local hostGetmetatable, hostSetmetatable = getmetatable, setmetatable
 
 local function keptOs()
   local out = {}
@@ -116,28 +117,78 @@ local function addRawAccess(overrides, view)
   end
 end
 
+-- setmetatable/getmetatable given the view act on w.addonGlobalsMt, the metatable addon code gave _G: one per
+-- world, shared by every addon view (the client has one _G), never set on the real _G, so kit reads ignore it.
+local function addGlobalsMetatable(overrides, view, w)
+  overrides.setmetatable = function(t, mt)
+    if t ~= view then
+      return hostSetmetatable(t, mt)
+    end
+    if mt ~= nil and type(mt) ~= "table" then
+      error("bad argument #2 to 'setmetatable' (nil or table expected)", 2)
+    end
+    w.addonGlobalsMt = mt
+    return view
+  end
+  overrides.getmetatable = function(t)
+    if t == view then
+      return w.addonGlobalsMt
+    end
+    return hostGetmetatable(t)
+  end
+end
+
+-- What the addon metatable's handler (__index or __newindex) is, or nil.
+local function globalsHandler(w, event)
+  return w.addonGlobalsMt and hostRawget(w.addonGlobalsMt, event)
+end
+
+-- The addon _G metatable's __index answer for an absent global.
+local function missingGlobal(w, view, key)
+  local handler = globalsHandler(w, "__index")
+  if type(handler) == "function" then
+    return handler(view, key)
+  elseif handler ~= nil then
+    return handler[key]
+  end
+  return nil
+end
+
 -- The addon's _G: reads see _G through the overrides; writes land in _G (raw, so w:destroy's snapshot removes
--- them). Kit code keeps its own upvalues, so hiding names here never affects it.
-local function newView(flavor)
+-- them). Kit code keeps its own upvalues, so hiding names here never affects it. Like on any table, the addon
+-- metatable's __index runs only for absent globals and its __newindex only for new ones.
+local function newView(w)
   local view = {}
-  local overrides = overridesFor(view, flavor)
+  local overrides = overridesFor(view, w.flavor)
   addRawAccess(overrides, view)
-  return setmetatable(view, {
+  addGlobalsMetatable(overrides, view, w)
+  return hostSetmetatable(view, {
     __index = function(_, key)
-      return answer(overrides, key, false)
+      local value = answer(overrides, key, false)
+      if value == nil then
+        return missingGlobal(w, view, key)
+      end
+      return value
     end,
     __newindex = function(_, key, value)
-      hostRawset(_G, key, value)
+      local handler = globalsHandler(w, "__newindex")
+      if handler == nil or (hostRawget(_G, key) ~= nil and not hidden(overrides, key)) then
+        hostRawset(_G, key, value)
+      elseif type(handler) == "function" then
+        handler(view, key, value)
+      else
+        handler[key] = value
+      end
     end,
   })
 end
 
 -- The per-addon environment: the view plus the require sentinel, raw in the environment so it shadows any host
 -- require.
-local function newEnv(flavor)
-  local view = newView(flavor)
+local function newEnv(w)
+  local view = newView(w)
   local env = setmetatable({}, { __index = view, __newindex = view })
-  hostRawset(env, "require", requireSentinel(flavor))
+  hostRawset(env, "require", requireSentinel(w.flavor))
   return env
 end
 
@@ -205,7 +256,7 @@ function M.load(w, opts)
     return ns, info
   end
   info.status = "loaded"
-  local ctx = { name = name, root = root, ns = ns, env = newEnv(w.flavor) }
+  local ctx = { name = name, root = root, ns = ns, env = newEnv(w) }
   local files, report = Toc.filesFor(parsed, w.flavor, function(path)
     return readListed(w, ctx, path)
   end)
