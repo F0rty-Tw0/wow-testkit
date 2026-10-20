@@ -312,6 +312,40 @@ local function test_protected_globals_metatable_is_hidden_and_kept()
   end)
 end
 
+local STRICT_GLOBALS = [[
+local _, ns = ...
+local mt = {
+  __index = function(_, k) error("read of undeclared global " .. k, 2) end,
+  __newindex = function(_, k) error("write of undeclared global " .. k, 2) end,
+}
+setmetatable(_G, mt)
+ns.read = select(2, pcall(function() local x = UndeclaredRead return x end))
+ns.write = select(2, pcall(function() UndeclaredWrite = 1 end))
+ns.viaG = select(2, pcall(function() local x = _G.UndeclaredViaG return x end))
+ns.own = select(2, pcall(function() local x = mt.__index(nil, "Direct") return x end))
+setmetatable(_G, nil)
+]]
+
+-- STRICT_GLOBALS as a plain chunk whose globals table is a fresh one holding only what it calls.
+local function plainStrict(chunkName)
+  local env = { setmetatable = setmetatable, select = select, pcall = pcall, error = error }
+  env._G = env
+  local ns = {}
+  setfenv(assert(loadstring(STRICT_GLOBALS, "@" .. chunkName)), env)(nil, ns)
+  return ns
+end
+
+local function test_globals_handler_errors_name_the_addon_line_like_plain_lua()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtStrict", STRICT_GLOBALS)
+    local plain = plainStrict("addon:MtStrict/Core.lua")
+    A.eq(ns.read, "addon:MtStrict/Core.lua:7: read of undeclared global UndeclaredRead")
+    for _, key in ipairs({ "read", "write", "viaG", "own" }) do
+      A.eq(ns[key], plain[key], key)
+    end
+  end)
+end
+
 local function test_globals_metatable_is_gone_after_destroy()
   local hostMt = debug.getmetatable(_G)
   HF.withFrameXML("retail", function(w)
@@ -377,5 +411,6 @@ return function()
   test_setmetatable_on_g_with_a_non_table_errors_at_the_callers_line()
   test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
   test_protected_globals_metatable_is_hidden_and_kept()
+  test_globals_handler_errors_name_the_addon_line_like_plain_lua()
   test_globals_metatable_is_gone_after_destroy()
 end

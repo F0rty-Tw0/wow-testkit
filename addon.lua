@@ -31,7 +31,8 @@ local OS_KEPT = { "time", "date", "clock", "difftime" }
 local hostOs, hostLoadstring, hostGetfenv, hostSetfenv = os, loadstring, getfenv, setfenv
 local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
 local hostGetmetatable, hostSetmetatable, hostRawMetatable = getmetatable, setmetatable, debug.getmetatable
-local hostType, hostSelect, hostError = type, select, error
+local hostType, hostSelect, hostError, hostPcall = type, select, error, pcall
+local hostSub, hostGetinfo = string.sub, debug.getinfo
 
 local function keptOs()
   local out = {}
@@ -170,15 +171,35 @@ local function globalsHandler(w, event)
   return w.addonGlobalsMt and hostRawget(w.addonGlobalsMt, event)
 end
 
--- The addon _G metatable's __index answer for an absent global.
-local function missingGlobal(w, view, key)
-  local handler = globalsHandler(w, "__index")
-  if type(handler) == "function" then
-    return handler(view, key)
-  elseif handler ~= nil then
-    return handler[key]
+-- Calls an addon _G metatable handler; not a tail call, so the handler's error(msg, 2) names this line.
+local function invokeHandler(handler, ...)
+  local result = handler(...)
+  return result
+end
+
+-- The "<file>:<line>: " prefix error(msg, 2) in a handler gets: invokeHandler's call line.
+local HANDLER_WHERE = hostSelect(
+  2,
+  pcall(invokeHandler, function()
+    error("", 2)
+  end)
+)
+
+-- Runs a handler for the view's __index or __newindex, which must call this directly (not as a tail call).
+-- On a plain table the VM calls the handler from the code that read or wrote the global, so an error the handler
+-- raises at level 2 names that line; here the kit's frames sit in between, so that error is re-raised at the
+-- addon's line (3 levels up) instead.
+local function callHandler(handler, ...)
+  local ok, result = hostPcall(invokeHandler, handler, ...)
+  if ok then
+    return result
   end
-  return nil
+  if hostType(result) == "string" and hostSub(result, 1, #HANDLER_WHERE) == HANDLER_WHERE then
+    local info = hostGetinfo(3, "Sl")
+    local where = info and info.currentline > 0 and (info.short_src .. ":" .. info.currentline .. ": ") or ""
+    result = where .. hostSub(result, #HANDLER_WHERE + 1)
+  end
+  hostError(result, 0)
 end
 
 -- The addon's _G: reads see _G through the overrides; writes land in _G (raw, so w:destroy's snapshot removes
@@ -192,8 +213,11 @@ local function newView(w)
   return hostSetmetatable(view, {
     __index = function(_, key)
       local value = answer(overrides, key, false)
-      if value == nil then
-        return missingGlobal(w, view, key)
+      local handler = value == nil and globalsHandler(w, "__index")
+      if hostType(handler) == "function" then
+        value = callHandler(handler, view, key)
+      elseif handler then
+        value = handler[key]
       end
       return value
     end,
@@ -201,8 +225,8 @@ local function newView(w)
       local handler = globalsHandler(w, "__newindex")
       if handler == nil or (hostRawget(_G, key) ~= nil and not hidden(overrides, key)) then
         hostRawset(_G, key, value)
-      elseif type(handler) == "function" then
-        handler(view, key, value)
+      elseif hostType(handler) == "function" then
+        callHandler(handler, view, key, value)
       else
         handler[key] = value
       end
