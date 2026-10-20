@@ -53,7 +53,8 @@ local function forgetOnClassicHide(w, tooltip, tipOf)
     local original = index[name]
     local label = TOOLTIP_NAME .. ":" .. name
     index[name] = function(self, ...)
-      local wasShown = self:IsShown()
+      -- A non-widget self reaches the class method, which raises the kit's "self is not a widget" error.
+      local wasShown = w.ui.state[self] ~= nil and self:IsShown()
       original(self, ...)
       if wasShown and not self:IsShown() then
         forget(tipOf(w, self, label))
