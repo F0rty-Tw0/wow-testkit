@@ -102,3 +102,30 @@ if Menu and Menu.ModifyMenu then
     end
   end)
 end
+
+-- DropdownButton: mouse down on ClickyDropdown opens its menu, a second one closes it. A title, two radios bound
+-- to ns.dropdown.size, a divider and a checkbox that keeps the menu open.
+local dropdownState = { size = "Small", compact = false }
+ns.dropdown = dropdownState
+
+if MenuUtil and MenuUtil.CreateContextMenu then
+  local dropdown = CreateFrame("DropdownButton", "ClickyDropdown", UIParent, "WowStyle1DropdownTemplate")
+  dropdown:SetPoint("TOPRIGHT")
+  dropdown:SetDefaultText("Size")
+  dropdown:SetupMenu(function(_, root)
+    root:CreateTitle("Size")
+    for _, size in ipairs({ "Small", "Large" }) do
+      root:CreateRadio(size, function()
+        return dropdownState.size == size
+      end, function()
+        dropdownState.size = size
+      end)
+    end
+    root:CreateDivider()
+    root:CreateCheckbox("Compact", function()
+      return dropdownState.compact
+    end, function()
+      dropdownState.compact = not dropdownState.compact -- no return: a checkbox defaults to MenuResponse.Refresh
+    end)
+  end)
+end
