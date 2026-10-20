@@ -98,6 +98,8 @@ local function test_modify_menu_accepts_a_non_function_and_fails_when_the_menu_o
       root:CreateButton("Own", noop)
     end)
     A.eq(#w.errors, 2)
+    A.truthy(w.errors[1].message:find("attempt to call .*a string value"), w.errors[1].message)
+    A.truthy(w.errors[2].message:find("attempt to call .*a nil value"), w.errors[2].message)
     A.same(field(w.menus[1], "text"), { "Own" })
   end)
 end
