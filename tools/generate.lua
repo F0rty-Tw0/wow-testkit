@@ -162,10 +162,15 @@ end
 
 local TABLE_HANDLERS = { Enumeration = addEnumeration, Constants = addConstants, Structure = addStructure }
 
+-- A function's own Namespace beats its system's; "" means a global (InCombatLockdown in C_RestrictedActions).
+local function functionKey(fn, doc)
+  local namespace = fn.Namespace or doc.Namespace
+  return (namespace and namespace ~= "") and (namespace .. "." .. fn.Name) or fn.Name
+end
+
 local function addSystem(part, doc, ctx)
   for _, fn in ipairs(doc.Functions or {}) do
-    local key = doc.Namespace and (doc.Namespace .. "." .. fn.Name) or fn.Name
-    part.functions[key] = buildFunction(fn, doc, ctx)
+    part.functions[functionKey(fn, doc)] = buildFunction(fn, doc, ctx)
   end
   for _, ev in ipairs(doc.Events or {}) do
     part.events[ev.LiteralName] = buildEvent(ev, ctx)

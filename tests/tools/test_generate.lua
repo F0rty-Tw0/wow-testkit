@@ -167,8 +167,39 @@ local function test_returns_never_secret_is_carried()
   A.eq(manifest.functions.UnitExists.secret.returnsNeverSecret, nil)
 end
 
-local function systemEntry(file, fn)
-  return { file = file, doc = { Name = file, Type = "System", Functions = { fn } } }
+local function systemEntry(file, fn, namespace)
+  return { file = file, doc = { Name = file, Type = "System", Namespace = namespace, Functions = { fn } } }
+end
+
+local function keysOf(t)
+  local keys = {}
+  for key in pairs(t) do
+    keys[#keys + 1] = key
+  end
+  return keys
+end
+
+local function functionKeys(fn, namespace)
+  return keysOf(Generate.build({ systemEntry("ADocumentation.lua", fn, namespace) }, ketho, META).manifest.functions)
+end
+
+-- LuaTableUtilDocumentation.lua: `count` in system C_TableUtil carries Namespace = "table".
+local function test_function_namespace_replaces_system_namespace_in_key()
+  A.same(functionKeys({ Name = "count", Type = "Function", Namespace = "table" }, "C_TableUtil"), { "table.count" })
+end
+
+-- RestrictedActionsDocumentation.lua: InCombatLockdown in C_RestrictedActions carries Namespace = "".
+local function test_empty_function_namespace_makes_a_global_key()
+  A.same(functionKeys({ Name = "InCombatLockdown", Type = "Function", Namespace = "" }, "C_RestrictedActions"), {
+    "InCombatLockdown",
+  })
+end
+
+-- LocalizationDocumentation.lua: a system without Namespace whose function carries Namespace = "C_StringUtil".
+local function test_function_namespace_applies_in_a_system_without_one()
+  A.same(functionKeys({ Name = "GetDefaultAbbreviationBreakpoints", Type = "Function", Namespace = "C_StringUtil" }), {
+    "C_StringUtil.GetDefaultAbbreviationBreakpoints",
+  })
 end
 
 local function test_duplicate_key_across_files_is_reported_and_last_file_wins()
@@ -241,6 +272,9 @@ return function()
   test_globals_events_flatten_every_system()
   test_globals_widgets_is_the_ketho_table()
   test_returns_never_secret_is_carried()
+  test_function_namespace_replaces_system_namespace_in_key()
+  test_empty_function_namespace_makes_a_global_key()
+  test_function_namespace_applies_in_a_system_without_one()
   test_duplicate_key_across_files_is_reported_and_last_file_wins()
   test_fixture_docs_have_no_duplicates()
   test_ignored_doc_fields_are_counted()
