@@ -181,7 +181,7 @@ function M.install(w)
   w.menus = {}
   w.notes = {}
   w.menuPool = {}
-  w.menuBound = setmetatable({}, { __mode = "k" })
+  w.menuBound = {}
   for i = 1, MAX_LEVELS do
     local list = Core.createNamed(w, LIST_TYPE, "DropDownList" .. i, _G.UIParent)
     if list then
