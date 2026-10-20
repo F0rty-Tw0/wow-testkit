@@ -346,6 +346,70 @@ local function test_globals_handler_errors_name_the_addon_line_like_plain_lua()
   end)
 end
 
+local HANDLER_SEES_VIEW = [[
+local _, ns = ...
+setmetatable(_G, { __index = function(t)
+  ns.isG = t == _G
+  ns.rawDebug = rawget(t, "debug")
+end })
+local x = Missing
+]]
+
+local function test_globals_index_handler_gets_the_addons_g_not_the_real_one_assumed()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtView", HANDLER_SEES_VIEW)
+    A.same({ ns.isG, ns.rawDebug }, { true, nil })
+  end)
+end
+
+local TABLE_HANDLERS = [[
+local _, ns = ...
+local sink = {}
+setmetatable(_G, { __index = { Fallback = 1 }, __newindex = sink })
+ns.fallback, ns.fallbackViaG = Fallback, _G.Fallback
+NewOne = 2
+ns.sunk, ns.raw = sink.NewOne, rawget(_G, "NewOne")
+]]
+
+local function test_table_valued_globals_handlers_assumed()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtTables", TABLE_HANDLERS)
+    A.same({ ns.fallback, ns.fallbackViaG, ns.sunk, ns.raw }, { 1, 1, 2, nil })
+    A.eq(rawget(_G, "NewOne"), nil)
+  end)
+end
+
+local CLEARED = [[
+local _, ns = ...
+setmetatable(_G, { __index = function() return "x" end })
+ns.returned = setmetatable(_G, nil) == _G
+ns.mt, ns.missing = getmetatable(_G), Nope
+]]
+
+local function test_setmetatable_g_nil_clears_the_globals_metatable_assumed()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtCleared", CLEARED)
+    A.same({ ns.returned, ns.mt, ns.missing }, { true, nil, nil })
+  end)
+end
+
+local HIDDEN_NEWINDEX = [[
+local _, ns = ...
+ns.seen = {}
+setmetatable(_G, { __newindex = function(_, k) ns.seen[#ns.seen + 1] = k end })
+io = 1
+SomeNew = 2
+]]
+
+local function test_globals_newindex_fires_for_a_host_only_name_assumed()
+  local hostIo = io
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtHidden", HIDDEN_NEWINDEX)
+    A.same(ns.seen, { "io", "SomeNew" })
+    A.eq(rawget(_G, "io"), hostIo)
+  end)
+end
+
 local function test_globals_metatable_is_gone_after_destroy()
   local hostMt = debug.getmetatable(_G)
   HF.withFrameXML("retail", function(w)
@@ -412,5 +476,9 @@ return function()
   test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
   test_protected_globals_metatable_is_hidden_and_kept()
   test_globals_handler_errors_name_the_addon_line_like_plain_lua()
+  test_globals_index_handler_gets_the_addons_g_not_the_real_one_assumed()
+  test_table_valued_globals_handlers_assumed()
+  test_setmetatable_g_nil_clears_the_globals_metatable_assumed()
+  test_globals_newindex_fires_for_a_host_only_name_assumed()
   test_globals_metatable_is_gone_after_destroy()
 end
