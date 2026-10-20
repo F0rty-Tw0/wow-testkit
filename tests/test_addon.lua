@@ -214,6 +214,18 @@ local function test_addon_errors_are_still_recorded_after_an_addon_sets_debug()
   end)
 end
 
+local FAILING_HANDLER = 'debug = true\nseterrorhandler(function() error("handler broke") end)\n'
+
+local function test_a_failing_error_handler_still_records_after_an_addon_sets_debug()
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "DebugHandler", root = tempAddon("DebugHandler", FAILING_HANDLER) })
+    Addon.load(w, { name = "DebugBoom2", root = tempAddon("DebugBoom2", 'error("boom2")\n') })
+    A.eq(#w.errors, 1)
+    A.contains(w.errors[1].message, "addon:DebugBoom2/Core.lua:1: boom2")
+    A.contains(w.errors[1].message, "handler broke")
+  end)
+end
+
 local function test_later_addons_still_load_after_an_addon_sets_io()
   local setRoot, nextRoot = tempAddon("IoSet", "io = 1\n"), tempAddon("IoNext", "local _, ns = ...\nns.loaded = true\n")
   withWorld("retail", function(w)
@@ -516,6 +528,7 @@ return function()
   test_addon_rawget_and_pairs_on_g_see_globals_but_not_host_only_names()
   test_addon_write_through_g_is_a_global_removed_on_destroy()
   test_addon_errors_are_still_recorded_after_an_addon_sets_debug()
+  test_a_failing_error_handler_still_records_after_an_addon_sets_debug()
   test_later_addons_still_load_after_an_addon_sets_io()
   test_addon_globals_metatable_index_fires_only_for_absent_globals_assumed()
   test_addon_globals_metatable_newindex_fires_only_for_new_globals_assumed()
