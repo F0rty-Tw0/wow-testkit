@@ -5,8 +5,8 @@ local M = {}
 -- A template child whose type the flavor's Ketho WidgetAPI lacks is created as a plain frame.
 local FALLBACK_CHILD_TYPE = "Frame"
 
--- Copies a mixin table's fields onto frame, like the client's Mixin(frame, mixin).
-local function copyMixin(frame, mixin)
+-- Copies a mixin table's fields onto frame, like the client's Mixin(frame, mixin) (framexml/fakes/mixin.lua).
+function M.copyMixin(frame, mixin)
   for key, value in pairs(mixin) do
     frame[key] = value
   end
@@ -25,7 +25,7 @@ function M.apply(w, frame, st, entry)
     st.mixins[#st.mixins + 1] = name
     local mixin = rawget(_G, name)
     if type(mixin) == "table" then
-      copyMixin(frame, mixin)
+      M.copyMixin(frame, mixin)
     end
   end
   -- A template script is the frame's own handler: SetScript replaces it, HookScript runs after it.
