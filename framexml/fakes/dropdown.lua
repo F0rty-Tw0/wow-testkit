@@ -160,8 +160,9 @@ local function hideForInitialize(w, frame)
 end
 
 -- S4 (Mainline :77-99, Classic :76-97): menuList, helper close, initialize (only when init is not nil),
--- init(frame, level, menuList) with level as passed, displayMode only for "MENU" (:105-125). Returns the built
--- level, which Toggle opens; a direct call drops it, so nothing opens.
+-- init(frame, level, menuList) with level as passed, DropDownList<level or 1>.dropdown = frame (Mainline :93-94,
+-- Classic :92-93), displayMode only for "MENU" (:105-125). Returns the built level, which Toggle opens; a direct
+-- call drops it, so nothing opens.
 local function initialize(w, frame, init, displayMode, level, menuList)
   frame.menuList = menuList
   hideForInitialize(w, frame)
@@ -170,6 +171,7 @@ local function initialize(w, frame, init, displayMode, level, menuList)
     frame.initialize = init
     built = build(w, frame, level or 1, level, menuList)
   end
+  _G[LIST_NAME .. (level or 1)].dropdown = frame
   if displayMode == "MENU" then
     frame.displayMode = displayMode
   end
