@@ -37,21 +37,21 @@ local function keptOs()
 end
 
 -- Values the view answers instead of _G's: host-only names map to false (see hidden); functions that would hand
--- out the real _G hand out the view instead.
-local function overridesFor(view, flavor)
+-- out the real _G, or an addon's environment (w.addonEnvs), hand out the view instead: the client has one _G.
+local function overridesFor(view, w)
   local overrides = { _G = view, os = keptOs() }
   for _, name in ipairs(HOST_ONLY) do
     overrides[name] = false
   end
-  if flavor == "forever" then
-    overrides.require = requireSentinel(flavor)
+  if w.flavor == "forever" then
+    overrides.require = requireSentinel(w.flavor)
   end
   overrides.getfenv = function(f)
     if f == nil then
       f = 1
     end
     local env = hostGetfenv(type(f) == "number" and f > 0 and f + 1 or f)
-    return env == _G and view or env
+    return (env == _G or w.addonEnvs[env]) and view or env
   end
   overrides.loadstring = function(src, chunkName)
     local fn, err = hostLoadstring(src, chunkName)
@@ -201,7 +201,7 @@ end
 -- metatable's __index runs only for absent globals and its __newindex only for new ones.
 local function newView(w)
   local view = {}
-  local overrides = overridesFor(view, w.flavor)
+  local overrides = overridesFor(view, w)
   addRawAccess(overrides, view)
   addGlobalsMetatable(overrides, view, w)
   return hostSetmetatable(view, {
@@ -229,11 +229,13 @@ local function newView(w)
 end
 
 -- The per-addon environment: the view plus the require sentinel, raw in the environment so it shadows any host
--- require.
+-- require. Both are registered in w.addonEnvs, so getfenv in any addon answers that addon's _G for them.
 function M.newEnv(w)
   local view = newView(w)
   local env = setmetatable({}, { __index = view, __newindex = view })
   hostRawset(env, "require", requireSentinel(w.flavor))
+  w.addonEnvs = w.addonEnvs or {}
+  w.addonEnvs[env], w.addonEnvs[view] = true, true
   return env
 end
 

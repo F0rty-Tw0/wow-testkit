@@ -137,7 +137,29 @@ local function test_debugprofilestop_still_works_after_an_addon_clears_os()
   end)
 end
 
+local FENV_PROBE = [[
+local _, ns = ...
+ns.level1 = getfenv(1) == _G
+ns.noArg = getfenv() == _G
+ns.ofOwnFunction = getfenv(function() end) == _G
+ns.ofOtherAddon = getfenv(FenvOtherFn) == _G
+ns.ofOtherAddonG = getfenv(FenvOtherGFn) == _G
+]]
+local FENV_OTHER = "function FenvOtherFn() end\nFenvOtherGFn = setfenv(function() end, _G)\n"
+
+-- Lua 5.1 manual getfenv: the environment of the function at that level; the client loads every addon file with
+-- the one _G.
+local function test_addon_getfenv_returns_the_addons_g()
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "FenvOther", root = tempAddon("FenvOther", FENV_OTHER) })
+    local ns = Addon.load(w, { name = "FenvProbe", root = tempAddon("FenvProbe", FENV_PROBE) })
+    local seen = { ns.level1, ns.noArg, ns.ofOwnFunction, ns.ofOtherAddon, ns.ofOtherAddonG }
+    A.same({ errorMessages(w), seen }, { "", { true, true, true, true, true } })
+  end)
+end
+
 return function()
+  test_addon_getfenv_returns_the_addons_g()
   test_addon_code_cannot_reach_host_only_globals()
   test_addon_os_keeps_only_the_time_functions()
   test_addon_getfenv_and_loadstring_do_not_reach_the_real_globals()
