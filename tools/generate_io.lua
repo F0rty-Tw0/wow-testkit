@@ -76,11 +76,11 @@ function M.writeSplit(root, result)
   return sizes
 end
 
--- Sets api/versions.lua[meta.flavor] = { version, mirrorCommit }, keeping the other flavors.
+-- Sets api/versions.lua[meta.flavor] = { version, mirrorCommit, kethoCommit }, keeping the other flavors.
 function M.updateVersions(root, meta)
   local path = root .. "/api/versions.lua"
   local versions = fs.exists(path) and assert(loadfile(path))() or {}
-  versions[meta.flavor] = { version = meta.version, mirrorCommit = meta.mirrorCommit }
+  versions[meta.flavor] = { version = meta.version, mirrorCommit = meta.mirrorCommit, kethoCommit = meta.kethoCommit }
   fs.mkdirp(root .. "/api")
   fs.writeFile(path, HEADER .. Serialize.dump(versions))
 end
@@ -163,14 +163,16 @@ function M.main(Generate, flavor)
   end
   local branch = Flavors.get(flavor).branch
   local gethe = Home.path("mirror", "gethe", branch)
+  local ketho = Home.path("mirror", "ketho", branch)
   local meta = {
     flavor = flavor,
     branch = branch,
     version = trim(readRequired(gethe .. "/version.txt")),
     mirrorCommit = trim(readRequired(gethe .. "/COMMIT")),
+    kethoCommit = trim(readRequired(ketho .. "/COMMIT")),
   }
   local entries, errors, docsReport = Docs.loadDir(gethe .. "/" .. DOCS_PATH)
-  local result = Generate.build(entries, M.loadKetho(Home.path("mirror", "ketho", branch)), meta)
+  local result = Generate.build(entries, M.loadKetho(ketho), meta)
   local root = kitRoot()
   local sizes = M.writeSplit(root, result)
   M.updateVersions(root, meta)

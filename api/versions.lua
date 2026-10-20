@@ -17,6 +17,7 @@ return {
     version = "2.5.6.69795",
   },
   vanilla = {
+    kethoCommit = "1f1dec331d23927fefe3d50c3d7f6e0915cda96f",
     mirrorCommit = "8165d4cd6e48d606369336cc3a7977902310e81e",
     version = "1.15.9.70003",
   },
