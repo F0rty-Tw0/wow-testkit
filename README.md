@@ -18,3 +18,12 @@ Run one file:
 python tools/run51.py tests/test_assert.lua   # Lua 5.1 via lupa
 lua tests/run.lua tests/test_assert.lua       # system Lua
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Where each simulated client behavior comes from is in
+[docs/client-sources.md](docs/client-sources.md).
+
+## License
+
+[MIT](LICENSE)
