@@ -101,7 +101,8 @@ function M.extend(Scenario)
     if kind ~= "string" and kind ~= "table" then
       error("pick: expected an entry text or a path table, got " .. kind, 2)
     end
-    if #w.menus == 0 then
+    -- Paths start at level 1; a list shown above a closed level 1 leaves a hole that # may not see.
+    if not w.menus[1] then
       error("pick: no menu is open", 2)
     end
     local path = type(textOrPath) == "string" and { textOrPath } or textOrPath
