@@ -175,22 +175,24 @@ local function test_click_during_its_own_click_does_nothing() -- (I3)
   end
 end
 
-local function test_click_after_an_erroring_on_click_still_runs() -- (I3)
-  withWidgets("retail", function(w)
-    local b = _G.CreateFrame("Button")
-    local clicks = 0
-    b:SetScript("OnClick", function()
-      clicks = clicks + 1
-      if clicks == 1 then
-        error("boom")
-      end
+local function test_click_after_an_erroring_click_script_still_runs() -- (I3)
+  for _, script in ipairs({ "PreClick", "OnClick", "PostClick" }) do
+    withWidgets("retail", function(w)
+      local b = _G.CreateFrame("Button")
+      local clicks = 0
+      b:SetScript(script, function()
+        clicks = clicks + 1
+        if clicks == 1 then
+          error("boom")
+        end
+      end)
+      b:Click()
+      b:Click()
+      A.eq(clicks, 2, script)
+      A.eq(#w.errors, 1, script)
+      A.contains(tostring(w.errors[1].message), "boom")
     end)
-    b:Click()
-    b:Click()
-    A.eq(clicks, 2)
-    A.eq(#w.errors, 1)
-    A.contains(tostring(w.errors[1].message), "boom")
-  end)
+  end
 end
 
 local function test_nested_mouse_click_keeps_the_outer_click_in_progress() -- (I3)
@@ -397,7 +399,7 @@ return function()
   test_click_runs_the_three_scripts_with_button_and_down_false()
   test_click_passes_is_down_to_the_scripts()
   test_click_during_its_own_click_does_nothing()
-  test_click_after_an_erroring_on_click_still_runs()
+  test_click_after_an_erroring_click_script_still_runs()
   test_nested_mouse_click_keeps_the_outer_click_in_progress()
   test_check_button_click_flips_the_state_before_the_scripts_assumed()
   test_register_for_clicks_defaults_to_left_button_up()
