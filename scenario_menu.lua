@@ -97,6 +97,10 @@ function M.extend(Scenario)
 
   function Scenario:pick(textOrPath)
     local w = self.w
+    local kind = type(textOrPath)
+    if kind ~= "string" and kind ~= "table" then
+      error("pick: expected an entry text or a path table, got " .. kind, 2)
+    end
     if #w.menus == 0 then
       error("pick: no menu is open", 2)
     end

@@ -224,6 +224,16 @@ local function test_close_menus_hides_every_level()
   end)
 end
 
+local function test_pick_without_a_text_or_path_throws_at_the_caller()
+  withMenuScenario(function(s)
+    openMenuFixture({})
+    local message = A.errors(function()
+      s:pick(nil)
+    end, "pick: expected an entry text or a path table, got nil")
+    A.contains(message, "test_scenario_menu.lua:")
+  end)
+end
+
 local function test_pick_with_an_empty_path_throws()
   withMenuScenario(function(s)
     openMenuFixture({})
@@ -411,6 +421,7 @@ end
 
 return function()
   test_pick_with_an_empty_path_throws()
+  test_pick_without_a_text_or_path_throws_at_the_caller()
   test_menu_is_nil_when_no_menu_is_open()
   test_menu_returns_levels_with_copied_entries_and_the_same_frames()
   test_pick_clicks_the_matching_level_one_entry()
