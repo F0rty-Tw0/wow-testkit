@@ -158,14 +158,13 @@ local function build(w, frame, depth, levelArg, menuList)
 end
 
 -- S4 helper (Mainline :41-65, Classic :42-66): on the open menu's frame, hide the lists from the menu level the last
--- Toggle set; on any other frame, reset that level to 1 and hide every list. The open menu is level 1's owner.
+-- Toggle set; on any other frame, reset that level to 1 and hide every list. Sets UIDROPDOWNMENU_INIT_MENU (:48).
 local function hideForInitialize(w, frame)
-  local dropdown = w.dropdown
-  local first = w.menus[1]
-  if not (first and first.owner == frame) then
-    dropdown.menuLevel = 1
+  if frame ~= rawget(_G, "UIDROPDOWNMENU_OPEN_MENU") then
+    w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", 1)
   end
-  MenuFrames.close(w, dropdown.menuLevel)
+  w:setGlobal("UIDROPDOWNMENU_INIT_MENU", frame)
+  MenuFrames.close(w, rawget(_G, "UIDROPDOWNMENU_MENU_LEVEL"))
 end
 
 -- S4 (Mainline :77-99, Classic :76-97): menuList, helper close, initialize (only when init is not nil),
@@ -216,12 +215,14 @@ local function checkToggle(level, frame)
   end
 end
 
--- Sets the menu level Initialize hides from (S4; Mainline :1056, Classic :997). After the S1 check, hides the target
--- list and deeper before init runs (S12), and shows nothing when init added no entries (S10). anchor, x, y, button,
--- autoHideDelay and displayMode are ignored: the kit has no layout.
-local function toggle(w, level, frame, menuList)
+-- Sets UIDROPDOWNMENU_MENU_LEVEL (the level Initialize hides from, S4) and _MENU_VALUE (Mainline :1056-1057, Classic
+-- :997-998). After the S1 check, hides the target list and deeper before init runs (S12); level 1 then becomes
+-- UIDROPDOWNMENU_OPEN_MENU (Mainline :1095, Classic :1034). Shows nothing when init added no entries (S10). anchor,
+-- x, y, button, autoHideDelay and displayMode are ignored: the kit has no layout.
+local function toggle(w, level, value, frame, menuList)
   level = level or 1
-  w.dropdown.menuLevel = level
+  w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", level)
+  w:setGlobal("UIDROPDOWNMENU_MENU_VALUE", value)
   frame = frameFor(w, level, frame)
   checkToggle(level, frame)
   local first = w.menus[1]
@@ -231,6 +232,9 @@ local function toggle(w, level, frame, menuList)
     return
   end
   MenuFrames.close(w, level)
+  if level == 1 then
+    w:setGlobal("UIDROPDOWNMENU_OPEN_MENU", frame)
+  end
   local built = build(w, frame, level, level, menuList)
   if #built.entries == 0 then
     return
@@ -264,8 +268,8 @@ local function globalsFor(w)
     UIDropDownMenu_AddButton = function(info)
       addButton(w, info)
     end,
-    ToggleDropDownMenu = function(level, _, frame, _, _, _, menuList)
-      toggle(w, level, frame, menuList)
+    ToggleDropDownMenu = function(level, value, frame, _, _, _, menuList)
+      toggle(w, level, value, frame, menuList)
     end,
     CloseDropDownMenus = function(level)
       MenuFrames.close(w, level or 1)
@@ -286,9 +290,18 @@ function M.install(w)
   if not w.globals.framexml.UIDropDownMenu_Initialize then
     return
   end
-  w.dropdown = { building = nil, infos = setmetatable({}, { __mode = "k" }), pendingParent = nil, menuLevel = 1 }
+  w.dropdown = { building = nil, infos = setmetatable({}, { __mode = "k" }), pendingParent = nil }
   for name, fn in pairs(globalsFor(w)) do
     w:install(name, fn, KETHO_GATE)
+  end
+  -- Mainline :12, Classic :13; OPEN_MENU, INIT_MENU and MENU_VALUE start nil. UIDropDownMenu_OnHide clears the open
+  -- menu when list 1 hides (Mainline :1347-1349, Classic :1249-1251), as a script an addon's SetScript replaces.
+  w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", 1)
+  local list1 = rawget(_G, LIST_NAME .. 1)
+  if list1 then
+    w:setScript(list1, "OnHide", function()
+      w:setGlobal("UIDROPDOWNMENU_OPEN_MENU", nil)
+    end)
   end
 end
 
