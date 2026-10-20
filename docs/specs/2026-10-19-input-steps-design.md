@@ -148,7 +148,8 @@ A menu level is `{ entries, parentIndex, pick, rebuild }`: `entries` is a list o
 `{ kind, text, enabled, checked, hasSubmenu, frame }` with `kind` one of `"button"`, `"checkbox"`, `"radio"`,
 `"title"`, `"divider"`; `parentIndex` is the index, in the level below, of the entry that opened this level (nil on
 level 1); `pick` and `rebuild` are kit functions (run a pick; re-run the menu's generator into the open levels, for
-DropdownButton `GenerateMenu`). `w.menus` is the stack of
+DropdownButton `GenerateMenu`; `rebuild` does nothing, generator included, once no level of that menu is open
+**(source)**). `w.menus` is the stack of
 open levels (level 1 first, the last element is the deepest). `MenuFrames.install(w)` sets `w.menus = {}` and
 `w.notes = {}`; `Scenario:report` appends `w.notes` to the report's notes when the world has it (worlds built
 without `MenuFrames.install` have none).
@@ -218,11 +219,14 @@ others.
 
 - `MenuUtil.CreateContextMenu(owner, generator, ...)`: a root description, `generator(owner, rootDescription, ...)`
   and the `ModifyMenu` hooks run while any previous menu is still open; then every open level closes and level 1
-  renders. A root with no elements opens nothing and returns nil **(source)**.
+  renders. A root with no elements opens nothing and returns nil **(source)**. A nil `owner` becomes `UIParent`
+  **(source: `GetAppropriateTopLevelParent()`; `UIParent` inferred)**. Entering an entry whose submenu is already
+  open keeps that submenu and every deeper level **(source)**.
 - Descriptions: `CreateButton(text, callback, data)`, `CreateCheckbox(text, isSelected, setSelected, data)`,
   `CreateRadio(text, isSelected, setSelected, data)`, `CreateTitle(text)`, `CreateDivider()`,
   `SetScrollMode(height)` (recorded, no effect), `SetEnabled(boolOrFn)`, `SetTooltip(fn)` (recorded),
-  `SetTag(tag, contextData)`. An element with children is a submenu; its children are its next level.
+  `SetTag(tag, contextData)`. `SetEnabled`, `SetTooltip` and `SetTag` return nothing, so they do not chain
+  **(source)**. An element with children is a submenu; its children are its next level.
 - Callback arguments **(source: all four)**: `callback(data, menuInputData, menu)`, `isSelected(data)` (called
   when a level renders and when it is re-initialized: a `Refresh` on that level, or any response other than
   nil/`CloseAll` from a pick in a deeper level), `setSelected(data, menuInputData, menu)`, enabled predicate
@@ -237,13 +241,15 @@ others.
   where they close nothing; `Close` closes the picked entry's level and deeper; `Refresh` re-reads `isSelected` and
   enabled for that level's entries (and the open submenu of the picked entry), without running the generator again;
   `Open` does nothing. Every response other than nil/`CloseAll` also re-initializes the levels above the picked one.
-- `Menu.ModifyMenu(tag, fn)`: stores `fn` under `tag`. Opening a menu whose root has that tag runs every stored
-  `fn(owner, rootDescription, contextData)` after the generator **(source)**. Not modeled: the client also calls a
-  new `fn` at once on the last menu generated with that tag and returns a handle (`Menu.lua:2642-2659`).
+- `Menu.ModifyMenu(tag, fn)`: stores `fn` under `tag`; a non-string `tag` or non-function `fn` raises an error at the
+  caller's line **(assumed: the client only asserts the tag, `Menu.lua:2640`)**. Opening a menu whose root has that
+  tag runs every stored `fn(owner, rootDescription, contextData)` after the generator **(source)**. Not modeled:
+  the client also calls a new `fn` at once on the last menu generated with that tag and returns a handle
+  (`Menu.lua:2642-2659`).
 - `UnitPopup_OpenMenu(which, contextData)` (where listed: all five flavors today): opens a Blizzard-owned menu
   with no entries of its own, tag `"MENU_UNIT_" .. which` **(source: tag format)**, owner a fresh unnamed Frame
   parented to `UIParent`; runs the `ModifyMenu` hooks; adds the report note "Blizzard's own entries are not
-  simulated".
+  simulated". A non-string `which` raises an error at the caller's line **(assumed)**.
 
 ## DropdownButton (slice 5)
 
