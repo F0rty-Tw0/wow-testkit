@@ -137,29 +137,28 @@ function M.isRegistered(w, frame, button, direction)
 end
 
 -- source: assumed (row I4) a CheckButton flips its checked state before PreClick. Addon errors in the scripts are
--- recorded, not raised, so st.clicking always clears.
+-- recorded, not raised, so st.clicking always returns to its value before this click (a nested click keeps the outer
+-- one in progress).
 function M.runClick(w, frame, button, down)
   local st = w.ui.state[frame]
   if st.plan.isA.checkbutton then
     st.checked = not st.checked
   end
+  local wasClicking = st.clicking
   st.clicking = true
   w:callScript(frame, "PreClick", button, down)
   w:callScript(frame, "OnClick", button, down)
   w:callScript(frame, "PostClick", button, down)
-  st.clicking = nil
+  st.clicking = wasClicking
 end
 
--- source: confirmed (row I3) Click() ignores registration, mouse and visibility, passes isDown to the scripts
--- (false when omitted, assumed), and does nothing on a disabled button or one already being clicked.
+-- source: confirmed (row I3) Click() ignores registration, mouse and visibility, passes isDown to the scripts as a
+-- boolean (false when omitted), and does nothing on a disabled button or one already being clicked.
 local function click(w, obj, st, button, isDown)
   if st.disabled or st.clicking then
     return
   end
-  if isDown == nil then
-    isDown = false
-  end
-  M.runClick(w, obj, button or "LeftButton", isDown)
+  M.runClick(w, obj, button or "LeftButton", isDown and true or false)
 end
 
 local function setChecked(_, _, st, checked)

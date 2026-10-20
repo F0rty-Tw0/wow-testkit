@@ -146,24 +146,48 @@ local function test_click_passes_is_down_to_the_scripts() -- (I3)
     local b = _G.CreateFrame("Button")
     local log = Rec.record(b, { "PreClick", "OnClick", "PostClick" })
     b:Click("RightButton", true)
+    b:Click("LeftButton", 1)
     A.same(log, {
       { "PreClick", "RightButton", true },
       { "OnClick", "RightButton", true },
       { "PostClick", "RightButton", true },
+      { "PreClick", "LeftButton", true },
+      { "OnClick", "LeftButton", true },
+      { "PostClick", "LeftButton", true },
     })
   end)
 end
 
 local function test_click_during_its_own_click_does_nothing() -- (I3)
-  withWidgets("retail", function()
+  for _, script in ipairs({ "PreClick", "OnClick", "PostClick" }) do
+    withWidgets("retail", function()
+      local b = _G.CreateFrame("Button")
+      local clicks = 0
+      b:SetScript(script, function(self)
+        clicks = clicks + 1
+        self:Click()
+      end)
+      b:Click()
+      A.eq(clicks, 1, script)
+      b:Click()
+      A.eq(clicks, 2, script)
+    end)
+  end
+end
+
+local function test_nested_mouse_click_keeps_the_outer_click_in_progress() -- (I3)
+  withWidgets("retail", function(w)
     local b = _G.CreateFrame("Button")
     local clicks = 0
     b:SetScript("OnClick", function(self)
       clicks = clicks + 1
+      if clicks == 1 then
+        BehaviourInput.runClick(w, self, "LeftButton", false)
+      end
+    end)
+    b:SetScript("PostClick", function(self)
       self:Click()
     end)
-    b:Click()
-    A.eq(clicks, 1)
     b:Click()
     A.eq(clicks, 2)
   end)
@@ -355,6 +379,7 @@ return function()
   test_click_runs_the_three_scripts_with_button_and_down_false()
   test_click_passes_is_down_to_the_scripts()
   test_click_during_its_own_click_does_nothing()
+  test_nested_mouse_click_keeps_the_outer_click_in_progress()
   test_check_button_click_flips_the_state_before_the_scripts_assumed()
   test_register_for_clicks_defaults_to_left_button_up()
   test_register_for_clicks_accepts_any_and_named_types()
