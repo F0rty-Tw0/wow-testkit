@@ -4,8 +4,21 @@ Where each client behavior the input, menu and dropdown fakes simulate comes fro
 Blizzard's Lua shows it; the source column then gives `path:line` relative to `mirror/gethe/<branch>/` under the
 testkit home (fetched by `tools/fetch.sh`). A rule is `assumed` when no Lua shows it; the source column then names
 the warcraft.wiki.gg page that supports it, or says "no source". Every `assumed` rule has a test whose name ends in
-`_assumed`. Rows describe the client. The kit follows them except where a verdict says "kit choice" (M13), and it
-has these known gaps, which may not be the only ones:
+`_assumed`. Rows describe the client. The kit follows them except where a verdict says "kit choice" (M13).
+
+Every Blizzard `path:line` is for these Gethe/wow-ui-source commits, the ones the mirror held when the rows were checked
+(each mirror's `COMMIT` file, written by `tools/fetch.sh`). A later fetch moves a mirror to its branch's newest
+commit, so lines may drift there; read a cited line at its pinned commit.
+
+| Branch | Commit | Client |
+|---|---|---|
+| `live` | `b9be9379719047977fca4dba1bb1d9988e8840b3` | 12.1.5.70448 |
+| `forever` | `172a387e3ab85b26e6640d3058d5ec1e6ccd4c63` | 1.60.1.70450 |
+| `classic` | `15c8a754451ce09a688be11ffa03c064e4973c14` | 5.5.4.70469 |
+| `classic_era` | `8165d4cd6e48d606369336cc3a7977902310e81e` | 1.15.9.70003 |
+| `classic_anniversary` | `2cfec7c00f0f24762d5ca35a4beb1e93c0cde328` | 2.5.6.70006 |
+
+The kit has these known gaps, which may not be the only ones:
 
 - S5: an `AddButton` outside a build is dropped; the client appends it to the list for that level
   (`framexml/fakes/dropdown.lua`).
