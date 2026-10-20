@@ -181,6 +181,16 @@ local function test_has_arrow_and_disabled_info_set_the_entry_flags()
   end)
 end
 
+-- Mainline UIDropDownMenu.lua:460-463 and :472-476 (Classic :411-414, :423-427): notClickable sets info.disabled.
+local function test_not_clickable_entry_is_disabled()
+  withFrameXML("retail", function(w)
+    openMenu({ { "Label", { notCheckable = true, notClickable = true, func = function() end } } })
+    local entry = w.menus[1].entries[1]
+    A.eq(entry.enabled, false)
+    A.eq(Input.blockedReason(w, entry.frame, "click"), "disabled")
+  end)
+end
+
 local function test_function_checked_is_evaluated_with_the_entry_frame()
   withFrameXML("retail", function(w)
     local got
@@ -515,6 +525,7 @@ return function()
   test_add_button_copies_info_so_reuse_does_not_change_earlier_entries()
   test_info_maps_to_entry_kinds()
   test_has_arrow_and_disabled_info_set_the_entry_flags()
+  test_not_clickable_entry_is_disabled()
   test_function_checked_is_evaluated_with_the_entry_frame()
   test_function_checked_that_errors_reads_false_and_is_recorded()
   test_toggle_opens_level_one_owned_by_the_frame()
