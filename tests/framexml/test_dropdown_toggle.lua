@@ -57,6 +57,16 @@ local function test_an_addon_error_with_a_position_in_a_submenu_init_is_recorded
   A.truthy(message:find("^tests[/\\]framexml[/\\]test_dropdown_toggle%.lua:%d+: x$"), message)
 end
 
+-- A misuse error that already names the init's line is not the kit's position-less one, so the entry's name is not
+-- added in front of it.
+local function test_a_toggle_misuse_in_a_submenu_init_keeps_its_caller_line()
+  local message = recordedSubmenuError(function()
+    _G.ToggleDropDownMenu(1)
+  end)
+  A.truthy(message:find("^tests[/\\]framexml[/\\]test_dropdown_toggle%.lua:%d+: ToggleDropDownMenu: "), message)
+  A.eq(message:find("OnEnter: ", 1, true), nil)
+end
+
 -- S1 closes only when the open menu is the toggled frame (Mainline :1069, Classic :1008): a Toggle on another frame
 -- while list 1 is shown reopens list 1 for that frame.
 local function test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()
@@ -126,4 +136,5 @@ return function()
   test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()
   test_an_addon_error_without_a_position_in_a_submenu_init_is_recorded_unchanged()
   test_an_addon_error_with_a_position_in_a_submenu_init_is_recorded_unchanged()
+  test_a_toggle_misuse_in_a_submenu_init_keeps_its_caller_line()
 end
