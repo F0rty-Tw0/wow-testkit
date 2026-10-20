@@ -59,6 +59,21 @@ end
 
 -- GameTooltipTemplate's OnHide is GameTooltip_OnHide (Mainline GameTooltip.xml:27), which calls ClearHandlerInfo
 -- (GameTooltip.lua:421; forever :430), so a hidden tooltip shows no unit.
+-- Classic's GetUnit is C: wiki API_GameTooltip_GetUnit, "Returns nil when the tooltip is not shown". User decision
+-- (row T3): the unit is forgotten when the tooltip goes from shown to hidden; a never-shown tooltip still answers.
+local function test_classic_forgets_the_unit_when_the_shown_tooltip_hides_assumed()
+  for _, hide in ipairs({ "Hide", "SetShown" }) do
+    withMouseover("vanilla", function(_, tooltip)
+      tooltip:SetScript("OnHide", function() end)
+      tooltip:SetUnit("mouseover")
+      A.same({ tooltip:GetUnit() }, { "Bob", "mouseover" }, hide)
+      tooltip:Show()
+      tooltip[hide](tooltip, false)
+      A.eq(select("#", tooltip:GetUnit()), 0, hide)
+    end)
+  end
+end
+
 local function test_hiding_the_tooltip_forgets_the_unit_on_mainline()
   withMouseover("forever", function(_, tooltip)
     tooltip:SetUnit("mouseover")
@@ -253,6 +268,7 @@ return function()
   test_get_unit_returns_the_guid_on_mainline_only()
   test_get_unit_token_comes_from_the_guid_on_mainline()
   test_hiding_the_tooltip_forgets_the_unit_on_mainline()
+  test_classic_forgets_the_unit_when_the_shown_tooltip_hides_assumed()
   test_line_pre_call_true_drops_the_line()
   test_processing_info_only_while_processing()
   test_name_line_is_class_colored()

@@ -6,6 +6,7 @@ local M = {}
 
 local Core = require("framexml.fakes.core")
 local TooltipLines = require("framexml.fakes.tooltip_lines")
+local TooltipUnit = require("framexml.fakes.tooltip_unit")
 
 local unpack = unpack
 
@@ -111,29 +112,8 @@ end
 
 -- Units ------------------------------------------------------------------------------------------------------
 
--- source: Mainline GameTooltipDataMixin:GetUnit → TooltipUtil.GetDisplayedUnit (Blizzard_SharedXMLGame/Tooltip/
--- TooltipUtil.lua:34-41, live and forever): the unit token comes from the shown data's GUID, not from SetUnit.
-local function displayedUnit(w, tip)
-  local data = tip.data
-  if not data then
-    return
-  end
-  local guid = data.guid
-  local unit = guid and TooltipLines.ask(w, "UnitTokenFromGUID", guid)
-  local name = unit and (TooltipLines.ask(w, "UnitName", unit))
-
-  return name, unit, guid
-end
-
--- Mainline (TooltipDataProcessor flavors): name, unit, guid; Classic's C method: name, unit (wiki
--- API_GameTooltip_GetUnit).
 function methods.GetUnit(w, _, tip)
-  if w.tooltipCallbacks then
-    return displayedUnit(w, tip)
-  end
-  if tip.unit ~= nil then
-    return (TooltipLines.ask(w, "UnitName", tip.unit)), tip.unit
-  end
+  return TooltipUnit.get(w, tip)
 end
 
 function methods.GetProcessingTooltipInfo(_, _, tip)
@@ -281,13 +261,8 @@ function M.install(w)
   local callbacks = { tooltipPre = {}, tooltipPost = {}, linePre = {}, linePost = {} }
   if w:install("TooltipDataProcessor", processor(callbacks), PROCESSOR_GATE) then
     w.tooltipCallbacks = callbacks
-    -- GameTooltipTemplate's OnHide is GameTooltip_OnHide (Mainline GameTooltip.xml:27), whose ClearHandlerInfo
-    -- (GameTooltip.lua:421 live, :430 forever) drops the shown data; an addon's SetScript replaces it, as in the client.
-    w:setScript(tooltip, "OnHide", function(self)
-      local tip = tipOf(w, self, TOOLTIP_NAME .. ":OnHide")
-      tip.unit, tip.data = nil, nil
-    end)
   end
+  TooltipUnit.install(w, tooltip, tipOf)
 end
 
 return M
