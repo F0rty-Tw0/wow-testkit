@@ -129,8 +129,11 @@ local function scriptEntry(w, obj, scriptName)
   return entry
 end
 
+-- F3 (wiki API_ScriptObject_HookScript): hooks "remain in place until replaced or cleared with SetScript".
 function methods:setScript(obj, scriptName, fn)
-  scriptEntry(self, obj, scriptName).fn = fn
+  local entry = scriptEntry(self, obj, scriptName)
+  entry.fn = fn
+  entry.hooks = {}
 end
 
 -- F3 (assumed, wiki API_ScriptObject_HookScript): with no handler, a hook is the handler, as SetScript would set it.

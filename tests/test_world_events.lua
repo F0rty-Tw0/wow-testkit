@@ -127,7 +127,7 @@ local function test_call_script_runs_script_then_hooks_in_addon_context()
   end)
 end
 
-local function test_set_script_nil_clears_script_keeps_hooks()
+local function test_set_script_nil_clears_script_and_hooks()
   withWorld("retail", function(w)
     local obj, script, hook = {}, counter(), counter()
     w:setScript(obj, "OnShow", script.fn)
@@ -136,7 +136,40 @@ local function test_set_script_nil_clears_script_keeps_hooks()
     A.eq(w:getScript(obj, "OnShow"), nil)
     w:callScript(obj, "OnShow")
     A.eq(script.n, 0)
-    A.eq(hook.n, 1)
+    A.eq(hook.n, 0)
+  end)
+end
+
+local function test_set_script_replaces_script_and_drops_hooks()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local function mark(name)
+      return function()
+        order[#order + 1] = name
+      end
+    end
+    w:setScript(obj, "OnShow", mark("script1"))
+    w:hookScript(obj, "OnShow", mark("hook1"))
+    w:setScript(obj, "OnShow", mark("script2"))
+    w:callScript(obj, "OnShow")
+    A.same(order, { "script2" })
+  end)
+end
+
+local function test_hook_after_set_script_nil_runs_alone()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local function mark(name)
+      return function()
+        order[#order + 1] = name
+      end
+    end
+    w:setScript(obj, "OnShow", mark("script"))
+    w:hookScript(obj, "OnShow", mark("hook1"))
+    w:setScript(obj, "OnShow", nil)
+    w:hookScript(obj, "OnShow", mark("hook2"))
+    w:callScript(obj, "OnShow")
+    A.same(order, { "hook2" })
   end)
 end
 
@@ -218,7 +251,9 @@ return function()
   test_payload_arity_mismatch_warns()
   test_omitted_trailing_nilable_payload_does_not_warn()
   test_call_script_runs_script_then_hooks_in_addon_context()
-  test_set_script_nil_clears_script_keeps_hooks()
+  test_set_script_nil_clears_script_and_hooks()
+  test_set_script_replaces_script_and_drops_hooks()
+  test_hook_after_set_script_nil_runs_alone()
   test_record_error_sets_addon_source()
   test_record_error_finds_source_in_traceback()
   test_record_error_resolves_truncated_chunk_name_to_registered_one()
