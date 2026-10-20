@@ -4,7 +4,10 @@ Where each client behavior the input, menu and dropdown fakes simulate comes fro
 Blizzard's Lua shows it; the source column then gives `path:line` relative to `mirror/gethe/<branch>/` under the
 testkit home (fetched by `tools/fetch.sh`). A rule is `assumed` when no Lua shows it; the source column then names
 the warcraft.wiki.gg page that supports it, or says "no source". Every `assumed` rule has a test whose name ends in
-`_assumed`. The kit follows the source unless the verdict says "kit choice".
+`_assumed`. Rows describe the client. The kit follows them except where a verdict says "kit choice" (M13) and in
+two gaps its fakes note: an `AddButton` outside a build is dropped rather than appended to the hidden list (S5,
+`framexml/fakes/dropdown.lua`), and `Menu.ModifyMenu` does not run a new hook at once on a menu with that tag that
+was already generated (M10, `framexml/fakes/menu.lua`).
 
 ## Input steps
 
