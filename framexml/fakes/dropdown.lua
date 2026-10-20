@@ -159,12 +159,16 @@ end
 
 -- S4 helper (Mainline :41-65, Classic :42-66): on the open menu's frame, hide the lists from the menu level the last
 -- Toggle set; on any other frame, reset that level to 1 and hide every list. Sets UIDROPDOWNMENU_INIT_MENU (:48).
+-- Only DropDownList levels hide: an open Menu API menu (levels without namePrefix) stays.
 local function hideForInitialize(w, frame)
   if frame ~= rawget(_G, "UIDROPDOWNMENU_OPEN_MENU") then
     w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", 1)
   end
   w:setGlobal("UIDROPDOWNMENU_INIT_MENU", frame)
-  MenuFrames.close(w, rawget(_G, "UIDROPDOWNMENU_MENU_LEVEL"))
+  local first = w.menus[1]
+  if first and first.namePrefix then
+    MenuFrames.close(w, rawget(_G, "UIDROPDOWNMENU_MENU_LEVEL"))
+  end
 end
 
 -- S4 (Mainline :77-99, Classic :76-97): menuList, helper close, initialize (only when init is not nil),
