@@ -132,6 +132,18 @@ local function test_pick_divider_throws_disabled()
   end)
 end
 
+-- A Menu API title is a Frame with no OnClick (M18), so a click on it does nothing; pick says so instead of passing.
+local function test_pick_menu_api_title_throws_no_click()
+  withMenuScenario(function(s)
+    _G.MenuUtil.CreateContextMenu(_G.UIParent, function(_, root)
+      root:CreateTitle("Head")
+    end)
+    A.errors(function()
+      s:pick("Head")
+    end, 'pick: "Head" has no click')
+  end)
+end
+
 local function test_pick_disabled_entry_throws_disabled()
   withMenuScenario(function(s)
     openMenuFixture({})
@@ -267,6 +279,7 @@ return function()
   test_pick_unknown_text_throws_listing_the_entries()
   test_pick_ambiguous_text_throws()
   test_pick_title_throws_disabled()
+  test_pick_menu_api_title_throws_no_click()
   test_pick_divider_throws_disabled()
   test_pick_disabled_entry_throws_disabled()
   test_pick_with_no_menu_open_throws()

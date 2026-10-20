@@ -134,13 +134,14 @@ local function test_a_replaced_entry_script_removes_the_kit_behavior()
 end
 
 -- M18: a Menu API title or divider is a Frame element with the element OnEnter (Menu.lua:1129), which enables its mouse
--- (I5), and no OnClick.
+-- (I5), and no OnClick: a click is not blocked, it runs nothing (s:pick reports it, tests/test_scenario_menu.lua).
 local function test_menu_api_titles_and_dividers_take_the_enter_but_no_click()
   withFrameXML("retail", function(w)
     local level, log = newLevel({ entry("title", "Head"), entry("divider") }, nil)
     MenuFrames.open(w, 1, level)
     for _, e in ipairs(level.entries) do
       A.eq(Input.blockedReason(w, e.frame, "enter"), nil)
+      A.eq(Input.blockedReason(w, e.frame, "click"), nil)
       A.eq(e.frame:GetScript("OnClick"), nil)
       Input.click(w, e.frame, "LeftButton")
     end
