@@ -77,11 +77,13 @@ end
 
 local function test_unknown_frame_type_error_names_the_caller_line()
   withWidgets("retail", function()
+    local line
     local ok, err = pcall(function()
+      line = debug.getinfo(1, "l").currentline + 1
       _G.CreateFrame("NotAFrameType")
     end)
     A.eq(ok, false)
-    A.truthy(tostring(err):find("test_widgets%.lua:%d+: CreateFrame: unknown frame type"), tostring(err))
+    A.truthy(tostring(err):find("test_widgets%.lua:" .. line .. ": CreateFrame: unknown frame type"), tostring(err))
   end)
 end
 

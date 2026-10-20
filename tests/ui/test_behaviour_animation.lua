@@ -60,11 +60,14 @@ end
 local function test_unknown_animation_type_error_names_the_caller_line()
   withWidgets("retail", function()
     local group = _G.CreateFrame("Frame"):CreateAnimationGroup()
+    local line
     local ok, err = pcall(function()
+      line = debug.getinfo(1, "l").currentline + 1
       group:CreateAnimation("Bogus")
     end)
     A.eq(ok, false)
-    A.truthy(tostring(err):find("test_behaviour_animation%.lua:%d+: CreateAnimation: unknown animation type"), tostring(err))
+    local where = "test_behaviour_animation%.lua:" .. line .. ": "
+    A.truthy(tostring(err):find(where .. "CreateAnimation: unknown animation type"), tostring(err))
   end)
 end
 
