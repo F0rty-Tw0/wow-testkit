@@ -1,6 +1,6 @@
 -- UIDropDownMenu fake: Initialize/AddButton/Toggle build menu levels that MenuFrames renders; picks run the entry's func.
--- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 3" (S1, S2, S4-S8); client paths are relative to
--- Interface/AddOns/Blizzard_SharedXML/<Mainline|Classic>/UIDropDownMenu.lua.
+-- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 3" (S1, S2, S4-S8, S10-S12); client paths are
+-- relative to Interface/AddOns/Blizzard_SharedXML/<Mainline|Classic>/UIDropDownMenu.lua.
 local M = {}
 
 local MenuFrames = require("framexml.fakes.menu_frames")
@@ -157,15 +157,23 @@ local function build(w, frame, depth, levelArg, menuList)
   return built
 end
 
--- S4 (Mainline :77-99, Classic :76-97): menuList, helper close (Mainline :41-63), initialize (only when init is not
--- nil), init(frame, level, menuList) with level as passed, displayMode only for "MENU" (:105-125). The scratch level
+-- S4 helper (Mainline :41-65, Classic :42-66): on the open menu's frame, hide the lists from the menu level the last
+-- Toggle set; on any other frame, reset that level to 1 and hide every list. The open menu is level 1's owner.
+local function hideForInitialize(w, frame)
+  local dropdown = w.dropdown
+  local first = w.menus[1]
+  if not (first and first.owner == frame) then
+    dropdown.menuLevel = 1
+  end
+  MenuFrames.close(w, dropdown.menuLevel)
+end
+
+-- S4 (Mainline :77-99, Classic :76-97): menuList, helper close, initialize (only when init is not nil),
+-- init(frame, level, menuList) with level as passed, displayMode only for "MENU" (:105-125). The scratch level
 -- is dropped: nothing opens.
 local function initialize(w, frame, init, displayMode, level, menuList)
   frame.menuList = menuList
-  local first = w.menus[1]
-  if not (first and first.owner == frame) then
-    MenuFrames.close(w, 1)
-  end
+  hideForInitialize(w, frame)
   if init ~= nil then
     frame.initialize = init
     build(w, frame, level or 1, level, menuList)
@@ -208,9 +216,12 @@ local function checkToggle(level, frame)
   end
 end
 
--- anchor, x, y, button, autoHideDelay and displayMode are ignored: the kit has no layout.
+-- Sets the menu level Initialize hides from (S4; Mainline :1056, Classic :997). After the S1 check, hides the target
+-- list and deeper before init runs (S12), and shows nothing when init added no entries (S10). anchor, x, y, button,
+-- autoHideDelay and displayMode are ignored: the kit has no layout.
 local function toggle(w, level, frame, menuList)
   level = level or 1
+  w.dropdown.menuLevel = level
   frame = frameFor(w, level, frame)
   checkToggle(level, frame)
   local first = w.menus[1]
@@ -219,7 +230,11 @@ local function toggle(w, level, frame, menuList)
 
     return
   end
+  MenuFrames.close(w, level)
   local built = build(w, frame, level, level, menuList)
+  if #built.entries == 0 then
+    return
+  end
   MenuFrames.open(w, level, built)
   refreshChecked(w, built)
 end
@@ -271,7 +286,7 @@ function M.install(w)
   if not w.globals.framexml.UIDropDownMenu_Initialize then
     return
   end
-  w.dropdown = { building = nil, infos = setmetatable({}, { __mode = "k" }), pendingParent = nil }
+  w.dropdown = { building = nil, infos = setmetatable({}, { __mode = "k" }), pendingParent = nil, menuLevel = 1 }
   for name, fn in pairs(globalsFor(w)) do
     w:install(name, fn, KETHO_GATE)
   end
