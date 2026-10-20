@@ -116,6 +116,16 @@ local function test_on_text_changed_that_sets_its_own_text_does_not_recurse() --
   end)
 end
 
+-- The doc's EditBox GetText return is not nilable (api/<flavor>/SimpleEditBoxAPI.lua GetText, every flavor). (I12)
+local function test_get_text_of_a_fresh_edit_box_is_empty()
+  withWidgets("retail", function()
+    local box = _G.CreateFrame("EditBox")
+    A.eq(box:GetText(), "")
+    box:SetText(nil)
+    A.eq(box:GetText(), "")
+  end)
+end
+
 local function test_set_text_on_other_types_is_unchanged()
   withWidgets("retail", function()
     local fontString = _G.CreateFrame("Frame"):CreateFontString()
@@ -137,5 +147,6 @@ return function()
   test_set_text_of_empty_text_on_a_fresh_box_fires_no_on_text_changed()
   test_set_text_with_the_same_text_still_fires_on_text_set_assumed()
   test_on_text_changed_that_sets_its_own_text_does_not_recurse()
+  test_get_text_of_a_fresh_edit_box_is_empty()
   test_set_text_on_other_types_is_unchanged()
 end

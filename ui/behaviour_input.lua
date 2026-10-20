@@ -233,6 +233,12 @@ end
 M.typed.SetFocus = M.onlyFor("editbox", setFocus)
 M.typed.ClearFocus = M.onlyFor("editbox", clearFocus)
 M.typed.HasFocus = M.onlyFor("editbox", hasFocus)
+-- source: confirmed (row I12) the doc's EditBox GetText return is not nilable, so a fresh box reads "".
+local function getEditText(_, _, st)
+  return st.text or ""
+end
+
 M.typed.SetText = M.onlyFor("editbox", setEditText)
+M.typed.GetText = M.onlyFor("editbox", getEditText)
 
 return M
