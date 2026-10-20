@@ -93,6 +93,29 @@ local function test_modify_menu_rejects_a_non_function()
   end)
 end
 
+-- The error names the addon's line (this file), not the fake. Kit choice: the client's Menu.ModifyMenu only asserts the
+-- tag (Menu.lua:2640), which blames Blizzard's file; Blizzard_UnitPopup is not in the mirror.
+local function assertBlamesCaller(message)
+  A.contains(message, "test_menu_hooks.lua:")
+  A.eq(message:find("fakes[/\\]menu%.lua:"), nil, message)
+end
+
+local function test_modify_menu_error_points_at_the_caller_assumed()
+  withFrameXML("retail", function()
+    assertBlamesCaller(A.errors(function()
+      _G.Menu.ModifyMenu(1, noop)
+    end, "ModifyMenu"))
+  end)
+end
+
+local function test_unit_popup_open_menu_error_points_at_the_caller_assumed()
+  withFrameXML("retail", function()
+    assertBlamesCaller(A.errors(function()
+      _G.UnitPopup_OpenMenu(nil, {})
+    end, "UnitPopup_OpenMenu"))
+  end)
+end
+
 local function test_unit_popup_open_menu_opens_with_tag_and_context_assumed()
   withFrameXML("retail", function(w)
     local seen
@@ -145,6 +168,8 @@ return function()
   test_modify_menu_hooks_run_in_registration_order()
   test_modify_menu_hook_error_is_recorded_and_the_menu_still_opens()
   test_modify_menu_rejects_a_non_function()
+  test_modify_menu_error_points_at_the_caller_assumed()
+  test_unit_popup_open_menu_error_points_at_the_caller_assumed()
   test_unit_popup_open_menu_opens_with_tag_and_context_assumed()
   test_unit_popup_open_menu_with_no_hook_opens_an_empty_menu()
   test_unit_popup_open_menu_adds_the_note_once()

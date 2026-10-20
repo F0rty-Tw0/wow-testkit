@@ -83,13 +83,17 @@ function buildLevel(w, state, node, depth, parentIndex)
 end
 
 -- Re-runs the generator and re-renders every open level of this state in place (frames are reused): each level's node
--- is found again by walking the parent-index path from the new root. Levels whose node is gone close.
+-- is found again by walking the parent-index path from the new root. Levels whose node is gone close. A closed or
+-- replaced menu does nothing (the generator does not run).
 local function refresh(w, state)
   local old = {}
   for _, level in ipairs(w.menus) do
     if level.state == state then
       old[#old + 1] = level
     end
+  end
+  if #old == 0 then
+    return
   end
   local node = runGenerator(w, state)
   state.root = node
@@ -143,10 +147,11 @@ end
 
 -- M9 (assumed: Blizzard_UnitPopup is not in the mirror): UnitPopup_OpenMenu(which, contextData) opens the tag
 -- "MENU_UNIT_" .. which on a fresh unnamed Frame under UIParent. In the client the root holds Blizzard's own entries, which
--- the kit does not simulate, so the menu opens even when no hook adds anything.
+-- the kit does not simulate, so the menu opens even when no hook adds anything. Called only from the installed global,
+-- so error level 3 blames the addon's line.
 local function openUnitPopup(w, which, contextData)
   if type(which) ~= "string" then
-    error("UnitPopup_OpenMenu: which must be a string", 2)
+    error("UnitPopup_OpenMenu: which must be a string", 3)
   end
   local state = {
     owner = w.ui.create("Frame", nil, _G.UIParent),
@@ -164,10 +169,11 @@ local function openUnitPopup(w, which, contextData)
   w.notes[#w.notes + 1] = UNIT_NOTE
 end
 
--- M10 (Menu.lua:2639-2660): stores fn under tag; nothing is returned (the client returns a handle).
+-- M10 (Menu.lua:2639-2660): stores fn under tag; nothing is returned (the client returns a handle). Called only from
+-- the installed Menu.ModifyMenu, so error level 3 blames the addon's line.
 local function modifyMenu(w, tag, fn)
   if type(tag) ~= "string" or type(fn) ~= "function" then
-    error("Menu.ModifyMenu: tag must be a string and fn a function", 2)
+    error("Menu.ModifyMenu: tag must be a string and fn a function", 3)
   end
   local list = w.menuApi.modifiers[tag] or {}
   w.menuApi.modifiers[tag] = list
@@ -190,8 +196,9 @@ function M.install(w)
     end,
   }, NO_GATE)
   w:install("MenuUtil", {
+    -- MenuUtil.lua:152-155: a nil owner becomes GetAppropriateTopLevelParent(), which is UIParent in the game.
     CreateContextMenu = function(owner, generator, ...)
-      return M.open(w, owner, generator, nil, nil, ...)
+      return M.open(w, owner or _G.UIParent, generator, nil, nil, ...)
     end,
   }, NO_GATE)
   w:install("MenuResponse", copyTable(MenuPick.RESPONSE), NO_GATE)
