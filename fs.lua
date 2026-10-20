@@ -25,8 +25,8 @@ end
 
 function M.writeFile(path, text)
   local file = assert(io.open(path, "wb"))
-  file:write(text)
-  file:close()
+  assert(file:write(text))
+  assert(file:close())
 end
 
 -- Renaming a path onto itself succeeds (or is refused with EACCES) only when it exists.
@@ -58,6 +58,17 @@ function M.mkdirp(path)
   elseif not M.isdir(path) then
     os.execute((IS_WINDOWS and "mkdir " or "mkdir -p ") .. shellPath(path))
   end
+end
+
+-- Creates the one directory path (its parent must exist): true when this call created it, false when it already
+-- existed. Atomic, so concurrent processes can claim unique directories with it.
+function M.mkdir(path)
+  local bridge = host()
+  if bridge then
+    return bridge.mkdir(path)
+  end
+  local result = os.execute("mkdir " .. shellPath(path) .. (IS_WINDOWS and " 2>nul" or " 2>/dev/null"))
+  return result == 0 or result == true
 end
 
 function M.list(dir)
