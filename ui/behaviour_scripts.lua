@@ -2,15 +2,17 @@
 -- Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
 local M = {}
 
+local Callsite = require("ui.callsite")
 local Scripts = require("ui.scripts")
 
 local methods = {}
 M.methods = methods
 
--- Errors at the widget method's caller (level 3: this function, the method, its caller).
+-- Errors at the widget method's caller.
 local function checkHandler(w, st, script)
   if not Scripts.supports(st.plan.type, script, w.flavor) then
-    error(string.format("%s has no script handler '%s' on %s", st.plan.type, tostring(script), w.flavor), 3)
+    local message = string.format("%s has no script handler '%s' on %s", st.plan.type, tostring(script), w.flavor)
+    error(message, Callsite.level())
   end
 end
 
