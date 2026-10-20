@@ -67,13 +67,14 @@ local function refreshChecked(w, level)
 end
 
 -- S7 (Mainline UIDropDownMenuButton_OnClick :999-1042, Classic :940-983): close the entry's own level and deeper,
--- then func. With keepShownOnClick a checkable entry flips checked instead (:1006-1017) and stays open.
+-- then func. With keepShownOnClick a checkable entry flips checked instead (:1006-1017) and stays open. A function
+-- checked is called unprotected, its value passed as is (:1000-1003): this runs inside the entry's OnClick.
 local function pickEntry(w, level, depth, index, mouseButton)
   local info = w.dropdown.infos[level][index]
   local entry = level.entries[index]
   local checked = info.checked
   if type(checked) == "function" then
-    checked = readChecked(w, checked, entry.frame)
+    checked = checked(entry.frame)
   end
   if info.keepShownOnClick then
     if not info.notCheckable then

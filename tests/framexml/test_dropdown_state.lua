@@ -148,6 +148,60 @@ local function test_function_checked_error_is_recorded_and_reads_false()
   end)
 end
 
+-- Mainline :1000-1003 and :1034 (Classic :941-944, :975): a function checked is called with the entry on click and
+-- what it returns reaches func unchanged.
+local function test_function_checked_return_reaches_func_unchanged()
+  withFrameXML("retail", function(w)
+    local got
+    openMenu({
+      {
+        "Opt",
+        {
+          isNotRadio = true,
+          checked = function()
+            return 1
+          end,
+          func = function(_, _, _, checked)
+            got = checked
+          end,
+        },
+      },
+    })
+    Input.click(w, w.menus[1].entries[1].frame, "LeftButton")
+    A.eq(got, 1)
+  end)
+end
+
+-- The client calls checked unprotected before it hides the list (Mainline :1000-1003, :1019), so an error there
+-- stops the click: the menu stays open and func does not run.
+local function test_function_checked_error_on_click_stops_the_pick()
+  withFrameXML("retail", function(w)
+    local calls, picked = 0, false
+    openMenu({
+      {
+        "Opt",
+        {
+          isNotRadio = true,
+          checked = function()
+            calls = calls + 1
+            if calls > 1 then
+              error("checked boom")
+            end
+          end,
+          func = function()
+            picked = true
+          end,
+        },
+      },
+    })
+    Input.click(w, w.menus[1].entries[1].frame, "LeftButton")
+    A.eq(picked, false)
+    A.eq(#w.menus, 1)
+    A.eq(#w.errors, 1)
+    A.contains(tostring(w.errors[1].message), "checked boom")
+  end)
+end
+
 -- Mainline :999-1042, Classic :940-983: the flipped value is stored back on the button, so a second click flips it again.
 local function test_keep_shown_on_click_checkbox_flips_on_every_click()
   withFrameXML("retail", function(w)
@@ -175,6 +229,8 @@ end
 return function()
   test_function_checked_returning_false_or_nil_reads_false()
   test_function_checked_error_is_recorded_and_reads_false()
+  test_function_checked_return_reaches_func_unchanged()
+  test_function_checked_error_on_click_stops_the_pick()
   test_keep_shown_on_click_checkbox_flips_on_every_click()
   test_toggle_whose_init_errors_leaves_the_old_submenu_closed()
   test_initialize_then_toggle_on_click_keeps_the_menu_open()
