@@ -163,8 +163,9 @@ local function intrinsicScript(w, obj, scriptName)
 end
 
 -- Runs the intrinsic handler (kit code, fn(w, obj, st, ...), not replaceable), then the script and its hooks in
--- order, each receiving (obj, ...); errors in addon code are recorded, not raised. F3 (assumed, no source): the
--- hooks in place when the dispatch began run even if the script calls SetScript on itself.
+-- order, each receiving (obj, ...); errors in addon code are recorded, not raised. F3 (assumed, kit choice, no
+-- source): the dispatch walks the hook list the script had when it began, live, so a hook added during it runs too;
+-- a SetScript during it gives the script a new list, and hooks added to that one first run on the next dispatch.
 function methods:callScript(obj, scriptName, ...)
   local intrinsic = intrinsicScript(self, obj, scriptName)
   if intrinsic then

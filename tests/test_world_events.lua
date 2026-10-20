@@ -193,6 +193,43 @@ local function test_set_script_inside_the_handler_still_runs_its_hooks_assumed()
   end)
 end
 
+-- The dispatch walks the live hook list, so a hook the script adds runs in the same dispatch.
+local function test_hook_added_during_dispatch_runs_in_it_assumed()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local mark = marker(order)
+    local hooked = false
+    w:setScript(obj, "OnShow", function()
+      mark("script")()
+      if not hooked then
+        hooked = true
+        w:hookScript(obj, "OnShow", mark("h2"))
+      end
+    end)
+    w:hookScript(obj, "OnShow", mark("h1"))
+    w:callScript(obj, "OnShow")
+    A.same(order, { "script", "h1", "h2" })
+  end)
+end
+
+-- SetScript inside the handler gives the script a new hook list, so a hook added after it waits for the next dispatch.
+local function test_hook_added_after_set_script_inside_the_handler_runs_next_dispatch_assumed()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local mark = marker(order)
+    w:setScript(obj, "OnShow", function()
+      mark("script")()
+      w:setScript(obj, "OnShow", mark("script2"))
+      w:hookScript(obj, "OnShow", mark("h2"))
+    end)
+    w:hookScript(obj, "OnShow", mark("h1"))
+    w:callScript(obj, "OnShow")
+    mark("|")()
+    w:callScript(obj, "OnShow")
+    A.same(order, { "script", "h1", "|", "script2", "h2" })
+  end)
+end
+
 local function test_hook_after_set_script_nil_runs_alone_assumed()
   withWorld("retail", function(w)
     local obj, order = {}, {}
@@ -321,6 +358,8 @@ return function()
   test_set_script_replaces_script_and_drops_hooks_assumed()
   test_set_script_nil_inside_the_handler_still_runs_its_hooks_assumed()
   test_set_script_inside_the_handler_still_runs_its_hooks_assumed()
+  test_hook_added_during_dispatch_runs_in_it_assumed()
+  test_hook_added_after_set_script_inside_the_handler_runs_next_dispatch_assumed()
   test_hook_after_set_script_nil_runs_alone_assumed()
   test_record_error_sets_addon_source()
   test_record_error_finds_source_in_traceback()
