@@ -1,5 +1,5 @@
 -- WoW Lua extensions installed into every world: string/table/math aliases, hooksecurefunc, securecall,
--- error handler, profiling clock and C_Timer. Clock and timer firing: test_world_events.lua.
+-- error handler, profiling clock and C_Timer. Clock and timer firing: test_world_timers.lua.
 local A = require("assert")
 local H = require("tests.helpers.world")
 
