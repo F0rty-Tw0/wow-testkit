@@ -390,6 +390,23 @@ local function test_menu_api_snapshots_match_on_every_flavor()
   end
 end
 
+local EXPECTED_DROPDOWN = {
+  dropdown = { "== Size ==", "(o) Small", "( ) Large", "---", "[ ] Compact" },
+  dropdown_large = { "== Size ==", "( ) Small", "(o) Large", "---", "[ ] Compact" },
+}
+
+local function test_dropdown_button_snapshots_match_on_every_flavor()
+  local root = Clicky.clickyCopy()
+  local run = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root })
+  for _, flavor in ipairs(Flavors.list) do
+    local report = run.results[flavor]
+    A.eq(report.status, "pass", flavor .. ": " .. tostring(report.errors[1] and report.errors[1].message))
+    for name, lines in pairs(EXPECTED_DROPDOWN) do
+      A.same(Clicky.goldenLines(root, name, flavor), lines, flavor .. " " .. name)
+    end
+  end
+end
+
 return function()
   test_pick_with_an_empty_path_throws()
   test_menu_is_nil_when_no_menu_is_open()
@@ -416,4 +433,5 @@ return function()
   test_open_menu_adds_the_blizzard_entries_note_to_the_report()
   test_open_menu_throws_when_unit_popup_open_menu_is_missing()
   test_menu_api_snapshots_match_on_every_flavor()
+  test_dropdown_button_snapshots_match_on_every_flavor()
 end

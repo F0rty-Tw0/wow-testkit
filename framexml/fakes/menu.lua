@@ -203,6 +203,7 @@ function M.install(w)
   }, NO_GATE)
   w:install("MenuResponse", copyTable(MenuPick.RESPONSE), NO_GATE)
   w:install("MenuInputContext", copyTable(MenuPick.INPUT_CONTEXT), NO_GATE)
+  require("framexml.fakes.menu_dropdown").install(w, M.open)
 end
 
 return M

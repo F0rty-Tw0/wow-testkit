@@ -120,6 +120,10 @@ function M.forLevel(w, level)
       return
     end
     respond(w, level, depth, index, response)
+    -- A DropdownButton's menu re-reads its selection text after a response (framexml/fakes/menu_dropdown.lua).
+    if level.state.onUpdate then
+      level.state.onUpdate()
+    end
   end
 end
 

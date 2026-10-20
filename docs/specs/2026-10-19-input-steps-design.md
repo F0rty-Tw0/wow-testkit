@@ -267,15 +267,18 @@ across worlds (`ui/widgets.lua:23-39`, `manifest.lua:62-70`), so the type must n
 
 New per-world hook: `Widgets.registerIntrinsic(w, name, baseType, methods)` stores
 `{ baseType, methods }` in `w.ui.intrinsics[name]`. `CreateFrame` checks `w.ui.intrinsics` before the catalog;
-the frame's plan is a copy of `baseType`'s plan with `methods` added, `type = name`, `scriptType = baseType`, and
-`isA[name:lower()] = true` on top of the base type's `isA`. Intrinsic methods are `fn(w, obj, st, ...)` like
+the frame's plan is a copy of `baseType`'s plan with `methods` added, `type = baseType` (an intrinsic's
+`GetObjectType()` returns its base type, wiki `Intrinsic_frame`; assumed), `intrinsic = name`, `scriptType = baseType`,
+and `isA[name:lower()] = true` on top of the base type's `isA`. Intrinsic methods are `fn(w, obj, st, ...)` like
 `ui/behaviour.lua`, bound over the base class's methods. `Scripts.supports` keeps its signature; `checkHandler` and
 `HasScript` (`ui/behaviour_scripts.lua:12,32`) pass `st.plan.scriptType or st.plan.type`. The Menu API fake calls
 `Widgets.registerIntrinsic(w, "DropdownButton", "Button", methods)` with `SetupMenu(generator)`, `GenerateMenu()`,
 `OpenMenu()`, `CloseMenu()`, `IsMenuOpen()`, `SetDefaultText(text)`, `OverrideText(text)`, so it exists only in
 worlds with the Menu API. The dropdown opens its menu like `MenuUtil.CreateContextMenu(self, generator)` from a
-kit-owned `OnMouseDown`; on a dropdown whose menu is already open it closes the menu instead **(source: mouse
-down vs click, and the toggle)**.
+kit-owned `OnMouseDown` (left button only); on a dropdown whose menu is already open it closes the menu instead
+**(source: mouse down vs click, and the toggle)**. `SetupMenu` on a shown dropdown runs the generator at once;
+`GenerateMenu` always runs it (re-rendering an open menu in place); `OpenMenu` does nothing on a disabled dropdown or
+an open menu **(source: `Blizzard_Menu/DropdownButton.lua:107-130,233-264`)**.
 
 `ui/templates.lua` gets a `WowStyle1DropdownTemplate` entry (type `DropdownButton`). Template entries carry no
 flavor; on a flavor without the Menu API, `CreateFrame("DropdownButton", ...)` already fails.

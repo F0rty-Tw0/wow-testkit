@@ -226,8 +226,20 @@ function methods:getScript(obj, scriptName)
   return byName and byName[scriptName] and byName[scriptName].fn
 end
 
--- Runs the script then its hooks in order, each receiving (obj, ...); errors are recorded, not raised.
+-- The widget's intrinsic type's handler for scriptName (plan.intrinsicScripts, ui/widgets.lua), or nil.
+local function intrinsicScript(w, obj, scriptName)
+  local st = w.ui and w.ui.state[obj]
+  local scripts = st and st.plan.intrinsicScripts
+  return scripts and scripts[scriptName]
+end
+
+-- Runs the intrinsic handler (kit code, fn(w, obj, st, ...), not replaceable), then the script and its hooks in
+-- order, each receiving (obj, ...); errors in addon code are recorded, not raised.
 function methods:callScript(obj, scriptName, ...)
+  local intrinsic = intrinsicScript(self, obj, scriptName)
+  if intrinsic then
+    intrinsic(self, obj, self.ui.state[obj], ...)
+  end
   local byName = self.scripts[obj]
   local entry = byName and byName[scriptName]
   if not entry then

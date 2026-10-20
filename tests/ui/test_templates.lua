@@ -69,6 +69,17 @@ local function test_template_size_is_applied()
   end)
 end
 
+local function test_dropdown_template_entry_is_a_dropdown_button_with_a_text_child() -- (D7)
+  local entry = Templates.TEMPLATES.WowStyle1DropdownTemplate
+  A.eq(entry.type, "DropdownButton")
+  A.eq(entry.protected, false)
+  local keys = {}
+  for _, child in ipairs(entry.children) do
+    keys[child.key] = child.type
+  end
+  A.eq(keys.Text, "FontString")
+end
+
 return function()
   test_ui_panel_button_has_every_parent_key_child()
   test_template_child_is_parented_to_the_frame()
@@ -78,4 +89,5 @@ return function()
   test_template_records_mixin_names()
   test_existing_global_mixin_is_copied_onto_frame()
   test_template_size_is_applied()
+  test_dropdown_template_entry_is_a_dropdown_button_with_a_text_child()
 end
