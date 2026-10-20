@@ -38,7 +38,7 @@ local function test_destroy_removes_api_and_restores_set_globals()
   _G.TK_PREEXISTING = "before"
   withWorld("retail", function(w)
     w:setGlobal("TK_PREEXISTING", "during")
-    w:setGlobal("TK_NS.Deep.Value", 7)
+    w:install("TK_NS.Deep.Value", 7)
     A.eq(_G.TK_PREEXISTING, "during")
     A.eq(lookup("TK_NS.Deep.Value"), 7)
   end)

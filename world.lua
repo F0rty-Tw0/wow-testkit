@@ -224,8 +224,10 @@ function World:install(name, value, opts)
   return true
 end
 
+-- Sets the global named name, dots included (a SavedVariables name is one global); install and set split dotted
+-- names into namespaces.
 function World:setGlobal(name, value)
-  self:set(name, value)
+  rawset(_G, name, value)
 end
 
 -- impl: function | { returns = {...} } | { byArgs = { ["arg1|arg2"] = {...} }, default = {...} }.
