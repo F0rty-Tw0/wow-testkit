@@ -115,11 +115,15 @@ function M.extend(Scenario)
     end
   end
 
-  -- Calls UnitPopup_OpenMenu(which, contextData) under engine context (the unit popup menu of a player row).
+  -- Calls UnitPopup_OpenMenu(which, contextData) under engine context (the unit popup menu of a player row). which is
+  -- checked here: the global's own error would land on w:run's pcall and name no line of the scenario.
   function Scenario:openMenu(which, contextData)
     local open = rawget(_G, "UnitPopup_OpenMenu")
     if not open then
       error("openMenu: UnitPopup_OpenMenu is not on " .. self.flavor, 2)
+    end
+    if type(which) ~= "string" then
+      error("openMenu: which must be a string, got " .. type(which), 2)
     end
     self.w:run(ENGINE, open, which, contextData)
   end

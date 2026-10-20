@@ -50,8 +50,13 @@ local function depthOf(w, level)
 end
 
 -- S11: a disabled entry's enter only closes deeper levels: the client covers it with an InvisibleButton whose OnEnter
--- closes depth + 1 (Mainline UIDropDownMenu.lua:153-154, :471-475; Classic :180-182, :423-426).
+-- closes depth + 1 (Mainline UIDropDownMenu.lua:153-154, :471-475; Classic :180-182, :423-426). A Menu API level brings
+-- its own rule as level.enter (framexml/fakes/menu.lua, M14).
 local function enterEntry(w, level, entry, index)
+  if level.enter then
+    level.enter(index)
+    return
+  end
   local depth = depthOf(w, level)
   if entry.hasSubmenu and entry.enabled ~= false then
     level.openSubmenu(index)

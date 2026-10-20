@@ -54,14 +54,21 @@ end
 
 local buildLevel
 
--- Opens the submenu of entry index at depth + 1; an entry without children, or a submenu already open, does nothing.
-local function openSubmenu(w, level, index)
-  local child = level.node.children[index]
-  local open = w.menus[level.depth + 1]
-  if not child or #child.children == 0 or (open and open.parentIndex == index and open.state == level.state) then
+-- M14 (Menu.lua:2286-2296, CheckForSubmenu): entering entry index of an open level keeps the deeper levels when they
+-- hang off this entry, else closes them; then an enabled entry with children opens its submenu at depth + 1. So a
+-- disabled entry keeps its own open submenu.
+local function enterEntry(w, level, index)
+  local depth = MenuPick.depthOf(w, level)
+  local open = depth and w.menus[depth + 1]
+  if not depth or (open and open.parentIndex == index and open.state == level.state) then
     return
   end
-  local sub = buildLevel(w, level.state, child, level.depth + 1, index)
+  MenuFrames.close(w, depth + 1)
+  local child = level.node.children[index]
+  if not level.entries[index].enabled or #child.children == 0 then
+    return
+  end
+  local sub = buildLevel(w, level.state, child, depth + 1, index)
   MenuFrames.open(w, sub.depth, sub)
   attachClose(w, sub)
 end
@@ -74,8 +81,8 @@ function buildLevel(w, state, node, depth, parentIndex)
     level.entries[index] = { kind = child.kind, text = child.text, enabled = enabled, checked = checked, hasSubmenu = #child.children > 0 }
   end
   level.pick = MenuPick.forLevel(w, level)
-  level.openSubmenu = function(index)
-    openSubmenu(w, level, index)
+  level.enter = function(index)
+    enterEntry(w, level, index)
   end
   level.rebuild = state.refresh
 
@@ -169,15 +176,19 @@ local function openUnitPopup(w, which, contextData)
   w.notes[#w.notes + 1] = UNIT_NOTE
 end
 
--- M10 (Menu.lua:2639-2660): stores fn under tag; nothing is returned (the client returns a handle). Called only from
--- the installed Menu.ModifyMenu, so error level 3 blames the addon's line.
+-- M10 (Menu.lua:2639-2660): stores fn under tag; nothing is returned (the client returns a handle). Only the tag is
+-- checked (:2640); like the client's Callback wrapper (:2653-2655), any fn is kept, so a non-function fails when the
+-- menu is generated (M13). Called only from the installed Menu.ModifyMenu, so error level 3 blames the addon's line.
 local function modifyMenu(w, tag, fn)
-  if type(tag) ~= "string" or type(fn) ~= "function" then
-    error("Menu.ModifyMenu: tag must be a string and fn a function", 3)
+  if type(tag) ~= "string" then
+    error("Menu.ModifyMenu: tag must be a string", 3)
   end
   local list = w.menuApi.modifiers[tag] or {}
   w.menuApi.modifiers[tag] = list
-  list[#list + 1] = fn
+  -- Wrapped so a nil fn is kept too (storing nil would drop it); its call then fails when the menu opens.
+  list[#list + 1] = function(...)
+    return fn(...)
+  end
 end
 
 function M.install(w)

@@ -85,11 +85,22 @@ local function test_modify_menu_hook_error_is_recorded_and_the_menu_still_opens(
   end)
 end
 
-local function test_modify_menu_rejects_a_non_function()
-  withFrameXML("retail", function()
-    A.errors(function()
-      _G.Menu.ModifyMenu("MENU_X", "nope")
-    end, "ModifyMenu")
+-- Menu.lua:2640, :2653-2659: only the tag is checked; a non-function hook fails when the menu is generated, inside
+-- securecallfunction (:2636), which does not propagate the error, so it is recorded and the menu still opens. A nil
+-- callback is wrapped too, so it fails the same way.
+local function test_modify_menu_accepts_a_non_function_and_fails_when_the_menu_opens()
+  withFrameXML("retail", function(w)
+    _G.Menu.ModifyMenu("MENU_X", "nope")
+    _G.Menu.ModifyMenu("MENU_X", nil)
+    A.eq(#w.errors, 0)
+    open(function(_, root)
+      root:SetTag("MENU_X")
+      root:CreateButton("Own", noop)
+    end)
+    A.eq(#w.errors, 2)
+    A.truthy(w.errors[1].message:find("attempt to call .*a string value"), w.errors[1].message)
+    A.truthy(w.errors[2].message:find("attempt to call .*a nil value"), w.errors[2].message)
+    A.same(field(w.menus[1], "text"), { "Own" })
   end)
 end
 
@@ -167,7 +178,7 @@ return function()
   test_modify_menu_hook_for_another_tag_does_not_run()
   test_modify_menu_hooks_run_in_registration_order()
   test_modify_menu_hook_error_is_recorded_and_the_menu_still_opens()
-  test_modify_menu_rejects_a_non_function()
+  test_modify_menu_accepts_a_non_function_and_fails_when_the_menu_opens()
   test_modify_menu_error_points_at_the_caller_assumed()
   test_unit_popup_open_menu_error_points_at_the_caller_assumed()
   test_unit_popup_open_menu_opens_with_tag_and_context_assumed()
