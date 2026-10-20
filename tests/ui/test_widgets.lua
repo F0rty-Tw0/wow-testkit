@@ -75,6 +75,18 @@ local function test_unknown_frame_type_errors_naming_it()
   end)
 end
 
+local function test_unknown_frame_type_error_names_the_caller_line()
+  withWidgets("retail", function()
+    local line
+    local ok, err = pcall(function()
+      line = debug.getinfo(1, "l").currentline + 1
+      _G.CreateFrame("NotAFrameType")
+    end)
+    A.eq(ok, false)
+    A.truthy(tostring(err):find("test_widgets%.lua:" .. line .. ": CreateFrame: unknown frame type"), tostring(err))
+  end)
+end
+
 local function test_bad_argument_type_errors_in_addon_context()
   withWidgets("retail", function(w)
     local f = _G.CreateFrame("Frame")
@@ -244,6 +256,7 @@ return function()
   test_unknown_verb_method_counts_unscripted()
   test_frame_type_is_case_insensitive()
   test_unknown_frame_type_errors_naming_it()
+  test_unknown_frame_type_error_names_the_caller_line()
   test_bad_argument_type_errors_in_addon_context()
   test_nil_arguments_are_not_checked()
   test_create_frame_passes_template_to_hook()
