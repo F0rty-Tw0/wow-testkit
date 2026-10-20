@@ -313,7 +313,7 @@ local function mergeFiles(manifest, files, duplicates)
 end
 
 -- entries: Docs.loadDir output; ketho: { GlobalAPI, Frames, FrameXML, WidgetAPI, Events } as loaded;
--- meta: { flavor, branch, version, mirrorCommit }. Returns { manifest, globals, report, files }.
+-- meta: { flavor, branch, version, mirrorCommit, kethoCommit } (kethoCommit goes to api/versions.lua only). Returns { manifest, globals, report, files }.
 function M.build(entries, ketho, meta)
   local report = newReport()
   local files = buildFiles(entries, { known = knownTypes(entries), report = report, listed = listedNamespaces(ketho) })
