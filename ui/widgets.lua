@@ -39,11 +39,11 @@ local function catalogFor(w)
   return catalog
 end
 
--- Every argument nilable: widget methods check only the non-nil args they are passed (no arity check).
-local function lenient(signature)
+-- Every argument nilable, checked only when passed (no arity check); one in unchecked takes any value.
+local function lenient(signature, unchecked)
   local args = {}
   for i, spec in ipairs(signature.args or {}) do
-    args[i] = { name = spec.name, lua = spec.lua, nilable = true }
+    args[i] = { name = spec.name, lua = unchecked[spec.name] and "any" or spec.lua, nilable = true }
   end
   return { args = args }
 end
@@ -69,7 +69,8 @@ local function buildPlan(w, typeName)
   end
   for name in pairs(Inherits.methodNames(w.globals.widgets, typeName)) do
     local signature = findSignature(w.manifest, ancestors, name)
-    methods[name] = { signature = signature, check = signature and lenient(signature) }
+    local unchecked = Behaviour.uncheckedArgs[name] or {}
+    methods[name] = { signature = signature, check = signature and lenient(signature, unchecked) }
   end
   return { type = typeName, isA = isA, isFrame = isA.frame == true, methods = methods }
 end
