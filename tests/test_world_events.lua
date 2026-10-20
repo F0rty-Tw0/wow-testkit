@@ -127,7 +127,7 @@ local function test_call_script_runs_script_then_hooks_in_addon_context()
   end)
 end
 
-local function test_set_script_nil_clears_script_and_hooks()
+local function test_set_script_nil_clears_script_and_hooks_assumed()
   withWorld("retail", function(w)
     local obj, script, hook = {}, counter(), counter()
     w:setScript(obj, "OnShow", script.fn)
@@ -140,7 +140,7 @@ local function test_set_script_nil_clears_script_and_hooks()
   end)
 end
 
-local function test_set_script_replaces_script_and_drops_hooks()
+local function test_set_script_replaces_script_and_drops_hooks_assumed()
   withWorld("retail", function(w)
     local obj, order = {}, {}
     local function mark(name)
@@ -156,7 +156,7 @@ local function test_set_script_replaces_script_and_drops_hooks()
   end)
 end
 
-local function test_hook_after_set_script_nil_runs_alone()
+local function test_hook_after_set_script_nil_runs_alone_assumed()
   withWorld("retail", function(w)
     local obj, order = {}, {}
     local function mark(name)
@@ -251,9 +251,9 @@ return function()
   test_payload_arity_mismatch_warns()
   test_omitted_trailing_nilable_payload_does_not_warn()
   test_call_script_runs_script_then_hooks_in_addon_context()
-  test_set_script_nil_clears_script_and_hooks()
-  test_set_script_replaces_script_and_drops_hooks()
-  test_hook_after_set_script_nil_runs_alone()
+  test_set_script_nil_clears_script_and_hooks_assumed()
+  test_set_script_replaces_script_and_drops_hooks_assumed()
+  test_hook_after_set_script_nil_runs_alone_assumed()
   test_record_error_sets_addon_source()
   test_record_error_finds_source_in_traceback()
   test_record_error_resolves_truncated_chunk_name_to_registered_one()

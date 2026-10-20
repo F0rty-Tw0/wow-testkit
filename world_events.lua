@@ -129,7 +129,7 @@ local function scriptEntry(w, obj, scriptName)
   return entry
 end
 
--- F3 (wiki API_ScriptObject_HookScript): hooks "remain in place until replaced or cleared with SetScript".
+-- F3 (assumed, wiki API_ScriptObject_HookScript): hooks "remain in place until replaced or cleared with SetScript".
 function methods:setScript(obj, scriptName, fn)
   local entry = scriptEntry(self, obj, scriptName)
   entry.fn = fn
