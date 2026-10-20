@@ -1,5 +1,5 @@
--- Applies one ui/templates.lua entry to a frame CreateFrame just made: parentKey children, size, protection and
--- mixins. Widget creation goes through w.ui.create (ui/widgets.lua).
+-- Applies one ui/templates.lua entry to a frame CreateFrame just made: parentKey children, size, protection, mixins
+-- and scripts. Widget creation goes through w.ui.create (ui/widgets.lua).
 local M = {}
 
 -- A template child whose type the flavor's Ketho WidgetAPI lacks is created as a plain frame.
@@ -27,6 +27,12 @@ function M.apply(w, frame, st, entry)
     if type(mixin) == "table" then
       copyMixin(frame, mixin)
     end
+  end
+  -- A template script is the frame's own handler: SetScript replaces it, HookScript runs after it.
+  for scriptName, method in pairs(entry.scripts or {}) do
+    w:setScript(frame, scriptName, function(self)
+      self[method](self)
+    end)
   end
 end
 
