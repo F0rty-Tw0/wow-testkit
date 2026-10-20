@@ -9,7 +9,7 @@ local ADDON_SOURCE_PATTERN = 'addon:[^:\r\n"%]]+'
 local TRUNCATED_SOURCE_PATTERN = '%.%.%.([^:\r\n"%]]+):%d+:'
 local MAX_TIMER_FIRES = 10000
 -- Localized: addon code may assign a global named debug.
-local getinfo = debug.getinfo
+local getinfo, debugTraceback = debug.getinfo, debug.traceback
 local ADDON_CHUNK_PREFIX = "@addon:"
 
 local methods = {}
@@ -28,7 +28,7 @@ function methods:reportError(err)
   local ok, handlerErr = pcall(self.errorHandler, err)
   stack[depth + 1] = nil
   if not ok then
-    self:recordError(tostring(err) .. "\nerror handler failed: " .. tostring(handlerErr), debug.traceback())
+    self:recordError(tostring(err) .. "\nerror handler failed: " .. tostring(handlerErr), debugTraceback())
   end
 end
 
@@ -56,7 +56,7 @@ end
 
 function M.reset(w)
   w.errorHandler = function(message)
-    w:recordError(message, debug.traceback())
+    w:recordError(message, debugTraceback())
   end
   w.now = START_TIME
   w.timers = {}

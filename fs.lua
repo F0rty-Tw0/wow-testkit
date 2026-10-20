@@ -4,6 +4,9 @@ local M = {}
 
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 local EACCES = 13
+-- Localized: addon code may assign a global named io or os. The tables, not their functions, so a test can still
+-- swap a function such as os.rename.
+local io, os = io, os
 
 local function host()
   return rawget(_G, "__tk_fs")

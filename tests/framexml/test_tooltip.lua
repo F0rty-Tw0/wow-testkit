@@ -115,6 +115,16 @@ local function test_unit_without_fixture_leaves_tooltip_empty()
   end)
 end
 
+local function test_unit_without_fixture_forgets_the_previous_unit_assumed()
+  for _, flavor in ipairs({ "retail", "vanilla" }) do
+    withMouseover(flavor, function(_, tooltip)
+      tooltip:SetUnit("mouseover")
+      tooltip:SetUnit("target")
+      A.same({ tooltip:GetUnit() }, {})
+    end)
+  end
+end
+
 local function test_set_default_anchor_owns_and_anchors_bottom_right()
   HF.withFrameXML("tbc", function()
     local tooltip = _G.GameTooltip
@@ -215,6 +225,7 @@ return function()
   test_classic_fires_on_tooltip_set_unit_after_lines()
   test_erroring_post_call_is_recorded_and_lines_stay()
   test_unit_without_fixture_leaves_tooltip_empty()
+  test_unit_without_fixture_forgets_the_previous_unit_assumed()
   test_set_default_anchor_owns_and_anchors_bottom_right()
   test_add_double_line_fills_both_sides_with_colors()
   test_add_line_defaults_to_white()

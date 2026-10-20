@@ -40,26 +40,37 @@ local function run(argv)
   return code, table.concat(out)
 end
 
+-- hoverCopy with every flavor's golden already written by an --update run.
+local function acceptedHoverCopy()
+  local root = hoverCopy()
+  run({ "test", "--update", "--addon", root })
+  return root
+end
+
 local function test_test_command_passes_the_hover_scenario()
-  local code, out = run({ "test", "--addon", hoverCopy() })
+  local code, out = run({ "test", "--addon", acceptedHoverCopy() })
   A.contains(out, "PASS hover retail")
   A.contains(out, "PASS hover vanilla")
   A.eq(code, 0)
 end
 
-local function test_first_run_writes_the_golden_and_second_run_matches_it()
+local function test_missing_golden_fails_until_update_writes_it()
   local root = hoverCopy()
-  local _, first = run({ "test", "retail", "--addon", root })
-  A.contains(first, "1 golden written")
+  local code, first = run({ "test", "retail", "--addon", root })
+  A.contains(first, "FAIL hover retail: golden " .. root .. GOLDEN .. " is missing")
+  A.contains(first, "rerun with --update to write it")
+  A.eq(fs.exists(root .. GOLDEN), false)
+  A.eq(code, 1)
+  local _, accepted = run({ "test", "retail", "--update", "--addon", root })
+  A.contains(accepted, "1 golden written")
   A.truthy(fs.exists(root .. GOLDEN), "golden written under the addon root")
-  local code, second = run({ "test", "retail", "--addon", root })
+  local again, second = run({ "test", "retail", "--addon", root })
   A.contains(second, "0 goldens written")
-  A.eq(code, 0)
+  A.eq(again, 0)
 end
 
 local function test_golden_mismatch_fails_first_with_the_diff()
-  local root = hoverCopy()
-  run({ "test", "retail", "--addon", root })
+  local root = acceptedHoverCopy()
   fs.writeFile(root .. GOLDEN, "L: [ffffff]Nope\n")
   local code, out = run({ "test", "retail", "--addon", root })
   A.eq(out:sub(1, #"FAIL hover retail: "), "FAIL hover retail: ")
@@ -68,8 +79,7 @@ local function test_golden_mismatch_fails_first_with_the_diff()
 end
 
 local function test_update_rewrites_a_differing_golden()
-  local root = hoverCopy()
-  run({ "test", "retail", "--addon", root })
+  local root = acceptedHoverCopy()
   local accepted = fs.readFile(root .. GOLDEN)
   fs.writeFile(root .. GOLDEN, "L: [ffffff]Nope\n")
   local code = run({ "test", "retail", "--update", "--addon", root })
@@ -78,14 +88,14 @@ local function test_update_rewrites_a_differing_golden()
 end
 
 local function test_flavor_filter_runs_only_that_flavor()
-  local code, out = run({ "test", "retail", "--addon", hoverCopy() })
+  local code, out = run({ "test", "retail", "--addon", acceptedHoverCopy() })
   A.contains(out, "PASS hover retail")
   A.eq(out:find("vanilla", 1, true), nil)
   A.eq(code, 0)
 end
 
 local function test_scenario_file_that_cannot_run_fails()
-  local root = hoverCopy()
+  local root = acceptedHoverCopy()
   fs.writeFile(root .. "/tests/scenarios/scn_broken.lua", "return 42\n")
   local code, out = run({ "test", "retail", "--addon", root })
   A.contains(out, "FAIL broken -: ")
@@ -145,7 +155,7 @@ end
 
 return function()
   test_test_command_passes_the_hover_scenario()
-  test_first_run_writes_the_golden_and_second_run_matches_it()
+  test_missing_golden_fails_until_update_writes_it()
   test_golden_mismatch_fails_first_with_the_diff()
   test_update_rewrites_a_differing_golden()
   test_flavor_filter_runs_only_that_flavor()

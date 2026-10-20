@@ -157,13 +157,14 @@ local function processData(w, self, tip, data)
   runCallbacks(w, callbacks.tooltipPost, data.type, self, data, false)
 end
 
--- Retail/forever: TooltipDataProcessor callbacks around each line; Classic: lines, then OnTooltipSetUnit.
+-- Retail/forever: TooltipDataProcessor callbacks around each line; Classic: lines, then OnTooltipSetUnit. A unit
+-- that does not exist leaves the tooltip empty and GetUnit answering nothing.
 function methods.SetUnit(w, self, tip, unit)
   methods.ClearLines(w, self, tip)
-  tip.unit = unit
   if not TooltipLines.ask(w, "UnitExists", unit) then
     return
   end
+  tip.unit = unit
   local data = TooltipLines.build(w, unit)
   if not w.tooltipCallbacks then
     for _, line in ipairs(data.lines) do

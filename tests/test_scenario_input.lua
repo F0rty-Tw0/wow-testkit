@@ -145,7 +145,7 @@ local function test_handler_error_in_a_click_is_recorded_and_the_step_goes_on()
 end
 
 local function test_scn_input_clicks_hovers_and_types_on_every_flavor()
-  local result = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = Clicky.clickyCopy() })
+  local result = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = Clicky.clickyCopy(), update = true })
   for _, flavor in ipairs(Flavors.list) do
     local report = result.results[flavor]
     A.eq(report.status, "pass", flavor)

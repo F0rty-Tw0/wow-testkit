@@ -320,7 +320,7 @@ end
 -- The scenario file stays in the repo; only its goldens go to the temp copy.
 local function test_scn_input_dropdown_snapshots_are_written_in_a_temp_copy_on_every_flavor()
   local root = Clicky.clickyCopy()
-  local result = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root })
+  local result = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root, update = true })
   local submenu = {}
   for i, line in ipairs(DROPDOWN_LINES) do
     submenu[i] = line
@@ -379,7 +379,7 @@ local EXPECTED_MENU_API = {
 
 local function test_menu_api_snapshots_match_on_every_flavor()
   local root = Clicky.clickyCopy()
-  local run = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root })
+  local run = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root, update = true })
   for _, flavor in ipairs(Flavors.list) do
     local report = run.results[flavor]
     A.eq(report.status, "pass", flavor .. ": " .. tostring(report.errors[1] and report.errors[1].message))
@@ -397,7 +397,7 @@ local EXPECTED_DROPDOWN = {
 
 local function test_dropdown_button_snapshots_match_on_every_flavor()
   local root = Clicky.clickyCopy()
-  local run = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root })
+  local run = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root, update = true })
   for _, flavor in ipairs(Flavors.list) do
     local report = run.results[flavor]
     A.eq(report.status, "pass", flavor .. ": " .. tostring(report.errors[1] and report.errors[1].message))

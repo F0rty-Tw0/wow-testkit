@@ -4,6 +4,8 @@
 local M = {}
 
 local unpack = unpack
+-- Localized: addon code may assign a global named os.
+local osClock = os.clock
 
 local DEFAULT_TRIM = " \t\r\n"
 local MS_PER_SECOND = 1000
@@ -151,7 +153,7 @@ function M.install(w)
     return true, nil
   end)
   w:install("debugprofilestop", function()
-    return os.clock() * MS_PER_SECOND
+    return osClock() * MS_PER_SECOND
   end)
   w:install("GetTime", function()
     return w.now

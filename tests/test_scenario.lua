@@ -139,13 +139,26 @@ local function test_thrown_run_error_fails_only_that_flavor()
   A.eq(results.vanilla.status, "pass")
 end
 
+local function test_thrown_run_error_keeps_its_message_after_an_addon_sets_debug()
+  local root = Tmp.dir("scenario") .. "/DebugSet"
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/DebugSet.toc", "## Interface: " .. Flavors.get("retail").tocVersion .. "\n\nCore.lua\n")
+  fs.writeFile(root .. "/Core.lua", "debug = true\n")
+  local report = Scenario.matrix({ "retail" }, function(s)
+    s:login()
+    error("scenario exploded")
+  end, { addon = "DebugSet", root = root }).retail
+  A.contains(tostring(report.errors[1].message), "scenario exploded")
+  A.contains(tostring(report.errors[1].traceback), "stack traceback")
+end
+
 local function tempRoot()
   return Tmp.dir("scenario")
 end
 
--- Runs fn(s) on retail with snapshots checked against goldens under root (scenario "hover").
-local function goldenRun(root, fn)
-  local opts = { addon = HOVER.addon, root = HOVER.root, golden = { root = root, scenario = "hover" } }
+-- Runs fn(s) on retail with snapshots checked against goldens under root (scenario "hover"); update writes them.
+local function goldenRun(root, fn, update)
+  local opts = { addon = HOVER.addon, root = HOVER.root, golden = { root = root, scenario = "hover", update = update } }
   return Scenario.matrix({ "retail" }, fn, opts).retail
 end
 
@@ -166,11 +179,11 @@ local function test_snapshot_mismatch_fails_the_report_without_throwing()
   A.contains(tostring(report.errors[1].message), "line 1")
 end
 
-local function test_snapshot_writes_a_missing_golden_with_a_note()
+local function test_snapshot_writes_the_golden_with_a_note_on_update()
   local root = tempRoot()
   local report = goldenRun(root, function(s)
     s:snapshot("frame", _G.CreateFrame("Frame", "SnapFrame", _G.UIParent))
-  end)
+  end, true)
   A.eq(report.status, "pass")
   A.contains(report.notes, "golden written: hover/frame.retail.txt")
   A.eq(fs.readFile(root .. "/tests/scenarios/golden/hover/frame.retail.txt"), 'Frame "SnapFrame" 0x0\n')
@@ -181,13 +194,13 @@ local function test_snapshot_reads_are_not_counted_as_unscripted()
     local frame = _G.CreateFrame("Frame", nil, _G.UIParent)
     frame:CreateTexture()
     s:snapshot("frame", frame)
-  end)
+  end, true)
   A.same(report.unscripted, {})
 end
 
 local function test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_golden()
   local root = tempRoot()
-  local opts = { addon = RETAIL_ONLY.addon, root = RETAIL_ONLY.root, golden = { root = root, scenario = "skip" } }
+  local opts = { addon = RETAIL_ONLY.addon, root = RETAIL_ONLY.root, golden = { root = root, scenario = "skip", update = true } }
   local results = Scenario.matrix({ "retail", "vanilla" }, function(s)
     s:login()
     assert(s.ns.ok, "addon state not set")
@@ -205,7 +218,7 @@ local function test_snapshot_checks_a_menu_value_against_its_golden()
   local root = tempRoot()
   local report = goldenRun(root, function(s)
     s:snapshot("menu", { kind = "menu", levels = { { entries = { { kind = "button", text = "Open", enabled = true } } } } })
-  end)
+  end, true)
   A.eq(report.status, "pass")
   A.eq(fs.readFile(root .. "/tests/scenarios/golden/hover/menu.retail.txt"), "[ffffff]Open\n")
 end
@@ -269,8 +282,9 @@ return function()
   test_matrix_destroys_every_world()
   test_addon_library_writes_do_not_leak_across_flavors()
   test_thrown_run_error_fails_only_that_flavor()
+  test_thrown_run_error_keeps_its_message_after_an_addon_sets_debug()
   test_snapshot_mismatch_fails_the_report_without_throwing()
-  test_snapshot_writes_a_missing_golden_with_a_note()
+  test_snapshot_writes_the_golden_with_a_note_on_update()
   test_snapshot_reads_are_not_counted_as_unscripted()
   test_snapshot_checks_a_menu_value_against_its_golden()
   test_run_file_turns_on_golden_mode()

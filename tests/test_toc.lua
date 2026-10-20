@@ -133,6 +133,24 @@ local function test_unknown_game_type_loads_everywhere_and_is_reported()
   end
 end
 
+local function test_wrath_or_cata_only_file_loads_on_no_flavor_assumed()
+  local parsed = Toc.parse("Wrath.lua [AllowLoadGameType wrath]\nCata.lua [AllowLoadGameType Cata]\n")
+  for _, flavor in ipairs(Flavors.list) do
+    local files, report = Toc.filesFor(parsed, flavor, function() end)
+    A.same(files, {}, flavor)
+    A.same(report, {}, flavor)
+  end
+end
+
+local function test_plunderstorm_or_wowhack_only_file_loads_on_no_flavor_assumed()
+  local parsed = Toc.parse("Labs.lua [AllowLoadGameType plunderstorm]\nHack.lua [AllowLoadGameType WoWHack]\n")
+  for _, flavor in ipairs(Flavors.list) do
+    local files, report = Toc.filesFor(parsed, flavor, function() end)
+    A.same(files, {}, flavor)
+    A.same(report, {}, flavor)
+  end
+end
+
 local function test_xml_expands_to_its_scripts_in_place()
   A.same((filesOn("Multi", "retail")), { "A.lua", "Only.lua", "Any.lua", "X.lua" })
 end
@@ -180,6 +198,16 @@ local function test_addon_name_ambiguous()
   A.contains(message, "found 2 TOC names")
 end
 
+-- Root "." names the folder from $PWD; addon code may clear the global os. The kit's root holds no TOC.
+local function test_addon_name_of_dot_works_while_the_global_os_is_cleared()
+  local hostOs = os
+  rawset(_G, "os", nil)
+  local ok, name, message = pcall(Toc.addonName, ".")
+  rawset(_G, "os", hostOs)
+  A.same({ ok, name }, { true, nil }, tostring(name))
+  A.contains(message, "found 0 TOC names")
+end
+
 return function()
   test_parse_reads_meta_keys_as_written()
   test_parse_skips_comments_and_blank_lines()
@@ -201,10 +229,13 @@ return function()
   test_mainline_only_file_loads_on_retail_and_forever_not_vanilla()
   test_game_type_list_matches_any_listed_type()
   test_unknown_game_type_loads_everywhere_and_is_reported()
+  test_wrath_or_cata_only_file_loads_on_no_flavor_assumed()
+  test_plunderstorm_or_wowhack_only_file_loads_on_no_flavor_assumed()
   test_xml_expands_to_its_scripts_in_place()
   test_xml_include_expands_relative_to_its_directory()
   test_unsupported_xml_content_and_directives_are_reported()
   test_unreadable_xml_is_reported()
   test_addon_name_from_folder()
   test_addon_name_ambiguous()
+  test_addon_name_of_dot_works_while_the_global_os_is_cleared()
 end
