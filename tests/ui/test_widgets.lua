@@ -17,6 +17,16 @@ local function test_named_frame_sets_global_until_destroy()
   A.eq(_G.MyFrame, nil)
 end
 
+local function test_dotted_frame_name_is_one_global_key_assumed()
+  withWidgets("retail", function()
+    local f = _G.CreateFrame("Frame", "My.Frame")
+    A.eq(rawget(_G, "My.Frame"), f)
+    A.eq(rawget(_G, "My"), nil)
+    A.eq(f:GetName(), "My.Frame")
+  end)
+  A.eq(rawget(_G, "My.Frame"), nil)
+end
+
 local function test_frame_keeps_no_fields_of_its_own()
   withWidgets("retail", function()
     local f = _G.CreateFrame("Frame")
@@ -249,6 +259,7 @@ end
 
 return function()
   test_named_frame_sets_global_until_destroy()
+  test_dotted_frame_name_is_one_global_key_assumed()
   test_frame_keeps_no_fields_of_its_own()
   test_retail_only_method_is_missing_on_vanilla()
   test_generic_getter_returns_setter_args()

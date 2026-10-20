@@ -152,7 +152,8 @@ local function classFor(w, typeName)
   return class
 end
 
--- Creates a typeName widget (a Ketho type name, exact case) under parent; a name registers _G[name].
+-- Creates a typeName widget (a Ketho type name, exact case) under parent; a name registers _G[name] as one key,
+-- dots included (never a namespace path).
 local function create(w, typeName, name, parent)
   local class = classFor(w, typeName)
   local obj = setmetatable({}, class.meta)
@@ -160,7 +161,7 @@ local function create(w, typeName, name, parent)
   w.ui.state[obj] = st
   Behaviour.setParent(w, obj, st, parent)
   if name ~= nil then
-    w:setGlobal(name, obj)
+    w:rawWrite(_G, name, obj)
   end
   if class.plan.init then
     class.plan.init(w, obj, st)
