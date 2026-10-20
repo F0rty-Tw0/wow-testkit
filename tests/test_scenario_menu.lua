@@ -127,7 +127,8 @@ local function test_pick_title_throws_disabled()
   end)
 end
 
--- A divider is a title without text (S2), so the dropdown fake builds it disabled; the text here only lets pick find it.
+-- A hand-built level holding a disabled divider, as the dropdown fake makes one (S2, S13); the text only lets pick
+-- find it.
 local function test_pick_divider_throws_disabled()
   withMenuScenario(function(s)
     local MenuFrames = require("framexml.fakes.menu_frames")
