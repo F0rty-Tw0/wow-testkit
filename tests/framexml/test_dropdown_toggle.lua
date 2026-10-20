@@ -74,7 +74,26 @@ local function test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for
   end)
 end
 
+-- After a submenu Toggle, Initialize on the open menu's frame hides only lists 2 and deeper (Mainline :54, Classic
+-- :55), and AddButton appends to the still-shown list 1 (Mainline :426, Classic :385), not to the build.
+local function test_initialize_on_the_open_frame_after_a_submenu_adds_to_the_shown_list_one()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown("ShownListDD", function()
+      addItem("Nested", { notCheckable = true }, 2)
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    Input.enter(w, w.menus[1].entries[1].frame)
+    _G.UIDropDownMenu_Initialize(frame, function()
+      addItem("New", { notCheckable = true }, 1)
+    end)
+    A.eq(_G.DropDownList2:IsShown(), false)
+    A.eq(w.menus[1].entries[1].text, "More")
+    A.eq(w.menus[1].entries[2] and w.menus[1].entries[2].text, "New")
+  end)
+end
+
 return function()
+  test_initialize_on_the_open_frame_after_a_submenu_adds_to_the_shown_list_one()
   test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()
   test_an_addon_error_without_a_position_in_a_submenu_init_is_recorded_unchanged()
   test_an_addon_error_with_a_position_in_a_submenu_init_is_recorded_unchanged()
