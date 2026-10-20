@@ -26,8 +26,9 @@ The kit has these known gaps, which may not be the only ones:
   `:1065`/`:1004`, so a Toggle without one errors; the kit accepts a nil `button` (`framexml/fakes/dropdown.lua`).
 - S16: `s:menu()` and `s:pick` start at level 1, so they report no menu while a list is shown above a closed level 1,
   and `s:menu()` stops at the first closed level, so open levels 1 and 3 read as level 1 alone (`scenario_menu.lua`).
-- S13: a disabled entry's text does not get `colorCode` or `disablecolor` (Mainline `:484-490`), though both are
-  written back into the caller's `info` (`framexml/fakes/dropdown.lua`).
+- S13: no entry's text gets `info.colorCode`, enabled or disabled; the client sets the button text to
+  `colorCode .. text .. "|r"` when `colorCode` is set, `disablecolor` included (Mainline `:484-490`, Classic
+  `:435-441`). The kit only writes both back into the caller's `info` (`framexml/fakes/dropdown.lua`).
 - S11: opening a level renders every entry and sets the kit's `OnClick` and `OnEnter` on each pooled Button, so an
   addon's `SetScript` on `DropDownList<n>Button<i>` lasts only until that list next opens; the client's scripts come
   from the template once (`framexml/fakes/menu_frames.lua`).
