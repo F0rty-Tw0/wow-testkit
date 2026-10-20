@@ -158,14 +158,14 @@ end
 
 -- S4 helper (Mainline :41-65, Classic :42-66): on the open menu's frame, hide the lists from the menu level the last
 -- Toggle set; on any other frame, reset that level to 1 and hide every list. Sets UIDROPDOWNMENU_INIT_MENU (:48).
--- Only DropDownList levels hide: an open Menu API menu (levels without namePrefix) stays.
+-- Only DropDownList levels hide: an open Menu API menu (levels without namePrefix, always from depth 1) stays.
 local function hideForInitialize(w, frame)
   if frame ~= rawget(_G, "UIDROPDOWNMENU_OPEN_MENU") then
     w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", 1)
   end
   w:setGlobal("UIDROPDOWNMENU_INIT_MENU", frame)
   local first = w.menus[1]
-  if first and first.namePrefix then
+  if not first or first.namePrefix then
     MenuFrames.close(w, rawget(_G, "UIDROPDOWNMENU_MENU_LEVEL"))
   end
 end
@@ -221,10 +221,10 @@ local function addButton(w, info, level)
   end
 end
 
--- S1 (Mainline :1064-1071) and S6 (:1163-1165): level 1 on the owning frame closes; level 2+ falls back to level 1's owner.
-local function frameFor(w, level, frame)
+-- S1 (Mainline :1064-1071) and S6 (:1163-1165): level 1 on the owning frame closes; level 2+ falls back to the open menu.
+local function frameFor(level, frame)
   if level > 1 then
-    return frame or (w.menus[1] and w.menus[1].owner)
+    return frame or rawget(_G, "UIDROPDOWNMENU_OPEN_MENU")
   end
 
   return frame
@@ -248,7 +248,7 @@ local function toggle(w, level, value, frame, menuList)
   createLists(w, level)
   w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", level)
   w:setGlobal("UIDROPDOWNMENU_MENU_VALUE", value)
-  frame = frameFor(w, level, frame)
+  frame = frameFor(level, frame)
   checkToggle(frame)
   local first = w.menus[1]
   if level == 1 and first and first.owner == frame then

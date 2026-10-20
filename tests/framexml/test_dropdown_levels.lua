@@ -121,7 +121,61 @@ local function test_classic_toggle_to_level_three_raises_max_levels()
   end)
 end
 
+-- A Button under frame, the 8th ToggleDropDownMenu argument the client needs past level 1 (Mainline :1168).
+local function anchorOn(frame)
+  return _G.CreateFrame("Button", "LevelsAnchor", frame)
+end
+
+-- ToggleDropDownMenu does not look at the lower lists (Mainline :1049-1202, Classic :990-1139): list 2 shows alone.
+local function test_toggle_to_level_two_with_level_one_closed_shows_list_two_alone()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      addItem("L" .. level, level)
+    end)
+    _G.ToggleDropDownMenu(2, nil, frame, nil, nil, nil, nil, anchorOn(frame))
+    A.eq(w.menus[1], nil)
+    A.same(texts(w.menus[2]), { "L2" })
+    A.eq(_G.DropDownList1:IsShown(), false)
+    A.eq(_G.DropDownList2:IsShown(), true)
+    _G.CloseDropDownMenus()
+    A.eq(next(w.menus), nil)
+    A.eq(_G.DropDownList2:IsShown(), false)
+  end)
+end
+
+-- A level-1 Toggle sets UIDROPDOWNMENU_OPEN_MENU before init (Mainline :1095) and an empty list never shows, so
+-- OPEN_MENU stays; a level-2 Toggle without a frame then uses it (Mainline :1163-1165, Classic :1102-1104).
+local function test_toggle_without_a_frame_uses_the_open_menu_when_level_one_is_closed()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      if level == 2 then
+        addItem("Deep", 2)
+      end
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    _G.ToggleDropDownMenu(2, nil, nil, nil, nil, nil, nil, anchorOn(frame))
+    A.eq(w.menus[2].owner, frame)
+    A.same(texts(w.menus[2]), { "Deep" })
+  end)
+end
+
+-- The Initialize helper hides every DropDownList for a frame that is not the open menu (Mainline :41-65).
+local function test_initialize_hides_a_list_shown_above_a_closed_level()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      addItem("L" .. level, level)
+    end)
+    _G.ToggleDropDownMenu(2, nil, frame, nil, nil, nil, nil, anchorOn(frame))
+    _G.UIDropDownMenu_Initialize(frame, nil, "MENU")
+    A.eq(next(w.menus), nil)
+    A.eq(_G.DropDownList2:IsShown(), false)
+  end)
+end
+
 return function()
+  test_toggle_to_level_two_with_level_one_closed_shows_list_two_alone()
+  test_toggle_without_a_frame_uses_the_open_menu_when_level_one_is_closed()
+  test_initialize_hides_a_list_shown_above_a_closed_level()
   test_max_levels_starts_at_the_client_value()
   test_toggle_past_the_last_list_creates_it()
   test_classic_toggle_to_level_three_raises_max_levels()
