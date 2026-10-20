@@ -221,7 +221,16 @@ local function addButton(w, info, level)
   end
 end
 
--- S1 (Mainline :1064-1071) and S6 (:1163-1165): level 1 on the owning frame closes; level 2+ falls back to the open menu.
+-- S1 (Mainline :1064-1071, Classic :1003-1010): at any level, a shown DropDownList<level> whose open menu is frame, or
+-- button's parent without one, hides. The client indexes a nil button; the kit reads that as no match.
+local function closesShown(level, frame, button)
+  local owner = frame or (button and button:GetParent())
+  local open = rawget(_G, "UIDROPDOWNMENU_OPEN_MENU")
+
+  return owner ~= nil and open == owner and _G[LIST_NAME .. level]:IsShown()
+end
+
+-- S6 (Mainline :1163-1165, Classic :1102-1104): level 2+ without a frame uses the open menu.
 local function frameFor(level, frame)
   if level > 1 then
     return frame or rawget(_G, "UIDROPDOWNMENU_OPEN_MENU")
@@ -242,20 +251,19 @@ end
 -- Sets UIDROPDOWNMENU_MENU_LEVEL (the level Initialize hides from, S4) and _MENU_VALUE (Mainline :1056-1057, Classic
 -- :997-998). After the S1 check, hides the target list and deeper before init runs (S12); level 1 then becomes
 -- UIDROPDOWNMENU_OPEN_MENU (Mainline :1095, Classic :1034). Shows nothing when init added no entries (S10). anchor,
--- x, y, button, autoHideDelay and displayMode are ignored: the kit has no layout.
-local function toggle(w, level, value, frame, menuList)
+-- x, y, autoHideDelay and displayMode are ignored: the kit has no layout; button only feeds the S1 check.
+local function toggle(w, level, value, frame, menuList, button)
   level = level or 1
   createLists(w, level)
   w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", level)
   w:setGlobal("UIDROPDOWNMENU_MENU_VALUE", value)
-  frame = frameFor(level, frame)
-  checkToggle(frame)
-  local first = w.menus[1]
-  if level == 1 and first and first.owner == frame then
-    MenuFrames.close(w, 1)
+  if closesShown(level, frame, button) then
+    MenuFrames.close(w, level)
 
     return
   end
+  frame = frameFor(level, frame)
+  checkToggle(frame)
   MenuFrames.close(w, level)
   if level == 1 then
     w:setGlobal("UIDROPDOWNMENU_OPEN_MENU", frame)
@@ -293,8 +301,8 @@ local function globalsFor(w)
     UIDropDownMenu_AddButton = function(info, level)
       addButton(w, info, level)
     end,
-    ToggleDropDownMenu = function(level, value, frame, _, _, _, menuList)
-      toggle(w, level, value, frame, menuList)
+    ToggleDropDownMenu = function(level, value, frame, _, _, _, menuList, button)
+      toggle(w, level, value, frame, menuList, button)
     end,
     CloseDropDownMenus = function(level)
       MenuFrames.close(w, level or 1)

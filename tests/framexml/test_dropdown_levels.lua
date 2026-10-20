@@ -172,7 +172,45 @@ local function test_initialize_hides_a_list_shown_above_a_closed_level()
   end)
 end
 
+-- S1 at any level (Mainline :1069-1071, Classic :1008-1010): DropDownList<level> shown and UIDROPDOWNMENU_OPEN_MENU
+-- is the frame, so the list hides and init does not run again.
+local function test_toggle_on_the_open_menu_frame_closes_a_shown_deeper_level()
+  withFrameXML("retail", function(w)
+    local builds = 0
+    local frame = newDropdown(function(level)
+      builds = builds + 1
+      local info = _G.UIDropDownMenu_CreateInfo()
+      info.text, info.notCheckable, info.hasArrow = "L" .. level, true, level == 1
+      _G.UIDropDownMenu_AddButton(info, level)
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    Input.enter(w, w.menus[1].entries[1].frame)
+    local before = builds
+    _G.ToggleDropDownMenu(2, nil, frame, nil, nil, nil, nil, anchorOn(frame))
+    A.eq(builds, before)
+    A.eq(w.menus[2], nil)
+    A.eq(_G.DropDownList2:IsShown(), false)
+    A.eq(_G.DropDownList1:IsShown(), true)
+  end)
+end
+
+-- Without a frame the S1 test compares button:GetParent() (Mainline :1064-1065, Classic :1003-1004), before any use
+-- of the missing frame.
+local function test_toggle_level_one_with_a_button_on_the_open_menu_closes_it()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      addItem("L" .. level, level)
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    _G.ToggleDropDownMenu(1, nil, nil, nil, nil, nil, nil, anchorOn(frame))
+    A.eq(next(w.menus), nil)
+    A.eq(_G.DropDownList1:IsShown(), false)
+  end)
+end
+
 return function()
+  test_toggle_on_the_open_menu_frame_closes_a_shown_deeper_level()
+  test_toggle_level_one_with_a_button_on_the_open_menu_closes_it()
   test_toggle_to_level_two_with_level_one_closed_shows_list_two_alone()
   test_toggle_without_a_frame_uses_the_open_menu_when_level_one_is_closed()
   test_initialize_hides_a_list_shown_above_a_closed_level()
