@@ -9,7 +9,7 @@ has these known gaps, which may not be the only ones:
 
 - S5: an `AddButton` outside a build is dropped; the client appends it to the list for that level
   (`framexml/fakes/dropdown.lua`).
-- M4: a `SetEnabled` function is re-read only when a level (re)initializes, never on the client's 0.2 s poll.
+- M4: a `SetEnabled` function is re-read on (re)initialize and before a pick, never on the client's 0.2 s poll.
 - M10: `Menu.ModifyMenu` does not run a new hook at once on an already generated menu with that tag
   (`framexml/fakes/menu.lua`).
 - D1: a held Shift is not read, since the kit has no key state (`framexml/fakes/menu_dropdown.lua`).
