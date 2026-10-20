@@ -32,7 +32,39 @@ local function test_post_call_sees_get_unit()
       seen = { tip:GetUnit() }
     end)
     tooltip:SetUnit("mouseover")
-    A.same(seen, { "Bob", "mouseover" })
+    A.same(seen, { "Bob", "mouseover", "G" })
+  end)
+end
+
+-- Mainline GameTooltipDataMixin:GetUnit → TooltipUtil.GetDisplayedUnit (TooltipUtil.lua:34-41, live and forever):
+-- name, UnitTokenFromGUID(guid), guid. Classic's GetUnit is the C method: name, unit (wiki API_GameTooltip_GetUnit).
+local function test_get_unit_returns_the_guid_on_mainline_only()
+  for flavor, expected in pairs({ retail = { "Bob", "mouseover", "G" }, forever = { "Bob", "mouseover", "G" }, vanilla = { "Bob", "mouseover" } }) do
+    withMouseover(flavor, function(_, tooltip)
+      tooltip:SetUnit("mouseover")
+      A.same({ tooltip:GetUnit() }, expected, flavor)
+    end)
+  end
+end
+
+-- UnitTokenFromGUID tests "target" before "mouseover" (wiki API_UnitTokenFromGUID).
+local function test_get_unit_token_comes_from_the_guid_on_mainline()
+  HF.withUnits("retail", function(w)
+    w:unit("target", MAGE)
+    w:mouseover("target")
+    _G.GameTooltip:SetUnit("mouseover")
+    A.same({ _G.GameTooltip:GetUnit() }, { "Bob", "target", "G" })
+  end)
+end
+
+-- GameTooltipTemplate's OnHide is GameTooltip_OnHide (Mainline GameTooltip.xml:27), which calls ClearHandlerInfo
+-- (GameTooltip.lua:421; forever :430), so a hidden tooltip shows no unit.
+local function test_hiding_the_tooltip_forgets_the_unit_on_mainline()
+  withMouseover("forever", function(_, tooltip)
+    tooltip:SetUnit("mouseover")
+    tooltip:Show()
+    tooltip:Hide()
+    A.eq(select("#", tooltip:GetUnit()), 0)
   end)
 end
 
@@ -218,6 +250,9 @@ end
 
 return function()
   test_post_call_sees_get_unit()
+  test_get_unit_returns_the_guid_on_mainline_only()
+  test_get_unit_token_comes_from_the_guid_on_mainline()
+  test_hiding_the_tooltip_forgets_the_unit_on_mainline()
   test_line_pre_call_true_drops_the_line()
   test_processing_info_only_while_processing()
   test_name_line_is_class_colored()
