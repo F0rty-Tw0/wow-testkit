@@ -67,9 +67,21 @@ function M.strjoin(sep, ...)
   return table.concat(parts, sep, 1, parts.n)
 end
 
+-- A number argument reads as its string form, as a C string argument does (lua_tolstring): the doc types both as
+-- Lua strings (api/retail/StringUtil.lua string.trim). Other non-strings still raise.
+local function stringArg(value)
+  if type(value) == "number" then
+    return tostring(value)
+  end
+
+  return value
+end
+
 function M.strtrim(str, chars)
-  local class = "[" .. escapeClass(chars or DEFAULT_TRIM) .. "]"
-  return (str:gsub("^" .. class .. "+", ""):gsub(class .. "+$", ""))
+  local class = "[" .. escapeClass(stringArg(chars or DEFAULT_TRIM)) .. "]"
+  local text = stringArg(str)
+
+  return (text:gsub("^" .. class .. "+", ""):gsub(class .. "+$", ""))
 end
 
 function M.tContains(tbl, item)

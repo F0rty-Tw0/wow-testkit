@@ -40,6 +40,16 @@ local function test_strtrim_and_strjoin()
   end)
 end
 
+-- The doc types both arguments as Lua strings (api/retail/StringUtil.lua string.trim); a C string argument takes a
+-- number as its string form (Lua 5.1 manual, lua_tolstring), as validate.lua's ACCEPTS.string does.
+local function test_strtrim_takes_numbers_as_strings()
+  withWorld("retail", function()
+    A.eq(_G.strtrim(5), "5")
+    A.eq(H.lookup("string.trim")(5), "5")
+    A.eq(_G.strtrim("15051", 1), "505")
+  end)
+end
+
 local function test_aliases_point_at_host_library()
   withWorld("vanilla", function()
     A.eq(_G.format, string.format)
@@ -240,6 +250,7 @@ return function()
   test_strsplit_pieces_keeps_rest_in_last()
   test_wipe_empties_and_returns_table()
   test_strtrim_and_strjoin()
+  test_strtrim_takes_numbers_as_strings()
   test_aliases_point_at_host_library()
   test_unpack_keeps_host_function()
   test_tcontains()
