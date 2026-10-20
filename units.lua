@@ -94,6 +94,8 @@ local function tokenFromGuid(state, guid)
     end
   end
   table.sort(tokens)
+  -- wiki API_UnitTokenFromGUID tests "mouseover" 15th of 18 (before only the soft targets); the kit tries it last.
+  tokens[#tokens + 1] = MOUSEOVER
   for _, token in ipairs(tokens) do
     if guidOf(state, token) == guid then
       return token

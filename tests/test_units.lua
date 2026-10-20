@@ -128,6 +128,14 @@ local function test_token_from_guid_skips_mouseover_and_sorts()
   end)
 end
 
+-- wiki API_UnitTokenFromGUID tests "mouseover" 15th of 18, after every other token the kit's fixtures name.
+local function test_token_from_guid_falls_back_to_mouseover()
+  withUnits("retail", function(w)
+    w:unit("mouseover", { guid = "G1" })
+    A.eq(_G.UnitTokenFromGUID("G1"), "mouseover")
+  end)
+end
+
 local function test_missing_fixture_counts_as_unscripted()
   withUnits("retail", function(w)
     _G.UnitName("party1")
@@ -189,6 +197,7 @@ return function()
   test_race_and_faction_shapes()
   test_removing_unit_and_clearing_mouseover()
   test_token_from_guid_skips_mouseover_and_sorts()
+  test_token_from_guid_falls_back_to_mouseover()
   test_missing_fixture_counts_as_unscripted()
   test_fixture_answer_not_counted_as_unscripted()
   test_unset_field_counts_as_unscripted()
