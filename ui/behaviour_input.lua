@@ -2,6 +2,7 @@
 -- mouse-script auto-enable rule. M.methods are fn(w, obj, st, ...) like ui/behaviour.lua; M.typed[name] =
 -- function(plan) -> impl | nil picks a type-specific body when the class is built (ui/widgets.lua classFor).
 local M = {}
+local select = select
 
 local BehaviourScripts = require("ui.behaviour_scripts")
 

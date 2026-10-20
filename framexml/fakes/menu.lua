@@ -8,6 +8,8 @@ local MenuDescription = require("framexml.fakes.menu_description")
 local MenuFrames = require("framexml.fakes.menu_frames")
 local MenuPick = require("framexml.fakes.menu_pick")
 
+-- Localized: addon code may assign a global named select.
+local select = select
 local GATE_KEY = "MenuUtil.CreateContextMenu"
 local NO_GATE = { gate = "none" }
 local UNIT_TAG_PREFIX = "MENU_UNIT_"
