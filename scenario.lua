@@ -169,6 +169,9 @@ end
 -- are not counted as unscripted.
 function Scenario:snapshot(name, target)
   local w = self.w
+  if type(target) ~= "table" then
+    error("s:snapshot: no target to snapshot (got " .. type(target) .. "); s:menu() is nil when no menu is open", 2)
+  end
   if not self.goldenRoot then
     error("s:snapshot needs a golden root; run the scenario through Scenario.runFile", 2)
   end

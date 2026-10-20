@@ -95,11 +95,20 @@ local function test_open_closes_the_levels_from_its_depth()
   end)
 end
 
-local function test_open_rejects_a_depth_that_leaves_a_gap()
+-- ToggleDropDownMenu can show DropDownList2 with list 1 hidden (Mainline UIDropDownMenu.lua:1049-1202).
+local function test_open_above_a_closed_level_tracks_and_closes_it()
   withFrameXML("retail", function(w)
-    A.errors(function()
-      MenuFrames.open(w, 2, newLevel({ entry("button", "A") }, "DropDownList2"))
-    end, "leaves a gap")
+    local second = newLevel({ entry("button", "A") }, "DropDownList2")
+    MenuFrames.open(w, 2, second)
+    MenuFrames.open(w, 3, newLevel({ entry("button", "B") }, "DropDownList3"))
+    A.eq(w.menus[1], nil)
+    A.eq(_G.DropDownList2:IsShown(), true)
+    Input.enter(w, second.entries[1].frame)
+    A.eq(w.menus[3], nil)
+    A.eq(_G.DropDownList3:IsShown(), false)
+    MenuFrames.close(w, 1)
+    A.eq(next(w.menus), nil)
+    A.eq(_G.DropDownList2:IsShown(), false)
   end)
 end
 
@@ -145,14 +154,31 @@ local function test_a_replaced_entry_script_removes_the_kit_behavior()
   end)
 end
 
-local function test_titles_and_dividers_have_mouse_disabled()
+local function test_menu_api_titles_and_dividers_have_mouse_disabled()
   withFrameXML("retail", function(w)
-    local level = newLevel({ entry("title", "Head"), entry("divider") }, "DropDownList1")
+    local level = newLevel({ entry("title", "Head"), entry("divider") }, nil)
     MenuFrames.open(w, 1, level)
     for _, e in ipairs(level.entries) do
       A.contains(Input.blockedReason(w, e.frame, "click"), "mouse disabled")
       A.contains(Input.blockedReason(w, e.frame, "enter"), "mouse disabled")
     end
+  end)
+end
+
+-- A UIDropDownMenu title or divider is a disabled Button under an InvisibleButton whose OnEnter closes the deeper
+-- levels (Mainline UIDropDownMenu.lua:153-154, :466-475; Classic :180-182, :417-427), as for any disabled entry (S11).
+local function test_drop_down_titles_and_dividers_close_deeper_levels_on_enter()
+  withFrameXML("retail", function(w)
+    local disabled = { enabled = false }
+    local first, log = newLevel({ entry("title", "Head", disabled), entry("divider", nil, disabled) }, "DropDownList1")
+    MenuFrames.open(w, 1, first)
+    for _, e in ipairs(first.entries) do
+      MenuFrames.open(w, 2, newLevel({ entry("button", "B") }, "DropDownList2"))
+      Input.enter(w, e.frame)
+      A.eq(#w.menus, 1)
+      A.eq(Input.blockedReason(w, e.frame, "click"), "disabled")
+    end
+    A.same(log, {})
   end)
 end
 
@@ -277,13 +303,14 @@ return function()
   test_open_renders_entries_as_named_buttons_with_label_text()
   test_open_unnamed_level_parents_its_frames_to_ui_parent()
   test_open_closes_the_levels_from_its_depth()
-  test_open_rejects_a_depth_that_leaves_a_gap()
+  test_open_above_a_closed_level_tracks_and_closes_it()
   test_entry_click_runs_pick_with_index_and_button()
   test_entry_enter_with_a_submenu_calls_open_submenu()
   test_entry_enter_without_a_submenu_closes_deeper_levels()
   test_entering_a_disabled_entry_with_a_submenu_only_closes_deeper_levels()
   test_a_replaced_entry_script_removes_the_kit_behavior()
-  test_titles_and_dividers_have_mouse_disabled()
+  test_menu_api_titles_and_dividers_have_mouse_disabled()
+  test_drop_down_titles_and_dividers_close_deeper_levels_on_enter()
   test_disabled_entries_are_disabled_buttons()
   test_close_hides_the_level_and_deeper_ones_and_clears_menus()
   test_close_fires_on_leave_without_motion_on_the_focused_entry_assumed()

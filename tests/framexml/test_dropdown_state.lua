@@ -5,13 +5,13 @@ local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
 
-local function addItem(spec)
+local function addItem(spec, level)
   local info = _G.UIDropDownMenu_CreateInfo()
   info.text = spec[1]
   for k, v in pairs(spec[2] or {}) do
     info[k] = v
   end
-  _G.UIDropDownMenu_AddButton(info, 1)
+  _G.UIDropDownMenu_AddButton(info, level)
 end
 
 -- A dropdown whose init adds items (level 1) or menuList's items (level 2+); specs are { text, infoFields }.
@@ -19,7 +19,7 @@ local function newDropdown(items, name)
   local frame = _G.CreateFrame("Frame", name or "StateDD", _G.UIParent, "UIDropDownMenuTemplate")
   _G.UIDropDownMenu_Initialize(frame, function(_, level, menuList)
     for _, spec in ipairs((level or 1) > 1 and menuList or items) do
-      addItem(spec)
+      addItem(spec, level)
     end
   end, "MENU")
   return frame
@@ -77,6 +77,35 @@ local function test_initialize_on_another_frame_after_a_submenu_hides_every_list
   end)
 end
 
+-- The helper hides only the DropDownList frames (Mainline :51-63, Classic :52-64), so a Menu API menu stays open.
+local function test_initialize_leaves_an_open_menu_api_menu_open()
+  withFrameXML("retail", function(w)
+    local owner = _G.CreateFrame("Frame", nil, _G.UIParent)
+    _G.MenuUtil.CreateContextMenu(owner, function(_, root)
+      root:CreateButton("Hi", function() end)
+    end)
+    _G.UIDropDownMenu_Initialize(_G.CreateFrame("Frame", "ApiDD", _G.UIParent, "UIDropDownMenuTemplate"), nil, "MENU")
+    A.eq(#w.menus, 1)
+    A.eq(w.menus[1].entries[1].text, "Hi")
+  end)
+end
+
+-- The helper hides DropDownList frames wherever they sit (Mainline :52-63), so a list above a Menu API menu closes.
+local function test_initialize_hides_a_list_shown_above_an_open_menu_api_menu()
+  withFrameXML("retail", function(w)
+    _G.MenuUtil.CreateContextMenu(_G.CreateFrame("Frame", nil, _G.UIParent), function(_, root)
+      root:CreateButton("Hi", function() end)
+    end)
+    local frame = newDropdown({}, "AboveApiDD")
+    _G.ToggleDropDownMenu(2, nil, frame, nil, nil, nil, { { "Deep" } }, _G.CreateFrame("Button", "AboveApiAnchor", frame))
+    A.eq(_G.DropDownList2:IsShown(), true)
+    _G.UIDropDownMenu_Initialize(_G.CreateFrame("Frame", "AboveApiOtherDD", _G.UIParent, "UIDropDownMenuTemplate"), nil)
+    A.eq(_G.DropDownList2:IsShown(), false)
+    A.eq(w.menus[2], nil)
+    A.eq(w.menus[1].entries[1].text, "Hi")
+  end)
+end
+
 -- Mainline :1193-1197, Classic :1133-1136: a list with no buttons is not shown.
 local function test_toggle_with_no_entries_opens_nothing()
   withFrameXML("retail", function(w)
@@ -106,7 +135,7 @@ local function test_toggle_whose_init_errors_leaves_the_old_submenu_closed()
       local specs = level == 2 and menuList
         or { { "Good", { hasArrow = true, menuList = { { "Nested" } } } }, { "Bad", { hasArrow = true, menuList = "boom" } } }
       for _, spec in ipairs(specs) do
-        addItem(spec)
+        addItem(spec, level)
       end
     end, "MENU")
     _G.ToggleDropDownMenu(1, nil, frame)
@@ -134,15 +163,55 @@ local function test_function_checked_returning_false_or_nil_reads_false()
   end)
 end
 
-local function test_function_checked_error_is_recorded_and_reads_false()
+-- Mainline :1000-1003 and :1034 (Classic :941-944, :975): a function checked is called with the entry on click and
+-- what it returns reaches func unchanged.
+local function test_function_checked_return_reaches_func_unchanged()
   withFrameXML("retail", function(w)
-    openMenu({ { "E", {
-      isNotRadio = true,
-      checked = function()
-        error("checked boom")
-      end,
-    } } })
-    A.eq(w.menus[1].entries[1].checked, false)
+    local got
+    openMenu({
+      {
+        "Opt",
+        {
+          isNotRadio = true,
+          checked = function()
+            return 1
+          end,
+          func = function(_, _, _, checked)
+            got = checked
+          end,
+        },
+      },
+    })
+    Input.click(w, w.menus[1].entries[1].frame, "LeftButton")
+    A.eq(got, 1)
+  end)
+end
+
+-- The client calls checked unprotected before it hides the list (Mainline :1000-1003, :1019), so an error there
+-- stops the click: the menu stays open and func does not run.
+local function test_function_checked_error_on_click_stops_the_pick()
+  withFrameXML("retail", function(w)
+    local armed, picked = false, false
+    openMenu({
+      {
+        "Opt",
+        {
+          isNotRadio = true,
+          checked = function()
+            if armed then
+              error("checked boom")
+            end
+          end,
+          func = function()
+            picked = true
+          end,
+        },
+      },
+    })
+    armed = true -- Initialize and Toggle both ran init, and AddButton called checked each time
+    Input.click(w, w.menus[1].entries[1].frame, "LeftButton")
+    A.eq(picked, false)
+    A.eq(#w.menus, 1)
     A.eq(#w.errors, 1)
     A.contains(tostring(w.errors[1].message), "checked boom")
   end)
@@ -174,12 +243,15 @@ end
 
 return function()
   test_function_checked_returning_false_or_nil_reads_false()
-  test_function_checked_error_is_recorded_and_reads_false()
+  test_function_checked_return_reaches_func_unchanged()
+  test_function_checked_error_on_click_stops_the_pick()
   test_keep_shown_on_click_checkbox_flips_on_every_click()
   test_toggle_whose_init_errors_leaves_the_old_submenu_closed()
   test_initialize_then_toggle_on_click_keeps_the_menu_open()
   test_initialize_on_the_open_menu_hides_from_the_last_toggled_level()
   test_initialize_on_another_frame_after_a_submenu_hides_every_list()
+  test_initialize_leaves_an_open_menu_api_menu_open()
+  test_initialize_hides_a_list_shown_above_an_open_menu_api_menu()
   test_toggle_with_no_entries_opens_nothing()
   test_entering_an_arrow_entry_whose_submenu_is_empty_opens_nothing()
 end

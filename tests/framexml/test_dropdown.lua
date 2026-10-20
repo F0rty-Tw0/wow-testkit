@@ -7,13 +7,13 @@ local Dropdown = require("framexml.fakes.dropdown")
 
 local withFrameXML = HF.withFrameXML
 
-local function addItem(spec)
+local function addItem(spec, level)
   local info = _G.UIDropDownMenu_CreateInfo()
   info.text = spec[1]
   for k, v in pairs(spec[2] or {}) do
     info[k] = v
   end
-  _G.UIDropDownMenu_AddButton(info, 1)
+  _G.UIDropDownMenu_AddButton(info, level)
 end
 
 -- A dropdown whose init adds items (level 1) or menuList's items (level 2); specs are { text, infoFields }.
@@ -21,7 +21,7 @@ local function newDropdown(items, name)
   local frame = _G.CreateFrame("Frame", name or "TestDD", _G.UIParent, "UIDropDownMenuTemplate")
   _G.UIDropDownMenu_Initialize(frame, function(_, level, menuList)
     for _, spec in ipairs(level == 2 and menuList or items) do
-      addItem(spec)
+      addItem(spec, level)
     end
   end, "MENU")
   return frame
@@ -181,6 +181,25 @@ local function test_has_arrow_and_disabled_info_set_the_entry_flags()
   end)
 end
 
+-- Mainline UIDropDownMenu.lua:460-463 and :472-476 (Classic :411-414, :423-427): notClickable sets info.disabled.
+local function test_not_clickable_entry_is_disabled()
+  withFrameXML("retail", function(w)
+    openMenu({ { "Label", { notCheckable = true, notClickable = true, func = function() end } } })
+    local entry = w.menus[1].entries[1]
+    A.eq(entry.enabled, false)
+    A.eq(Input.blockedReason(w, entry.frame, "click"), "disabled")
+  end)
+end
+
+-- Mainline :466-476 (Classic :417-427): isTitle sets info.disabled; a divider is a title without text (S2).
+local function test_title_and_divider_entries_are_disabled()
+  withFrameXML("retail", function(w)
+    openMenu({ { "Head", { isTitle = true } }, { nil, { isTitle = true } } })
+    A.eq(w.menus[1].entries[1].enabled, false)
+    A.eq(w.menus[1].entries[2].enabled, false)
+  end)
+end
+
 local function test_function_checked_is_evaluated_with_the_entry_frame()
   withFrameXML("retail", function(w)
     local got
@@ -195,22 +214,6 @@ local function test_function_checked_is_evaluated_with_the_entry_frame()
     })
     A.eq(w.menus[1].entries[1].checked, true)
     A.eq(got, w.menus[1].entries[1].frame)
-  end)
-end
-
-local function test_function_checked_that_errors_reads_false_and_is_recorded()
-  withFrameXML("retail", function(w)
-    openMenu({
-      { "C", {
-        isNotRadio = true,
-        checked = function()
-          error("checked boom")
-        end,
-      } },
-    })
-    A.eq(w.menus[1].entries[1].checked, false)
-    A.eq(#w.errors, 1)
-    A.contains(tostring(w.errors[1].message), "checked boom")
   end)
 end
 
@@ -250,15 +253,6 @@ local function test_toggle_without_a_frame_uses_the_owner_of_level_one()
     A.eq(#w.menus, 2)
     A.eq(w.menus[2].owner, frame)
     A.same(texts(w, 2), { "Nested" })
-  end)
-end
-
-local function test_toggle_beyond_level_three_errors()
-  withFrameXML("retail", function()
-    local frame = newDropdown({ { "One" } })
-    A.errors(function()
-      _G.ToggleDropDownMenu(4, nil, frame)
-    end, "past DropDownList3")
   end)
 end
 
@@ -515,13 +509,13 @@ return function()
   test_add_button_copies_info_so_reuse_does_not_change_earlier_entries()
   test_info_maps_to_entry_kinds()
   test_has_arrow_and_disabled_info_set_the_entry_flags()
+  test_not_clickable_entry_is_disabled()
+  test_title_and_divider_entries_are_disabled()
   test_function_checked_is_evaluated_with_the_entry_frame()
-  test_function_checked_that_errors_reads_false_and_is_recorded()
   test_toggle_opens_level_one_owned_by_the_frame()
   test_toggle_again_on_the_owning_frame_closes_the_menu()
   test_toggle_on_another_frame_replaces_the_open_menu()
   test_toggle_without_a_frame_uses_the_owner_of_level_one()
-  test_toggle_beyond_level_three_errors()
   test_toggle_on_a_frame_without_initialize_errors()
   test_pick_passes_entry_frame_args_checked_and_button_to_func()
   test_pick_on_classic_flavors_passes_four_args()

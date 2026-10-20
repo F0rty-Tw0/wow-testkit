@@ -4,6 +4,8 @@ local M = {}
 
 local Core = require("framexml.fakes.core")
 
+local maxn = table.maxn
+
 local MAX_LEVELS = 3
 -- S9 (assumed): the shipped DropDownList frames come from UIDropDownMenu.xml, which the mirror does not hold; the
 -- same template makes them Buttons. Mainline Interface/AddOns/Blizzard_SharedXML/Mainline/UIDropDownMenu.lua:345
@@ -41,8 +43,8 @@ end
 
 -- The level's position in w.menus, or nil when it is not open.
 local function depthOf(w, level)
-  for depth, open in ipairs(w.menus) do
-    if open == level then
+  for depth = 1, maxn(w.menus) do
+    if w.menus[depth] == level then
       return depth
     end
   end
@@ -65,9 +67,10 @@ local function enterEntry(w, level, entry, index)
   end
 end
 
--- Kit scripts for one entry, set through the world so an addon's SetScript replaces them; titles and dividers get none.
+-- Kit scripts for one entry, set through the world so an addon's SetScript replaces them; Menu API titles and dividers
+-- get none. UIDropDownMenu ones (named levels) are disabled Buttons whose InvisibleButton takes the enter (S11).
 local function setEntryScripts(w, level, entry, index, button)
-  local interactive = not NO_MOUSE_KINDS[entry.kind]
+  local interactive = level.namePrefix ~= nil or not NO_MOUSE_KINDS[entry.kind]
   button:EnableMouse(interactive)
   local onClick, onEnter
   if interactive then
@@ -94,13 +97,20 @@ local function fillButton(w, level, entry, index, button)
   entry.frame = button
 end
 
--- Renders level into frames: sets level.frame and each entry.frame; buttons past the entry count are hidden.
-function M.render(w, level)
+-- Renders entry index of level into its Button alone: sets level.frame and the entry's frame.
+function M.renderEntry(w, level, index)
   local container = containerFor(w, level)
   level.frame = container
-  for index, entry in ipairs(level.entries) do
-    fillButton(w, level, entry, index, buttonAt(w, level, container, index))
+  fillButton(w, level, level.entries[index], index, buttonAt(w, level, container, index))
+end
+
+-- Renders level into frames: sets level.frame and each entry.frame; buttons past the entry count are hidden.
+function M.render(w, level)
+  for index = 1, #level.entries do
+    M.renderEntry(w, level, index)
   end
+  local container = containerFor(w, level)
+  level.frame = container
   for index = #level.entries + 1, #(w.menuPool[container] or {}) do
     w.menuPool[container][index]:Hide()
   end
@@ -132,22 +142,21 @@ local function hideLevel(w, level)
 end
 
 -- Closes level depth and every deeper level, deepest first. Each level leaves w.menus before its OnLeave runs, so a
--- handler that closes menus itself sees only the levels still open.
+-- handler that closes menus itself sees only the levels still open. maxn, not #: w.menus can have gaps (open).
 function M.close(w, depth)
-  while #w.menus >= depth do
-    local last = #w.menus
+  while maxn(w.menus) >= depth do
+    local last = maxn(w.menus)
     local level = w.menus[last]
     w.menus[last] = nil
     hideLevel(w, level)
   end
 end
 
--- Opens level at depth (1 is the first menu): closes it and deeper levels first, then renders and shows it.
+-- Opens level at depth (1 is the first menu): closes it and deeper levels first, then renders and shows it. The
+-- shallower levels may be closed: ToggleDropDownMenu shows DropDownList<n> without looking at the lists below it
+-- (Mainline Interface/AddOns/Blizzard_SharedXML/Mainline/UIDropDownMenu.lua:1049-1202, Classic :990-1139).
 function M.open(w, depth, level)
   M.close(w, depth)
-  if depth > #w.menus + 1 then
-    error("open: depth " .. depth .. " leaves a gap", 2)
-  end
   w.menus[depth] = level
   M.render(w, level)
   level.frame:Show()

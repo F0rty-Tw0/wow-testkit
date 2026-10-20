@@ -20,13 +20,13 @@ end
 -- Opens a UIDropDownMenu menu: a colored title, Open, Locked (disabled), More (submenu with Nested). picks records func calls.
 local function openMenuFixture(picks)
   local dd = _G.CreateFrame("Frame", "MenuStepDD", _G.UIParent, "UIDropDownMenuTemplate")
-  local function add(text, fields)
+  local function add(text, fields, level)
     local info = _G.UIDropDownMenu_CreateInfo()
     info.text = text
     for k, v in pairs(fields) do
       info[k] = v
     end
-    _G.UIDropDownMenu_AddButton(info, 1)
+    _G.UIDropDownMenu_AddButton(info, level)
   end
   local function record(name)
     return function()
@@ -35,7 +35,7 @@ local function openMenuFixture(picks)
   end
   _G.UIDropDownMenu_Initialize(dd, function(_, level, menuList)
     if level == 2 then
-      add(menuList[1], { notCheckable = true, func = record(menuList[1]) })
+      add(menuList[1], { notCheckable = true, func = record(menuList[1]) }, 2)
       return
     end
     add("|cff00ff00Head|r", { isTitle = true, notCheckable = true })
@@ -116,29 +116,32 @@ local function test_pick_ambiguous_text_throws()
   end)
 end
 
--- The title's text is "|cff00ff00Head|r": matching "Head" proves the color escapes are stripped, and the error proves it matched.
-local function test_pick_title_throws_mouse_disabled()
+-- The title's text is "|cff00ff00Head|r": matching "Head" proves the color escapes are stripped, and the error proves
+-- it matched. A UIDropDownMenu title is a disabled Button (Mainline UIDropDownMenu.lua:466-475).
+local function test_pick_title_throws_disabled()
   withMenuScenario(function(s)
     openMenuFixture({})
     A.errors(function()
       s:pick("Head")
-    end, "pick: mouse disabled")
+    end, "pick: disabled")
   end)
 end
 
-local function test_pick_divider_throws_mouse_disabled()
+-- A hand-built level holding a disabled divider, as the dropdown fake makes one (S2, S13); the text only lets pick
+-- find it.
+local function test_pick_divider_throws_disabled()
   withMenuScenario(function(s)
     local MenuFrames = require("framexml.fakes.menu_frames")
     local level = {
       namePrefix = "DropDownList1",
-      entries = { { kind = "divider", text = "sep", enabled = true, checked = false, hasSubmenu = false } },
+      entries = { { kind = "divider", text = "sep", enabled = false, checked = false, hasSubmenu = false } },
       pick = function() end,
       openSubmenu = function() end,
     }
     MenuFrames.open(s.w, 1, level)
     A.errors(function()
       s:pick("sep")
-    end, "pick: mouse disabled")
+    end, "pick: disabled")
   end)
 end
 
@@ -219,6 +222,16 @@ local function test_close_menus_hides_every_level()
     s:closeMenus()
     A.eq(s:menu(), nil)
     A.eq(_G.DropDownList2:IsShown(), false)
+  end)
+end
+
+local function test_pick_without_a_text_or_path_throws_at_the_caller()
+  withMenuScenario(function(s)
+    openMenuFixture({})
+    local message = A.errors(function()
+      s:pick(nil)
+    end, "pick: expected an entry text or a path table, got nil")
+    A.contains(message, "test_scenario_menu.lua:")
   end)
 end
 
@@ -409,14 +422,15 @@ end
 
 return function()
   test_pick_with_an_empty_path_throws()
+  test_pick_without_a_text_or_path_throws_at_the_caller()
   test_menu_is_nil_when_no_menu_is_open()
   test_menu_returns_levels_with_copied_entries_and_the_same_frames()
   test_pick_clicks_the_matching_level_one_entry()
   test_pick_path_enters_the_submenu_then_clicks_the_last()
   test_pick_unknown_text_throws_listing_the_entries()
   test_pick_ambiguous_text_throws()
-  test_pick_title_throws_mouse_disabled()
-  test_pick_divider_throws_mouse_disabled()
+  test_pick_title_throws_disabled()
+  test_pick_divider_throws_disabled()
   test_pick_disabled_entry_throws_disabled()
   test_pick_with_no_menu_open_throws()
   test_pick_path_through_an_entry_without_a_submenu_throws()
