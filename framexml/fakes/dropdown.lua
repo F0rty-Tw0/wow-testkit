@@ -1,5 +1,5 @@
 -- UIDropDownMenu fake: Initialize/AddButton/Toggle build menu levels that MenuFrames renders; picks run the entry's func.
--- Sources: docs/client-sources.md "UIDropDownMenu" (S1, S2, S4-S8, S10-S15); client paths are
+-- Sources: docs/client-sources.md "UIDropDownMenu" (S1, S2, S4-S8, S10-S17); client paths are
 -- relative to Interface/AddOns/Blizzard_SharedXML/<Mainline|Classic>/UIDropDownMenu.lua.
 local M = {}
 
