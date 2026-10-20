@@ -123,6 +123,17 @@ local function test_destroy_and_the_next_world_survive_clobbered_host_globals()
   withWorld("retail", function() end)
 end
 
+local function test_run_still_returns_results_after_an_addon_clears_select()
+  local ok, result
+  withWorld("retail", function(w)
+    rawset(_G, "select", nil)
+    ok, result = pcall(w.run, w, "scenario", function()
+      return 7
+    end)
+  end)
+  A.same({ ok, result }, { true, 7 })
+end
+
 local function test_forever_library_extensions_restored_on_destroy()
   local realRequire = require
   withWorld("forever", function()
@@ -259,6 +270,7 @@ return function()
   test_destroy_restores_the_string_metatable_exactly()
   test_destroy_restores_the_thread_environment()
   test_destroy_and_the_next_world_survive_clobbered_host_globals()
+  test_run_still_returns_results_after_an_addon_clears_select()
   test_forever_library_extensions_restored_on_destroy()
   test_install_api_gate()
   test_install_framexml_gate_uses_flavors()

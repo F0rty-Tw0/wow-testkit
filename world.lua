@@ -14,6 +14,8 @@ local unpack = unpack
 -- Host functions new and destroy use, kept as upvalues: addon writes land raw in _G, so an addon that reassigns
 -- one (setfenv = nil, debug = true) must not break destroy or the next world.
 local pairs, ipairs, rawget, rawset, type, setmetatable = pairs, ipairs, rawget, rawset, type, setmetatable
+-- Same for World:run's pack, which runs while addon globals are live.
+local select = select
 local getfenv, setfenv = getfenv, setfenv
 local getRawMetatable, setRawMetatable = debug.getmetatable, debug.setmetatable
 
