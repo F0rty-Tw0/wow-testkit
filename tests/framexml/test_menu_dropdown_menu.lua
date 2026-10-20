@@ -246,7 +246,7 @@ local function test_template_on_a_non_dropdown_reports_an_error_and_still_create
     A.eq(#w.errors, 0)
     local button = _G.CreateFrame("Button", nil, _G.UIParent, "WowStyle1DropdownTemplate")
     A.eq(#w.errors, 1)
-    A.contains(w.errors[1].message, "element is not a DropdownButton.")
+    A.eq(w.errors[1].message, " element is not a DropdownButton.")
     button:SetText("Shown")
     A.eq(button:GetText(), "Shown")
     A.eq(button.Text:GetText(), "Shown")
