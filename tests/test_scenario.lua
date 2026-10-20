@@ -139,6 +139,19 @@ local function test_thrown_run_error_fails_only_that_flavor()
   A.eq(results.vanilla.status, "pass")
 end
 
+local function test_thrown_run_error_keeps_its_message_after_an_addon_sets_debug()
+  local root = Tmp.dir("scenario") .. "/DebugSet"
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/DebugSet.toc", "## Interface: " .. Flavors.get("retail").tocVersion .. "\n\nCore.lua\n")
+  fs.writeFile(root .. "/Core.lua", "debug = true\n")
+  local report = Scenario.matrix({ "retail" }, function(s)
+    s:login()
+    error("scenario exploded")
+  end, { addon = "DebugSet", root = root }).retail
+  A.contains(tostring(report.errors[1].message), "scenario exploded")
+  A.contains(tostring(report.errors[1].traceback), "stack traceback")
+end
+
 local function tempRoot()
   return Tmp.dir("scenario")
 end
@@ -269,6 +282,7 @@ return function()
   test_matrix_destroys_every_world()
   test_addon_library_writes_do_not_leak_across_flavors()
   test_thrown_run_error_fails_only_that_flavor()
+  test_thrown_run_error_keeps_its_message_after_an_addon_sets_debug()
   test_snapshot_mismatch_fails_the_report_without_throwing()
   test_snapshot_writes_the_golden_with_a_note_on_update()
   test_snapshot_reads_are_not_counted_as_unscripted()

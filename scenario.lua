@@ -13,6 +13,8 @@ local Units = require("units")
 local Widgets = require("ui.widgets")
 local World = require("world")
 
+-- Localized: addon code may assign a global named debug.
+local debugTraceback = debug.traceback
 local MOUSEOVER = "mouseover"
 local ENGINE = "blizzard"
 local LOGIN_EVENTS = { "VARIABLES_LOADED", "PLAYER_LOGIN" }
@@ -234,7 +236,7 @@ local function guarded(fn, s)
   local ok, err = xpcall(function()
     fn(s)
   end, function(e)
-    traceback = debug.traceback()
+    traceback = debugTraceback()
     return e
   end)
   return ok, err, traceback
