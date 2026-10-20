@@ -263,15 +263,6 @@ local function test_toggle_without_a_frame_uses_the_owner_of_level_one()
   end)
 end
 
-local function test_toggle_beyond_level_three_errors()
-  withFrameXML("retail", function()
-    local frame = newDropdown({ { "One" } })
-    A.errors(function()
-      _G.ToggleDropDownMenu(4, nil, frame)
-    end, "past DropDownList3")
-  end)
-end
-
 local function test_toggle_on_a_frame_without_initialize_errors()
   withFrameXML("retail", function()
     local frame = _G.CreateFrame("Frame", "BareDD", _G.UIParent, "UIDropDownMenuTemplate")
@@ -532,7 +523,6 @@ return function()
   test_toggle_again_on_the_owning_frame_closes_the_menu()
   test_toggle_on_another_frame_replaces_the_open_menu()
   test_toggle_without_a_frame_uses_the_owner_of_level_one()
-  test_toggle_beyond_level_three_errors()
   test_toggle_on_a_frame_without_initialize_errors()
   test_pick_passes_entry_frame_args_checked_and_button_to_func()
   test_pick_on_classic_flavors_passes_four_args()

@@ -5,7 +5,6 @@ local M = {}
 
 local MenuFrames = require("framexml.fakes.menu_frames")
 
-local MAX_LEVEL = 3
 local LIST_NAME = "DropDownList"
 local DEFAULT_WIDTH_PADDING = 50
 -- Flavors on the Mainline UIDropDownMenu.lua; the others run the Classic one (S7, S8 differ in argument counts).
@@ -186,9 +185,23 @@ local function initialize(w, frame, init, displayMode, level, menuList)
   end
 end
 
+-- UIDropDownMenu_CreateFrames (Mainline :342-356, Classic :301-315), run by AddButton and Toggle: a level past
+-- UIDROPDOWNMENU_MAXLEVELS raises it and creates the list, a parentless hidden Button (S9). A kit-made list is reused.
+local function createLists(w, level)
+  local count = rawget(_G, "UIDROPDOWNMENU_MAXLEVELS")
+  while level > count do
+    count = count + 1
+    w:setGlobal("UIDROPDOWNMENU_MAXLEVELS", count)
+    if not rawget(_G, LIST_NAME .. count) then
+      w.ui.create("Button", LIST_NAME .. count, nil):Hide()
+    end
+  end
+end
+
 -- S5 (Mainline :421-439, Classic :380-396): appends to DropDownList<level or 1>, the shown one at once, else the one
 -- being built. Any other list is hidden and its next Initialize or Toggle clears it, so the kit drops the entry.
 local function addButton(w, info, level)
+  createLists(w, level or 1)
   local name = LIST_NAME .. (level or 1)
   local shown = w.menus[level or 1]
   local building = w.dropdown.building
@@ -217,10 +230,7 @@ local function frameFor(w, level, frame)
   return frame
 end
 
-local function checkToggle(level, frame)
-  if level > MAX_LEVEL then
-    error("ToggleDropDownMenu: level " .. level .. " is past " .. LIST_NAME .. MAX_LEVEL, 3)
-  end
+local function checkToggle(frame)
   if not frame then
     error("ToggleDropDownMenu: no dropdown frame", 3)
   end
@@ -235,10 +245,11 @@ end
 -- x, y, button, autoHideDelay and displayMode are ignored: the kit has no layout.
 local function toggle(w, level, value, frame, menuList)
   level = level or 1
+  createLists(w, level)
   w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", level)
   w:setGlobal("UIDROPDOWNMENU_MENU_VALUE", value)
   frame = frameFor(w, level, frame)
-  checkToggle(level, frame)
+  checkToggle(frame)
   local first = w.menus[1]
   if level == 1 and first and first.owner == frame then
     MenuFrames.close(w, 1)
@@ -308,6 +319,7 @@ function M.install(w)
   for name, fn in pairs(globalsFor(w)) do
     w:install(name, fn, KETHO_GATE)
   end
+  w:setGlobal("UIDROPDOWNMENU_MAXLEVELS", MAINLINE[w.flavor] and 3 or 2) -- Mainline :4, Classic :5
   -- Mainline :12, Classic :13; OPEN_MENU, INIT_MENU and MENU_VALUE start nil. UIDropDownMenu_OnHide clears the open
   -- menu when list 1 hides (Mainline :1347-1349, Classic :1249-1251), as a script an addon's SetScript replaces.
   w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", 1)

@@ -78,7 +78,53 @@ local function test_add_button_outside_a_build_joins_the_shown_list()
   end)
 end
 
+-- Mainline UIDropDownMenu.lua:4, Classic :5.
+local function test_max_levels_starts_at_the_client_value()
+  for flavor, levels in pairs({ retail = 3, forever = 3, mists = 2, vanilla = 2, tbc = 2 }) do
+    withFrameXML(flavor, function()
+      A.eq(rawget(_G, "UIDROPDOWNMENU_MAXLEVELS"), levels, flavor)
+    end)
+  end
+end
+
+-- Opens a chain of submenus down to depth; each level has one entry "L<level>" with an arrow above depth.
+local function openChain(w, depth)
+  local frame = newDropdown(function(level)
+    local info = _G.UIDropDownMenu_CreateInfo()
+    info.text, info.notCheckable, info.hasArrow = "L" .. level, true, level < depth
+    _G.UIDropDownMenu_AddButton(info, level)
+  end)
+  _G.ToggleDropDownMenu(1, nil, frame)
+  for level = 1, depth - 1 do
+    Input.enter(w, w.menus[level].entries[1].frame)
+  end
+end
+
+-- UIDropDownMenu_CreateFrames (Mainline :342-356, Classic :301-315), called by ToggleDropDownMenu (Mainline
+-- :1053-1055, Classic :994-996), raises UIDROPDOWNMENU_MAXLEVELS and creates DropDownList<n> for a deeper level.
+local function test_toggle_past_the_last_list_creates_it()
+  withFrameXML("retail", function(w)
+    openChain(w, 4)
+    A.eq(#w.menus, 4)
+    A.eq(w.menus[4].frame, _G.DropDownList4)
+    A.eq(_G.DropDownList4:GetObjectType(), "Button")
+    A.eq(_G.DropDownList4:IsShown(), true)
+    A.eq(rawget(_G, "UIDROPDOWNMENU_MAXLEVELS"), 4)
+  end)
+end
+
+local function test_classic_toggle_to_level_three_raises_max_levels()
+  withFrameXML("vanilla", function(w)
+    openChain(w, 3)
+    A.eq(#w.menus, 3)
+    A.eq(rawget(_G, "UIDROPDOWNMENU_MAXLEVELS"), 3)
+  end)
+end
+
 return function()
+  test_max_levels_starts_at_the_client_value()
+  test_toggle_past_the_last_list_creates_it()
+  test_classic_toggle_to_level_three_raises_max_levels()
   test_add_button_without_a_level_in_a_submenu_init_joins_level_one()
   test_add_button_to_a_deeper_level_during_a_level_one_build_is_dropped()
   test_add_button_outside_a_build_joins_the_shown_list()
