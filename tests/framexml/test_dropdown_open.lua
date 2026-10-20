@@ -154,7 +154,53 @@ local function test_an_addon_script_on_a_list_button_survives_reopening()
   end)
 end
 
+-- A not-checkable spec whose func records text in picks; fields are extra info fields.
+local function picked(picks, text, fields)
+  local info = {
+    notCheckable = true,
+    func = function()
+      picks[#picks + 1] = text
+    end,
+  }
+  for k, v in pairs(fields or {}) do
+    info[k] = v
+  end
+  return { text, info }
+end
+
+-- S21: the kit sets a list Button's scripts once, so they must act on the entry the Button shows now: a list refilled
+-- for another dropdown picks the new entry.
+local function test_a_list_refilled_for_another_dropdown_picks_the_new_entry()
+  withFrameXML("retail", function(w)
+    local picks = {}
+    local first = newDropdown({ picked(picks, "A") }, "FirstBoundDD")
+    local second = newDropdown({ picked(picks, "B") }, "SecondBoundDD")
+    _G.ToggleDropDownMenu(1, nil, first)
+    _G.ToggleDropDownMenu(1, nil, second)
+    Input.click(w, _G.DropDownList1Button1, "LeftButton")
+    A.same(picks, { "B" })
+  end)
+end
+
+-- S21 at level 2: DropDownList2 reopened under another entry picks that entry's submenu item.
+local function test_a_submenu_list_reopened_under_another_entry_picks_the_new_entry()
+  withFrameXML("retail", function(w)
+    local picks = {}
+    openMenu({
+      picked(picks, "X", { hasArrow = true, menuList = { picked(picks, "X1") } }),
+      picked(picks, "Y", { hasArrow = true, menuList = { picked(picks, "Y1") } }),
+    })
+    Input.enter(w, w.menus[1].entries[1].frame)
+    Input.enter(w, w.menus[1].entries[2].frame)
+    A.same(texts(w, 2), { "Y1" })
+    Input.click(w, _G.DropDownList2Button1, "LeftButton")
+    A.same(picks, { "Y1" })
+  end)
+end
+
 return function()
+  test_a_list_refilled_for_another_dropdown_picks_the_new_entry()
+  test_a_submenu_list_reopened_under_another_entry_picks_the_new_entry()
   test_an_addon_script_on_a_list_button_survives_reopening()
   test_toggle_opens_level_one_owned_by_the_frame()
   test_toggle_again_on_the_owning_frame_closes_the_menu()
