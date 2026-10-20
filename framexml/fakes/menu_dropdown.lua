@@ -68,12 +68,14 @@ local function watch(w, obj, d)
 end
 
 -- source: confirmed (row D5) DropdownButton.lua:255-264: a generator always runs; an open menu is rebuilt in place, a
--- closed one gets a throwaway root.
+-- closed one gets a throwaway root. The open menu takes the current generator first, since SetupMenu may have replaced
+-- it (:239, :195-201: the open menu gets the description the new generator built).
 local function generate(w, obj, d)
   if not d.generator then
     return
   end
   if isOpen(w, obj) then
+    w.menus[1].state.generator = d.generator
     w.menus[1].rebuild()
     d.root = w.menus[1].state.root
   else
