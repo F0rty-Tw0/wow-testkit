@@ -43,7 +43,7 @@ end
 local function test_set_text_round_trips()
   withWidgets("retail", function()
     local text = newText()
-    A.eq(text:GetText(), nil) -- (F4) wiki: nil if no text is set
+    A.eq(text:GetText(), nil) -- (F5) wiki: nil if no text is set
     text:SetText("hi")
     A.eq(text:GetText(), "hi")
     text:SetFormattedText("%d items", 3)
@@ -51,7 +51,7 @@ local function test_set_text_round_trips()
   end)
 end
 
-local function test_set_text_nil_reads_back_nil() -- (F4)
+local function test_set_text_nil_reads_back_nil() -- (F5)
   withWidgets("vanilla", function()
     local text = newText()
     text:SetText("hi")

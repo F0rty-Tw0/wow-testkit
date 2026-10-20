@@ -1,4 +1,4 @@
--- GetDebugName (row F3, wiki API_Object_GetDebugName): a named object's name; an anonymous one with a parent is
+-- GetDebugName (row F4, wiki API_Object_GetDebugName): a named object's name; an anonymous one with a parent is
 -- "<parent's debug name>.<key>", the key being the parent's field holding it, else its address; an anonymous one
 -- without a parent is "". Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
 local M = {}
@@ -20,7 +20,7 @@ local function keyIn(parent, obj)
   return nil
 end
 
--- source: assumed (row F3) the client prints a memory address ("156f1390860"); the kit prints the table's address,
+-- source: assumed (row F4) the client prints a memory address ("156f1390860"); the kit prints the table's address,
 -- in lowercase hex without leading zeros.
 local function address(obj)
   local hex = tostring(obj):match("(%x+)$"):gsub("^0+", "")
@@ -28,7 +28,7 @@ local function address(obj)
   return hex:lower()
 end
 
--- source: confirmed (row F3); preferParentKey is ignored (no source shows what it changes).
+-- source: confirmed (row F4); preferParentKey is ignored (no source shows what it changes).
 local function debugName(w, obj, st)
   if st.name then
     return st.name

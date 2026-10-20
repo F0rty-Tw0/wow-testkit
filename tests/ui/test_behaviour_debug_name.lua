@@ -1,4 +1,4 @@
--- GetDebugName: the wiki API_Object_GetDebugName examples (row F3).
+-- GetDebugName: the wiki API_Object_GetDebugName examples (row F4).
 local A = require("assert")
 local HW = require("tests.helpers.widgets")
 
