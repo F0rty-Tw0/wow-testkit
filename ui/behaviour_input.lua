@@ -220,8 +220,9 @@ end
 
 -- source: confirmed (row I6) SetText fires OnTextSet(self), then OnTextChanged(self, false) only when the text
 -- changed, so a handler that sets its own text does not recurse; assumed (row I6) OnTextSet fires for unchanged text.
+-- A fresh box (st.text nil) counts as "".
 local function setEditText(w, obj, st, text)
-  local old = st.text
+  local old = st.text or ""
   st.text = tostring(text or "")
   w:callScript(obj, "OnTextSet")
   if st.text ~= old then

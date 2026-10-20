@@ -409,6 +409,16 @@ local function test_set_text_with_the_same_text_fires_no_on_text_changed() -- (I
   end)
 end
 
+local function test_set_text_of_empty_text_on_a_fresh_box_fires_no_on_text_changed() -- (I6)
+  withWidgets("retail", function()
+    local box = _G.CreateFrame("EditBox")
+    local log = Rec.record(box, { "OnTextChanged" })
+    box:SetText("")
+    box:SetText()
+    A.same(log, {})
+  end)
+end
+
 local function test_set_text_with_the_same_text_still_fires_on_text_set_assumed() -- (I6)
   withWidgets("retail", function()
     local box = _G.CreateFrame("EditBox")
@@ -453,6 +463,7 @@ return function()
   test_clear_focus_fires_lost_and_clears_only_for_the_focused_box()
   test_set_text_on_an_edit_box_fires_on_text_changed_with_user_input_false()
   test_set_text_with_the_same_text_fires_no_on_text_changed()
+  test_set_text_of_empty_text_on_a_fresh_box_fires_no_on_text_changed()
   test_set_text_with_the_same_text_still_fires_on_text_set_assumed()
   test_on_text_changed_that_sets_its_own_text_does_not_recurse()
   test_set_text_on_other_types_is_unchanged()
