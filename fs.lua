@@ -35,10 +35,17 @@ local function renameProbe(path)
   return ok ~= nil or code == EACCES
 end
 
+-- A file that opens exists; the rename probe covers directories, which io.open cannot open on Windows. Opening first
+-- keeps a read-only mount working, where the rename fails with EROFS.
 function M.exists(path)
   local bridge = host()
   if bridge then
     return bridge.exists(path)
+  end
+  local file = io.open(path, "r")
+  if file then
+    file:close()
+    return true
   end
   return renameProbe(path)
 end
