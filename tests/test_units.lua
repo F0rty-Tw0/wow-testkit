@@ -145,6 +145,16 @@ local function test_token_from_guid_answers_mouseover_aliasing_an_unlisted_token
   end)
 end
 
+-- Unit indexes start at 1 with no leading zero (wiki UnitToken: "partyN", N "1,2,3 or 4"), so party0 and party01 are
+-- not tested.
+local function test_token_from_guid_skips_index_zero_and_leading_zeros()
+  withUnits("retail", function(w)
+    w:unit("party0", { guid = "G1" })
+    w:unit("party01", { guid = "G1" })
+    A.eq(_G.UnitTokenFromGUID("G1"), nil)
+  end)
+end
+
 -- A token outside the wiki's list (targettarget) is never tested.
 local function test_token_from_guid_skips_unlisted_tokens()
   withUnits("retail", function(w)
@@ -224,6 +234,7 @@ return function()
   test_token_from_guid_follows_the_wiki_order()
   test_token_from_guid_skips_unlisted_tokens()
   test_token_from_guid_answers_mouseover_aliasing_an_unlisted_token()
+  test_token_from_guid_skips_index_zero_and_leading_zeros()
   test_token_from_guid_falls_back_to_mouseover()
   test_missing_fixture_counts_as_unscripted()
   test_fixture_answer_not_counted_as_unscripted()

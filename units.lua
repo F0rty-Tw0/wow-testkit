@@ -113,7 +113,7 @@ end
 local function tokenRank(token)
   for i, entry in ipairs(TOKEN_ORDER) do
     local group = entry:match("^(%a+)#$")
-    local index = group and tonumber(token:match("^" .. group .. "(%d+)$"))
+    local index = group and tonumber(token:match("^" .. group .. "([1-9]%d*)$"))
     if token == entry or index then
       return i * INDEX_SPAN + (index or 0)
     end
