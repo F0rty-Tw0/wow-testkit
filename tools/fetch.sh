@@ -50,9 +50,13 @@ doc_count=$(find "$gethe_dir/$DOCS_PATH" -maxdepth 1 -name '*.lua' | wc -l)
 git_ rev-parse HEAD >"$gethe_dir/COMMIT"
 
 mkdir -p "$ketho_dir"
+# Resolve the branch once so every file comes from the same commit, and record it for api/versions.lua.
+ketho_commit=$(gh api "repos/$KETHO_REPO/commits/$branch" --jq .sha | tr -d '\r')
+[[ $ketho_commit =~ ^[0-9a-f]{40}$ ]] || die "could not resolve $KETHO_REPO $branch to a commit: $ketho_commit"
 for f in "${KETHO_FILES[@]}"; do
-  gh api "repos/$KETHO_REPO/contents/Resources/$f.lua?ref=$branch" -H "Accept: application/vnd.github.raw" >"$ketho_dir/$f.lua.tmp"
+  gh api "repos/$KETHO_REPO/contents/Resources/$f.lua?ref=$ketho_commit" -H "Accept: application/vnd.github.raw" >"$ketho_dir/$f.lua.tmp"
   mv "$ketho_dir/$f.lua.tmp" "$ketho_dir/$f.lua"
 done
+echo "$ketho_commit" >"$ketho_dir/COMMIT"
 
-echo "OK $branch: $(head -c 40 "$gethe_dir/version.txt" | tr -d '\r\n'), $doc_count doc files, commit $(cat "$gethe_dir/COMMIT")"
+echo "OK $branch: $(head -c 40 "$gethe_dir/version.txt" | tr -d '\r\n'), $doc_count doc files, commit $(cat "$gethe_dir/COMMIT"), Ketho commit $ketho_commit"
