@@ -24,6 +24,8 @@ branch=$1
 kit_root=$(cd "$(dirname "$0")/.." && { pwd -W 2>/dev/null || pwd; }) # pwd -W: native path for Windows Lua
 home=$(lua -e "package.path='$kit_root/?.lua;'..package.path; print(require('home').dir())" | tr -d '\r')
 [[ -n $home ]] || die "could not resolve the testkit home"
+# A POSIX-style TESTKIT_HOME (/c/...) reaches native git unconverted under MSYS_NO_PATHCONV, which reads it as C:\c\...
+if command -v cygpath >/dev/null; then home=$(cygpath -m "$home"); fi
 
 gethe_dir="$home/mirror/gethe/$branch"
 ketho_dir="$home/mirror/ketho/$branch"
