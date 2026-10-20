@@ -245,6 +245,16 @@ local function test_a_golden_update_still_writes_after_an_addon_sets_io()
   A.eq(fs.readFile(goldenRoot .. "/tests/scenarios/golden/scn/snap.retail.txt"), "hello\n")
 end
 
+local function test_debugprofilestop_still_works_after_an_addon_clears_os()
+  local clearRoot = tempAddon("OsClear", "os = nil\n")
+  local useRoot = tempAddon("OsUse", "local _, ns = ...\nns.ms = debugprofilestop()\n")
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "OsClear", root = clearRoot })
+    local ns = Addon.load(w, { name = "OsUse", root = useRoot })
+    A.same({ errorMessages(w), type(ns.ms) }, { "", "number" })
+  end)
+end
+
 local GLOBALS_INDEX = [[
 local _, ns = ...
 ns.before = getmetatable(_G)
@@ -541,6 +551,7 @@ return function()
   test_a_failing_error_handler_still_records_after_an_addon_sets_debug()
   test_later_addons_still_load_after_an_addon_sets_io()
   test_a_golden_update_still_writes_after_an_addon_sets_io()
+  test_debugprofilestop_still_works_after_an_addon_clears_os()
   test_addon_globals_metatable_index_fires_only_for_absent_globals_assumed()
   test_addon_globals_metatable_newindex_fires_only_for_new_globals_assumed()
   test_second_addon_sees_the_first_addons_globals_metatable_assumed()
