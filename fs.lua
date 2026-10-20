@@ -60,15 +60,22 @@ function M.mkdirp(path)
   end
 end
 
--- Creates the one directory path (its parent must exist): true when this call created it, false when it already
--- existed. Atomic, so concurrent processes can claim unique directories with it.
+-- Creates the one directory path: true when this call created it, false when it already existed; raises on any
+-- other failure. Atomic, so concurrent processes can claim unique directories with it. A missing parent raises on
+-- the bridge and on POSIX; Windows cmd creates it.
 function M.mkdir(path)
   local bridge = host()
   if bridge then
     return bridge.mkdir(path)
   end
   local result = os.execute("mkdir " .. shellPath(path) .. (IS_WINDOWS and " 2>nul" or " 2>/dev/null"))
-  return result == 0 or result == true
+  if result == 0 or result == true then
+    return true
+  end
+  if not M.isdir(path) then
+    error("fs.mkdir: cannot create " .. path, 2)
+  end
+  return false
 end
 
 function M.list(dir)
