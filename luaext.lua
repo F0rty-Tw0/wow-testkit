@@ -46,9 +46,20 @@ function M.wipe(t)
   return t
 end
 
+-- A number argument reads as its string form, as a C string argument does (lua_tolstring): the docs type these as
+-- Lua strings (api/retail/StringUtil.lua string.trim, wiki API_strsplit). Other non-strings still raise.
+local function stringArg(value)
+  if type(value) == "number" then
+    return tostring(value)
+  end
+
+  return value
+end
+
 -- strsplit(sep, str, pieces): sep is a set of single chars; at most pieces values, the last keeping the rest.
 function M.strsplit(sep, str, pieces)
-  local class = "[" .. escapeClass(sep) .. "]"
+  local class = "[" .. escapeClass(stringArg(sep)) .. "]"
+  str = stringArg(str)
   local out, start = {}, 1
   while not pieces or #out < pieces - 1 do
     local first, last = str:find(class, start)
@@ -65,16 +76,6 @@ end
 function M.strjoin(sep, ...)
   local parts = pack(...)
   return table.concat(parts, sep, 1, parts.n)
-end
-
--- A number argument reads as its string form, as a C string argument does (lua_tolstring): the doc types both as
--- Lua strings (api/retail/StringUtil.lua string.trim). Other non-strings still raise.
-local function stringArg(value)
-  if type(value) == "number" then
-    return tostring(value)
-  end
-
-  return value
 end
 
 function M.strtrim(str, chars)

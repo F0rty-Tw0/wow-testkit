@@ -24,6 +24,14 @@ local function test_strsplit_pieces_keeps_rest_in_last()
   end)
 end
 
+-- A number argument reads as its string form, as in strtrim (wiki API_strsplit types both as strings).
+local function test_strsplit_takes_numbers_as_strings()
+  withWorld("retail", function()
+    A.same({ _G.strsplit(".", 1.5) }, { "1", "5" })
+    A.same({ _G.strsplit(0, "10203") }, { "1", "2", "3" })
+  end)
+end
+
 local function test_wipe_empties_and_returns_table()
   withWorld("retail", function()
     local t = { 1, 2, x = 3 }
@@ -248,6 +256,7 @@ return function()
   test_strsplit_returns_each_piece()
   test_strsplit_separator_is_a_set_of_chars()
   test_strsplit_pieces_keeps_rest_in_last()
+  test_strsplit_takes_numbers_as_strings()
   test_wipe_empties_and_returns_table()
   test_strtrim_and_strjoin()
   test_strtrim_takes_numbers_as_strings()
