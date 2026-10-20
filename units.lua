@@ -13,6 +13,29 @@ local CREATURE_GUID = "Creature-0-0-0-0-%d"
 local GUILD_RANK_INDEX = 0
 local API_GATE = { gate = "api" }
 local MYTHIC_SUMMARY = "C_PlayerInfo.GetPlayerMythicPlusRatingSummary"
+-- wiki API_UnitTokenFromGUID's test order; "#" marks a numbered group (party1, party2, ...).
+local TOKEN_ORDER = {
+  "player",
+  "vehicle",
+  "pet",
+  "party#",
+  "partypet#",
+  "raid#",
+  "raidpet#",
+  "nameplate#",
+  "arena#",
+  "arenapet#",
+  "boss#",
+  "target",
+  "focus",
+  "npc",
+  "mouseover",
+  "softenemy",
+  "softfriend",
+  "softinteract",
+}
+-- Rank step per TOKEN_ORDER entry; above any unit index.
+local INDEX_SPAN = 1000
 
 -- API name -> the fixture fields it returns, in return order.
 local FIELD_ANSWERS = {
@@ -86,14 +109,33 @@ local function fieldAnswer(w, name, fields)
   end
 end
 
-local function tokenFromGuid(state, guid)
-  local tokens = {}
-  for token in pairs(state.byToken) do
-    if token ~= MOUSEOVER then
-      tokens[#tokens + 1] = token
+-- The token's place in TOKEN_ORDER (a numbered group ordered by its index), or nil for a token the client never tests.
+local function tokenRank(token)
+  for i, entry in ipairs(TOKEN_ORDER) do
+    local group = entry:match("^(%a+)#$")
+    local index = group and tonumber(token:match("^" .. group .. "([1-9]%d*)$"))
+    if token == entry or index then
+      return i * INDEX_SPAN + (index or 0)
     end
   end
-  table.sort(tokens)
+
+  return nil
+end
+
+-- source: wiki API_UnitTokenFromGUID, "Unit tokens will be tested in the order given below, returning the first one
+-- that matches". "mouseover" is a candidate whenever it resolves, through a fixture or the w:mouseover alias.
+local function tokenFromGuid(state, guid)
+  local ranks = { [MOUSEOVER] = tokenRank(MOUSEOVER) }
+  for token in pairs(state.byToken) do
+    ranks[token] = tokenRank(token)
+  end
+  local tokens = {}
+  for token in pairs(ranks) do
+    tokens[#tokens + 1] = token
+  end
+  table.sort(tokens, function(a, b)
+    return ranks[a] < ranks[b]
+  end)
   for _, token in ipairs(tokens) do
     if guidOf(state, token) == guid then
       return token

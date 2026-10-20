@@ -118,13 +118,59 @@ local function test_removing_unit_and_clearing_mouseover()
   end)
 end
 
-local function test_token_from_guid_skips_mouseover_and_sorts()
+-- wiki API_UnitTokenFromGUID: "Unit tokens will be tested in the order given below, returning the first one that
+-- matches": player, vehicle, pet, party<x>, partypet<x>, raid<x>, raidpet<x>, nameplate<x>, arena<x>, arenapet<x>,
+-- boss<x>, target, focus, npc, mouseover, softenemy, softfriend, softinteract.
+local function test_token_from_guid_follows_the_wiki_order()
   withUnits("retail", function(w)
     w:unit("target", { guid = "G1" })
     w:unit("focus", { guid = "G1" })
     w:mouseover("target")
-    A.eq(_G.UnitTokenFromGUID("G1"), "focus")
+    A.eq(_G.UnitTokenFromGUID("G1"), "target")
+    w:unit("party2", { guid = "G1" })
+    w:unit("party10", { guid = "G1" })
+    A.eq(_G.UnitTokenFromGUID("G1"), "party2")
+    w:unit("player", { guid = "G1" })
+    A.eq(_G.UnitTokenFromGUID("G1"), "player")
     A.eq(_G.UnitTokenFromGUID("G2"), nil)
+    w:unit("arena1", { guid = "G3" })
+    w:unit("nameplate100", { guid = "G3" })
+    A.eq(_G.UnitTokenFromGUID("G3"), "nameplate100")
+  end)
+end
+
+-- "mouseover" is in the wiki's list, so it answers through the w:mouseover alias even when the aliased token is not.
+local function test_token_from_guid_answers_mouseover_aliasing_an_unlisted_token()
+  withUnits("retail", function(w)
+    w:unit("targettarget", { guid = "G1" })
+    w:mouseover("targettarget")
+    A.eq(_G.UnitTokenFromGUID("G1"), "mouseover")
+  end)
+end
+
+-- Unit indexes start at 1 with no leading zero (wiki UnitToken: "partyN", N "1,2,3 or 4"), so party0 and party01 are
+-- not tested.
+local function test_token_from_guid_skips_index_zero_and_leading_zeros()
+  withUnits("retail", function(w)
+    w:unit("party0", { guid = "G1" })
+    w:unit("party01", { guid = "G1" })
+    A.eq(_G.UnitTokenFromGUID("G1"), nil)
+  end)
+end
+
+-- A token outside the wiki's list (targettarget) is never tested.
+local function test_token_from_guid_skips_unlisted_tokens()
+  withUnits("retail", function(w)
+    w:unit("targettarget", { guid = "G1" })
+    A.eq(_G.UnitTokenFromGUID("G1"), nil)
+  end)
+end
+
+-- wiki API_UnitTokenFromGUID tests "mouseover" 15th of 18, after every other token the kit's fixtures name.
+local function test_token_from_guid_falls_back_to_mouseover()
+  withUnits("retail", function(w)
+    w:unit("mouseover", { guid = "G1" })
+    A.eq(_G.UnitTokenFromGUID("G1"), "mouseover")
   end)
 end
 
@@ -188,7 +234,11 @@ return function()
   test_fixture_fields_answer_their_apis()
   test_race_and_faction_shapes()
   test_removing_unit_and_clearing_mouseover()
-  test_token_from_guid_skips_mouseover_and_sorts()
+  test_token_from_guid_follows_the_wiki_order()
+  test_token_from_guid_skips_unlisted_tokens()
+  test_token_from_guid_answers_mouseover_aliasing_an_unlisted_token()
+  test_token_from_guid_skips_index_zero_and_leading_zeros()
+  test_token_from_guid_falls_back_to_mouseover()
   test_missing_fixture_counts_as_unscripted()
   test_fixture_answer_not_counted_as_unscripted()
   test_unset_field_counts_as_unscripted()

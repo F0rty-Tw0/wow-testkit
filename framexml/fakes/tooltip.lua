@@ -6,6 +6,7 @@ local M = {}
 
 local Core = require("framexml.fakes.core")
 local TooltipLines = require("framexml.fakes.tooltip_lines")
+local TooltipUnit = require("framexml.fakes.tooltip_unit")
 
 local unpack = unpack
 
@@ -73,6 +74,7 @@ function methods.ClearLines(_, _, tip)
   end
   tip.count = 0
   tip.unit = nil
+  tip.data = nil
 end
 
 function methods.NumLines(_, _, tip)
@@ -111,9 +113,7 @@ end
 -- Units ------------------------------------------------------------------------------------------------------
 
 function methods.GetUnit(w, _, tip)
-  if tip.unit ~= nil then
-    return (TooltipLines.ask(w, "UnitName", tip.unit)), tip.unit
-  end
+  return TooltipUnit.get(w, tip)
 end
 
 function methods.GetProcessingTooltipInfo(_, _, tip)
@@ -172,6 +172,7 @@ function methods.SetUnit(w, self, tip, unit)
     end
     return w:callScript(self, "OnTooltipSetUnit")
   end
+  tip.data = data
   tip.processing = { tooltipData = data, getterName = GETTER_NAME, getterArgs = { unit } }
   processData(w, self, tip, data)
   tip.processing = nil
@@ -261,6 +262,7 @@ function M.install(w)
   if w:install("TooltipDataProcessor", processor(callbacks), PROCESSOR_GATE) then
     w.tooltipCallbacks = callbacks
   end
+  TooltipUnit.install(w, tooltip, tipOf)
 end
 
 return M

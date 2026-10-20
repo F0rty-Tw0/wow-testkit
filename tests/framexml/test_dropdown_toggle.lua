@@ -107,6 +107,17 @@ local function test_a_hooked_toggle_misuse_error_names_the_caller()
   end)
 end
 
+-- C_Timer calls the callback from C in the client, so no Lua line called the fake; the kit's timer closure is in
+-- luaext.lua, which callsite.lua skips whole, so the walk ends past every Lua caller and the message has no position.
+local function test_a_toggle_misuse_error_from_a_timer_has_no_position_assumed() -- (S22)
+  withFrameXML("retail", function(w)
+    _G.C_Timer.After(0, _G.ToggleDropDownMenu)
+    w:advance(0)
+    A.eq(#w.errors, 1)
+    A.eq(w.errors[1].message, "ToggleDropDownMenu: no dropdown frame")
+  end)
+end
+
 -- The client indexes DropDownList<level> after init (Mainline :93-94, Classic :92-93), so a level past
 -- UIDROPDOWNMENU_MAXLEVELS whose init made no list errors there; the message and its caller line are the kit's.
 local function test_initialize_at_a_level_with_no_list_names_the_caller_assumed()
@@ -140,6 +151,7 @@ return function()
   test_initialize_with_a_false_init_keeps_the_earlier_one()
   test_initialize_at_a_level_with_no_list_names_the_caller_assumed()
   test_a_hooked_toggle_misuse_error_names_the_caller()
+  test_a_toggle_misuse_error_from_a_timer_has_no_position_assumed()
   test_initialize_on_the_open_frame_after_a_submenu_adds_to_the_shown_list_one()
   test_toggle_on_another_frame_while_list_one_is_shown_opens_it_for_that_frame()
   test_an_addon_error_without_a_position_in_a_submenu_init_is_recorded_unchanged()

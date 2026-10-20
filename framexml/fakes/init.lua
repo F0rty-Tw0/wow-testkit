@@ -8,6 +8,7 @@ local Widgets = require("ui.widgets")
 -- runs before frames (the lazy _G lookup), which goes last.
 local STAGE1 = {
   "framexml.fakes.core",
+  "framexml.fakes.mixin",
   "framexml.fakes.minimap",
   "framexml.fakes.colors",
   "framexml.fakes.strings",

@@ -1,5 +1,5 @@
 -- WoW Lua extensions installed into every world: string/table/math aliases, hooksecurefunc, securecall,
--- error handler, profiling clock and C_Timer. Clock and timer firing: test_world_events.lua.
+-- error handler, profiling clock and C_Timer. Clock and timer firing: test_world_timers.lua.
 local A = require("assert")
 local H = require("tests.helpers.world")
 
@@ -24,6 +24,14 @@ local function test_strsplit_pieces_keeps_rest_in_last()
   end)
 end
 
+-- A number argument reads as its string form, as in strtrim (wiki API_strsplit types both as strings).
+local function test_strsplit_takes_numbers_as_strings()
+  withWorld("retail", function()
+    A.same({ _G.strsplit(".", 1.5) }, { "1", "5" })
+    A.same({ _G.strsplit(0, "10203") }, { "1", "2", "3" })
+  end)
+end
+
 local function test_wipe_empties_and_returns_table()
   withWorld("retail", function()
     local t = { 1, 2, x = 3 }
@@ -37,6 +45,16 @@ local function test_strtrim_and_strjoin()
     A.eq(_G.strtrim("  hi \n"), "hi")
     A.eq(_G.strtrim("xxhixx", "x"), "hi")
     A.eq(_G.strjoin("-", "a", "b", "c"), "a-b-c")
+  end)
+end
+
+-- The doc types both arguments as Lua strings (api/retail/StringUtil.lua string.trim); a C string argument takes a
+-- number as its string form (Lua 5.1 manual, lua_tolstring), as validate.lua's ACCEPTS.string does.
+local function test_strtrim_takes_numbers_as_strings()
+  withWorld("retail", function()
+    A.eq(_G.strtrim(5), "5")
+    A.eq(H.lookup("string.trim")(5), "5")
+    A.eq(_G.strtrim("15051", 1), "505")
   end)
 end
 
@@ -238,8 +256,10 @@ return function()
   test_strsplit_returns_each_piece()
   test_strsplit_separator_is_a_set_of_chars()
   test_strsplit_pieces_keeps_rest_in_last()
+  test_strsplit_takes_numbers_as_strings()
   test_wipe_empties_and_returns_table()
   test_strtrim_and_strjoin()
+  test_strtrim_takes_numbers_as_strings()
   test_aliases_point_at_host_library()
   test_unpack_keeps_host_function()
   test_tcontains()
