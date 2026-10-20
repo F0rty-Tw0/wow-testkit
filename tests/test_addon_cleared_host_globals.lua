@@ -20,6 +20,7 @@ ns.shown = button:IsShown()
 ns.bor = bit.bor(1, 2, 4)
 ns.utf8 = strlenutf8("ab")
 ns.menu = MenuUtil.CreateContextMenu(nil, function(_, root) root:CreateButton("Entry") end) ~= nil
+ns.mixed = Mixin({}, { a = 1 }).a
 ]]
 
 local function test_kit_functions_still_work_after_an_addon_clears_select_and_xpcall()
@@ -33,9 +34,9 @@ local function test_kit_functions_still_work_after_an_addon_clears_select_and_xp
     for i, entry in ipairs(w.errors) do
       errors[i] = tostring(entry.message)
     end
-    seen = { ns.hooked, type(ns.name), ns.shown, ns.bor, ns.utf8, ns.menu }
+    seen = { ns.hooked, type(ns.name), ns.shown, ns.bor, ns.utf8, ns.menu, ns.mixed }
   end)
-  A.same({ errors, seen }, { {}, { true, "string", true, 7, 2, true } })
+  A.same({ errors, seen }, { {}, { true, "string", true, 7, 2, true, 1 } })
 end
 
 return function()
