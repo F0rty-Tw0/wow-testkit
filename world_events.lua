@@ -5,6 +5,8 @@ local M = {}
 local WorldTimers = require("world_timers")
 
 local unpack = unpack
+-- Localized: addon code may assign a global named select.
+local select = select
 
 local START_TIME = 1000.0
 local ADDON_SOURCE_PATTERN = 'addon:[^:\r\n"%]]+'
