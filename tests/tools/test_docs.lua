@@ -5,6 +5,7 @@ local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*
 local DOCS_DIR = TEST_DIR .. "/../fixtures/docs"
 local BAD_DIR = TEST_DIR .. "/../fixtures/docs_bad"
 local UNSETTLED_DIR = TEST_DIR .. "/../fixtures/docs_unsettled"
+local UNRESOLVED_DIR = TEST_DIR .. "/../fixtures/docs_unresolved"
 
 local function docNamed(entries, name)
   for _, entry in ipairs(entries) do
@@ -85,6 +86,17 @@ local function test_unsettled_values_are_reported_after_max_passes()
   A.eq(#unsettledEntries, 1, "the docs from the final pass are still returned")
 end
 
+local function test_unresolved_reference_is_reported_and_loads_as_zero()
+  local unresolvedEntries, _, unresolvedReport = Docs.loadDir(UNRESOLVED_DIR)
+  A.same(unresolvedReport.unresolved, { "Constants.Nope.X" })
+  A.eq(docNamed(unresolvedEntries, "Nope").doc.Missing, 0)
+  A.eq(docNamed(unresolvedEntries, "Nope").doc.Found, 1)
+end
+
+local function test_resolved_docs_report_no_unresolved_references()
+  A.same(report.unresolved, {})
+end
+
 local function test_missing_dir_errors()
   A.errors(function()
     Docs.loadDir(TEST_DIR .. "/../fixtures/no_such_dir")
@@ -106,5 +118,7 @@ return function()
   test_report_counts_passes_until_settled()
   test_broken_file_is_reported_with_its_filename()
   test_unsettled_values_are_reported_after_max_passes()
+  test_unresolved_reference_is_reported_and_loads_as_zero()
+  test_resolved_docs_report_no_unresolved_references()
   test_missing_dir_errors()
 end

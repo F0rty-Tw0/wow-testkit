@@ -6,7 +6,11 @@ local unpack = unpack
 
 local START_TIME = 1000.0
 local ADDON_SOURCE_PATTERN = 'addon:[^:\r\n"%]]+'
+local TRUNCATED_SOURCE_PATTERN = '%.%.%.([^:\r\n"%]]+):%d+:'
 local MAX_TIMER_FIRES = 10000
+-- Localized: addon code may assign a global named debug.
+local getinfo = debug.getinfo
+local ADDON_CHUNK_PREFIX = "@addon:"
 
 local methods = {}
 M.methods = methods
@@ -58,13 +62,49 @@ function M.reset(w)
   w.timerSeq = 0
   w.scripts = setmetatable({}, { __mode = "k" })
   w.eventFrames = {}
+  w.chunks = {}
+end
+
+-- Registers a full chunk name ("addon:Name/path.lua"), so recordError can resolve the "...tail" form Lua 5.1 gives
+-- chunk names longer than LUA_IDSIZE.
+function methods:registerChunk(name)
+  self.chunks[name] = true
+end
+
+-- The one registered chunk name ending in tail; nil when none or several do.
+local function resolveTail(chunks, tail)
+  local found
+  for name in pairs(chunks) do
+    if name:sub(-#tail) == tail then
+      if found then
+        return nil
+      end
+      found = name
+    end
+  end
+  return found
+end
+
+local function sourceIn(w, text)
+  if not text then
+    return nil
+  end
+  text = tostring(text)
+  local source = text:match(ADDON_SOURCE_PATTERN)
+  if source then
+    return source
+  end
+  for tail in text:gmatch(TRUNCATED_SOURCE_PATTERN) do
+    source = resolveTail(w.chunks, tail)
+    if source then
+      return source
+    end
+  end
+  return nil
 end
 
 function methods:recordError(message, traceback)
-  local source = tostring(message):match(ADDON_SOURCE_PATTERN)
-  if not source and traceback then
-    source = tostring(traceback):match(ADDON_SOURCE_PATTERN)
-  end
+  local source = sourceIn(self, message) or sourceIn(self, traceback)
   self.errors[#self.errors + 1] = { message = message, traceback = traceback, source = source }
 end
 
@@ -92,7 +132,9 @@ function Timer:IsCancelled()
 end
 
 -- Schedules callback(handle) after seconds; iterations nil repeats forever. Returns the handle.
+-- A negative delay counts as 0, so firing the timer never moves the clock backwards.
 function methods:schedule(seconds, callback, iterations)
+  seconds = math.max(seconds, 0)
   self.timerSeq = self.timerSeq + 1
   local timer = setmetatable({
     world = self,
@@ -200,9 +242,25 @@ end
 
 -- Events ------------------------------------------------------------------------------------------------------
 
+-- The level, as error() in the caller counts it, of the nearest addon chunk on the stack; fallback when no addon
+-- code is on it. Widget methods reach the kit through tail calls, so a fixed level can land on a lost frame.
+local function addonLevel(fallback)
+  local level = 3
+  while true do
+    local info = getinfo(level, "S")
+    if not info then
+      return fallback
+    end
+    if info.source:sub(1, #ADDON_CHUNK_PREFIX) == ADDON_CHUNK_PREFIX then
+      return level - 1
+    end
+    level = level + 1
+  end
+end
+
 local function checkEvent(w, event)
   if not (w.manifest.events[event] or w.globals.events[event]) then
-    error("unknown event '" .. tostring(event) .. "' on " .. w.flavor, 3)
+    error("unknown event '" .. tostring(event) .. "' on " .. w.flavor, addonLevel(3))
   end
 end
 

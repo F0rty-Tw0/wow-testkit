@@ -8,6 +8,8 @@ local fs = require("fs")
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local DOCS_DIR = TEST_DIR .. "/../fixtures/docs"
 local KETHO_DIR = TEST_DIR .. "/../fixtures/ketho"
+local UNRESOLVED_DIR = TEST_DIR .. "/../fixtures/docs_unresolved"
+local UNSETTLED_DIR = TEST_DIR .. "/../fixtures/docs_unsettled"
 local META = { flavor = "retail", branch = "live", version = "12.1.0.69933", mirrorCommit = "abc123" }
 
 math.randomseed(os.time())
@@ -84,6 +86,23 @@ local function test_update_versions_creates_missing_file()
   A.same(versions, { retail = { version = "12.1.0.69933", mirrorCommit = "abc123" } })
 end
 
+local function test_docs_report_lists_unresolved_references()
+  local _, _, report = Docs.loadDir(UNRESOLVED_DIR)
+  A.contains(GenerateIo.docsReportLines(report), "  Constants.Nope.X")
+end
+
+local function test_unresolved_references_alone_do_not_fail_the_run()
+  local _, _, report = Docs.loadDir(UNRESOLVED_DIR)
+  A.eq(GenerateIo.exitCode({}, report), 0)
+end
+
+local function test_unsettled_docs_are_reported_and_fail_the_run()
+  local _, _, report = Docs.loadDir(UNSETTLED_DIR)
+  local lines = table.concat(GenerateIo.docsReportLines(report), "\n")
+  A.contains(lines, "not settled")
+  A.eq(GenerateIo.exitCode({}, report), 1)
+end
+
 return function()
   test_load_ketho_takes_each_returned_table()
   test_write_split_lists_written_files_in_the_index()
@@ -92,4 +111,7 @@ return function()
   test_written_split_manifest_loads_back_whole()
   test_update_versions_keeps_other_flavors()
   test_update_versions_creates_missing_file()
+  test_docs_report_lists_unresolved_references()
+  test_unresolved_references_alone_do_not_fail_the_run()
+  test_unsettled_docs_are_reported_and_fail_the_run()
 end

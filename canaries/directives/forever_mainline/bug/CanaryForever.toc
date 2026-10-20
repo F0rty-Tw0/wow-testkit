@@ -1,0 +1,6 @@
+## Interface: 120100
+## Interface-Forever: 16001
+## Title: CanaryForever
+
+Main.lua
+ForeverFile.lua [AllowLoadGameType standard]

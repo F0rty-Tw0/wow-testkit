@@ -21,6 +21,46 @@ files["tests/**/*.lua"] = {
   globals = { "arg" },
 }
 
+-- Addon loader fixture: its global write is the behavior under test.
+files["tests/fixtures/addons/Mini/C.lua"] = {
+  globals = { "MiniGlobal" },
+}
+
+-- Scenario fixture addon: written like a real addon against the WoW globals the world installs.
+files["tests/fixtures/addons/Hover/*.lua"] = {
+  read_globals = { "CreateFrame", "Enum", "GameTooltip", "HoverDB", "TooltipDataProcessor", "UnitName" },
+}
+
+-- Unknown-event fixture: registers an event no flavor has.
+files["tests/fixtures/addons/BadEvent/*.lua"] = {
+  read_globals = { "CreateFrame" },
+}
+
+-- Polyfill fixture: its writes into the host string/table libraries are the behavior under test.
+files["tests/fixtures/addons/Poly/*.lua"] = {
+  globals = { "string.tkPoly", "table.wipe" },
+  read_globals = { "wipe" },
+}
+
+-- Sandbox fixture: its global write through _G is the behavior under test.
+files["tests/fixtures/addons/Sandbox/*.lua"] = {
+  globals = { "SandboxFoo" },
+}
+
+-- Smoke fixture addons: runaway loops through C_Timer and coroutines; Clobber's write to coroutine is the
+-- behavior under test.
+files["tests/fixtures/smoke/**/*.lua"] = {
+  read_globals = { "C_Timer" },
+  globals = { "coroutine" },
+}
+
+-- Canary fixture addons (canaries/<layer>/<name>/<variant>/): written like real addons against the world's
+-- WoW globals; the directive canaries' global writes are the behavior under test.
+files["canaries/*/*/*/*.lua"] = {
+  globals = { "CanaryForeverFile", "CanaryMainlineOnly" },
+  read_globals = { "C_PlayerInfo", "CreateFrame", "UIParent", "UnitHealth", "UnitName" },
+}
+
 -- Synthetic API documentation files run inside the docs loader's sandbox.
 files["tests/fixtures/docs*/*.lua"] = {
   read_globals = { "APIDocumentation", "Enum", "Constants" },

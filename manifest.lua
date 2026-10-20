@@ -8,6 +8,10 @@ M.SECTIONS = { "functions", "events", "enums", "constants", "structs", "widgets"
 
 local cache = {}
 
+-- The generated build versions replace the defaults in tools/flavors.lua (GetBuildInfo, TOC interface checks).
+-- Module code runs once per process; Flavors.load is idempotent anyway.
+Flavors.load(require("api.versions"))
+
 function M.empty()
   local manifest = {}
   for _, section in ipairs(M.SECTIONS) do

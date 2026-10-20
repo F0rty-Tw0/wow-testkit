@@ -9,8 +9,9 @@ local BYTECODE_MARK = 27 -- "\27Lua": a precompiled chunk could escape the sandb
 local META_FIELDS = { "NumValues", "MinValue", "MaxValue" }
 local ROOTS = { "Enum", "Constants" }
 
--- Two-level proxy: root.Group returns a table; root.Group.Name returns the collected value, else 0.
-local function proxy(groups)
+-- Two-level proxy: root.Group returns a table; root.Group.Name returns the collected value, else 0 (recording
+-- "root.Group.Name" in misses).
+local function proxy(root, groups, misses)
   return setmetatable({}, {
     __index = function(_, group)
       local known = groups[group] or {}
@@ -18,6 +19,7 @@ local function proxy(groups)
         __index = function(_, name)
           local value = known[name]
           if value == nil then
+            misses[root .. "." .. tostring(group) .. "." .. tostring(name)] = true
             return 0
           end
           return value
@@ -41,7 +43,7 @@ function M.compile(src, chunkName, env)
 end
 
 -- Runs one doc file in a fresh sandbox. Returns true plus the captured tables, or false plus the error.
-local function runFile(dir, name, values)
+local function runFile(dir, name, values, misses)
   local captured = {}
   local env = {
     APIDocumentation = {
@@ -49,8 +51,8 @@ local function runFile(dir, name, values)
         captured[#captured + 1] = t
       end,
     },
-    Enum = proxy(values.Enum),
-    Constants = proxy(values.Constants),
+    Enum = proxy("Enum", values.Enum, misses),
+    Constants = proxy("Constants", values.Constants, misses),
   }
   local src, err = fs.readFile(dir .. "/" .. name)
   local fn
@@ -67,10 +69,11 @@ local function runFile(dir, name, values)
   return true, captured
 end
 
+-- One load of every file against values. Returns entries, errors and the sorted references not found in values.
 local function loadPass(dir, names, values)
-  local entries, errors = {}, {}
+  local entries, errors, misses = {}, {}, {}
   for _, name in ipairs(names) do
-    local ok, result = runFile(dir, name, values)
+    local ok, result = runFile(dir, name, values, misses)
     if ok then
       for _, doc in ipairs(result) do
         entries[#entries + 1] = { file = name, doc = doc }
@@ -79,7 +82,12 @@ local function loadPass(dir, names, values)
       errors[#errors + 1] = { file = name, err = tostring(result) }
     end
   end
-  return entries, errors
+  local unresolved = {}
+  for key in pairs(misses) do
+    unresolved[#unresolved + 1] = key
+  end
+  table.sort(unresolved)
+  return entries, errors, unresolved
 end
 
 local function group(values, root, name)
@@ -166,17 +174,18 @@ local function luaFiles(dir)
   return names
 end
 
--- Returns entries { file, doc }, errors { file, err }, report { passes, settled, notes }.
+-- Returns entries { file, doc }, errors { file, err }, report { passes, settled, notes, unresolved }. unresolved
+-- lists the Enum/Constants references the final pass could not find (they load as 0), sorted.
 function M.loadDir(dir)
   if not fs.isdir(dir) then
     error("not a directory: " .. tostring(dir), 2)
   end
   local names = luaFiles(dir)
   local values = { Enum = {}, Constants = {} }
-  local report = { passes = 0, settled = false, notes = {} }
+  local report = { passes = 0, settled = false, notes = {}, unresolved = {} }
   local entries, errors, changed
   for pass = 1, MAX_PASSES do
-    entries, errors = loadPass(dir, names, values)
+    entries, errors, report.unresolved = loadPass(dir, names, values)
     local collected = collect(entries)
     changed = changedKeys(values, collected)
     values = collected
@@ -189,7 +198,7 @@ function M.loadDir(dir)
   for _, key in ipairs(changed) do
     report.notes[#report.notes + 1] = "not settled after " .. MAX_PASSES .. " passes: " .. key
   end
-  entries, errors = loadPass(dir, names, values)
+  entries, errors, report.unresolved = loadPass(dir, names, values)
   return entries, errors, report
 end
 

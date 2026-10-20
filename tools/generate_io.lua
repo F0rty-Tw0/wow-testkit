@@ -128,6 +128,23 @@ local function printReport(result, errors, sizes)
   print("largest file: " .. largest[1] .. " (" .. sizes[largest[1]] .. " bytes)")
 end
 
+-- The docs loader's findings: unresolved Enum/Constants references (warnings: they load as 0) and its notes.
+function M.docsReportLines(report)
+  local lines = { #report.unresolved .. " unresolved Enum/Constants references (loaded as 0)" }
+  for _, ref in ipairs(report.unresolved) do
+    lines[#lines + 1] = "  " .. ref
+  end
+  for _, note in ipairs(report.notes) do
+    lines[#lines + 1] = note
+  end
+  return lines
+end
+
+-- 1 when any doc failed to load or the docs' values did not settle; unresolved references alone do not fail.
+function M.exitCode(errors, report)
+  return (#errors == 0 and report.settled) and 0 or 1
+end
+
 local function kitRoot()
   local source = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/")
   local root = source:gsub("/?tools/generate_io%.lua$", "")
@@ -138,7 +155,7 @@ local function trim(text)
   return (text:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
--- Script entry: returns the exit code (1 when any doc failed to load; the manifest is still written).
+-- Script entry: returns the exit code (see M.exitCode; the manifest is still written).
 function M.main(Generate, flavor)
   if not flavor then
     io.stderr:write("usage: python tools/run51.py --script tools/generate.lua <flavor>\n")
@@ -152,13 +169,16 @@ function M.main(Generate, flavor)
     version = trim(readRequired(gethe .. "/version.txt")),
     mirrorCommit = trim(readRequired(gethe .. "/COMMIT")),
   }
-  local entries, errors = Docs.loadDir(gethe .. "/" .. DOCS_PATH)
+  local entries, errors, docsReport = Docs.loadDir(gethe .. "/" .. DOCS_PATH)
   local result = Generate.build(entries, M.loadKetho(Home.path("mirror", "ketho", branch)), meta)
   local root = kitRoot()
   local sizes = M.writeSplit(root, result)
   M.updateVersions(root, meta)
   printReport(result, errors, sizes)
-  return #errors == 0 and 0 or 1
+  for _, line in ipairs(M.docsReportLines(docsReport)) do
+    print(line)
+  end
+  return M.exitCode(errors, docsReport)
 end
 
 return M

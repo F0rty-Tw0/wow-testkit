@@ -1,0 +1,3 @@
+## Interface: 120100
+
+Deeply/Nested/Folder/Structure/For/Testing/Truncation/Of/Chunk/Names.lua

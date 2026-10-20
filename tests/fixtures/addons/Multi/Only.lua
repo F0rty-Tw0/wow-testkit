@@ -1,0 +1,1 @@
+-- Only.lua: Multi fixture stub.

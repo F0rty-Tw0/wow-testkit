@@ -118,6 +118,18 @@ local function test_advance_rejects_negative_seconds()
   end)
 end
 
+local function test_negative_delay_fires_now_without_moving_clock_back()
+  withWorld("retail", function(w)
+    local seen
+    _G.C_Timer.After(-5, function()
+      seen = _G.GetTime()
+    end)
+    w:advance(0)
+    A.eq(seen, 1000)
+    A.eq(_G.GetTime(), 1000)
+  end)
+end
+
 local function test_zero_interval_ticker_hits_loop_guard()
   withWorld("retail", function(w)
     local c = counter()
@@ -270,6 +282,23 @@ local function test_record_error_finds_source_in_traceback()
   end)
 end
 
+local function test_record_error_resolves_truncated_chunk_name_to_registered_one()
+  withWorld("retail", function(w)
+    w:registerChunk("addon:Foo/Deep/Path/File.lua")
+    w:recordError("...p/Path/File.lua:3: boom", "stack traceback:")
+    A.eq(w.errors[1].source, "addon:Foo/Deep/Path/File.lua")
+  end)
+end
+
+local function test_record_error_leaves_ambiguous_truncated_name_unresolved()
+  withWorld("retail", function(w)
+    w:registerChunk("addon:Foo/A/File.lua")
+    w:registerChunk("addon:Bar/A/File.lua")
+    w:recordError("...A/File.lua:3: boom", "stack traceback:")
+    A.eq(w.errors[1].source, nil)
+  end)
+end
+
 local function test_destroy_clears_timers_scripts_and_events()
   local w = World.new({ flavor = "retail" })
   local obj, c = {}, counter()
@@ -291,6 +320,7 @@ return function()
   test_timer_scheduled_during_advance_within_window_fires()
   test_timer_callback_runs_in_addon_context()
   test_advance_rejects_negative_seconds()
+  test_negative_delay_fires_now_without_moving_clock_back()
   test_zero_interval_ticker_hits_loop_guard()
   test_fire_unknown_event_names_event_and_flavor()
   test_register_unknown_event_errors()
@@ -303,5 +333,7 @@ return function()
   test_set_script_nil_clears_script_keeps_hooks()
   test_record_error_sets_addon_source()
   test_record_error_finds_source_in_traceback()
+  test_record_error_resolves_truncated_chunk_name_to_registered_one()
+  test_record_error_leaves_ambiguous_truncated_name_unresolved()
   test_destroy_clears_timers_scripts_and_events()
 end

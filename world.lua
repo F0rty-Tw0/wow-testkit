@@ -4,6 +4,7 @@ local M = {}
 
 local Flavors = require("tools.flavors")
 local Manifest = require("manifest")
+local LuaApi = require("luaapi")
 local Luaext = require("luaext")
 local WorldApi = require("world_api")
 local WorldEvents = require("world_events")
@@ -19,6 +20,8 @@ end
 local CONTEXTS = { addon = true, blizzard = true, scenario = true }
 local CONTEXT_LIST = "addon, blizzard, scenario"
 local BUILD_DATE = "Oct 1 2026"
+-- Host library tables addon code (and the kit's LuaAPI installs) may write into; restored exactly on destroy.
+local LIBRARIES = { "string", "table", "math", "os", "coroutine", "bit" }
 
 local active = nil
 
@@ -125,6 +128,32 @@ local function installBase(w, row)
   w:set("WOW_PROJECT_ID", row.projectId)
   w:install("GetBuildInfo", buildInfo(row))
   Luaext.install(w)
+  LuaApi.install(w)
+end
+
+-- { [library table] = shallow copy } for each library the host has.
+local function snapshotLibraries()
+  local snapshot = {}
+  for _, name in ipairs(LIBRARIES) do
+    local lib = rawget(_G, name)
+    if type(lib) == "table" then
+      snapshot[lib] = shallowCopy(lib)
+    end
+  end
+  return snapshot
+end
+
+local function restoreLibraries(snapshot)
+  for lib, saved in pairs(snapshot) do
+    for k in pairs(lib) do
+      if saved[k] == nil then
+        rawset(lib, k, nil)
+      end
+    end
+    for k, v in pairs(saved) do
+      rawset(lib, k, v)
+    end
+  end
 end
 
 local function snapshotGlobals()
@@ -157,6 +186,7 @@ function M.new(opts)
     restores = {},
     snapshotMt = debug.getmetatable(_G),
     snapshot = snapshotGlobals(),
+    libraries = snapshotLibraries(),
   }, World)
   WorldEvents.reset(w)
   active = w
@@ -168,7 +198,8 @@ function M.new(opts)
   return w
 end
 
--- Restores _G exactly as snapshotted (added keys removed, replaced values and metatable restored).
+-- Restores _G and the host library tables exactly as snapshotted (added keys removed, replaced values and _G's
+-- metatable restored).
 function World:destroy()
   if active ~= self then
     return
@@ -177,6 +208,7 @@ function World:destroy()
     local entry = self.restores[i]
     rawset(entry[1], entry[2], entry[3])
   end
+  restoreLibraries(self.libraries)
   WorldEvents.reset(self)
   debug.setmetatable(_G, self.snapshotMt)
   for k in pairs(_G) do

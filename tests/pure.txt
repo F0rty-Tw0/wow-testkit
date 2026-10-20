@@ -8,3 +8,5 @@ tests/tools/test_typemap.lua
 tests/tools/test_generate.lua
 tests/tools/test_generate_io.lua
 tests/test_manifest.lua
+tests/test_toc.lua
+tests/test_golden.lua

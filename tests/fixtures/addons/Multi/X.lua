@@ -1,0 +1,1 @@
+-- X.lua: Multi fixture stub.

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# tk: the kit's command line (see bin/tk.lua). Runs bin/tk.lua on Lua 5.1: lua5.1 when it is on PATH, else lupa
+# through tools/run51.py. Exits with the command's exit code.
+set -uo pipefail
+
+# pwd -W gives a Windows path under Git Bash (for a native python); elsewhere plain pwd.
+KIT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && { pwd -W 2>/dev/null || pwd; })
+
+if command -v lua5.1 >/dev/null 2>&1; then
+  exec lua5.1 "$KIT/tests/run.lua" --script "$KIT/bin/tk.lua" "$@"
+fi
+exec python "$KIT/tools/run51.py" --script "$KIT/bin/tk.lua" "$@"
