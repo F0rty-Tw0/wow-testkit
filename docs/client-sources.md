@@ -126,6 +126,14 @@ branches; which family a branch loads follows the Menu API grouping (Mainline: `
 | A1 `SetAttribute(name, value)` accepts non-string values; attribute names are case-insensitive | confirmed | Blizzard Lua passes booleans: `Interface/AddOns/Blizzard_Menu/Menu.lua:2274` (`MenuAttributeDelegate:SetAttribute("respond", true)`), `:95` (`self:SetAttribute("respond", false)`), `:2271-2273` (a menu, a description and a response object); `Interface/AddOns/Blizzard_SharedXML/Mainline/UIDropDownMenu.lua:431` (`UIDropDownMenuDelegate:SetAttribute("createframes", true)`), `:1054` (number 0). Wiki `API_Frame_SetAttribute`: `Frame:SetAttribute(attributeName, value)`, "value: any", attributeName "(case-insensitive)". The doc's `cstring` type (`api/retail/SimpleFrameAPI.lua:1475-1480`) is wrong for values. WhisperMessenger's call `button:SetAttribute("useOnKeyDown", true)` is the same shape |
 | A2 `SetAttribute` fires `OnAttributeChanged(self, name, value)` on frames whose type lists that handler, also when the value is unchanged; `name` is lowercased | confirmed | wiki `UIHANDLER_OnAttributeChanged`: "Fires when an attribute is modified on a frame.", signature `(self, name, value)`, name "The lowercased name of the attribute that was modified.", "triggered by Frame:SetAttribute()", "will always be invoked even if the previous and newly assigned values for an attribute are identical"; `API_Frame_SetAttribute`: calling it "triggers the OnAttributeChanged script handler", `SetAttributeNoHandler` does not. Blizzard Lua registers it: `Interface/AddOns/Blizzard_Menu/Menu.lua:83` (`MenuAttributeDelegate:SetScript("OnAttributeChanged", function(self, attribute, value)`), `UIDropDownMenu.lua:29-39`. Verdict: the kit lowercases the name for storage and for the handler argument. `SetAttributeNoHandler` and the `GetAttribute(prefix, name, suffix)` form are not modelled |
 
+## Animations
+
+Wiki pages are on warcraft.wiki.gg, read 2026-10-20. No Lua in the mirror calls `CreateAnimation`.
+
+| Rule | Verdict | Source |
+|---|---|---|
+| N1 `AnimationGroup:CreateAnimation()` with no type, or the type `"Animation"`, creates a base `Animation` | assumed (no Lua shows it) | wiki `API_AnimationGroup_CreateAnimation`: `animation = AnimationGroup:CreateAnimation([animationType, name, inheritsFrom])`, animationType "Type of the animation to create, one of: Animation (default), Translation, Rotation, Alpha, Scale, ControlPoints and Path". The doc marks `animationType` nilable (`api/retail/SimpleAnimGroupAPI.lua:8-13`). The kit matches the type ignoring case, as it does for the other animation types |
+
 ## Frames
 
 | Rule | Verdict | Source |

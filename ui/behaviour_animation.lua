@@ -9,10 +9,11 @@ local unpack = unpack
 local methods = {}
 M.methods = methods
 
+-- source: wiki API_AnimationGroup_CreateAnimation, animationType "one of: Animation (default)", Translation, Rotation, ...
+local DEFAULT_TYPE = "Animation"
+
+-- The base Animation type counts: CreateAnimation creates it by name and when no type is passed.
 local function isAnimation(widgetTypes, typeName)
-  if typeName == "Animation" then
-    return false
-  end
   for _, ancestor in ipairs(Inherits.ancestors(widgetTypes, typeName)) do
     if ancestor == "Animation" then
       return true
@@ -22,8 +23,11 @@ local function isAnimation(widgetTypes, typeName)
   return false
 end
 
--- The Ketho animation type whose name equals animType ignoring case, else nil.
+-- The Ketho animation type whose name equals animType ignoring case (nil means Animation), else nil.
 local function animationType(w, animType)
+  if animType == nil then
+    animType = DEFAULT_TYPE
+  end
   if type(animType) ~= "string" then
     return nil
   end

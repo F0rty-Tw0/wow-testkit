@@ -31,6 +31,18 @@ local function test_create_animation_matches_the_type_case_insensitively_for_eve
   end)
 end
 
+local function test_create_animation_without_a_type_creates_a_base_animation_assumed()
+  withWidgets("retail", function()
+    local group = _G.CreateFrame("Frame"):CreateAnimationGroup()
+    local plain, named = group:CreateAnimation(), group:CreateAnimation(nil, "Waiter")
+    A.eq(plain:GetObjectType(), "Animation")
+    A.eq(named:GetObjectType(), "Animation")
+    A.eq(_G.Waiter, named)
+    A.eq(group:CreateAnimation("animation"):GetObjectType(), "Animation")
+    A.eq(select("#", group:GetAnimations()), 3)
+  end)
+end
+
 local function test_get_animations_lists_them_in_creation_order()
   withWidgets("retail", function()
     local group = _G.CreateFrame("Frame"):CreateAnimationGroup()
@@ -84,6 +96,7 @@ end
 return function()
   test_create_animation_returns_an_animation_of_the_requested_type()
   test_create_animation_matches_the_type_case_insensitively_for_every_animation_type()
+  test_create_animation_without_a_type_creates_a_base_animation_assumed()
   test_get_animations_lists_them_in_creation_order()
   test_create_animation_rejects_an_unknown_or_non_animation_type()
   test_unknown_animation_type_error_names_the_caller_line()
