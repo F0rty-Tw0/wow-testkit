@@ -27,9 +27,10 @@ local ROWS = {
     branch = "forever",
     product = nil,
     projectId = P.WOW_PROJECT_MAINLINE,
-    gameTypes = { camelot = true, mainline = true },
+    -- warcraft.wiki.gg TOC_format: game type camelot with the alias forever, TOC suffix _Camelot with the alias _Forever.
+    gameTypes = { camelot = true, forever = true, mainline = true },
     interfaceKeys = { "Interface-Forever" },
-    tocSuffixes = { "_Camelot", "_Mainline" },
+    tocSuffixes = { "_Camelot", "_Forever", "_Mainline" },
     version = "1.60.1.70205",
   },
   mists = {
