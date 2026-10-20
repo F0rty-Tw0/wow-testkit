@@ -159,8 +159,9 @@ function M.runClick(w, frame, button, down)
   end
 end
 
--- source: confirmed (row I3) Click() ignores registration, mouse and visibility, passes isDown to the scripts as a
--- boolean (false when omitted), and does nothing on a disabled button or one already being clicked.
+-- source: confirmed (row I3) Click() ignores registration, passes isDown to the scripts (false when omitted), and
+-- does nothing on a disabled button or one already being clicked; assumed (row I3, kit choice) it skips the mouse and
+-- visibility checks and turns a non-boolean isDown into a boolean.
 local function click(w, obj, st, button, isDown)
   if st.disabled or st.clicking then
     return

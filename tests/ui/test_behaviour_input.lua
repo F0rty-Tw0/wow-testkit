@@ -147,15 +147,20 @@ local function test_click_passes_is_down_to_the_scripts() -- (I3)
     local b = _G.CreateFrame("Button")
     local log = Rec.record(b, { "PreClick", "OnClick", "PostClick" })
     b:Click("RightButton", true)
-    b:Click("LeftButton", 1)
     A.same(log, {
       { "PreClick", "RightButton", true },
       { "OnClick", "RightButton", true },
       { "PostClick", "RightButton", true },
-      { "PreClick", "LeftButton", true },
-      { "OnClick", "LeftButton", true },
-      { "PostClick", "LeftButton", true },
     })
+  end)
+end
+
+local function test_click_turns_a_non_boolean_is_down_into_a_boolean_assumed() -- (I3)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "OnClick" })
+    b:Click("LeftButton", 1)
+    A.same(log, { { "OnClick", "LeftButton", true } })
   end)
 end
 
@@ -286,7 +291,7 @@ local function test_click_on_a_disabled_button_does_nothing() -- (I3)
   end)
 end
 
-local function test_click_skips_mouse_and_visibility_checks() -- (I3)
+local function test_click_skips_mouse_and_visibility_checks_assumed() -- (I3)
   withWidgets("retail", function()
     local b = _G.CreateFrame("Button")
     local log = Rec.record(b, { "OnClick" })
@@ -451,6 +456,7 @@ return function()
   test_disable_and_enable_fire_their_scripts_only_on_change_assumed()
   test_click_runs_the_three_scripts_with_button_and_down_false()
   test_click_passes_is_down_to_the_scripts()
+  test_click_turns_a_non_boolean_is_down_into_a_boolean_assumed()
   test_click_during_its_own_click_does_nothing()
   test_click_after_an_erroring_click_script_still_runs()
   test_nested_mouse_click_keeps_the_outer_click_in_progress()
@@ -459,7 +465,7 @@ return function()
   test_register_for_clicks_defaults_to_left_button_up()
   test_register_for_clicks_accepts_any_and_named_types()
   test_click_on_a_disabled_button_does_nothing()
-  test_click_skips_mouse_and_visibility_checks()
+  test_click_skips_mouse_and_visibility_checks_assumed()
   test_enable_on_another_widget_type_keeps_the_generic_no_op()
   test_set_checked_round_trips_and_fires_no_script()
   test_run_click_passes_down_true()
