@@ -105,6 +105,24 @@ local function test_destroy_restores_the_thread_environment()
   A.eq(getfenv(0), env)
 end
 
+-- Addon writes land raw in _G, so an addon can reassign the host functions destroy and new rely on.
+local CLOBBERED = { "setfenv", "getfenv", "pairs", "ipairs", "next", "rawget", "setmetatable", "type", "debug" }
+
+local function test_destroy_and_the_next_world_survive_clobbered_host_globals()
+  local hostRawset, env = rawset, getfenv(0)
+  local w = World.new({ flavor = "retail" })
+  for _, name in ipairs(CLOBBERED) do
+    hostRawset(_G, name, nil)
+  end
+  hostRawset(_G, "debug", true)
+  hostRawset(_G, "rawset", nil)
+  local destroyed, err = pcall(w.destroy, w)
+  A.same({ destroyed, err }, { true, nil })
+  A.eq(type(rawget(_G, "setfenv")), "function")
+  A.eq(getfenv(0), env)
+  withWorld("retail", function() end)
+end
+
 local function test_forever_library_extensions_restored_on_destroy()
   local realRequire = require
   withWorld("forever", function()
@@ -240,6 +258,7 @@ return function()
   test_destroy_restores_globals_metatable()
   test_destroy_restores_the_string_metatable_exactly()
   test_destroy_restores_the_thread_environment()
+  test_destroy_and_the_next_world_survive_clobbered_host_globals()
   test_forever_library_extensions_restored_on_destroy()
   test_install_api_gate()
   test_install_framexml_gate_uses_flavors()

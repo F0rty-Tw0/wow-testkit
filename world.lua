@@ -10,6 +10,11 @@ local WorldApi = require("world_api")
 local WorldEvents = require("world_events")
 
 local unpack = unpack
+-- Host functions new and destroy use, kept as upvalues: addon writes land raw in _G, so an addon that reassigns
+-- one (setfenv = nil, debug = true) must not break destroy or the next world.
+local pairs, ipairs, rawget, rawset, type, setmetatable = pairs, ipairs, rawget, rawset, type, setmetatable
+local getfenv, setfenv = getfenv, setfenv
+local getRawMetatable, setRawMetatable = debug.getmetatable, debug.setmetatable
 
 local World = {}
 World.__index = World
@@ -141,7 +146,7 @@ local function snapshotLibraries()
       snapshot[lib] = shallowCopy(lib)
     end
   end
-  local stringMt = debug.getmetatable("")
+  local stringMt = getRawMetatable("")
   if stringMt then
     snapshot[stringMt] = shallowCopy(stringMt)
   end
@@ -189,8 +194,8 @@ function M.new(opts)
     stack = {},
     created = {},
     restores = {},
-    snapshotMt = debug.getmetatable(_G),
-    stringMt = debug.getmetatable(""),
+    snapshotMt = getRawMetatable(_G),
+    stringMt = getRawMetatable(""),
     threadEnv = getfenv(0),
     snapshot = snapshotGlobals(),
     libraries = snapshotLibraries(),
@@ -216,10 +221,9 @@ function World:destroy()
     local entry = self.restores[i]
     rawset(entry[1], entry[2], entry[3])
   end
-  debug.setmetatable("", self.stringMt)
+  setRawMetatable("", self.stringMt)
   restoreLibraries(self.libraries)
-  WorldEvents.reset(self)
-  debug.setmetatable(_G, self.snapshotMt)
+  setRawMetatable(_G, self.snapshotMt)
   for k in pairs(_G) do
     if self.snapshot[k] == nil then
       rawset(_G, k, nil)
@@ -228,6 +232,8 @@ function World:destroy()
   for k, v in pairs(self.snapshot) do
     rawset(_G, k, v)
   end
+  -- After _G is back: other modules read their host globals at call time.
+  WorldEvents.reset(self)
   active = nil
 end
 
