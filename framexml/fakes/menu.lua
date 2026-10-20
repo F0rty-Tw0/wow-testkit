@@ -54,14 +54,21 @@ end
 
 local buildLevel
 
--- Opens the submenu of entry index at depth + 1; an entry without children, or a submenu already open, does nothing.
-local function openSubmenu(w, level, index)
-  local child = level.node.children[index]
-  local open = w.menus[level.depth + 1]
-  if not child or #child.children == 0 or (open and open.parentIndex == index and open.state == level.state) then
+-- M14 (Menu.lua:2286-2296, CheckForSubmenu): entering entry index of an open level keeps the deeper levels when they
+-- hang off this entry, else closes them; then an enabled entry with children opens its submenu at depth + 1. So a
+-- disabled entry keeps its own open submenu.
+local function enterEntry(w, level, index)
+  local depth = MenuPick.depthOf(w, level)
+  local open = depth and w.menus[depth + 1]
+  if not depth or (open and open.parentIndex == index and open.state == level.state) then
     return
   end
-  local sub = buildLevel(w, level.state, child, level.depth + 1, index)
+  MenuFrames.close(w, depth + 1)
+  local child = level.node.children[index]
+  if not level.entries[index].enabled or #child.children == 0 then
+    return
+  end
+  local sub = buildLevel(w, level.state, child, depth + 1, index)
   MenuFrames.open(w, sub.depth, sub)
   attachClose(w, sub)
 end
@@ -74,8 +81,8 @@ function buildLevel(w, state, node, depth, parentIndex)
     level.entries[index] = { kind = child.kind, text = child.text, enabled = enabled, checked = checked, hasSubmenu = #child.children > 0 }
   end
   level.pick = MenuPick.forLevel(w, level)
-  level.openSubmenu = function(index)
-    openSubmenu(w, level, index)
+  level.enter = function(index)
+    enterEntry(w, level, index)
   end
   level.rebuild = state.refresh
 
