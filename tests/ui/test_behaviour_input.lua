@@ -141,6 +141,34 @@ local function test_click_runs_the_three_scripts_with_button_and_down_false() --
   end)
 end
 
+local function test_click_passes_is_down_to_the_scripts() -- (I3)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local log = Rec.record(b, { "PreClick", "OnClick", "PostClick" })
+    b:Click("RightButton", true)
+    A.same(log, {
+      { "PreClick", "RightButton", true },
+      { "OnClick", "RightButton", true },
+      { "PostClick", "RightButton", true },
+    })
+  end)
+end
+
+local function test_click_during_its_own_click_does_nothing() -- (I3)
+  withWidgets("retail", function()
+    local b = _G.CreateFrame("Button")
+    local clicks = 0
+    b:SetScript("OnClick", function(self)
+      clicks = clicks + 1
+      self:Click()
+    end)
+    b:Click()
+    A.eq(clicks, 1)
+    b:Click()
+    A.eq(clicks, 2)
+  end)
+end
+
 local function test_check_button_click_flips_the_state_before_the_scripts_assumed() -- (I4)
   withWidgets("retail", function()
     local c = _G.CreateFrame("CheckButton")
@@ -325,6 +353,8 @@ return function()
   test_mouse_queries_are_not_counted_as_unscripted()
   test_disable_and_enable_fire_their_scripts_only_on_change_assumed()
   test_click_runs_the_three_scripts_with_button_and_down_false()
+  test_click_passes_is_down_to_the_scripts()
+  test_click_during_its_own_click_does_nothing()
   test_check_button_click_flips_the_state_before_the_scripts_assumed()
   test_register_for_clicks_defaults_to_left_button_up()
   test_register_for_clicks_accepts_any_and_named_types()
