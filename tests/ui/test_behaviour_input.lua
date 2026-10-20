@@ -3,6 +3,7 @@ local A = require("assert")
 local BehaviourInput = require("ui.behaviour_input")
 local HW = require("tests.helpers.widgets")
 local Rec = require("tests.helpers.input")
+local Widgets = require("ui.widgets")
 
 local withWidgets = HW.withWidgets
 
@@ -213,6 +214,30 @@ local function test_nested_mouse_click_keeps_the_outer_click_in_progress() -- (I
   end)
 end
 
+local function test_click_after_an_erroring_intrinsic_click_handler_still_runs()
+  for _, script in ipairs({ "PreClick", "OnClick", "PostClick" }) do
+    withWidgets("retail", function(w)
+      local clicks = 0
+      Widgets.registerIntrinsic(w, "Pill", "Button", {
+        scripts = {
+          [script] = function()
+            clicks = clicks + 1
+            if clicks == 1 then
+              error("kit boom")
+            end
+          end,
+        },
+      })
+      local pill = _G.CreateFrame("Pill")
+      A.errors(function()
+        pill:Click()
+      end, "kit boom")
+      pill:Click()
+      A.eq(clicks, 2, script)
+    end)
+  end
+end
+
 local function test_check_button_click_flips_the_state_before_the_scripts_assumed() -- (I4)
   withWidgets("retail", function()
     local c = _G.CreateFrame("CheckButton")
@@ -401,6 +426,7 @@ return function()
   test_click_during_its_own_click_does_nothing()
   test_click_after_an_erroring_click_script_still_runs()
   test_nested_mouse_click_keeps_the_outer_click_in_progress()
+  test_click_after_an_erroring_intrinsic_click_handler_still_runs()
   test_check_button_click_flips_the_state_before_the_scripts_assumed()
   test_register_for_clicks_defaults_to_left_button_up()
   test_register_for_clicks_accepts_any_and_named_types()

@@ -136,9 +136,15 @@ function M.isRegistered(w, frame, button, direction)
   return clicks[button .. direction] == true
 end
 
+local function fireClickScripts(w, frame, button, down)
+  w:callScript(frame, "PreClick", button, down)
+  w:callScript(frame, "OnClick", button, down)
+  w:callScript(frame, "PostClick", button, down)
+end
+
 -- source: assumed (row I4) a CheckButton flips its checked state before PreClick. Addon errors in the scripts are
--- recorded, not raised, so st.clicking always returns to its value before this click (a nested click keeps the outer
--- one in progress).
+-- recorded, not raised; an intrinsic (kit) handler's error is raised after st.clicking returns to its value before
+-- this click (a nested click keeps the outer one in progress).
 function M.runClick(w, frame, button, down)
   local st = w.ui.state[frame]
   if st.plan.isA.checkbutton then
@@ -146,10 +152,11 @@ function M.runClick(w, frame, button, down)
   end
   local wasClicking = st.clicking
   st.clicking = true
-  w:callScript(frame, "PreClick", button, down)
-  w:callScript(frame, "OnClick", button, down)
-  w:callScript(frame, "PostClick", button, down)
+  local ok, err = pcall(fireClickScripts, w, frame, button, down)
   st.clicking = wasClicking
+  if not ok then
+    error(err, 0)
+  end
 end
 
 -- source: confirmed (row I3) Click() ignores registration, mouse and visibility, passes isDown to the scripts as a
