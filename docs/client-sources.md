@@ -120,6 +120,12 @@ branches; which family a branch loads follows the Menu API grouping (Mainline: `
 | F1 `SetParent` to the frame itself or one of its descendants raises `<name>:SetParent(): Would create a loop parenting to <parent>` and keeps the old parent | assumed (no Lua or wiki page shows it) | Forum report of the client error: WoWInterface thread t-45328 (2012), `kgPanel16:SetParent(): Would create a loop parenting to kgPanel16`. The wiki page `API_ScriptRegion_SetParent` lists no errors. The kit names an unnamed frame by its type and raises at the caller's line |
 | F2 `CreateFrame(type, name)` sets `_G[name]` with the whole name as one key, dots included (`"My.Frame"` is not `My.Frame`) | assumed (no Lua shows the engine side) | wiki `API_CreateFrame`: `name` is the "Globally accessible name to assign to the frame, or `nil` for an anonymous frame."; the page names no path splitting |
 
+## Addon loading
+
+| Rule | Verdict | Source |
+|---|---|---|
+| L1 a file whose `[AllowLoadGameType ...]` names only `wrath` and/or `cata` loads on none of the kit's flavors; a list naming no game type the client knows loads everywhere | assumed (which types each client build recognizes is not documented) | wiki `TOC_format`, `AllowLoadGameType`: game types `standard`, `forever`, `camelot`, `mists`, `cata`, `wrath`, `tbc`, `vanilla`, `plunderstorm`, `wowhack`; families `mainline` and `classic` ("classic" covers `vanilla`, `tbc`, `wrath`, `cata`, `mists`); "If at least 1 game type is specified and none of the game types are recognized by the client, the condition will be satisfied." The kit counts `wrath` and `cata` as known on every flavor; `plunderstorm`, `wowhack` and `forever` are not in its known list |
+
 ## GameTooltip
 
 Retail paths are relative to `mirror/gethe/live/` (read on GitHub `Gethe/wow-ui-source` branch `live`, 2026-10-20).
