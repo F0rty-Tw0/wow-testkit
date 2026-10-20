@@ -185,6 +185,7 @@ local function modifyMenu(w, tag, fn)
   end
   local list = w.menuApi.modifiers[tag] or {}
   w.menuApi.modifiers[tag] = list
+  -- Wrapped so a nil fn is kept too (storing nil would drop it); its call then fails when the menu opens.
   list[#list + 1] = function(...)
     return fn(...)
   end

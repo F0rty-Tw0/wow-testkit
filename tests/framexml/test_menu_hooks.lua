@@ -86,16 +86,18 @@ local function test_modify_menu_hook_error_is_recorded_and_the_menu_still_opens(
 end
 
 -- Menu.lua:2640, :2653-2659: only the tag is checked; a non-function hook fails when the menu is generated, inside
--- securecallfunction (:2636), which does not propagate the error, so it is recorded and the menu still opens.
+-- securecallfunction (:2636), which does not propagate the error, so it is recorded and the menu still opens. A nil
+-- callback is wrapped too, so it fails the same way.
 local function test_modify_menu_accepts_a_non_function_and_fails_when_the_menu_opens()
   withFrameXML("retail", function(w)
     _G.Menu.ModifyMenu("MENU_X", "nope")
+    _G.Menu.ModifyMenu("MENU_X", nil)
     A.eq(#w.errors, 0)
     open(function(_, root)
       root:SetTag("MENU_X")
       root:CreateButton("Own", noop)
     end)
-    A.eq(#w.errors, 1)
+    A.eq(#w.errors, 2)
     A.same(field(w.menus[1], "text"), { "Own" })
   end)
 end
