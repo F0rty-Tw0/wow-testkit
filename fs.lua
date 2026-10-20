@@ -4,6 +4,8 @@ local M = {}
 
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 local EACCES = 13
+-- Localized: addon code may assign a global named io.
+local ioOpen, ioPopen = io.open, io.popen
 
 local function host()
   return rawget(_G, "__tk_fs")
@@ -14,7 +16,7 @@ local function shellPath(path)
 end
 
 function M.readFile(path)
-  local file, err = io.open(path, "rb")
+  local file, err = ioOpen(path, "rb")
   if not file then
     return nil, err
   end
@@ -24,7 +26,7 @@ function M.readFile(path)
 end
 
 function M.writeFile(path, text)
-  local file = assert(io.open(path, "wb"))
+  local file = assert(ioOpen(path, "wb"))
   assert(file:write(text))
   assert(file:close())
 end
@@ -84,7 +86,7 @@ function M.list(dir)
     return bridge.list(dir)
   end
   local names = {}
-  local pipe = assert(io.popen((IS_WINDOWS and "dir /b " or "ls -1 ") .. shellPath(dir) .. " 2>" .. (IS_WINDOWS and "nul" or "/dev/null")))
+  local pipe = assert(ioPopen((IS_WINDOWS and "dir /b " or "ls -1 ") .. shellPath(dir) .. " 2>" .. (IS_WINDOWS and "nul" or "/dev/null")))
   for name in pipe:lines() do
     names[#names + 1] = name
   end

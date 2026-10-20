@@ -215,6 +215,15 @@ local function test_addon_errors_are_still_recorded_after_an_addon_sets_debug()
   end)
 end
 
+local function test_later_addons_still_load_after_an_addon_sets_io()
+  local setRoot, nextRoot = tempAddon("IoSet", "io = 1\n"), tempAddon("IoNext", "local _, ns = ...\nns.loaded = true\n")
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "IoSet", root = setRoot })
+    local ns = Addon.load(w, { name = "IoNext", root = nextRoot })
+    A.same({ errorMessages(w), ns.loaded }, { "", true })
+  end)
+end
+
 local GLOBALS_INDEX = [[
 local _, ns = ...
 ns.before = getmetatable(_G)
@@ -508,6 +517,7 @@ return function()
   test_addon_rawget_and_pairs_on_g_see_globals_but_not_host_only_names()
   test_addon_write_through_g_is_a_global_removed_on_destroy()
   test_addon_errors_are_still_recorded_after_an_addon_sets_debug()
+  test_later_addons_still_load_after_an_addon_sets_io()
   test_addon_globals_metatable_index_fires_only_for_absent_globals_assumed()
   test_addon_globals_metatable_newindex_fires_only_for_new_globals_assumed()
   test_second_addon_sees_the_first_addons_globals_metatable_assumed()
