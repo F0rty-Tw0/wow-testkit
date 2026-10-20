@@ -203,10 +203,20 @@ end
 -- DropdownSelectionTextMixin). The template copies it onto the frame, so its text methods shadow Button:SetText and
 -- :GetText on template frames only. Only the value-text methods are modelled.
 local function newMixin(w)
+  -- The template also lands on frames of other types (row D11), whose value text then lives here too.
   local function dropdownOf(frame)
-    return w.ui.state[frame].dropdown
+    local st = w.ui.state[frame]
+    st.dropdown = st.dropdown or {}
+    return st.dropdown
   end
   local mixin = {}
+  -- source: confirmed (row D11) MenuTemplates.lua:931-932 ValidateIsDropdownButtonIntrinsic(self) (DropdownButton.lua:1-11),
+  -- an assertsafe: the message goes to the error handler and creation carries on (ErrorUtil.lua:8-30).
+  function mixin.OnLoad(self)
+    if self.intrinsic ~= "DropdownButton" then
+      w:reportError(string.format("%s element is not a DropdownButton.", self:GetDebugName()))
+    end
+  end
   -- source: confirmed (row D6) MenuTemplates.lua:674-681.
   function mixin.GetText(self)
     return dropdownOf(self).text

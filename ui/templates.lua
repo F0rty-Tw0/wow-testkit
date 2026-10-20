@@ -235,8 +235,9 @@ M.TEMPLATES = {
   -- source: confirmed (row D7) Blizzard_Menu/Mainline/MenuTemplates.xml:3-39: WowStyle1DropdownTemplate (no inherits; the element is the intrinsic
   -- DropdownButton). Mainline values: 120x25, Text is GameFontHighlight, justifyH LEFT. Blizzard_Menu/Classic/MenuTemplates.xml
   -- has the same keys and types at 60x24 with GameFontHighlightSmall and RIGHT; the flavorless entry takes Mainline's.
-  -- scripts: <OnShow method="OnShow"/> (Mainline :31, Classic :34); WowStyle1DropdownMixin.OnShow is self:GenerateMenu()
-  -- (Blizzard_Menu/MenuTemplates.lua:816-820). The template's other scripts are not modelled.
+  -- scripts: <OnLoad method="OnLoad"/> (Mainline :30, Classic :33) and <OnShow method="OnShow"/> (Mainline :31, Classic :34);
+  -- WowStyle1DropdownMixin.OnLoad checks the frame is a DropdownButton (Blizzard_Menu/MenuTemplates.lua:931-932), OnShow
+  -- is self:GenerateMenu() (:816-820). The template's other scripts are not modelled.
   WowStyle1DropdownTemplate = {
     type = "DropdownButton",
     inherits = {},
@@ -248,7 +249,7 @@ M.TEMPLATES = {
     mixins = { "WowStyle1DropdownMixin" },
     protected = false,
     size = { 120, 25 },
-    scripts = { OnShow = "OnShow" },
+    scripts = { OnLoad = "OnLoad", OnShow = "OnShow" },
   },
 }
 

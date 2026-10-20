@@ -184,6 +184,10 @@ function M.applyTemplates(w, frame, templates)
       WorldApi.markUnscripted(w, "template:" .. name)
     end
   end
+  -- A template's OnLoad runs once the frame is built, before CreateFrame returns.
+  if w:getScript(frame, "OnLoad") then
+    w:callScript(frame, "OnLoad")
+  end
 end
 
 -- True when a Secure* template made frame protected.
