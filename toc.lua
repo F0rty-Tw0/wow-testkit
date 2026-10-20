@@ -9,9 +9,9 @@ local INTERFACE_KEY = "Interface"
 local GAME_TYPE_DIRECTIVE = "AllowLoadGameType"
 local UTF8_BOM = "^\239\187\191"
 
--- Game types the client knows: those some flavor answers to, plus wrath and cata, client game types the kit has
--- no flavor for (warcraft.wiki.gg TOC_format). A game-type list naming none of them cannot exclude a file.
-local KNOWN_GAME_TYPES = { wrath = true, cata = true }
+-- Game types the client knows: those some flavor answers to, plus the client game types the kit has no flavor for
+-- (warcraft.wiki.gg TOC_format). A game-type list naming none of them cannot exclude a file.
+local KNOWN_GAME_TYPES = { wrath = true, cata = true, plunderstorm = true, wowhack = true }
 for _, name in ipairs(Flavors.list) do
   for gameType in pairs(Flavors.get(name).gameTypes) do
     KNOWN_GAME_TYPES[gameType] = true
