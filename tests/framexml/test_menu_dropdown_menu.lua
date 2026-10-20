@@ -193,7 +193,34 @@ local function test_enable_regenerate_on_response_runs_the_generator_after_a_pic
   end)
 end
 
+local function test_plain_dropdown_button_keeps_the_button_text_methods() -- (D10)
+  withFrameXML("retail", function()
+    local plain = _G.CreateFrame("DropdownButton", nil, _G.UIParent)
+    for _, name in ipairs({ "SetDefaultText", "GetDefaultText", "OverrideText" }) do
+      A.eq(plain[name], nil, name)
+    end
+    plain:SetText("Label")
+    plain:SetupMenu(radios({ value = 1 }))
+    plain:OpenMenu()
+    plain:CloseMenu()
+    A.eq(plain:GetText(), "Label")
+  end)
+end
+
+local function test_template_text_methods_come_from_its_mixin() -- (D10)
+  withFrameXML("retail", function()
+    local mixin = _G.WowStyle1DropdownMixin
+    local dd = newDropdown(radios({ value = 2 }))
+    for _, name in ipairs({ "SetText", "GetText", "SetDefaultText", "GetDefaultText", "OverrideText" }) do
+      A.eq(dd[name], mixin[name], name)
+    end
+    A.eq(dd:GetText(), "Two")
+  end)
+end
+
 return function()
+  test_plain_dropdown_button_keeps_the_button_text_methods()
+  test_template_text_methods_come_from_its_mixin()
   test_setup_menu_on_an_open_menu_shows_the_new_generators_entries()
   test_template_on_show_generates_the_menu_set_up_while_hidden()
   test_template_on_show_runs_when_a_hidden_parent_is_shown()
