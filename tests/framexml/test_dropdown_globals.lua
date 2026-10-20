@@ -49,13 +49,18 @@ local function test_globals_start_at_the_client_values()
 end
 
 -- Toggle sets the level and value before init (Mainline :1056-1057, Classic :997-998); a level-1 Toggle makes its
--- frame the open menu (Mainline :1095, Classic :1034), and the helper names the frame being initialized (:48, :49).
+-- frame the open menu (Mainline :1095, Classic :1034). Toggle runs init through UIDropDownMenu_Initialize (Mainline
+-- :1193, Classic :1132), whose helper names the frame being initialized (Mainline :48, Classic :49), so INIT_MENU
+-- is the toggled frame even after another frame's Initialize.
 local function test_init_sees_the_globals_of_its_toggle()
   for _, flavor in ipairs({ "retail", "vanilla" }) do
     withFrameXML(flavor, function(w)
       local seen = {}
       local frame = newDropdown(seen)
+      local other = _G.CreateFrame("Frame", "OtherGlobalsDD", _G.UIParent, "UIDropDownMenuTemplate")
+      _G.UIDropDownMenu_Initialize(other, nil, "MENU")
       _G.ToggleDropDownMenu(1, nil, frame)
+      rawset(_G, "UIDROPDOWNMENU_INIT_MENU", other)
       Input.enter(w, w.menus[1].entries[1].frame)
       A.same(seen[1], { open = frame, init = frame, level = 1 }, flavor)
       A.same(seen[2], { open = frame, init = frame, level = 2, value = "more" }, flavor)
@@ -91,9 +96,45 @@ local function test_initialize_on_another_frame_resets_the_menu_level()
   end)
 end
 
+-- Opens open's list 1, then Toggles level 2 on frame (not the open menu); during records what frame's init saw.
+local function toggleAnotherFrameAtLevelTwo()
+  local during
+  local frame = _G.CreateFrame("Frame", "DeepGlobalsDD", _G.UIParent, "UIDropDownMenuTemplate")
+  _G.UIDropDownMenu_Initialize(frame, function(_, level)
+    during = { level = global("UIDROPDOWNMENU_MENU_LEVEL"), list1 = _G.DropDownList1:IsShown() }
+    addItem("Deep", { notCheckable = true }, level)
+  end, "MENU")
+  _G.ToggleDropDownMenu(1, nil, newDropdown({}, "OpenGlobalsDD"))
+  during = nil
+  _G.ToggleDropDownMenu(2, "v", frame, nil, nil, nil, nil, _G.CreateFrame("Button", "DeepGlobalsAnchor", frame))
+  return during
+end
+
+-- Toggle runs the helper through UIDropDownMenu_Initialize (Mainline :1193, Classic :1132): for a frame that is not
+-- the open menu it resets the level to 1 and hides every list before init (Mainline :43-45, :52-63; Classic :44-46,
+-- :53-64).
+local function test_toggle_on_another_frame_at_level_two_runs_init_at_menu_level_one()
+  withFrameXML("retail", function(w)
+    A.same(toggleAnotherFrameAtLevelTwo(), { level = 1, list1 = false })
+    A.eq(w.menus[2].entries[1].text, "Deep")
+  end)
+end
+
+-- The same helper hides the open menu's list 1, whose OnHide clears UIDROPDOWNMENU_OPEN_MENU (S14).
+local function test_toggle_on_another_frame_at_level_two_closes_the_open_menu()
+  withFrameXML("retail", function(w)
+    toggleAnotherFrameAtLevelTwo()
+    A.eq(w.menus[1], nil)
+    A.eq(_G.DropDownList1:IsShown(), false)
+    A.eq(global("UIDROPDOWNMENU_OPEN_MENU"), nil)
+  end)
+end
+
 return function()
   test_globals_start_at_the_client_values()
   test_init_sees_the_globals_of_its_toggle()
+  test_toggle_on_another_frame_at_level_two_runs_init_at_menu_level_one()
+  test_toggle_on_another_frame_at_level_two_closes_the_open_menu()
   test_closing_level_one_clears_the_open_menu()
   test_initialize_on_another_frame_resets_the_menu_level()
 end

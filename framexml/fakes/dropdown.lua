@@ -155,18 +155,21 @@ local function hideForInitialize(w, frame)
 end
 
 -- S4 (Mainline :77-99, Classic :76-97): menuList, helper close, initialize (only when init is not nil),
--- init(frame, level, menuList) with level as passed, displayMode only for "MENU" (:105-125). The scratch level
--- is dropped: nothing opens.
+-- init(frame, level, menuList) with level as passed, displayMode only for "MENU" (:105-125). Returns the built
+-- level, which Toggle opens; a direct call drops it, so nothing opens.
 local function initialize(w, frame, init, displayMode, level, menuList)
   frame.menuList = menuList
   hideForInitialize(w, frame)
+  local built
   if init ~= nil then
     frame.initialize = init
-    build(w, frame, level or 1, level, menuList)
+    built = build(w, frame, level or 1, level, menuList)
   end
   if displayMode == "MENU" then
     frame.displayMode = displayMode
   end
+
+  return built
 end
 
 -- UIDropDownMenu_CreateFrames (Mainline :342-356, Classic :301-315), run by AddButton and Toggle: a level past
@@ -239,8 +242,9 @@ end
 
 -- Sets UIDROPDOWNMENU_MENU_LEVEL (the level Initialize hides from, S4) and _MENU_VALUE (Mainline :1056-1057, Classic
 -- :997-998). After the S1 check, hides the target list and deeper before init runs (S12); level 1 then becomes
--- UIDROPDOWNMENU_OPEN_MENU (Mainline :1095, Classic :1034). Shows nothing when init added no entries (S10). anchor,
--- x, y, autoHideDelay and displayMode are ignored: the kit has no layout; button only feeds the S1 check.
+-- UIDROPDOWNMENU_OPEN_MENU (Mainline :1095, Classic :1034), and init runs through Initialize and its helper (S4).
+-- Shows nothing when init added no entries (S10). anchor, x, y, autoHideDelay and displayMode are ignored: the kit
+-- has no layout; button only feeds the S1 check.
 local function toggle(w, level, value, frame, menuList, button)
   level = level or 1
   createLists(w, level)
@@ -257,7 +261,7 @@ local function toggle(w, level, value, frame, menuList, button)
   if level == 1 then
     w:setGlobal("UIDROPDOWNMENU_OPEN_MENU", frame)
   end
-  local built = build(w, frame, level, level, menuList)
+  local built = initialize(w, frame, frame.initialize, nil, level, menuList) -- Mainline :1193, Classic :1132
   if #built.entries == 0 then
     return
   end
