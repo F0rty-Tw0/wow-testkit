@@ -136,6 +136,15 @@ local function test_token_from_guid_follows_the_wiki_order()
   end)
 end
 
+-- "mouseover" is in the wiki's list, so it answers through the w:mouseover alias even when the aliased token is not.
+local function test_token_from_guid_answers_mouseover_aliasing_an_unlisted_token()
+  withUnits("retail", function(w)
+    w:unit("targettarget", { guid = "G1" })
+    w:mouseover("targettarget")
+    A.eq(_G.UnitTokenFromGUID("G1"), "mouseover")
+  end)
+end
+
 -- A token outside the wiki's list (targettarget) is never tested.
 local function test_token_from_guid_skips_unlisted_tokens()
   withUnits("retail", function(w)
@@ -214,6 +223,7 @@ return function()
   test_removing_unit_and_clearing_mouseover()
   test_token_from_guid_follows_the_wiki_order()
   test_token_from_guid_skips_unlisted_tokens()
+  test_token_from_guid_answers_mouseover_aliasing_an_unlisted_token()
   test_token_from_guid_falls_back_to_mouseover()
   test_missing_fixture_counts_as_unscripted()
   test_fixture_answer_not_counted_as_unscripted()
