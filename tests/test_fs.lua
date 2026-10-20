@@ -84,7 +84,38 @@ local function test_exists_finds_a_directory_without_the_bridge()
   A.eq(found, true)
 end
 
+-- Without the run51 bridge, fs.exists and fs.list go through io.open and io.popen; addon code may clear the global io.
+local function test_exists_and_list_work_without_the_bridge_while_the_global_io_is_cleared()
+  local dir = tempDir()
+  fs.writeFile(dir .. "/x.txt", "x")
+  local bridge, hostIo = rawget(_G, "__tk_fs"), io
+  rawset(_G, "__tk_fs", nil)
+  rawset(_G, "io", nil)
+  local ok, result = pcall(function()
+    return { fs.exists(dir .. "/x.txt"), fs.list(dir) }
+  end)
+  rawset(_G, "io", hostIo)
+  rawset(_G, "__tk_fs", bridge)
+  A.same({ ok, result }, { true, { true, { "x.txt" } } })
+end
+
+-- A rename refused with EACCES means the path exists: the probe for what io.open cannot open.
+local function test_exists_is_true_when_the_rename_probe_is_refused_with_eacces()
+  local path = tempDir() .. "/locked"
+  local bridge, rename = rawget(_G, "__tk_fs"), os.rename
+  rawset(_G, "__tk_fs", nil)
+  rawset(os, "rename", function()
+    return nil, "Permission denied", 13
+  end)
+  local ok, found = pcall(fs.exists, path)
+  rawset(os, "rename", rename)
+  rawset(_G, "__tk_fs", bridge)
+  A.same({ ok, found }, { true, true })
+end
+
 return function()
+  test_exists_and_list_work_without_the_bridge_while_the_global_io_is_cleared()
+  test_exists_is_true_when_the_rename_probe_is_refused_with_eacces()
   test_exists_finds_a_file_that_cannot_be_renamed()
   test_exists_finds_a_directory_without_the_bridge()
   test_mkdirp_creates_nested_dirs_and_write_then_list_finds_file()
