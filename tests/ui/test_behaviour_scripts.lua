@@ -66,6 +66,26 @@ local function test_hooked_script_runs_after_script()
   end)
 end
 
+-- F3: wiki API_ScriptObject_HookScript, "If the script type doesn't have an existing handler, this will be equivalent
+-- to SetScript": GetScript returns the hook, and a later SetScript replaces it.
+local function test_hook_script_without_a_handler_sets_the_handler_assumed()
+  withWidgets("retail", function(w)
+    local b = _G.CreateFrame("Button")
+    local order = {}
+    local hook = function()
+      order[#order + 1] = "hook"
+    end
+    b:HookScript("OnClick", hook)
+    A.eq(b:GetScript("OnClick"), hook)
+    w:callScript(b, "OnClick")
+    b:SetScript("OnClick", function()
+      order[#order + 1] = "script"
+    end)
+    w:callScript(b, "OnClick")
+    A.same(order, { "hook", "script" })
+  end)
+end
+
 local function test_register_unknown_event_errors_naming_event_and_flavor()
   withWidgets("vanilla", function()
     local message = A.errors(function()
@@ -128,6 +148,7 @@ return function()
   test_tooltip_set_unit_script_works_on_vanilla()
   test_hook_script_rejects_unsupported_handler()
   test_hooked_script_runs_after_script()
+  test_hook_script_without_a_handler_sets_the_handler_assumed()
   test_register_unknown_event_errors_naming_event_and_flavor()
   test_unknown_event_error_points_at_the_addon_line()
   test_registered_event_reaches_on_event()

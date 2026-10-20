@@ -133,9 +133,15 @@ function methods:setScript(obj, scriptName, fn)
   scriptEntry(self, obj, scriptName).fn = fn
 end
 
+-- F3 (assumed, wiki API_ScriptObject_HookScript): with no handler, a hook is the handler, as SetScript would set it.
 function methods:hookScript(obj, scriptName, fn)
-  local hooks = scriptEntry(self, obj, scriptName).hooks
-  hooks[#hooks + 1] = fn
+  local entry = scriptEntry(self, obj, scriptName)
+  if entry.fn == nil then
+    entry.fn = fn
+
+    return
+  end
+  entry.hooks[#entry.hooks + 1] = fn
 end
 
 function methods:getScript(obj, scriptName)

@@ -115,8 +115,8 @@ local function test_call_script_runs_script_then_hooks_in_addon_context()
         order[#order + 1] = { name, self == obj, arg, w:context() }
       end
     end
-    w:hookScript(obj, "OnShow", mark("hook1"))
     w:setScript(obj, "OnShow", mark("script"))
+    w:hookScript(obj, "OnShow", mark("hook1"))
     w:hookScript(obj, "OnShow", mark("hook2"))
     w:callScript(obj, "OnShow", 7)
     A.same(order, {
