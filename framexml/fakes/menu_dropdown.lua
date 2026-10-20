@@ -1,6 +1,6 @@
 -- DropdownButton: the intrinsic widget type of the Menu API (registered per world, so only worlds that have the Menu API
 -- fake know it). It opens a Menu API menu from a generator and shows the selection or a default text in its Text child.
--- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 5" (D1-D8); client paths are relative to
+-- Sources: docs/client-sources.md "DropdownButton and attributes" (D1-D8); client paths are relative to
 -- Interface/AddOns/Blizzard_Menu/.
 local M = {}
 

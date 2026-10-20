@@ -1,5 +1,5 @@
 -- Menu API picks: reads entry state from descriptions and answers a click with the responder and MenuResponse.
--- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 4" (M1-M5, M7, M8); client paths are relative to
+-- Sources: docs/client-sources.md "Menu API" (M1-M5, M7, M8); client paths are relative to
 -- Interface/AddOns/Blizzard_Menu/.
 local M = {}
 
