@@ -231,6 +231,21 @@ M.TEMPLATES = {
     protected = false,
     size = { 40, 22 },
   },
+  -- source: confirmed (row D7) Blizzard_Menu/Mainline/MenuTemplates.xml:3-39: WowStyle1DropdownTemplate (no inherits; the element is the intrinsic
+  -- DropdownButton). Mainline values: 120x25, Text is GameFontHighlight, justifyH LEFT. Blizzard_Menu/Classic/MenuTemplates.xml
+  -- has the same keys and types at 60x24 with GameFontHighlightSmall and RIGHT; the flavorless entry takes Mainline's.
+  WowStyle1DropdownTemplate = {
+    type = "DropdownButton",
+    inherits = {},
+    children = {
+      { key = "Background", type = "Texture" },
+      { key = "Arrow", type = "Texture" },
+      { key = "Text", type = "FontString" },
+    },
+    mixins = { "WowStyle1DropdownMixin" },
+    protected = false,
+    size = { 120, 25 },
+  },
 }
 
 return M
