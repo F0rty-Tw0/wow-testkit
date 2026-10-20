@@ -1,6 +1,7 @@
 -- AnimationGroup methods: creating animations and listing them. Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
 local M = {}
 
+local Callsite = require("ui.callsite")
 local Inherits = require("ui.inherits")
 
 local unpack = unpack
@@ -45,7 +46,7 @@ end
 function methods.CreateAnimation(w, group, st, animType, name)
   local typeName = animationType(w, animType)
   if not typeName then
-    error(string.format("CreateAnimation: unknown animation type '%s' on %s", tostring(animType), w.flavor), 2)
+    error(string.format("CreateAnimation: unknown animation type '%s' on %s", tostring(animType), w.flavor), Callsite.level())
   end
   local animation = w.ui.create(typeName, name, group)
   st.animations = st.animations or {}

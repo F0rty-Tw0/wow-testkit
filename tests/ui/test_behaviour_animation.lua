@@ -57,6 +57,17 @@ local function test_create_animation_rejects_an_unknown_or_non_animation_type()
   end)
 end
 
+local function test_unknown_animation_type_error_names_the_caller_line()
+  withWidgets("retail", function()
+    local group = _G.CreateFrame("Frame"):CreateAnimationGroup()
+    local ok, err = pcall(function()
+      group:CreateAnimation("Bogus")
+    end)
+    A.eq(ok, false)
+    A.truthy(tostring(err):find("test_behaviour_animation%.lua:%d+: CreateAnimation: unknown animation type"), tostring(err))
+  end)
+end
+
 local function test_create_animation_is_not_counted_as_unscripted()
   withWidgets("retail", function(w)
     local group = _G.CreateFrame("Frame"):CreateAnimationGroup()
@@ -72,5 +83,6 @@ return function()
   test_create_animation_matches_the_type_case_insensitively_for_every_animation_type()
   test_get_animations_lists_them_in_creation_order()
   test_create_animation_rejects_an_unknown_or_non_animation_type()
+  test_unknown_animation_type_error_names_the_caller_line()
   test_create_animation_is_not_counted_as_unscripted()
 end
