@@ -8,6 +8,19 @@ local BAD_EVENT_ROOT = TEST_DIR .. "/../fixtures/addons/BadEvent"
 
 local withWidgets = HW.withWidgets
 
+local function test_unsupported_handler_error_names_the_caller_line()
+  withWidgets("retail", function()
+    local f = _G.CreateFrame("Frame")
+    for _, method in ipairs({ "SetScript", "HookScript" }) do
+      local ok, err = pcall(function()
+        f[method](f, "OnNope", function() end)
+      end)
+      A.eq(ok, false, method)
+      A.truthy(tostring(err):find("test_behaviour_scripts%.lua:%d+: Frame has no script handler 'OnNope'"), tostring(err))
+    end
+  end)
+end
+
 local function test_tooltip_set_unit_script_errors_on_retail()
   withWidgets("retail", function()
     local tip = _G.CreateFrame("GameTooltip")
@@ -110,6 +123,7 @@ local function test_unregister_event_stops_delivery()
 end
 
 return function()
+  test_unsupported_handler_error_names_the_caller_line()
   test_tooltip_set_unit_script_errors_on_retail()
   test_tooltip_set_unit_script_works_on_vanilla()
   test_hook_script_rejects_unsupported_handler()

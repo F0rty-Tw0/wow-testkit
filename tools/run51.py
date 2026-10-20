@@ -20,6 +20,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).replace("\\",
 RUNNER = ROOT + "/tests/run.lua"
 
 
+def mkdir_new(path):
+    """Creates one directory; False when it already exists (atomic, for claiming unique temp dirs)."""
+    try:
+        os.mkdir(path)
+    except FileExistsError:
+        return False
+    return True
+
+
 def install_fs(lua):
     lua.globals().__tk_fs = lua.table_from(
         {
@@ -27,6 +36,7 @@ def install_fs(lua):
             "exists": os.path.exists,
             "isdir": os.path.isdir,
             "mkdirp": lambda path: os.makedirs(path, exist_ok=True),
+            "mkdir": mkdir_new,
         }
     )
 

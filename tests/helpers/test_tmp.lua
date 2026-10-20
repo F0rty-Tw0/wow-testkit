@@ -5,11 +5,10 @@ local Tmp = require("tests.helpers.tmp")
 local function test_dir_skips_a_name_that_already_exists()
   math.randomseed(7)
   local first = Tmp.dir("tmp")
-  fs.mkdirp(first)
   math.randomseed(7)
   local second = Tmp.dir("tmp")
   A.truthy(first ~= second, first)
-  A.eq(fs.exists(second), false)
+  A.truthy(fs.isdir(first) and fs.isdir(second), second)
 end
 
 local function test_dir_names_the_prefix_under_the_temp_folder()

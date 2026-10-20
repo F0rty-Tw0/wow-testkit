@@ -5,6 +5,7 @@
 -- methods.
 local M = {}
 
+local Callsite = require("ui.callsite")
 local BehaviourText = require("ui.behaviour_text")
 local BehaviourRender = require("ui.behaviour_render")
 local BehaviourScripts = require("ui.behaviour_scripts")
@@ -195,9 +196,7 @@ local function checkNoLoop(w, obj, st, parent)
     if cursor == obj then
       local target = w.ui.state[parent]
       local message = "%s:SetParent(): Would create a loop parenting to %s"
-      -- Level 4 on Lua 5.1: checkNoLoop, setParent, the tail call lost by bind's `return impl(...)`
-      -- (ui/widgets.lua), then the caller's line.
-      error(string.format(message, st.name or st.plan.type, target.name or target.plan.type), 4)
+      error(string.format(message, st.name or st.plan.type, target.name or target.plan.type), Callsite.level())
     end
     cursor = cursorState and cursorState.parent
   end
