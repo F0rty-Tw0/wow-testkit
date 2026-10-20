@@ -49,24 +49,19 @@ function Description:SetScrollMode(height)
 end
 
 -- M4 (Menu.lua:830-844): a boolean, or a function called as fn(description) at every (re)initialize and before a pick.
+-- The setters return nothing, as in the client (Menu.lua:830-832, :595-598; MenuUtil.lua:287-292).
 function Description:SetEnabled(enabled)
   self.enabled = enabled
-
-  return self
 end
 
 function Description:SetTooltip(fn)
   self.tooltip = fn
-
-  return self
 end
 
 -- M10 (Menu.lua:595-598): the tag Menu.ModifyMenu hooks match, and the contextData they receive.
 function Description:SetTag(tag, contextData)
   self.tag = tag
   self.contextData = contextData
-
-  return self
 end
 
 function M.newRoot()
