@@ -14,6 +14,8 @@ local Validate = require("validate")
 local WorldApi = require("world_api")
 
 local unpack = unpack
+-- Localized: addon code may assign a global named select.
+local select = select
 
 local NO_VALUES = { n = 0 }
 local GETTER_PATTERNS = { "^Get(%u.*)$", "^Is(%u.*)$" }

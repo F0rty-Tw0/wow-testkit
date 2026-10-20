@@ -14,6 +14,8 @@ local unpack = unpack
 -- Host functions new and destroy use, kept as upvalues: addon writes land raw in _G, so an addon that reassigns
 -- one (setfenv = nil, debug = true) must not break destroy or the next world.
 local pairs, ipairs, rawget, rawset, type, setmetatable = pairs, ipairs, rawget, rawset, type, setmetatable
+-- Same for World:run's pack, which runs while addon globals are live.
+local select = select
 local getfenv, setfenv = getfenv, setfenv
 local getRawMetatable, setRawMetatable = debug.getmetatable, debug.setmetatable
 
@@ -168,7 +170,11 @@ function M.new(opts)
 end
 
 -- Restores _G and the host library tables exactly as snapshotted (added keys removed, replaced values and _G's
--- metatable restored), the string metatable and the running thread's environment (getfenv(0)).
+-- metatable restored), the string metatable and the running thread's environment (getfenv(0)). That is the thread
+-- destroy runs on: called from another coroutine than World.new's, it leaves World.new's thread as it is. This holds
+-- for thread environments only; destroy restores no function's environment. Addon code changes neither a host
+-- thread's environment nor a kit function's (addon_env.lua setfenv), so only host code that changes a thread's must
+-- call destroy from that thread.
 function World:destroy()
   if active ~= self then
     return
@@ -219,8 +225,10 @@ function World:install(name, value, opts)
   return true
 end
 
+-- Sets the global named name, dots included (a SavedVariables name is one global); install and set split dotted
+-- names into namespaces.
 function World:setGlobal(name, value)
-  self:set(name, value)
+  rawset(_G, name, value)
 end
 
 -- impl: function | { returns = {...} } | { byArgs = { ["arg1|arg2"] = {...} }, default = {...} }.

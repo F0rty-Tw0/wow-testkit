@@ -209,7 +209,40 @@ local function test_destroy_clears_timers_scripts_and_events()
   A.eq(w:isEventRegistered(obj, "PLAYER_LOGIN"), false)
 end
 
+-- Addon writes land raw in _G, so an addon can clear select; the kit must keep recording its errors.
+local function test_handler_errors_are_still_recorded_after_an_addon_clears_select()
+  local hostRawset, raised, recorded = rawset, nil, nil
+  withWorld("retail", function(w)
+    local cleared = pcall(w.callAsAddon, w, function()
+      hostRawset(_G, "select", nil)
+    end)
+    local handled = pcall(w.callAsAddon, w, function()
+      error("after select", 0)
+    end)
+    raised = not (cleared and handled)
+    recorded = #w.errors == 1 and w.errors[1].message
+  end)
+  A.same({ raised, recorded }, { false, "after select" })
+end
+
+local function test_handler_errors_are_still_recorded_after_an_addon_clears_xpcall()
+  local hostRawset, raised, recorded = rawset, nil, nil
+  withWorld("retail", function(w)
+    local cleared = pcall(w.callAsAddon, w, function()
+      hostRawset(_G, "xpcall", nil)
+    end)
+    local handled = pcall(w.callAsAddon, w, function()
+      error("after xpcall", 0)
+    end)
+    raised = not (cleared and handled)
+    recorded = #w.errors == 1 and w.errors[1].message
+  end)
+  A.same({ raised, recorded }, { false, "after xpcall" })
+end
+
 return function()
+  test_handler_errors_are_still_recorded_after_an_addon_clears_select()
+  test_handler_errors_are_still_recorded_after_an_addon_clears_xpcall()
   test_fire_unknown_event_names_event_and_flavor()
   test_register_unknown_event_errors()
   test_script_error_recorded_and_dispatch_continues()

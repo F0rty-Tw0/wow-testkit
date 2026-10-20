@@ -137,7 +137,109 @@ local function test_debugprofilestop_still_works_after_an_addon_clears_os()
   end)
 end
 
+local FENV_PROBE = [[
+local _, ns = ...
+ns.level1 = getfenv(1) == _G
+ns.noArg = getfenv() == _G
+ns.ofOwnFunction = getfenv(function() end) == _G
+ns.ofOtherAddon = getfenv(FenvOtherFn) == _G
+ns.ofOtherAddonG = getfenv(FenvOtherGFn) == _G
+]]
+local FENV_OTHER = "function FenvOtherFn() end\nFenvOtherGFn = setfenv(function() end, _G)\n"
+
+-- Lua 5.1 manual getfenv: the environment of the function at that level; the client loads every addon file with
+-- the one _G.
+local function test_addon_getfenv_returns_the_addons_g()
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "FenvOther", root = tempAddon("FenvOther", FENV_OTHER) })
+    local ns = Addon.load(w, { name = "FenvProbe", root = tempAddon("FenvProbe", FENV_PROBE) })
+    local seen = { ns.level1, ns.noArg, ns.ofOwnFunction, ns.ofOtherAddon, ns.ofOtherAddonG }
+    A.same({ errorMessages(w), seen }, { "", { true, true, true, true, true } })
+  end)
+end
+
+local THREAD_ENV = [[
+local _, ns = ...
+local mine = setmetatable({ marker = "mine" }, { __index = _G })
+setfenv(0, mine)
+ns.thread = getfenv(0) == mine
+ns.chunk = loadstring("return marker")()
+]]
+
+-- Lua 5.1 manual setfenv: "As a special case, when f is 0 setfenv changes the environment of the running thread";
+-- loadstring gives new chunks that environment. Kit code keeps the real _G meanwhile.
+local function test_addon_setfenv_0_changes_the_addon_thread_env_but_not_the_kits()
+  local hostG, kitThread, kitChunk = _G, nil, nil
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "ThreadEnv", root = tempAddon("ThreadEnv", THREAD_ENV) })
+    kitThread = getfenv(0) == hostG
+    kitChunk = getfenv(assert(loadstring("return 1"))) == hostG
+    A.same({ errorMessages(w), ns.thread, ns.chunk }, { "", true, "mine" })
+  end)
+  A.same({ kitThread, kitChunk }, { true, true })
+end
+
+local SETFENV_LEVEL = [[
+local _, ns = ...
+local mine = setmetatable({}, { __index = _G })
+ns.returned = setfenv(1, mine) ~= nil
+LevelProbe = 1
+ns.inMine = rawget(mine, "LevelProbe")
+setfenv(1, 5)
+]]
+
+local function test_addon_setfenv_level_targets_the_addon_function_and_misuse_names_its_line()
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "FenvLevel", root = tempAddon("FenvLevel", SETFENV_LEVEL) })
+    A.same({ ns.returned, ns.inMine, rawget(_G, "LevelProbe") }, { true, 1, nil })
+    A.eq(errorMessages(w), "addon:FenvLevel/Core.lua:6: bad argument #2 to 'setfenv' (table expected, got number)")
+  end)
+end
+
+local OS_KEYS = [[
+local _, ns = ...
+ns.keys = {}
+for key in pairs(os) do
+  ns.keys[#ns.keys + 1] = key
+end
+table.sort(ns.keys)
+ns.exit = os.exit
+]]
+
+local function test_addon_os_holds_exactly_the_time_functions()
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "OsKeys", root = tempAddon("OsKeys", OS_KEYS) })
+    A.same({ errorMessages(w), ns.keys, ns.exit }, { "", { "clock", "date", "difftime", "time" }, nil })
+  end)
+end
+
+local OWN_DEBUG_READER = [[
+local _, ns = ...
+ns.seen = { debug, _G.debug, rawget(_G, "debug") }
+for key, value in pairs(_G) do
+  if key == "debug" then
+    ns.seen[4] = value
+  end
+end
+]]
+
+-- Only the host's values are hidden: a global an addon assigns under a host-only name is an ordinary global.
+local function test_a_host_only_name_an_addon_assigns_is_seen_by_other_addons()
+  local seen
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "OwnDebug", root = tempAddon("OwnDebug", "debug = 7\n") })
+    local ns = Addon.load(w, { name = "OwnDebugReader", root = tempAddon("OwnDebugReader", OWN_DEBUG_READER) })
+    seen = { errorMessages(w), ns.seen }
+  end)
+  A.same(seen, { "", { 7, 7, 7, 7 } })
+end
+
 return function()
+  test_addon_os_holds_exactly_the_time_functions()
+  test_a_host_only_name_an_addon_assigns_is_seen_by_other_addons()
+  test_addon_getfenv_returns_the_addons_g()
+  test_addon_setfenv_0_changes_the_addon_thread_env_but_not_the_kits()
+  test_addon_setfenv_level_targets_the_addon_function_and_misuse_names_its_line()
   test_addon_code_cannot_reach_host_only_globals()
   test_addon_os_keeps_only_the_time_functions()
   test_addon_getfenv_and_loadstring_do_not_reach_the_real_globals()

@@ -39,7 +39,8 @@ local function renameProbe(path)
 end
 
 -- A file that opens exists; the rename probe covers directories, which io.open cannot open on Windows. Opening first
--- keeps a read-only mount working, where the rename fails with EROFS.
+-- keeps a read-only mount working, where the rename fails with EROFS. Accepted without the bridge: a file that exists
+-- but cannot be read on a read-only mount reads as missing (the open fails, the rename fails with EROFS).
 function M.exists(path)
   local bridge = host()
   if bridge then
