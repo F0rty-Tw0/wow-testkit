@@ -43,10 +43,25 @@ local function test_exists_is_false_for_missing_path()
   A.eq(fs.exists(tempDir() .. "/missing"), false)
 end
 
+-- Addon code may clear the global os. Under run51 the bridge serves these calls; the pure run (no bridge) goes
+-- through os.rename and os.execute.
+local function test_dir_calls_work_while_the_global_os_is_cleared()
+  local dir, hostOs = tempDir(), os
+  rawset(_G, "os", nil)
+  local ok, err = pcall(function()
+    fs.mkdirp(dir .. "/a/b")
+    A.eq(fs.mkdir(dir .. "/c"), true)
+    A.same({ fs.isdir(dir .. "/a/b"), fs.exists(dir .. "/c") }, { true, true })
+  end)
+  rawset(_G, "os", hostOs)
+  assert(ok, err)
+end
+
 return function()
   test_mkdirp_creates_nested_dirs_and_write_then_list_finds_file()
   test_mkdir_creates_once_then_reports_an_existing_dir()
   test_mkdir_raises_when_the_dir_cannot_be_created()
   test_mkdirp_tolerates_existing_dir()
   test_exists_is_false_for_missing_path()
+  test_dir_calls_work_while_the_global_os_is_cleared()
 end
