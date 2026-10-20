@@ -158,8 +158,48 @@ local function test_addon_getfenv_returns_the_addons_g()
   end)
 end
 
+local THREAD_ENV = [[
+local _, ns = ...
+local mine = setmetatable({ marker = "mine" }, { __index = _G })
+setfenv(0, mine)
+ns.thread = getfenv(0) == mine
+ns.chunk = loadstring("return marker")()
+]]
+
+-- Lua 5.1 manual setfenv: "As a special case, when f is 0 setfenv changes the environment of the running thread";
+-- loadstring gives new chunks that environment. Kit code keeps the real _G meanwhile.
+local function test_addon_setfenv_0_changes_the_addon_thread_env_but_not_the_kits()
+  local hostG, kitThread, kitChunk = _G, nil, nil
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "ThreadEnv", root = tempAddon("ThreadEnv", THREAD_ENV) })
+    kitThread = getfenv(0) == hostG
+    kitChunk = getfenv(assert(loadstring("return 1"))) == hostG
+    A.same({ errorMessages(w), ns.thread, ns.chunk }, { "", true, "mine" })
+  end)
+  A.same({ kitThread, kitChunk }, { true, true })
+end
+
+local SETFENV_LEVEL = [[
+local _, ns = ...
+local mine = setmetatable({}, { __index = _G })
+ns.returned = setfenv(1, mine) ~= nil
+LevelProbe = 1
+ns.inMine = rawget(mine, "LevelProbe")
+setfenv(1, 5)
+]]
+
+local function test_addon_setfenv_level_targets_the_addon_function_and_misuse_names_its_line()
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "FenvLevel", root = tempAddon("FenvLevel", SETFENV_LEVEL) })
+    A.same({ ns.returned, ns.inMine, rawget(_G, "LevelProbe") }, { true, 1, nil })
+    A.eq(errorMessages(w), "addon:FenvLevel/Core.lua:6: bad argument #2 to 'setfenv' (table expected, got number)")
+  end)
+end
+
 return function()
   test_addon_getfenv_returns_the_addons_g()
+  test_addon_setfenv_0_changes_the_addon_thread_env_but_not_the_kits()
+  test_addon_setfenv_level_targets_the_addon_function_and_misuse_names_its_line()
   test_addon_code_cannot_reach_host_only_globals()
   test_addon_os_keeps_only_the_time_functions()
   test_addon_getfenv_and_loadstring_do_not_reach_the_real_globals()

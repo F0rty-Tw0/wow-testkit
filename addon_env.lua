@@ -26,7 +26,7 @@ local hostOs, hostLoadstring, hostGetfenv, hostSetfenv = os, loadstring, getfenv
 local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
 local hostGetmetatable, hostSetmetatable, hostRawMetatable = getmetatable, setmetatable, debug.getmetatable
 local hostType, hostSelect, hostError, hostPcall = type, select, error, pcall
-local hostSub, hostGetinfo = string.sub, debug.getinfo
+local hostSub, hostGsub, hostGetinfo, hostTonumber = string.sub, string.gsub, debug.getinfo, tonumber
 
 local function keptOs()
   local out = {}
@@ -34,6 +34,24 @@ local function keptOs()
     out[name] = hostOs[name]
   end
   return out
+end
+
+-- setfenv(0, t) sets the world's addon thread environment (w.addonThreadEnv, read by getfenv(0) and loadstring),
+-- never the host thread's, so kit code loaded meanwhile keeps the real _G. Other calls run the host setfenv under
+-- pcall, two levels deeper, and re-raise its errors at the addon's line under the name setfenv.
+local function addSetfenv(overrides, w)
+  overrides.setfenv = function(f, env)
+    local level = hostType(f) ~= "function" and hostTonumber(f)
+    if level == 0 and hostType(env) == "table" then
+      w.addonThreadEnv = env
+      return
+    end
+    local ok, result = hostPcall(hostSetfenv, level and level > 0 and level + 2 or f, env)
+    if not ok then
+      hostError((hostGsub(result, "^bad argument (#%d) to '%?'", "bad argument %1 to 'setfenv'")), 2)
+    end
+    return result
+  end
 end
 
 -- Values the view answers instead of _G's: host-only names map to false (see hidden); functions that would hand
@@ -50,13 +68,14 @@ local function overridesFor(view, w)
     if f == nil then
       f = 1
     end
-    local env = hostGetfenv(type(f) == "number" and f > 0 and f + 1 or f)
+    local env = f == 0 and w.addonThreadEnv or hostGetfenv(type(f) == "number" and f > 0 and f + 1 or f)
     return (env == _G or w.addonEnvs[env]) and view or env
   end
   overrides.loadstring = function(src, chunkName)
     local fn, err = hostLoadstring(src, chunkName)
-    return fn and hostSetfenv(fn, view), err
+    return fn and hostSetfenv(fn, w.addonThreadEnv or view), err
   end
+  addSetfenv(overrides, w)
   return overrides
 end
 
