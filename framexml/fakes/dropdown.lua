@@ -35,8 +35,8 @@ local function copyInfo(info)
   return copy
 end
 
--- A function-valued checked reads false until the level is shown (refreshChecked). notClickable and isTitle disable
--- the entry (Mainline :460-469, Classic :411-420).
+-- A function-valued checked reads false here; addButton calls it. notClickable and isTitle disable the entry
+-- (Mainline :460-469, Classic :411-420).
 local function entryFor(info)
   local checkedFlag = type(info.checked) ~= "function" and info.checked
   return {
@@ -46,23 +46,6 @@ local function entryFor(info)
     checked = checkedFlag and true or false,
     hasSubmenu = info.hasArrow == true,
   }
-end
-
--- Reads a function-valued checked with the entry frame under addon context; an error is recorded and reads false.
-local function readChecked(w, fn, entryFrame)
-  local r = w:callAsAddon(fn, entryFrame)
-
-  return r[1] and r[2] and true or false
-end
-
-local function refreshChecked(w, level)
-  local infos = w.dropdown.infos[level]
-  for index, entry in ipairs(level.entries) do
-    local checked = infos[index].checked
-    if type(checked) == "function" then
-      entry.checked = readChecked(w, checked, entry.frame)
-    end
-  end
 end
 
 -- S7 (Mainline UIDropDownMenuButton_OnClick :999-1042, Classic :940-983): close the entry's own level and deeper,
@@ -200,6 +183,8 @@ end
 
 -- S5 (Mainline :421-439, Classic :380-396): appends to DropDownList<level or 1>, the shown one at once, else the one
 -- being built. Any other list is hidden and its next Initialize or Toggle clears it, so the kit drops the entry.
+-- A checkable entry's function checked is called with its Button, unprotected (Mainline :650, :689-692; Classic
+-- :585, :640-643), so the level is rendered first; inside init an error fails it like any init error.
 local function addButton(w, info, level)
   createLists(w, level or 1)
   local name = LIST_NAME .. (level or 1)
@@ -210,14 +195,16 @@ local function addButton(w, info, level)
     return
   end
   local copy = copyInfo(info)
+  local entry = entryFor(copy)
   local entries = target.entries
-  entries[#entries + 1] = entryFor(copy)
+  entries[#entries + 1] = entry
   w.dropdown.infos[target][#entries] = copy
-  if target == shown then
-    MenuFrames.render(w, shown)
-    if type(copy.checked) == "function" then
-      entries[#entries].checked = readChecked(w, copy.checked, entries[#entries].frame)
-    end
+  local callChecked = type(copy.checked) == "function" and not copy.notCheckable
+  if target == shown or callChecked then
+    MenuFrames.render(w, target)
+  end
+  if callChecked then
+    entry.checked = copy.checked(entry.frame) and true or false
   end
 end
 
@@ -273,7 +260,6 @@ local function toggle(w, level, value, frame, menuList, button)
     return
   end
   MenuFrames.open(w, level, built)
-  refreshChecked(w, built)
 end
 
 local function setText(frame, text)

@@ -147,20 +147,6 @@ local function test_function_checked_returning_false_or_nil_reads_false()
   end)
 end
 
-local function test_function_checked_error_is_recorded_and_reads_false()
-  withFrameXML("retail", function(w)
-    openMenu({ { "E", {
-      isNotRadio = true,
-      checked = function()
-        error("checked boom")
-      end,
-    } } })
-    A.eq(w.menus[1].entries[1].checked, false)
-    A.eq(#w.errors, 1)
-    A.contains(tostring(w.errors[1].message), "checked boom")
-  end)
-end
-
 -- Mainline :1000-1003 and :1034 (Classic :941-944, :975): a function checked is called with the entry on click and
 -- what it returns reaches func unchanged.
 local function test_function_checked_return_reaches_func_unchanged()
@@ -189,15 +175,14 @@ end
 -- stops the click: the menu stays open and func does not run.
 local function test_function_checked_error_on_click_stops_the_pick()
   withFrameXML("retail", function(w)
-    local calls, picked = 0, false
+    local armed, picked = false, false
     openMenu({
       {
         "Opt",
         {
           isNotRadio = true,
           checked = function()
-            calls = calls + 1
-            if calls > 1 then
+            if armed then
               error("checked boom")
             end
           end,
@@ -207,6 +192,7 @@ local function test_function_checked_error_on_click_stops_the_pick()
         },
       },
     })
+    armed = true -- Initialize and Toggle both ran init, and AddButton called checked each time
     Input.click(w, w.menus[1].entries[1].frame, "LeftButton")
     A.eq(picked, false)
     A.eq(#w.menus, 1)
@@ -241,7 +227,6 @@ end
 
 return function()
   test_function_checked_returning_false_or_nil_reads_false()
-  test_function_checked_error_is_recorded_and_reads_false()
   test_function_checked_return_reaches_func_unchanged()
   test_function_checked_error_on_click_stops_the_pick()
   test_keep_shown_on_click_checkbox_flips_on_every_click()

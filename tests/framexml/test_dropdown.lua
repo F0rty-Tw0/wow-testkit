@@ -217,22 +217,6 @@ local function test_function_checked_is_evaluated_with_the_entry_frame()
   end)
 end
 
-local function test_function_checked_that_errors_reads_false_and_is_recorded()
-  withFrameXML("retail", function(w)
-    openMenu({
-      { "C", {
-        isNotRadio = true,
-        checked = function()
-          error("checked boom")
-        end,
-      } },
-    })
-    A.eq(w.menus[1].entries[1].checked, false)
-    A.eq(#w.errors, 1)
-    A.contains(tostring(w.errors[1].message), "checked boom")
-  end)
-end
-
 local function test_toggle_opens_level_one_owned_by_the_frame()
   withFrameXML("retail", function(w)
     local frame = openMenu({ { "One" } })
@@ -528,7 +512,6 @@ return function()
   test_not_clickable_entry_is_disabled()
   test_title_and_divider_entries_are_disabled()
   test_function_checked_is_evaluated_with_the_entry_frame()
-  test_function_checked_that_errors_reads_false_and_is_recorded()
   test_toggle_opens_level_one_owned_by_the_frame()
   test_toggle_again_on_the_owning_frame_closes_the_menu()
   test_toggle_on_another_frame_replaces_the_open_menu()

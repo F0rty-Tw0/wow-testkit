@@ -1,0 +1,107 @@
+-- UIDropDownMenu fake: when and how AddButton reads a function-valued checked.
+local A = require("assert")
+local HF = require("tests.helpers.framexml")
+local Input = require("input")
+
+local withFrameXML = HF.withFrameXML
+
+-- A dropdown whose level-1 init adds one entry "C" with fields, then runs after(); returns the frame.
+local function newDropdown(fields, after)
+  local frame = _G.CreateFrame("Frame", "CheckedDD", _G.UIParent, "UIDropDownMenuTemplate")
+  _G.UIDropDownMenu_Initialize(frame, function(_, level)
+    if level ~= 1 then
+      return
+    end
+    local info = _G.UIDropDownMenu_CreateInfo()
+    info.text = "C"
+    for k, v in pairs(fields) do
+      info[k] = v
+    end
+    _G.UIDropDownMenu_AddButton(info, 1)
+    if after then
+      after()
+    end
+  end, "MENU")
+  return frame
+end
+
+local function throwing()
+  error("checked boom")
+end
+
+-- Mainline UIDropDownMenu.lua:689-692, Classic :640-643: AddButton calls it with the entry's Button, once.
+local function test_function_checked_runs_inside_add_button_with_the_entry_button()
+  withFrameXML("retail", function(w)
+    local calls, got, callsAfterAdd = 0, nil, nil
+    local frame = newDropdown({
+      isNotRadio = true,
+      checked = function(self)
+        calls, got = calls + 1, self
+        return true
+      end,
+    }, function()
+      callsAfterAdd = calls
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    A.eq(callsAfterAdd, 1)
+    A.eq(calls, 1)
+    A.eq(got, _G.DropDownList1Button1)
+    A.eq(w.menus[1].entries[1].frame, got)
+    A.eq(w.menus[1].entries[1].checked, true)
+  end)
+end
+
+-- The call sits inside `if not info.notCheckable` (Mainline :650, Classic :585).
+local function test_function_checked_on_a_not_checkable_entry_is_not_called()
+  withFrameXML("retail", function(w)
+    local calls = 0
+    local frame = newDropdown({
+      notCheckable = true,
+      checked = function()
+        calls = calls + 1
+        return true
+      end,
+    })
+    _G.ToggleDropDownMenu(1, nil, frame)
+    A.eq(calls, 0)
+    A.eq(w.menus[1].entries[1].checked, false)
+  end)
+end
+
+-- Unprotected inside init, so it fails the Toggle as an init error does (S4): nothing opens, nothing is recorded.
+local function test_function_checked_error_reaches_the_toggle_caller()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown({ isNotRadio = true, checked = throwing })
+    A.errors(function()
+      _G.ToggleDropDownMenu(1, nil, frame)
+    end, "checked boom")
+    A.eq(w.dropdown.building, nil)
+    A.eq(next(w.menus), nil)
+    A.same(w.errors, {})
+  end)
+end
+
+-- From an addon's OnClick, either error is recorded once by the script call and the menu stays closed.
+local function test_function_checked_error_in_a_click_handler_is_recorded_like_an_init_error()
+  for _, fields in ipairs({ { init = throwing }, { checked = throwing } }) do
+    withFrameXML("retail", function(w)
+      local frame = newDropdown({ isNotRadio = true, checked = fields.checked }, fields.init)
+      local button = _G.CreateFrame("Button", "CheckedOpener", _G.UIParent)
+      button:SetScript("OnClick", function()
+        _G.ToggleDropDownMenu(1, nil, frame)
+      end)
+      Input.click(w, button, "LeftButton")
+      A.eq(#w.errors, 1)
+      A.contains(tostring(w.errors[1].message), "checked boom")
+      A.eq(next(w.menus), nil)
+      A.eq(_G.DropDownList1:IsShown(), false)
+    end)
+  end
+end
+
+return function()
+  test_function_checked_runs_inside_add_button_with_the_entry_button()
+  test_function_checked_on_a_not_checkable_entry_is_not_called()
+  test_function_checked_error_reaches_the_toggle_caller()
+  test_function_checked_error_in_a_click_handler_is_recorded_like_an_init_error()
+end
