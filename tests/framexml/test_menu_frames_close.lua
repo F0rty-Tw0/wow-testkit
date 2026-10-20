@@ -2,35 +2,14 @@
 -- Split from test_menu_frames.lua (size).
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 local MenuFrames = require("framexml.fakes.menu_frames")
 
 local withFrameXML = HF.withFrameXML
 
-local function entry(kind, text, extra)
-  local e = { kind = kind, text = text, enabled = true, checked = false, hasSubmenu = false }
-  for k, v in pairs(extra or {}) do
-    e[k] = v
-  end
-  return e
-end
-
--- A level recording its picks and submenu opens in log; namePrefix nil makes an unnamed (Menu API style) level.
-local function newLevel(entries, namePrefix, log)
-  log = log or {}
-  return {
-    entries = entries,
-    namePrefix = namePrefix,
-    pick = function(index, button)
-      log[#log + 1] = { "pick", index, button }
-    end,
-    openSubmenu = function(index)
-      log[#log + 1] = { "open", index }
-    end,
-    rebuild = function() end,
-  },
-    log
-end
+local entry = HM.entry
+local newLevel = HM.newLevel
 
 local function test_close_hides_the_level_and_deeper_ones_and_clears_menus()
   withFrameXML("retail", function(w)

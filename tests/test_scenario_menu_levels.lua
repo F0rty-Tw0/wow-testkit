@@ -1,17 +1,8 @@
 -- Menu steps when a UIDropDownMenu list is shown above a closed level 1.
 local A = require("assert")
-local Scenario = require("scenario")
+local HMS = require("tests.helpers.menu_scenario")
 
-local MENU_ADDONS_DIR = (debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or ".") .. "/fixtures/addons"
-
-local function withMenuScenario(fn)
-  local s = Scenario.new({ addon = "Hover", root = MENU_ADDONS_DIR .. "/Hover", flavor = "retail" })
-  local ok, err = pcall(fn, s)
-  s.w:destroy()
-  if not ok then
-    error(err, 0)
-  end
-end
+local withMenuScenario = HMS.withMenuScenario
 
 -- Opens levels 1 and 2, closes them, then toggles level 2 alone (Mainline UIDropDownMenu.lua:1049-1202), so w.menus
 -- has a hole at 1 in an array part that once held two levels.

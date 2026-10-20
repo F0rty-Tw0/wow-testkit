@@ -19,6 +19,15 @@ local function counter()
   return c
 end
 
+-- mark(name) returns a script that appends name to order.
+local function marker(order)
+  return function(name)
+    return function()
+      order[#order + 1] = name
+    end
+  end
+end
+
 local function test_fire_unknown_event_names_event_and_flavor()
   withWorld("vanilla", function(w)
     A.eq(w.manifest.events[RETAIL_ONLY_EVENT], nil)
@@ -115,8 +124,8 @@ local function test_call_script_runs_script_then_hooks_in_addon_context()
         order[#order + 1] = { name, self == obj, arg, w:context() }
       end
     end
-    w:hookScript(obj, "OnShow", mark("hook1"))
     w:setScript(obj, "OnShow", mark("script"))
+    w:hookScript(obj, "OnShow", mark("hook1"))
     w:hookScript(obj, "OnShow", mark("hook2"))
     w:callScript(obj, "OnShow", 7)
     A.same(order, {
@@ -127,7 +136,7 @@ local function test_call_script_runs_script_then_hooks_in_addon_context()
   end)
 end
 
-local function test_set_script_nil_clears_script_keeps_hooks()
+local function test_set_script_nil_clears_script_and_hooks_assumed()
   withWorld("retail", function(w)
     local obj, script, hook = {}, counter(), counter()
     w:setScript(obj, "OnShow", script.fn)
@@ -136,7 +145,64 @@ local function test_set_script_nil_clears_script_keeps_hooks()
     A.eq(w:getScript(obj, "OnShow"), nil)
     w:callScript(obj, "OnShow")
     A.eq(script.n, 0)
-    A.eq(hook.n, 1)
+    A.eq(hook.n, 0)
+  end)
+end
+
+local function test_set_script_replaces_script_and_drops_hooks_assumed()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local mark = marker(order)
+    w:setScript(obj, "OnShow", mark("script1"))
+    w:hookScript(obj, "OnShow", mark("hook1"))
+    w:setScript(obj, "OnShow", mark("script2"))
+    w:callScript(obj, "OnShow")
+    A.same(order, { "script2" })
+  end)
+end
+
+local function test_set_script_nil_inside_the_handler_still_runs_its_hooks_assumed()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local mark = marker(order)
+    w:setScript(obj, "OnShow", function()
+      mark("script")()
+      w:setScript(obj, "OnShow", nil)
+    end)
+    w:hookScript(obj, "OnShow", mark("h1"))
+    w:callScript(obj, "OnShow")
+    mark("|")()
+    w:callScript(obj, "OnShow")
+    A.same(order, { "script", "h1", "|" })
+  end)
+end
+
+local function test_set_script_inside_the_handler_still_runs_its_hooks_assumed()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local mark = marker(order)
+    w:setScript(obj, "OnShow", function()
+      mark("script")()
+      w:setScript(obj, "OnShow", mark("script2"))
+    end)
+    w:hookScript(obj, "OnShow", mark("h1"))
+    w:callScript(obj, "OnShow")
+    mark("|")()
+    w:callScript(obj, "OnShow")
+    A.same(order, { "script", "h1", "|", "script2" })
+  end)
+end
+
+local function test_hook_after_set_script_nil_runs_alone_assumed()
+  withWorld("retail", function(w)
+    local obj, order = {}, {}
+    local mark = marker(order)
+    w:setScript(obj, "OnShow", mark("script"))
+    w:hookScript(obj, "OnShow", mark("hook1"))
+    w:setScript(obj, "OnShow", nil)
+    w:hookScript(obj, "OnShow", mark("hook2"))
+    w:callScript(obj, "OnShow")
+    A.same(order, { "hook2" })
   end)
 end
 
@@ -251,7 +317,11 @@ return function()
   test_payload_arity_mismatch_warns()
   test_omitted_trailing_nilable_payload_does_not_warn()
   test_call_script_runs_script_then_hooks_in_addon_context()
-  test_set_script_nil_clears_script_keeps_hooks()
+  test_set_script_nil_clears_script_and_hooks_assumed()
+  test_set_script_replaces_script_and_drops_hooks_assumed()
+  test_set_script_nil_inside_the_handler_still_runs_its_hooks_assumed()
+  test_set_script_inside_the_handler_still_runs_its_hooks_assumed()
+  test_hook_after_set_script_nil_runs_alone_assumed()
   test_record_error_sets_addon_source()
   test_record_error_finds_source_in_traceback()
   test_record_error_resolves_truncated_chunk_name_to_registered_one()

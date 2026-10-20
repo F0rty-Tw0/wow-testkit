@@ -31,12 +31,21 @@ function M.copyInfo(info)
   return copy
 end
 
+-- The Button text: colorCode .. text .. "|r" when colorCode is set, else text (Mainline :484-490, Classic :435-441).
+local function textOf(info)
+  if info.text and info.colorCode then
+    return info.colorCode .. info.text .. "|r"
+  end
+
+  return info.text
+end
+
 -- A function-valued checked reads false here; addButton calls it.
 function M.entryFor(info)
   local checkedFlag = type(info.checked) ~= "function" and info.checked
   return {
     kind = kindOf(info),
-    text = info.text,
+    text = textOf(info),
     enabled = not info.disabled,
     checked = checkedFlag and true or false,
     hasSubmenu = info.hasArrow == true,

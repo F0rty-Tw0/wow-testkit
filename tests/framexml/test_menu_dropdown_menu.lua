@@ -1,18 +1,13 @@
 -- DropdownButton: generator changes on an open menu, the template's OnShow, and the mixin methods past the basics.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 
 local withFrameXML = HF.withFrameXML
 
 local function noop() end
 
-local function newDropdown(generator)
-  local dd = _G.CreateFrame("DropdownButton", nil, _G.UIParent, "WowStyle1DropdownTemplate")
-  if generator then
-    dd:SetupMenu(generator)
-  end
-  return dd
-end
+local newDropdown = HM.newDropdownButton
 
 local function oneButton(text)
   return function(_, root)
@@ -20,13 +15,7 @@ local function oneButton(text)
   end
 end
 
-local function texts(level)
-  local out = {}
-  for i, entry in ipairs(level.entries) do
-    out[i] = entry.text
-  end
-  return out
-end
+local texts = HM.levelTexts
 
 local function test_setup_menu_on_an_open_menu_shows_the_new_generators_entries() -- (D5)
   withFrameXML("retail", function(w)
@@ -246,7 +235,7 @@ local function test_template_on_a_non_dropdown_reports_an_error_and_still_create
     A.eq(#w.errors, 0)
     local button = _G.CreateFrame("Button", nil, _G.UIParent, "WowStyle1DropdownTemplate")
     A.eq(#w.errors, 1)
-    A.contains(w.errors[1].message, "element is not a DropdownButton.")
+    A.eq(w.errors[1].message, " element is not a DropdownButton.")
     button:SetText("Shown")
     A.eq(button:GetText(), "Shown")
     A.eq(button.Text:GetText(), "Shown")

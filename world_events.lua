@@ -131,13 +131,23 @@ local function scriptEntry(w, obj, scriptName)
   return entry
 end
 
+-- F3 (assumed, wiki API_ScriptObject_HookScript): hooks "remain in place until replaced or cleared with SetScript".
+-- A new table, not a cleared one, so a dispatch already running keeps its hooks (callScript).
 function methods:setScript(obj, scriptName, fn)
-  scriptEntry(self, obj, scriptName).fn = fn
+  local entry = scriptEntry(self, obj, scriptName)
+  entry.fn = fn
+  entry.hooks = {}
 end
 
+-- F3 (assumed, wiki API_ScriptObject_HookScript): with no handler, a hook is the handler, as SetScript would set it.
 function methods:hookScript(obj, scriptName, fn)
-  local hooks = scriptEntry(self, obj, scriptName).hooks
-  hooks[#hooks + 1] = fn
+  local entry = scriptEntry(self, obj, scriptName)
+  if entry.fn == nil then
+    entry.fn = fn
+
+    return
+  end
+  entry.hooks[#entry.hooks + 1] = fn
 end
 
 function methods:getScript(obj, scriptName)
@@ -153,7 +163,8 @@ local function intrinsicScript(w, obj, scriptName)
 end
 
 -- Runs the intrinsic handler (kit code, fn(w, obj, st, ...), not replaceable), then the script and its hooks in
--- order, each receiving (obj, ...); errors in addon code are recorded, not raised.
+-- order, each receiving (obj, ...); errors in addon code are recorded, not raised. F3 (assumed, no source): the
+-- hooks in place when the dispatch began run even if the script calls SetScript on itself.
 function methods:callScript(obj, scriptName, ...)
   local intrinsic = intrinsicScript(self, obj, scriptName)
   if intrinsic then
@@ -164,10 +175,11 @@ function methods:callScript(obj, scriptName, ...)
   if not entry then
     return
   end
+  local hooks = entry.hooks
   if entry.fn then
     self:callAsAddon(entry.fn, obj, ...)
   end
-  for _, hook in ipairs(entry.hooks) do
+  for _, hook in ipairs(hooks) do
     self:callAsAddon(hook, obj, ...)
   end
 end

@@ -2,6 +2,7 @@
 local A = require("assert")
 local Flavors = require("tools.flavors")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local HW = require("tests.helpers.widgets")
 local Input = require("input")
 local Rec = require("tests.helpers.input")
@@ -11,26 +12,14 @@ local withFrameXML = HF.withFrameXML
 
 local function noop() end
 
-local function newDropdown(generator)
-  local dd = _G.CreateFrame("DropdownButton", nil, _G.UIParent, "WowStyle1DropdownTemplate")
-  if generator then
-    dd:SetupMenu(generator)
-  end
-  return dd
-end
+local newDropdown = HM.newDropdownButton
 
 local function twoEntries(_, root)
   root:CreateButton("One", noop)
   root:CreateRadio("Two", noop, noop)
 end
 
-local function texts(level)
-  local out = {}
-  for i, entry in ipairs(level.entries) do
-    out[i] = entry.text
-  end
-  return out
-end
+local texts = HM.levelTexts
 
 local function test_dropdown_button_exists_on_every_flavor_with_the_menu_api_assumed()
   for _, flavor in ipairs(Flavors.list) do

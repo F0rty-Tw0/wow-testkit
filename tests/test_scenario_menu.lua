@@ -1,18 +1,8 @@
 -- Menu steps: menu, pick, closeMenus and openMenu on the UIDropDownMenu and Menu API fakes.
 local A = require("assert")
-local Scenario = require("scenario")
+local HMS = require("tests.helpers.menu_scenario")
 
-local MENU_ADDONS_DIR = (debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or ".") .. "/fixtures/addons"
-
--- A retail scenario world (no login), always destroyed.
-local function withMenuScenario(fn)
-  local s = Scenario.new({ addon = "Hover", root = MENU_ADDONS_DIR .. "/Hover", flavor = "retail" })
-  local ok, err = pcall(fn, s)
-  s.w:destroy()
-  if not ok then
-    error(err, 0)
-  end
-end
+local withMenuScenario = HMS.withMenuScenario
 
 -- Opens a UIDropDownMenu menu: a colored title, Open, Locked (disabled), More (submenu with Nested). picks records func calls.
 local function openMenuFixture(picks)
@@ -139,6 +129,19 @@ local function test_pick_divider_throws_disabled()
     A.errors(function()
       s:pick("sep")
     end, "pick: disabled")
+  end)
+end
+
+-- A Menu API title is a Frame with no OnClick (M18), so a click on it does nothing; pick says so instead of passing.
+local function test_pick_menu_api_title_throws_no_click()
+  withMenuScenario(function(s)
+    _G.MenuUtil.CreateContextMenu(_G.UIParent, function(_, root)
+      root:CreateTitle("Head")
+    end)
+    local message = A.errors(function()
+      s:pick("Head")
+    end, 'pick: "Head" has no click')
+    A.contains(message, "test_scenario_menu.lua:")
   end)
 end
 
@@ -277,6 +280,7 @@ return function()
   test_pick_unknown_text_throws_listing_the_entries()
   test_pick_ambiguous_text_throws()
   test_pick_title_throws_disabled()
+  test_pick_menu_api_title_throws_no_click()
   test_pick_divider_throws_disabled()
   test_pick_disabled_entry_throws_disabled()
   test_pick_with_no_menu_open_throws()
