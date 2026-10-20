@@ -169,6 +169,48 @@ local function test_pick_path_through_an_entry_without_a_submenu_throws()
   end)
 end
 
+local function test_pick_path_through_a_disabled_entry_with_a_submenu_throws()
+  withMenuScenario(function(s)
+    local dd = _G.CreateFrame("Frame", "DisabledArrowDD", _G.UIParent, "UIDropDownMenuTemplate")
+    _G.UIDropDownMenu_Initialize(dd, function(_, level, menuList)
+      local info = _G.UIDropDownMenu_CreateInfo()
+      info.text, info.notCheckable = level == 2 and menuList[1] or "Gone", true
+      info.disabled, info.hasArrow, info.menuList = level ~= 2, level ~= 2, { "x" }
+      _G.UIDropDownMenu_AddButton(info, level)
+    end, "MENU")
+    _G.ToggleDropDownMenu(1, nil, dd)
+    A.errors(function()
+      s:pick({ "Gone", "x" })
+    end, '"Gone" has no submenu')
+  end)
+end
+
+-- B's own OnEnter is replaced, so C's submenu stays open; the path must not reach into a submenu B did not open.
+local function test_pick_path_does_not_use_a_submenu_another_entry_opened()
+  withMenuScenario(function(s)
+    local picks = {}
+    local dd = _G.CreateFrame("Frame", "OtherSubDD", _G.UIParent, "UIDropDownMenuTemplate")
+    _G.UIDropDownMenu_Initialize(dd, function(_, level, menuList)
+      for _, text in ipairs(level == 2 and menuList or { "B", "C" }) do
+        local info = _G.UIDropDownMenu_CreateInfo()
+        info.text, info.notCheckable, info.hasArrow, info.menuList = text, true, text == "C", { "x" }
+        info.func = function()
+          picks[#picks + 1] = text
+        end
+        _G.UIDropDownMenu_AddButton(info, level)
+      end
+    end, "MENU")
+    _G.ToggleDropDownMenu(1, nil, dd)
+    local entries = s:menu().levels[1].entries
+    s:enter(entries[2].frame)
+    entries[1].frame:SetScript("OnEnter", function() end)
+    A.errors(function()
+      s:pick({ "B", "x" })
+    end, '"B" has no submenu')
+    A.same(picks, {})
+  end)
+end
+
 local function test_close_menus_hides_every_level()
   withMenuScenario(function(s)
     openMenuFixture({})
@@ -378,6 +420,8 @@ return function()
   test_pick_disabled_entry_throws_disabled()
   test_pick_with_no_menu_open_throws()
   test_pick_path_through_an_entry_without_a_submenu_throws()
+  test_pick_path_through_a_disabled_entry_with_a_submenu_throws()
+  test_pick_path_does_not_use_a_submenu_another_entry_opened()
   test_close_menus_hides_every_level()
   test_dropdown_menu_snapshot_lists_every_entry_kind_on_every_flavor()
   test_dropdown_submenu_snapshot_nests_under_its_entry()

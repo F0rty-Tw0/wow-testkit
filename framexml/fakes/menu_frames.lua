@@ -49,9 +49,11 @@ local function depthOf(w, level)
   return nil
 end
 
+-- S11: a disabled entry's enter only closes deeper levels: the client covers it with an InvisibleButton whose OnEnter
+-- closes depth + 1 (Mainline UIDropDownMenu.lua:153-154, :471-475; Classic :180-182, :423-426).
 local function enterEntry(w, level, entry, index)
   local depth = depthOf(w, level)
-  if entry.hasSubmenu then
+  if entry.hasSubmenu and entry.enabled ~= false then
     level.openSubmenu(index)
   elseif depth then
     M.close(w, depth + 1)
@@ -124,11 +126,14 @@ local function hideLevel(w, level)
   end
 end
 
--- Closes level depth and every deeper level, deepest first.
+-- Closes level depth and every deeper level, deepest first. Each level leaves w.menus before its OnLeave runs, so a
+-- handler that closes menus itself sees only the levels still open.
 function M.close(w, depth)
-  for i = #w.menus, depth, -1 do
-    hideLevel(w, w.menus[i])
-    w.menus[i] = nil
+  while #w.menus >= depth do
+    local last = #w.menus
+    local level = w.menus[last]
+    w.menus[last] = nil
+    hideLevel(w, level)
   end
 end
 
