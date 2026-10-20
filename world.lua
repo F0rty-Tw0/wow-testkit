@@ -109,7 +109,9 @@ local function installBase(w, row)
     end
   end
   for name, signature in pairs(w.manifest.functions) do
-    if not signature.secureOnly then
+    -- A documented Lua extension the kit implements (string.trim) is left to LuaApi.install below.
+    local luaImplemented = w.globals.lua[name] and LuaApi.implements(name)
+    if not signature.secureOnly and not luaImplemented then
       w:installStub(name, signature)
     end
   end

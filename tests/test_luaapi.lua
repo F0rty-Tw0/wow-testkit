@@ -61,6 +61,15 @@ local function test_forever_helpers_installed_only_on_forever()
   end)
 end
 
+-- Forever's docs document string.trim and table.count; the documented stub must not hide the kit's implementation.
+local function test_documented_name_keeps_the_kit_implementation()
+  withWorld("forever", function(w)
+    A.truthy(w.manifest.functions["string.trim"], "string.trim is documented on forever")
+    A.eq(lookup("string.trim")("  a "), "a")
+    A.eq(lookup("table.count")({ 1, 2 }), 2)
+  end)
+end
+
 local function test_name_without_implementation_is_an_unscripted_stub()
   withWorld("retail", function(w)
     A.eq(lookup("table.freeze")({}), nil)
@@ -82,6 +91,7 @@ return function()
   test_global_aliases_match_the_standard_library()
   test_global_trig_works_in_degrees()
   test_forever_helpers_installed_only_on_forever()
+  test_documented_name_keeps_the_kit_implementation()
   test_name_without_implementation_is_an_unscripted_stub()
   test_destroy_removes_library_installs()
 end
