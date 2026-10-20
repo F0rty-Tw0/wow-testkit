@@ -60,6 +60,23 @@ local function test_level_1_fenv_calls_in_tail_position_raise_that_the_caller_is
   })
 end
 
+local COROUTINE_BODIES = [[
+local _, ns = ...
+ns.get = select(2, pcall(coroutine.wrap(getfenv)))
+ns.set = select(2, pcall(coroutine.wrap(setfenv), 1, {}))
+]]
+
+-- Lua 5.1 refuses a C function as a coroutine body; the kit's getfenv/setfenv are Lua functions, so they run with
+-- no caller at all, and level 1 is an invalid level as for any level past the stack.
+local function test_level_1_fenv_calls_as_a_coroutine_body_raise_invalid_level()
+  local ns, messages = loadSource("FenvCoroutine", COROUTINE_BODIES)
+  A.same({ messages, ns.get, ns.set }, {
+    {},
+    "bad argument #1 to 'getfenv' (invalid level)",
+    "bad argument #1 to 'setfenv' (invalid level)",
+  })
+end
+
 local KIT_FUNCTIONS = [[
 local _, ns = ...
 ns.byFunction, ns.kitFunction = select(2, pcall(function() setfenv(CreateFrame, {}) end)), CreateFrame
@@ -87,5 +104,6 @@ end
 return function()
   test_fenv_argument_errors_name_the_function_and_the_addon_line()
   test_level_1_fenv_calls_in_tail_position_raise_that_the_caller_is_lost()
+  test_level_1_fenv_calls_as_a_coroutine_body_raise_invalid_level()
   test_setfenv_refuses_kit_functions_like_the_clients_c_functions()
 end

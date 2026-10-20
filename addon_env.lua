@@ -39,11 +39,13 @@ end
 -- Runs hostFn, the host getfenv or setfenv, for the override name that addon code called with (f, ...): under pcall
 -- here, a level counted from the addon's function is three deeper. Errors are re-raised at the addon's line under
 -- name, as Lua 5.1's C function raises them. An override called in tail position (`return getfenv()`) has replaced
--- the addon's function, so level 1 reaches nothing: that raises saying so.
+-- the addon's function, so level 1 reaches nothing: that raises saying so. As a coroutine body the override has no
+-- caller at all, and level 1 is an invalid level.
 local function callHostFenv(name, hostFn, ...)
   local f = ...
   local level = hostType(f) ~= "function" and hostTonumber(f)
-  if level == 1 and hostGetinfo(3, "S").what == "tail" then
+  local caller = hostGetinfo(3, "S")
+  if level == 1 and caller and caller.what == "tail" then
     hostError("'" .. name .. "' cannot reach the calling function: a tail call (return " .. name .. "(...)) replaced it", 0)
   end
   local ok, result = hostPcall(hostFn, level and level > 0 and level + 3 or f, hostSelect(2, ...))
