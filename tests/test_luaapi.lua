@@ -70,10 +70,12 @@ local function test_documented_name_keeps_the_kit_implementation()
   end)
 end
 
+-- An undocumented Ketho LuaAPI name; table.freeze no longer fits since retail's docs document it (no returns).
 local function test_name_without_implementation_is_an_unscripted_stub()
   withWorld("retail", function(w)
-    A.eq(lookup("table.freeze")({}), nil)
-    A.eq(w.unscripted["table.freeze"], 1)
+    A.eq(w.manifest.functions["table.removemulti"], nil)
+    A.eq(lookup("table.removemulti")({}), nil)
+    A.eq(w.unscripted["table.removemulti"], 1)
   end)
 end
 

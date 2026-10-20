@@ -558,35 +558,6 @@ return {
         when = { "LossOfControlInfoRestricted" },
       },
     },
-    ["C_PvP.GetArenaOpponentSpec"] = {
-      args = {
-        {
-          lua = "number",
-          name = "index",
-          nilable = false,
-          type = "luaIndex",
-        },
-      },
-      mayReturnNothing = true,
-      returns = {
-        {
-          lua = "number",
-          name = "specializationID",
-          nilable = false,
-          type = "number",
-        },
-        {
-          lua = "number",
-          name = "gender",
-          nilable = false,
-          type = "number",
-        },
-      },
-      secret = {
-        args = "AllowedWhenUntainted",
-        returns = "always",
-      },
-    },
     ["C_PvP.GetArenaRewards"] = {
       args = {
         {
@@ -2369,6 +2340,35 @@ return {
     ["C_PvP.ToggleWarMode"] = {
       secret = {
         returns = "never",
+      },
+    },
+    GetArenaOpponentSpec = {
+      args = {
+        {
+          lua = "number",
+          name = "index",
+          nilable = false,
+          type = "luaIndex",
+        },
+      },
+      mayReturnNothing = true,
+      returns = {
+        {
+          lua = "number",
+          name = "specializationID",
+          nilable = false,
+          type = "number",
+        },
+        {
+          lua = "number",
+          name = "gender",
+          nilable = false,
+          type = "number",
+        },
+      },
+      secret = {
+        args = "AllowedWhenUntainted",
+        returns = "always",
       },
     },
   },

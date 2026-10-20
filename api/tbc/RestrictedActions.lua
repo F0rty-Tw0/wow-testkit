@@ -120,19 +120,6 @@ return {
         returns = "never",
       },
     },
-    ["C_RestrictedActions.InCombatLockdown"] = {
-      returns = {
-        {
-          lua = "boolean",
-          name = "inCombatLockdown",
-          nilable = false,
-          type = "bool",
-        },
-      },
-      secret = {
-        returns = "never",
-      },
-    },
     ["C_RestrictedActions.IsAddOnRestrictionActive"] = {
       args = {
         {
@@ -146,6 +133,19 @@ return {
         {
           lua = "boolean",
           name = "active",
+          nilable = false,
+          type = "bool",
+        },
+      },
+      secret = {
+        returns = "never",
+      },
+    },
+    InCombatLockdown = {
+      returns = {
+        {
+          lua = "boolean",
+          name = "inCombatLockdown",
           nilable = false,
           type = "bool",
         },

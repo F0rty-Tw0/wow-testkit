@@ -55,11 +55,13 @@ local function test_vanilla_lacks_mythic_plus_rating_summary()
 end
 
 -- Per-function Namespace: "" in C_RestrictedActions is a global, "table" in C_TableUtil is the table library.
-local function test_vanilla_keys_functions_by_their_own_namespace()
-  local functions = Manifest.load("vanilla").functions
-  A.truthy(functions.InCombatLockdown, "InCombatLockdown")
-  A.truthy(functions["table.count"], "table.count")
-  A.eq(functions["C_RestrictedActions.InCombatLockdown"], nil)
+local function test_every_flavor_keys_functions_by_their_own_namespace()
+  for _, flavor in ipairs(Flavors.list) do
+    local functions = Manifest.load(flavor).functions
+    A.truthy(functions.InCombatLockdown, flavor .. " InCombatLockdown")
+    A.truthy(functions["table.count"], flavor .. " table.count")
+    A.eq(functions["C_RestrictedActions.InCombatLockdown"], nil, flavor)
+  end
 end
 
 local function test_retail_issecretvalue_args_allowed_when_untainted()
@@ -93,7 +95,7 @@ return function()
   test_retail_loads_within_time_limit()
   test_retail_has_mythic_plus_rating_summary()
   test_vanilla_lacks_mythic_plus_rating_summary()
-  test_vanilla_keys_functions_by_their_own_namespace()
+  test_every_flavor_keys_functions_by_their_own_namespace()
   test_retail_issecretvalue_args_allowed_when_untainted()
   test_versions_retail_is_12_1()
   test_no_raw_doc_files_under_api()

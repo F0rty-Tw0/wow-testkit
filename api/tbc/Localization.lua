@@ -55,6 +55,27 @@ return {
         returns = "never",
       },
     },
+    ["C_StringUtil.GetDefaultAbbreviationBreakpoints"] = {
+      args = {
+        {
+          lua = "table",
+          name = "locale",
+          nilable = true,
+          type = "WowLocale",
+        },
+      },
+      returns = {
+        {
+          lua = "table",
+          name = "breakpoints",
+          nilable = false,
+          type = "table",
+        },
+      },
+      secret = {
+        returns = "never",
+      },
+    },
     CreateAbbreviateConfig = {
       args = {
         {
@@ -103,27 +124,6 @@ return {
           name = "declinedNames",
           nilable = false,
           type = "string",
-        },
-      },
-      secret = {
-        returns = "never",
-      },
-    },
-    GetDefaultAbbreviationBreakpoints = {
-      args = {
-        {
-          lua = "table",
-          name = "locale",
-          nilable = true,
-          type = "WowLocale",
-        },
-      },
-      returns = {
-        {
-          lua = "table",
-          name = "breakpoints",
-          nilable = false,
-          type = "table",
         },
       },
       secret = {

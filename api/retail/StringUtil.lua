@@ -336,7 +336,7 @@ return {
         returns = "never",
       },
     },
-    ["C_StringUtil.trim"] = {
+    ["string.trim"] = {
       args = {
         {
           lua = "string",

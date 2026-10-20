@@ -28,7 +28,7 @@ return {
         returns = "never",
       },
     },
-    ["C_TableUtil.count"] = {
+    ["table.count"] = {
       args = {
         {
           lua = "any",
@@ -62,7 +62,7 @@ return {
         returns = "never",
       },
     },
-    ["C_TableUtil.create"] = {
+    ["table.create"] = {
       args = {
         {
           lua = "number",
@@ -90,7 +90,7 @@ return {
         returns = "never",
       },
     },
-    ["C_TableUtil.freeze"] = {
+    ["table.freeze"] = {
       args = {
         {
           lua = "any",
@@ -103,7 +103,7 @@ return {
         returns = "never",
       },
     },
-    ["C_TableUtil.isfrozen"] = {
+    ["table.isfrozen"] = {
       args = {
         {
           lua = "any",
