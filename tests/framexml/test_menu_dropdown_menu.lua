@@ -99,6 +99,25 @@ local function test_template_on_show_is_a_replaceable_script_and_runs_before_hoo
   end)
 end
 
+-- <OnShow method="OnShow"/> calls the frame's OnShow method (DropdownSelectionTextMixin:OnShow, MenuTemplates.lua:816-820),
+-- looked up at each show, so a hooksecurefunc on it runs.
+local function test_template_on_show_calls_the_mixins_on_show_method() -- (D5)
+  withFrameXML("retail", function()
+    local choice = { value = 1 }
+    local dd = newDropdown(radios(choice))
+    A.eq(type(dd.OnShow), "function")
+    A.eq(dd.OnShow, _G.WowStyle1DropdownMixin.OnShow)
+    local hooked = 0
+    _G.hooksecurefunc(dd, "OnShow", function()
+      hooked = hooked + 1
+    end)
+    dd:Hide()
+    dd:Show()
+    A.eq(hooked, 1)
+    A.eq(choice.runs, 2)
+  end)
+end
+
 local function test_plain_dropdown_button_has_no_on_show_generate() -- (D5)
   withFrameXML("retail", function()
     local choice = {}
@@ -240,6 +259,7 @@ return function()
   test_template_on_show_runs_when_a_hidden_parent_is_shown()
   test_template_on_show_is_a_replaceable_script_and_runs_before_hooks()
   test_plain_dropdown_button_has_no_on_show_generate()
+  test_template_on_show_calls_the_mixins_on_show_method()
   test_get_default_text_returns_what_set_default_text_stored()
   test_set_menu_open_opens_and_closes_the_menu()
   test_update_re_reads_the_selection_without_running_the_generator()

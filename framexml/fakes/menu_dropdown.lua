@@ -233,6 +233,10 @@ local function newMixin(w)
     dropdownOf(self).overridden = true
     self:SetText(text)
   end
+  -- source: confirmed (row D5) MenuTemplates.lua:816-820, the template's <OnShow method="OnShow"/>.
+  function mixin.OnShow(self)
+    self:GenerateMenu()
+  end
   return mixin
 end
 
