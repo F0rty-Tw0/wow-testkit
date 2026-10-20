@@ -10,3 +10,4 @@ tests/tools/test_generate_io.lua
 tests/test_manifest.lua
 tests/test_toc.lua
 tests/test_golden.lua
+tests/framexml/test_menu_description.lua

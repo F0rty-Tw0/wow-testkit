@@ -49,12 +49,10 @@ local function entryFor(info)
 end
 
 -- Reads a function-valued checked with the entry frame under addon context; an error is recorded and reads false.
--- Task 4.2 makes w:callAsAddon return results; this then becomes that call.
 local function readChecked(w, fn, entryFrame)
-  local packed = w:run("addon", w.try, w, fn, entryFrame)
-  local ok, value = packed[1], packed[2]
+  local r = w:callAsAddon(fn, entryFrame)
 
-  return ok and value and true or false
+  return r[1] and r[2] and true or false
 end
 
 local function refreshChecked(w, level)

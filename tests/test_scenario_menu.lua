@@ -334,6 +334,62 @@ local function test_scn_input_dropdown_snapshots_are_written_in_a_temp_copy_on_e
   end
 end
 
+local function test_open_menu_runs_the_hook_for_the_tag_and_shows_its_entries()
+  withMenuScenario(function(s)
+    _G.Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, contextData)
+      root:CreateButton("Hi " .. contextData.name, function() end)
+    end)
+    s:openMenu("FRIEND", { name = "Bob" })
+    A.eq(s:menu().levels[1].entries[1].text, "Hi Bob")
+  end)
+end
+
+local function test_open_menu_adds_the_blizzard_entries_note_to_the_report()
+  withMenuScenario(function(s)
+    s:openMenu("FRIEND", {})
+    A.contains(s:report().notes, "Blizzard's own entries are not simulated")
+  end)
+end
+
+local function test_open_menu_throws_when_unit_popup_open_menu_is_missing()
+  withMenuScenario(function(s)
+    rawset(_G, "UnitPopup_OpenMenu", nil)
+    A.errors(function()
+      s:openMenu("FRIEND", {})
+    end, "openMenu: UnitPopup_OpenMenu is not on retail")
+  end)
+end
+
+local EXPECTED_MENU_API = {
+  menu_api = { "== Clicky ==", "Plain", "> More", "[ ] Check", "(o) Radio A", "( ) Radio B", "---", "Off (disabled)" },
+  menu_api_submenu = {
+    "== Clicky ==",
+    "Plain",
+    "> More",
+    "  Deep",
+    "[ ] Check",
+    "(o) Radio A",
+    "( ) Radio B",
+    "---",
+    "Off (disabled)",
+  },
+  menu_api_checked = { "== Clicky ==", "Plain", "> More", "[x] Check", "(o) Radio A", "( ) Radio B", "---", "Off (disabled)" },
+  menu_unit = { "---", "== Clicky ==", "Clicky action" },
+}
+
+local function test_menu_api_snapshots_match_on_every_flavor()
+  local root = Clicky.clickyCopy()
+  local run = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root })
+  for _, flavor in ipairs(Flavors.list) do
+    local report = run.results[flavor]
+    A.eq(report.status, "pass", flavor .. ": " .. tostring(report.errors[1] and report.errors[1].message))
+    A.contains(report.notes, "Blizzard's own entries are not simulated")
+    for name, lines in pairs(EXPECTED_MENU_API) do
+      A.same(Clicky.goldenLines(root, name, flavor), lines, flavor .. " " .. name)
+    end
+  end
+end
+
 return function()
   test_pick_with_an_empty_path_throws()
   test_menu_is_nil_when_no_menu_is_open()
@@ -356,4 +412,8 @@ return function()
   test_dropdown_checkbox_pick_passes_the_checked_value()
   test_dropdown_path_pick_clicks_the_nested_entry()
   test_scn_input_dropdown_snapshots_are_written_in_a_temp_copy_on_every_flavor()
+  test_open_menu_runs_the_hook_for_the_tag_and_shows_its_entries()
+  test_open_menu_adds_the_blizzard_entries_note_to_the_report()
+  test_open_menu_throws_when_unit_popup_open_menu_is_missing()
+  test_menu_api_snapshots_match_on_every_flavor()
 end

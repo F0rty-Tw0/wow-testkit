@@ -299,6 +299,26 @@ local function test_record_error_leaves_ambiguous_truncated_name_unresolved()
   end)
 end
 
+local function test_call_as_addon_returns_the_packed_results()
+  withWorld("retail", function(w)
+    local r = w:callAsAddon(function(a, b)
+      return a + b, "x"
+    end, 1, 2)
+    A.same(r, { n = 3, true, 3, "x" })
+  end)
+end
+
+local function test_call_as_addon_returns_false_for_an_error_and_records_it()
+  withWorld("retail", function(w)
+    local r = w:callAsAddon(function()
+      error("boom")
+    end)
+    A.eq(r[1], false)
+    A.eq(#w.errors, 1)
+    A.eq(#w.stack, 0)
+  end)
+end
+
 local function test_destroy_clears_timers_scripts_and_events()
   local w = World.new({ flavor = "retail" })
   local obj, c = {}, counter()
@@ -335,5 +355,7 @@ return function()
   test_record_error_finds_source_in_traceback()
   test_record_error_resolves_truncated_chunk_name_to_registered_one()
   test_record_error_leaves_ambiguous_truncated_name_unresolved()
+  test_call_as_addon_returns_the_packed_results()
+  test_call_as_addon_returns_false_for_an_error_and_records_it()
   test_destroy_clears_timers_scripts_and_events()
 end
