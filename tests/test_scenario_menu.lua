@@ -20,13 +20,13 @@ end
 -- Opens a UIDropDownMenu menu: a colored title, Open, Locked (disabled), More (submenu with Nested). picks records func calls.
 local function openMenuFixture(picks)
   local dd = _G.CreateFrame("Frame", "MenuStepDD", _G.UIParent, "UIDropDownMenuTemplate")
-  local function add(text, fields)
+  local function add(text, fields, level)
     local info = _G.UIDropDownMenu_CreateInfo()
     info.text = text
     for k, v in pairs(fields) do
       info[k] = v
     end
-    _G.UIDropDownMenu_AddButton(info, 1)
+    _G.UIDropDownMenu_AddButton(info, level)
   end
   local function record(name)
     return function()
@@ -35,7 +35,7 @@ local function openMenuFixture(picks)
   end
   _G.UIDropDownMenu_Initialize(dd, function(_, level, menuList)
     if level == 2 then
-      add(menuList[1], { notCheckable = true, func = record(menuList[1]) })
+      add(menuList[1], { notCheckable = true, func = record(menuList[1]) }, 2)
       return
     end
     add("|cff00ff00Head|r", { isTitle = true, notCheckable = true })

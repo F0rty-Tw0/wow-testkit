@@ -1,0 +1,85 @@
+-- UIDropDownMenu fake levels: which DropDownList an AddButton lands in.
+local A = require("assert")
+local HF = require("tests.helpers.framexml")
+local Input = require("input")
+
+local withFrameXML = HF.withFrameXML
+
+local function addItem(text, level)
+  local info = _G.UIDropDownMenu_CreateInfo()
+  info.text, info.notCheckable = text, true
+  _G.UIDropDownMenu_AddButton(info, level)
+end
+
+local function texts(level)
+  local out = {}
+  for i, e in ipairs(level.entries) do
+    out[i] = e.text
+  end
+  return out
+end
+
+-- A dropdown whose init calls add(level) at every level; returns the frame.
+local function newDropdown(add)
+  local frame = _G.CreateFrame("Frame", "LevelsDD", _G.UIParent, "UIDropDownMenuTemplate")
+  _G.UIDropDownMenu_Initialize(frame, function(_, level)
+    add(level or 1)
+  end, "MENU")
+  return frame
+end
+
+-- AddButton appends to DropDownList<level or 1> (Mainline UIDropDownMenu.lua:421-439, Classic :380-396): a level-2
+-- init that leaves out the level adds to the shown list 1, and list 2 stays empty, so no submenu opens (S10).
+local function test_add_button_without_a_level_in_a_submenu_init_joins_level_one()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      if level == 2 then
+        addItem("Stray")
+        return
+      end
+      local info = _G.UIDropDownMenu_CreateInfo()
+      info.text, info.notCheckable, info.hasArrow = "More", true, true
+      _G.UIDropDownMenu_AddButton(info, 1)
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    Input.enter(w, w.menus[1].entries[1].frame)
+    A.eq(#w.menus, 1)
+    A.same(texts(w.menus[1]), { "More", "Stray" })
+    A.eq(_G.DropDownList1Button2:IsShown(), true)
+  end)
+end
+
+-- Toggle hid list 2 (S12), and its own Toggle clears it before init (S4), so the entry never shows.
+local function test_add_button_to_a_deeper_level_during_a_level_one_build_is_dropped()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      if level == 1 then
+        addItem("One", 1)
+        addItem("Two", 2)
+      end
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    A.eq(#w.menus, 1)
+    A.same(texts(w.menus[1]), { "One" })
+  end)
+end
+
+-- S5: with no build running the entry still joins the list for its level when that list is shown.
+local function test_add_button_outside_a_build_joins_the_shown_list()
+  withFrameXML("retail", function(w)
+    local frame = newDropdown(function(level)
+      addItem("One", level)
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    addItem("Late", 1)
+    A.same(texts(w.menus[1]), { "One", "Late" })
+    A.eq(w.menus[1].entries[2].frame, _G.DropDownList1Button2)
+    A.eq(_G.DropDownList1Button2:IsShown(), true)
+  end)
+end
+
+return function()
+  test_add_button_without_a_level_in_a_submenu_init_joins_level_one()
+  test_add_button_to_a_deeper_level_during_a_level_one_build_is_dropped()
+  test_add_button_outside_a_build_joins_the_shown_list()
+end

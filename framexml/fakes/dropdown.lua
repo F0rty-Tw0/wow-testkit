@@ -186,16 +186,26 @@ local function initialize(w, frame, init, displayMode, level, menuList)
   end
 end
 
--- S5: the client appends to the hidden DropDownList<level>, which the next Initialize clears; the kit ignores it.
-local function addButton(w, info)
+-- S5 (Mainline :421-439, Classic :380-396): appends to DropDownList<level or 1>, the shown one at once, else the one
+-- being built. Any other list is hidden and its next Initialize or Toggle clears it, so the kit drops the entry.
+local function addButton(w, info, level)
+  local name = LIST_NAME .. (level or 1)
+  local shown = w.menus[level or 1]
   local building = w.dropdown.building
-  if not building then
+  local target = shown and shown.namePrefix == name and shown or building and building.namePrefix == name and building
+  if not target then
     return
   end
   local copy = copyInfo(info)
-  local entries = building.entries
+  local entries = target.entries
   entries[#entries + 1] = entryFor(copy)
-  w.dropdown.infos[building][#entries] = copy
+  w.dropdown.infos[target][#entries] = copy
+  if target == shown then
+    MenuFrames.render(w, shown)
+    if type(copy.checked) == "function" then
+      entries[#entries].checked = readChecked(w, copy.checked, entries[#entries].frame)
+    end
+  end
 end
 
 -- S1 (Mainline :1064-1071) and S6 (:1163-1165): level 1 on the owning frame closes; level 2+ falls back to level 1's owner.
@@ -269,8 +279,8 @@ local function globalsFor(w)
     UIDropDownMenu_CreateInfo = function()
       return {}
     end,
-    UIDropDownMenu_AddButton = function(info)
-      addButton(w, info)
+    UIDropDownMenu_AddButton = function(info, level)
+      addButton(w, info, level)
     end,
     ToggleDropDownMenu = function(level, value, frame, _, _, _, menuList)
       toggle(w, level, value, frame, menuList)

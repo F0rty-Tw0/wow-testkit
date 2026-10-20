@@ -5,13 +5,13 @@ local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
 
-local function addItem(spec)
+local function addItem(spec, level)
   local info = _G.UIDropDownMenu_CreateInfo()
   info.text = spec[1]
   for k, v in pairs(spec[2] or {}) do
     info[k] = v
   end
-  _G.UIDropDownMenu_AddButton(info, 1)
+  _G.UIDropDownMenu_AddButton(info, level)
 end
 
 -- A dropdown whose init adds items (level 1) or menuList's items (level 2+); specs are { text, infoFields }.
@@ -19,7 +19,7 @@ local function newDropdown(items, name)
   local frame = _G.CreateFrame("Frame", name or "StateDD", _G.UIParent, "UIDropDownMenuTemplate")
   _G.UIDropDownMenu_Initialize(frame, function(_, level, menuList)
     for _, spec in ipairs((level or 1) > 1 and menuList or items) do
-      addItem(spec)
+      addItem(spec, level)
     end
   end, "MENU")
   return frame
@@ -119,7 +119,7 @@ local function test_toggle_whose_init_errors_leaves_the_old_submenu_closed()
       local specs = level == 2 and menuList
         or { { "Good", { hasArrow = true, menuList = { { "Nested" } } } }, { "Bad", { hasArrow = true, menuList = "boom" } } }
       for _, spec in ipairs(specs) do
-        addItem(spec)
+        addItem(spec, level)
       end
     end, "MENU")
     _G.ToggleDropDownMenu(1, nil, frame)
