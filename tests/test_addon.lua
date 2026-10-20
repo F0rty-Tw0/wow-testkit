@@ -1,5 +1,6 @@
 -- Loading an addon's TOC files into a world: shared namespace, globals, require sentinel, skips and load errors.
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local H = require("tests.helpers.world")
@@ -11,8 +12,6 @@ local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*
 local ADDONS_DIR = TEST_DIR .. "/fixtures/addons"
 local SMOKE_DIR = TEST_DIR .. "/fixtures/smoke"
 local LONG_CHUNK = "addon:LongPath/Deeply/Nested/Folder/Structure/For/Testing/Truncation/Of/Chunk/Names.lua"
-
-math.randomseed(os.time())
 
 local function load(w, name)
   return Addon.load(w, { name = name, root = ADDONS_DIR .. "/" .. name })
@@ -84,7 +83,7 @@ end
 
 -- Writes a one-file addon declaring interfaceLine to a temp dir and loads it on tbc.
 local function loadOnTbc(interfaceLine)
-  local root = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/") .. "/wow-testkit-addon-" .. os.time() .. "-" .. math.random(1, 1000000)
+  local root = Tmp.dir("addon")
   fs.mkdirp(root)
   fs.writeFile(root .. "/Temp.toc", interfaceLine .. "\n\nCore.lua\n")
   fs.writeFile(root .. "/Core.lua", "local _, ns = ...\nns.loaded = true\n")

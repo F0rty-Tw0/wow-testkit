@@ -1,4 +1,5 @@
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local Docs = require("tools.docs")
 local Generate = require("tools.generate")
 local GenerateIo = require("tools.generate_io")
@@ -12,11 +13,8 @@ local UNRESOLVED_DIR = TEST_DIR .. "/../fixtures/docs_unresolved"
 local UNSETTLED_DIR = TEST_DIR .. "/../fixtures/docs_unsettled"
 local META = { flavor = "retail", branch = "live", version = "12.1.0.69933", mirrorCommit = "abc123" }
 
-math.randomseed(os.time())
-
 local function tempDir()
-  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
-  return base .. "/wow-testkit-gen-" .. os.time() .. "-" .. math.random(1, 1000000)
+  return Tmp.dir("gen")
 end
 
 local ketho = GenerateIo.loadKetho(KETHO_DIR)

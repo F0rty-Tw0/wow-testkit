@@ -1,5 +1,6 @@
 -- Scenarios: an addon logged in on a flavor, driven by hover/fire/advance, reported per flavor in a matrix.
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 local Flavors = require("tools.flavors")
 local Scenario = require("scenario")
@@ -139,8 +140,7 @@ local function test_thrown_run_error_fails_only_that_flavor()
 end
 
 local function tempRoot()
-  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
-  return base .. "/wow-testkit-scenario-" .. os.time() .. "-" .. math.random(1, 1000000)
+  return Tmp.dir("scenario")
 end
 
 -- Runs fn(s) on retail with snapshots checked against goldens under root (scenario "hover").

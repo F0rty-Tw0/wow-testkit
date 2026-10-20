@@ -1,13 +1,11 @@
 local A = require("assert")
+local Tmp = require("tests.helpers.tmp")
 local Flavors = require("tools.flavors")
 local Manifest = require("manifest")
 local fs = require("fs")
 
-math.randomseed(os.time())
-
 local function tempDir()
-  local base = (os.getenv("TEMP") or "/tmp"):gsub("\\", "/")
-  return base .. "/wow-testkit-manifest-" .. os.time() .. "-" .. math.random(1, 1000000)
+  return Tmp.dir("manifest")
 end
 
 -- A tiny split manifest for the made-up flavor "zz": an index, two file modules and the globals.
