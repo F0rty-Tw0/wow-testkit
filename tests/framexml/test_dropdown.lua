@@ -191,6 +191,15 @@ local function test_not_clickable_entry_is_disabled()
   end)
 end
 
+-- Mainline :466-476 (Classic :417-427): isTitle sets info.disabled; a divider is a title without text (S2).
+local function test_title_and_divider_entries_are_disabled()
+  withFrameXML("retail", function(w)
+    openMenu({ { "Head", { isTitle = true } }, { nil, { isTitle = true } } })
+    A.eq(w.menus[1].entries[1].enabled, false)
+    A.eq(w.menus[1].entries[2].enabled, false)
+  end)
+end
+
 local function test_function_checked_is_evaluated_with_the_entry_frame()
   withFrameXML("retail", function(w)
     local got
@@ -517,6 +526,7 @@ return function()
   test_info_maps_to_entry_kinds()
   test_has_arrow_and_disabled_info_set_the_entry_flags()
   test_not_clickable_entry_is_disabled()
+  test_title_and_divider_entries_are_disabled()
   test_function_checked_is_evaluated_with_the_entry_frame()
   test_function_checked_that_errors_reads_false_and_is_recorded()
   test_toggle_opens_level_one_owned_by_the_frame()

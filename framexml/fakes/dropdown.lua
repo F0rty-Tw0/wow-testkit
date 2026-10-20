@@ -35,14 +35,14 @@ local function copyInfo(info)
   return copy
 end
 
--- A function-valued checked reads false until the level is shown (refreshChecked). notClickable disables the entry
--- (Mainline :460-463, Classic :411-414).
+-- A function-valued checked reads false until the level is shown (refreshChecked). notClickable and isTitle disable
+-- the entry (Mainline :460-469, Classic :411-420).
 local function entryFor(info)
   local checkedFlag = type(info.checked) ~= "function" and info.checked
   return {
     kind = kindOf(info),
     text = info.text,
-    enabled = not (info.disabled or info.notClickable),
+    enabled = not (info.disabled or info.notClickable or info.isTitle),
     checked = checkedFlag and true or false,
     hasSubmenu = info.hasArrow == true,
   }
