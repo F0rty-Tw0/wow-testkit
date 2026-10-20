@@ -1,6 +1,6 @@
 -- Menu API fake (MenuApi): MenuUtil.CreateContextMenu renders a description tree as MenuFrames levels; picks and
 -- MenuResponse live in menu_pick.lua. Menu API levels are unnamed frames under UIParent.
--- Sources: docs/client-sources.md "Menu API" (M5-M7, M9, M10); client paths are relative to
+-- Sources: docs/client-sources.md "Menu API" (M5-M7, M9, M10, M14, M18); client paths are relative to
 -- Interface/AddOns/Blizzard_Menu/.
 local M = {}
 
@@ -55,8 +55,8 @@ end
 local buildLevel
 
 -- M14 (Menu.lua:2286-2296, CheckForSubmenu): entering entry index of an open level keeps the deeper levels when they
--- hang off this entry, else closes them; then an enabled entry with children opens its submenu at depth + 1. So a
--- disabled entry keeps its own open submenu.
+-- hang off this entry, else closes them; then an entry with children opens its submenu at depth + 1 when it is enabled
+-- or is not a Button in the client (M18, :2293). So a disabled entry keeps its own open submenu.
 local function enterEntry(w, level, index)
   local depth = MenuPick.depthOf(w, level)
   local open = depth and w.menus[depth + 1]
@@ -65,7 +65,9 @@ local function enterEntry(w, level, index)
   end
   MenuFrames.close(w, depth + 1)
   local child = level.node.children[index]
-  if not level.entries[index].enabled or #child.children == 0 then
+  local entry = level.entries[index]
+  local disabledButton = not entry.enabled and not MenuFrames.FRAME_KINDS[entry.kind]
+  if disabledButton or #child.children == 0 then
     return
   end
   local sub = buildLevel(w, level.state, child, depth + 1, index)

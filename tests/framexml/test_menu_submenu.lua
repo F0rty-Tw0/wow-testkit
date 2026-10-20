@@ -109,7 +109,39 @@ local function test_rebuild_reruns_the_generator_and_keeps_the_frames()
   end)
 end
 
+-- M18: a title is a Frame element (MenuTemplates.lua:284-292, :276-277) with the element OnEnter (Menu.lua:1129), and
+-- CheckForSubmenu asks IsEnabled() of Buttons only (Menu.lua:2293, Classic :2269), so a disabled title opens its submenu.
+local function test_a_disabled_title_opens_its_submenu_on_enter()
+  for _, flavor in ipairs({ "retail", "vanilla" }) do
+    withFrameXML(flavor, function(w)
+      open(function(_, root)
+        local head = root:CreateTitle("Head")
+        head:CreateButton("Inner", noop)
+        head:SetEnabled(false)
+      end)
+      Input.enter(w, w.menus[1].entries[1].frame)
+      A.eq(w.menus[2] and w.menus[2].entries[1].text, "Inner", flavor)
+    end)
+  end
+end
+
+-- M18: entering a title collapses a sibling's submenu, as any element's CheckForSubmenu does (Menu.lua:2289-2291).
+local function test_entering_a_title_closes_a_sibling_submenu()
+  withFrameXML("retail", function(w)
+    open(function(_, root)
+      root:CreateButton("More"):CreateButton("Deep", noop)
+      root:CreateTitle("Head")
+    end)
+    Input.enter(w, w.menus[1].entries[1].frame)
+    A.eq(#w.menus, 2)
+    Input.enter(w, w.menus[1].entries[2].frame)
+    A.eq(#w.menus, 1)
+  end)
+end
+
 return function()
+  test_a_disabled_title_opens_its_submenu_on_enter()
+  test_entering_a_title_closes_a_sibling_submenu()
   test_submenu_opens_on_enter_and_lists_its_children()
   test_submenu_leaf_pick_runs_the_callback_and_closes_every_level()
   test_opening_another_menu_replaces_the_open_one()

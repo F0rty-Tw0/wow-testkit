@@ -154,14 +154,18 @@ local function test_a_replaced_entry_script_removes_the_kit_behavior()
   end)
 end
 
-local function test_menu_api_titles_and_dividers_have_mouse_disabled()
+-- M18: a Menu API title or divider is a Frame element with the element OnEnter (Menu.lua:1129), which enables its mouse
+-- (I5), and no OnClick.
+local function test_menu_api_titles_and_dividers_take_the_enter_but_no_click()
   withFrameXML("retail", function(w)
-    local level = newLevel({ entry("title", "Head"), entry("divider") }, nil)
+    local level, log = newLevel({ entry("title", "Head"), entry("divider") }, nil)
     MenuFrames.open(w, 1, level)
     for _, e in ipairs(level.entries) do
-      A.contains(Input.blockedReason(w, e.frame, "click"), "mouse disabled")
-      A.contains(Input.blockedReason(w, e.frame, "enter"), "mouse disabled")
+      A.eq(Input.blockedReason(w, e.frame, "enter"), nil)
+      A.eq(e.frame:GetScript("OnClick"), nil)
+      Input.click(w, e.frame, "LeftButton")
     end
+    A.eq(#log, 0)
   end)
 end
 
@@ -218,7 +222,7 @@ return function()
   test_entry_enter_without_a_submenu_closes_deeper_levels()
   test_entering_a_disabled_entry_with_a_submenu_only_closes_deeper_levels()
   test_a_replaced_entry_script_removes_the_kit_behavior()
-  test_menu_api_titles_and_dividers_have_mouse_disabled()
+  test_menu_api_titles_and_dividers_take_the_enter_but_no_click()
   test_drop_down_titles_and_dividers_close_deeper_levels_on_enter()
   test_disabled_entries_are_disabled_buttons()
 end

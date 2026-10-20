@@ -11,7 +11,9 @@ local MAX_LEVELS = 3
 -- same template makes them Buttons. Mainline Interface/AddOns/Blizzard_SharedXML/Mainline/UIDropDownMenu.lua:345
 -- builds extra lists with CreateFrame("Button", "DropDownList"..n, nil, "UIDropDownListTemplate").
 local LIST_TYPE = "Button"
-local NO_MOUSE_KINDS = { title = true, divider = true }
+-- M18: Menu API kinds whose client element is a Frame, not a Button (MenuTemplates.lua:276-292, :528-534).
+local FRAME_KINDS = { title = true, divider = true }
+M.FRAME_KINDS = FRAME_KINDS
 
 -- The frame that holds the level's entries: DropDownList<L> by name, else a fresh unnamed Frame under UIParent.
 local function containerFor(w, level)
@@ -82,21 +84,18 @@ local function setBoundScripts(w, button)
 end
 
 -- S21: a UIDropDownMenu Button (named level) gets its scripts once, when created, as UIDropDownMenuButtonTemplate sets
--- them; it is a disabled Button whose InvisibleButton takes the enter (S11). A Menu API element gets them on every
--- render (Menu.lua:1128-1130); its titles and dividers get none.
+-- them; it is a disabled Button whose InvisibleButton takes the enter (S11). A Menu API element gets OnEnter on every
+-- render (Menu.lua:1128-1130), which enables its mouse (I5); a title or divider is a Frame there, so it has no OnClick
+-- (M18).
 local function setEntryScripts(w, level, entry, button, created)
   if level.namePrefix and not created then
     return
   end
-  local interactive = level.namePrefix ~= nil or not NO_MOUSE_KINDS[entry.kind]
-  button:EnableMouse(interactive)
-  if interactive then
-    setBoundScripts(w, button)
-
-    return
+  button:EnableMouse(true)
+  setBoundScripts(w, button)
+  if not level.namePrefix and FRAME_KINDS[entry.kind] then
+    w:setScript(button, "OnClick", nil)
   end
-  w:setScript(button, "OnClick", nil)
-  w:setScript(button, "OnEnter", nil)
 end
 
 local function fillButton(w, level, entry, index, button, created)
