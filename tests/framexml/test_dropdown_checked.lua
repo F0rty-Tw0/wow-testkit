@@ -1,7 +1,9 @@
--- UIDropDownMenu fake: when AddButton reads a function-valued checked, and what it writes back into the caller's info.
+-- UIDropDownMenu fake: when AddButton reads a function-valued checked, what it writes back into the caller's info, and
+-- the entry text it sets.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
 local Input = require("input")
+local Snapshot = require("snapshot")
 
 local withFrameXML = HF.withFrameXML
 
@@ -129,7 +131,31 @@ local function test_add_button_writes_disabled_and_color_code_into_the_callers_i
   end)
 end
 
+-- With info.text the Button text is colorCode .. text .. "|r" when colorCode is set, else the text (Mainline
+-- :484-490, Classic :435-441); colorCode is read after a disabled entry dropped it and disablecolor replaced it.
+local function test_color_code_wraps_the_entry_text()
+  for _, flavor in ipairs({ "retail", "vanilla" }) do
+    withFrameXML(flavor, function(w)
+      local frame = _G.CreateFrame("Frame", "ColorDD", _G.UIParent, "UIDropDownMenuTemplate")
+      _G.UIDropDownMenu_Initialize(frame, function()
+        _G.UIDropDownMenu_AddButton({ text = "Red", notCheckable = true, colorCode = "|cffff0000" }, 1)
+        _G.UIDropDownMenu_AddButton({ text = "Off", notCheckable = true, disabled = true, colorCode = "|cffff0000" }, 1)
+        _G.UIDropDownMenu_AddButton({ text = "Grey", notCheckable = true, disabled = true, disablecolor = "|cff808080" }, 1)
+      end, "MENU")
+      _G.ToggleDropDownMenu(1, nil, frame)
+      local entries = w.menus[1].entries
+      A.eq(entries[1].text, "|cffff0000Red|r", flavor)
+      A.eq(entries[1].frame.NormalText:GetText(), "|cffff0000Red|r", flavor)
+      A.eq(entries[2].text, "Off", flavor)
+      A.eq(entries[3].text, "|cff808080Grey|r", flavor)
+      local expected = "[ff0000]Red\n[ffffff]Off (disabled)\n[808080]Grey (disabled)"
+      A.eq(Snapshot.menu({ levels = w.menus }), expected, flavor)
+    end)
+  end
+end
+
 return function()
+  test_color_code_wraps_the_entry_text()
   test_add_button_writes_disabled_and_color_code_into_the_callers_info()
   test_function_checked_runs_inside_add_button_with_the_entry_button()
   test_function_checked_on_a_not_checkable_entry_is_not_called()

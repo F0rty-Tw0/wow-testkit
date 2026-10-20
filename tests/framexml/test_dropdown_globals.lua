@@ -1,6 +1,7 @@
 -- UIDropDownMenu fake globals: UIDROPDOWNMENU_OPEN_MENU, _INIT_MENU, _MENU_LEVEL and _MENU_VALUE as the client sets them.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
+local HM = require("tests.helpers.menu")
 local Input = require("input")
 
 local withFrameXML = HF.withFrameXML
@@ -9,14 +10,7 @@ local function global(name)
   return rawget(_G, name)
 end
 
-local function addItem(text, fields, level)
-  local info = _G.UIDropDownMenu_CreateInfo()
-  info.text = text
-  for k, v in pairs(fields or {}) do
-    info[k] = v
-  end
-  _G.UIDropDownMenu_AddButton(info, level)
-end
+local addItem = HM.addFields
 
 -- A dropdown with More (submenu, value "more") at level 1 and Nested at level 2; seen[level] records the globals
 -- each init call saw.

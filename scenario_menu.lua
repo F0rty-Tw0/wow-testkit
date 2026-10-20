@@ -70,11 +70,15 @@ local function locate(w, text, depth, previous)
   return findEntry(level, text, depth)
 end
 
--- Enters (not last) or left-clicks (last) the frame under engine context; a blocked action throws "pick: <reason>".
-local function act(w, frame, isLast)
+-- Enters (not last) or left-clicks (last) the frame under engine context; a blocked action throws "pick: <reason>". A
+-- last entry with no OnClick (a Menu API title or divider, M18) throws too, since the click would do nothing.
+local function act(w, frame, text, isLast)
   local reason = Input.blockedReason(w, frame, isLast and "click" or "enter")
   if reason then
     error("pick: " .. reason, 3)
+  end
+  if isLast and not w:getScript(frame, "OnClick") then
+    error('pick: "' .. text .. '" has no click', 3)
   end
   if isLast then
     w:run(ENGINE, Input.click, w, frame, PICK_BUTTON)
@@ -115,7 +119,7 @@ function M.extend(Scenario)
       if problem then
         error("pick: " .. problem, 2)
       end
-      act(w, entry.frame, depth == #path)
+      act(w, entry.frame, text, depth == #path)
       previous = { text = text, index = index }
     end
   end
