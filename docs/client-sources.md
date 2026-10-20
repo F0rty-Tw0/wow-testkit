@@ -118,3 +118,11 @@ branches; which family a branch loads follows the Menu API grouping (Mainline: `
 | Rule | Verdict | Source |
 |---|---|---|
 | F1 `SetParent` to the frame itself or one of its descendants raises `<name>:SetParent(): Would create a loop parenting to <parent>` and keeps the old parent | assumed (no Lua or wiki page shows it) | Forum report of the client error: WoWInterface thread t-45328 (2012), `kgPanel16:SetParent(): Would create a loop parenting to kgPanel16`. The wiki page `API_ScriptRegion_SetParent` lists no errors. The kit names an unnamed frame by its type and raises at the caller's line |
+
+## GameTooltip
+
+Retail paths are relative to `mirror/gethe/live/` (read on GitHub `Gethe/wow-ui-source` branch `live`, 2026-10-20).
+
+| Rule | Verdict | Source |
+|---|---|---|
+| T1 `SetUnit` on a unit that does not exist leaves the tooltip empty and `GetUnit()` returning nothing, even after an earlier unit was shown | assumed (no Lua shows the engine side) | wiki `API_GameTooltip_GetUnit`: "Returns nil when the tooltip is not shown, or when showing something other than a unit." (pages for mists, tbc, vanilla); `API_GameTooltip_SetUnit` says nothing about a missing unit. Retail: `GameTooltipDataMixin:GetUnit` (`Interface/AddOns/Blizzard_GameTooltip/Mainline/GameTooltip.lua:1035-1037`) calls `TooltipUtil.GetDisplayedUnit` (`Interface/AddOns/Blizzard_SharedXMLGame/Tooltip/TooltipUtil.lua:34-41`), which derives the unit token from the tooltip data's `guid` (`UnitTokenFromGUID`), never from the token passed to `SetUnit` |
