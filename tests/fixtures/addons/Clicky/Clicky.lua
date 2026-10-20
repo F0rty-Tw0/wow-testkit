@@ -47,3 +47,58 @@ end)
 box:SetScript("OnEnterPressed", function(self)
   log(self, "enter-pressed:" .. self:GetText())
 end)
+
+-- Menu API context menu: right-click ClickyMenuApiButton. A title, a button, a submenu, a checkbox that keeps
+-- the menu open, two radios, a divider and a disabled entry; plus a hook on Blizzard's friend menu.
+local menuApi = { checked = false, radio = "A", picks = {} }
+ns.menuApi = menuApi
+
+local function pickLogger(name)
+  return function()
+    menuApi.picks[#menuApi.picks + 1] = name
+  end
+end
+
+if MenuUtil and MenuUtil.CreateContextMenu then
+  local menuButton = CreateFrame("Button", "ClickyMenuApiButton", UIParent)
+  menuButton:SetSize(24, 24)
+  menuButton:SetPoint("TOPLEFT")
+  menuButton:RegisterForClicks("AnyUp")
+  menuButton:SetScript("OnClick", function(self, mouseButton)
+    if mouseButton ~= "RightButton" then
+      return
+    end
+    MenuUtil.CreateContextMenu(self, function(_, root)
+      root:CreateTitle("Clicky")
+      root:CreateButton("Plain", pickLogger("Plain"))
+      root:CreateButton("More"):CreateButton("Deep", pickLogger("Deep"))
+      root:CreateCheckbox("Check", function()
+        return menuApi.checked
+      end, function()
+        menuApi.checked = not menuApi.checked -- no return: a checkbox defaults to MenuResponse.Refresh
+      end)
+      root:CreateRadio("Radio A", function()
+        return menuApi.radio == "A"
+      end, function()
+        menuApi.radio = "A"
+      end)
+      root:CreateRadio("Radio B", function()
+        return menuApi.radio == "B"
+      end, function()
+        menuApi.radio = "B"
+      end)
+      root:CreateDivider()
+      root:CreateButton("Off", pickLogger("Off")):SetEnabled(false)
+    end)
+  end)
+end
+
+if Menu and Menu.ModifyMenu then
+  Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, contextData)
+    if contextData and contextData.clicky then
+      root:CreateDivider()
+      root:CreateTitle("Clicky")
+      root:CreateButton("Clicky action", pickLogger("Clicky action"))
+    end
+  end)
+end

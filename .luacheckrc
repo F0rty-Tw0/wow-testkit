@@ -35,6 +35,9 @@ files["tests/fixtures/addons/Hover/*.lua"] = {
 files["tests/fixtures/addons/Clicky/*.lua"] = {
   read_globals = {
     "CreateFrame",
+    "Menu",
+    "MenuResponse",
+    "MenuUtil",
     "ToggleDropDownMenu",
     "UIDropDownMenu_AddButton",
     "UIDropDownMenu_CreateInfo",

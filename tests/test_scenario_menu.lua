@@ -318,6 +318,36 @@ local function test_open_menu_throws_when_unit_popup_open_menu_is_missing()
   end)
 end
 
+local EXPECTED_MENU_API = {
+  menu_api = { "== Clicky ==", "Plain", "> More", "[ ] Check", "(o) Radio A", "( ) Radio B", "---", "Off (disabled)" },
+  menu_api_submenu = {
+    "== Clicky ==",
+    "Plain",
+    "> More",
+    "  Deep",
+    "[ ] Check",
+    "(o) Radio A",
+    "( ) Radio B",
+    "---",
+    "Off (disabled)",
+  },
+  menu_api_checked = { "== Clicky ==", "Plain", "> More", "[x] Check", "(o) Radio A", "( ) Radio B", "---", "Off (disabled)" },
+  menu_unit = { "---", "== Clicky ==", "Clicky action" },
+}
+
+local function test_menu_api_snapshots_match_on_every_flavor()
+  local root = Clicky.clickyCopy()
+  local run = Scenario.runFile(Clicky.INPUT_SCENARIO, { addon = "Clicky", root = root })
+  for _, flavor in ipairs(Flavors.list) do
+    local report = run.results[flavor]
+    A.eq(report.status, "pass", flavor .. ": " .. tostring(report.errors[1] and report.errors[1].message))
+    A.contains(report.notes, "Blizzard's own entries are not simulated")
+    for name, lines in pairs(EXPECTED_MENU_API) do
+      A.same(Clicky.goldenLines(root, name, flavor), lines, flavor .. " " .. name)
+    end
+  end
+end
+
 return function()
   test_pick_with_an_empty_path_throws()
   test_menu_is_nil_when_no_menu_is_open()
@@ -341,4 +371,5 @@ return function()
   test_open_menu_runs_the_hook_for_the_tag_and_shows_its_entries()
   test_open_menu_adds_the_blizzard_entries_note_to_the_report()
   test_open_menu_throws_when_unit_popup_open_menu_is_missing()
+  test_menu_api_snapshots_match_on_every_flavor()
 end

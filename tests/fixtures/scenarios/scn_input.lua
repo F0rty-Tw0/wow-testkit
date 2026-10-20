@@ -17,6 +17,22 @@ return {
     s:snapshot("dropdown_submenu", s:menu())
     s:pick({ "More", "Nested" })
     s:closeMenus()
+    -- Menu API (Task 4.5)
+    s:closeMenus()
+    s:click("ClickyMenuApiButton", "RightButton")
+    s:snapshot("menu_api", s:menu())
+    s:enter(s:menu().levels[1].entries[3].frame) -- "More"
+    s:snapshot("menu_api_submenu", s:menu())
+    s:pick({ "More", "Deep" })
+    assert(s:menu() == nil, "a leaf pick closes the menu")
+    assert(s.ns.menuApi.picks[1] == "Deep", "Deep callback ran")
+    s:click("ClickyMenuApiButton", "RightButton")
+    s:pick("Check")
+    s:snapshot("menu_api_checked", s:menu())
+    s:closeMenus()
+    s:openMenu("FRIEND", { clicky = true })
+    s:snapshot("menu_unit", s:menu())
+    s:closeMenus()
     s:note("log: " .. table.concat(s.ns.log, ";"))
   end,
 }
