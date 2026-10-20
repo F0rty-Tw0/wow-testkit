@@ -1,4 +1,4 @@
--- The error() level of the first caller outside the kit's widget layer, FrameXML fakes and luaext.lua.
+-- The error() level of the first caller outside the kit's widget layer, FrameXML fakes, world*.lua and luaext.lua.
 -- Widget methods reach their bodies through a different number of tail calls per method (bind, BehaviourInput's
 -- SetScript wrapper), and Lua 5.1 counts each lost tail call as a level, so a fixed level can land on a frame with no
 -- position.
@@ -27,7 +27,7 @@ local function isKit(info)
   local named = rest:match("^ui[/\\]") ~= nil
     or rest:match("^framexml[/\\]") ~= nil
     or rest:match("^world[%w_]*%.lua$") ~= nil
-    or rest == "luaext.lua" -- hooksecurefunc's wrapper calls the hooked global
+    or rest == "luaext.lua" -- whole file: its callers of addon functions stand in for C functions (header)
   return named and fs.exists(KIT_ROOT .. rest)
 end
 
