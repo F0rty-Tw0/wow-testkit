@@ -2,3 +2,9 @@ tests/test_assert.lua
 tests/test_fs.lua
 tests/test_home.lua
 tests/test_serialize.lua
+tests/tools/test_flavors.lua
+tests/tools/test_docs.lua
+tests/tools/test_typemap.lua
+tests/tools/test_generate.lua
+tests/tools/test_generate_io.lua
+tests/test_manifest.lua
