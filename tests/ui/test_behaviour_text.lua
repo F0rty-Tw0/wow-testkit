@@ -43,7 +43,7 @@ end
 local function test_set_text_round_trips()
   withWidgets("retail", function()
     local text = newText()
-    A.eq(text:GetText(), "") -- (F4) the doc's FontString GetText return is not nilable
+    A.eq(text:GetText(), nil) -- (F4) wiki: nil if no text is set
     text:SetText("hi")
     A.eq(text:GetText(), "hi")
     text:SetFormattedText("%d items", 3)
@@ -51,12 +51,12 @@ local function test_set_text_round_trips()
   end)
 end
 
-local function test_set_text_nil_reads_back_empty() -- (F4)
+local function test_set_text_nil_reads_back_nil() -- (F4)
   withWidgets("vanilla", function()
     local text = newText()
     text:SetText("hi")
     text:SetText(nil)
-    A.eq(text:GetText(), "")
+    A.eq(text:GetText(), nil)
   end)
 end
 
@@ -149,7 +149,7 @@ return function()
   test_string_metrics_use_set_font_size()
   test_string_metrics_follow_font_object()
   test_set_text_round_trips()
-  test_set_text_nil_reads_back_empty()
+  test_set_text_nil_reads_back_nil()
   test_text_color_defaults_alpha_to_one()
   test_copy_font_object_copies_font_and_color()
   test_status_bar_color_round_trips()
