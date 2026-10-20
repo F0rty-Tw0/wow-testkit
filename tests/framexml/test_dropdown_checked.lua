@@ -1,4 +1,4 @@
--- UIDropDownMenu fake: when and how AddButton reads a function-valued checked.
+-- UIDropDownMenu fake: when AddButton reads a function-valued checked, and what it writes back into the caller's info.
 local A = require("assert")
 local HF = require("tests.helpers.framexml")
 local Input = require("input")
@@ -99,7 +99,38 @@ local function test_function_checked_error_in_a_click_handler_is_recorded_like_a
   end
 end
 
+-- Mainline :460-469 (Classic :411-420) set info.disabled on the caller's table for notClickable and isTitle, so a
+-- reused info keeps it; a disabled entry drops colorCode and disablecolor replaces it (Mainline :472-481, Classic
+-- :423-432).
+local function test_add_button_writes_disabled_and_color_code_into_the_callers_info()
+  withFrameXML("retail", function(w)
+    local reused, colored, greyed
+    local frame = _G.CreateFrame("Frame", "WriteBackDD", _G.UIParent, "UIDropDownMenuTemplate")
+    _G.UIDropDownMenu_Initialize(frame, function(_, level)
+      if level ~= 1 then
+        return
+      end
+      reused = _G.UIDropDownMenu_CreateInfo()
+      reused.text, reused.isTitle, reused.notCheckable = "Head", true, true
+      _G.UIDropDownMenu_AddButton(reused, 1)
+      reused.text, reused.isTitle, reused.func = "Item", nil, function() end
+      _G.UIDropDownMenu_AddButton(reused, 1)
+      colored = { text = "Label", notCheckable = true, notClickable = true, colorCode = "|cffff0000" }
+      _G.UIDropDownMenu_AddButton(colored, 1)
+      greyed = { text = "Grey", notCheckable = true, disablecolor = "|cff808080" }
+      _G.UIDropDownMenu_AddButton(greyed, 1)
+    end, "MENU")
+    _G.ToggleDropDownMenu(1, nil, frame)
+    A.eq(reused.disabled, true)
+    A.eq(w.menus[1].entries[2].enabled, false)
+    A.eq(colored.disabled, true)
+    A.eq(colored.colorCode, nil)
+    A.eq(greyed.colorCode, "|cff808080")
+  end)
+end
+
 return function()
+  test_add_button_writes_disabled_and_color_code_into_the_callers_info()
   test_function_checked_runs_inside_add_button_with_the_entry_button()
   test_function_checked_on_a_not_checkable_entry_is_not_called()
   test_function_checked_error_reaches_the_toggle_caller()

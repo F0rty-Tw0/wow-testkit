@@ -36,14 +36,13 @@ local function copyInfo(info)
   return copy
 end
 
--- A function-valued checked reads false here; addButton calls it. notClickable and isTitle disable the entry
--- (Mainline :460-469, Classic :411-420).
+-- A function-valued checked reads false here; addButton calls it.
 local function entryFor(info)
   local checkedFlag = type(info.checked) ~= "function" and info.checked
   return {
     kind = kindOf(info),
     text = info.text,
-    enabled = not (info.disabled or info.notClickable or info.isTitle),
+    enabled = not info.disabled,
     checked = checkedFlag and true or false,
     hasSubmenu = info.hasArrow == true,
   }
@@ -191,6 +190,17 @@ end
 -- :585, :640-643), so the level is rendered first; inside init an error fails it like any init error.
 local function addButton(w, info, level)
   createLists(w, level or 1)
+  -- Written into the caller's table (Mainline :460-481, Classic :411-432): notClickable and isTitle disable the
+  -- entry, a disabled one drops colorCode, and disablecolor replaces it.
+  if info.notClickable or info.isTitle then
+    info.disabled = true
+  end
+  if info.disabled then
+    info.colorCode = nil
+  end
+  if info.disablecolor then
+    info.colorCode = info.disablecolor
+  end
   local name = LIST_NAME .. (level or 1)
   local shown = w.menus[level or 1]
   local building = w.dropdown.building
