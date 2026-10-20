@@ -186,8 +186,6 @@ local function removeFrom(list, obj)
   end
 end
 
--- Moves obj under parent (a widget, a frame name, or nil); parents that are not kit widgets are kept but
--- list nothing.
 -- The client refuses a parent that is obj or one of its descendants: "kgPanel16:SetParent(): Would create a loop
 -- parenting to kgPanel16" (WoWInterface t-45328, 2012; assumed, no Lua shows it).
 local function checkNoLoop(w, obj, st, parent)
@@ -197,12 +195,16 @@ local function checkNoLoop(w, obj, st, parent)
     if cursor == obj then
       local target = w.ui.state[parent]
       local message = "%s:SetParent(): Would create a loop parenting to %s"
+      -- Level 4 on Lua 5.1: checkNoLoop, setParent, the tail call lost by bind's `return impl(...)`
+      -- (ui/widgets.lua), then the caller's line.
       error(string.format(message, st.name or st.plan.type, target.name or target.plan.type), 4)
     end
     cursor = cursorState and cursorState.parent
   end
 end
 
+-- Moves obj under parent (a widget, a frame name, or nil); parents that are not kit widgets are kept but
+-- list nothing.
 function M.setParent(w, obj, st, parent)
   if type(parent) == "string" then
     parent = _G[parent]
