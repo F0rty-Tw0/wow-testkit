@@ -54,6 +54,24 @@ local function test_vanilla_lacks_mythic_plus_rating_summary()
   A.eq(globals.api[MYTHIC_SUMMARY], nil, "vanilla globals.api")
 end
 
+-- Per-function Namespace: "" in C_RestrictedActions is a global, "table" in C_TableUtil is the table library.
+local function test_every_flavor_keys_functions_by_their_own_namespace()
+  for _, flavor in ipairs(Flavors.list) do
+    local functions = Manifest.load(flavor).functions
+    A.truthy(functions.InCombatLockdown, flavor .. " InCombatLockdown")
+    A.truthy(functions["table.count"], flavor .. " table.count")
+    A.eq(functions["C_RestrictedActions.InCombatLockdown"], nil, flavor)
+  end
+end
+
+-- Classic Era's and TBC's docs carry C_AuctionHouse, but their clients have none of it (Ketho's GlobalAPI).
+local function test_only_clients_with_the_modern_auction_house_document_it()
+  local GET_BIDS = "C_AuctionHouse.GetBids"
+  A.eq(Manifest.load("vanilla").functions[GET_BIDS], nil, "vanilla")
+  A.eq(Manifest.load("tbc").functions[GET_BIDS], nil, "tbc")
+  A.truthy(Manifest.load("mists").functions[GET_BIDS], "mists")
+end
+
 local function test_retail_issecretvalue_args_allowed_when_untainted()
   local fn = Manifest.load("retail").functions.issecretvalue
   A.truthy(fn, "issecretvalue in retail manifest")
@@ -85,6 +103,8 @@ return function()
   test_retail_loads_within_time_limit()
   test_retail_has_mythic_plus_rating_summary()
   test_vanilla_lacks_mythic_plus_rating_summary()
+  test_every_flavor_keys_functions_by_their_own_namespace()
+  test_only_clients_with_the_modern_auction_house_document_it()
   test_retail_issecretvalue_args_allowed_when_untainted()
   test_versions_retail_is_12_1()
   test_no_raw_doc_files_under_api()

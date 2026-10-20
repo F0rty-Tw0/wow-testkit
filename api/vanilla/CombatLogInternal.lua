@@ -3,11 +3,4 @@ return {
   events = {
     COMBAT_LOG_EVENT_INTERNAL_UNFILTERED = {},
   },
-  functions = {
-    ["C_CombatLogInternal.GetCurrentEventInfo"] = {
-      secret = {
-        returns = "never",
-      },
-    },
-  },
 }

@@ -32,6 +32,18 @@ LUA51="lua5.1 tests/run.lua" bash scripts/test.sh      # use a real Lua 5.1 bina
 - `tools/run51.py` hosts `tests/run.lua` on lupa's Lua 5.1 and adds the `__tk_fs` filesystem bridge and
   `LUA_INIT=@file` handling.
 
+## API manifests
+
+`api/` is generated; never edit it by hand. `tools/fetch.sh` mirrors a branch's Blizzard API docs and Ketho's name
+lists into the testkit home, and `tools/generate.lua` turns the mirror into `api/<flavor>/` plus `api/versions.lua`.
+
+```bash
+bash tools/fetch.sh classic_era                         # the commits api/versions.lua records: regenerates as committed
+bash tools/fetch.sh classic_era --latest                # both branch tips: a deliberate data bump
+GETHE_COMMIT=<sha> bash tools/fetch.sh live             # one exact Gethe commit (full SHA); KETHO_COMMIT likewise
+python tools/run51.py --script tools/generate.lua vanilla
+```
+
 ## Linting
 
 `stylua --check .` (formatting, `stylua.toml`) and `luacheck .` (semantics, `.luacheckrc`). CI runs both.

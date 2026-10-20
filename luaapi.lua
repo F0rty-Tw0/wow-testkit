@@ -167,6 +167,11 @@ local function implementation(name)
   return BIT[name] or DEGREES[name] or ALIASES[name] or HELPERS[name]
 end
 
+-- True when the kit implements this Ketho LuaAPI name (string.trim, table.count, ...).
+function M.implements(name)
+  return implementation(name) ~= nil
+end
+
 local function unscriptedStub(w, name)
   return function()
     WorldApi.markUnscripted(w, name)

@@ -104,9 +104,13 @@ local function secretInfo(fn)
   return { args = fn.SecretArguments, returns = returns, when = when, returnsNeverSecret = fn.ReturnsNeverSecret or nil }
 end
 
+local function isSecureOnly(fn, system)
+  return fn.Environment == SECURE_ONLY or system.Environment == SECURE_ONLY
+end
+
 local function buildFunction(fn, system, ctx)
   countIgnored(fn, IGNORED_FUNCTION_FIELDS, ctx.report)
-  local secureOnly = fn.Environment == SECURE_ONLY or system.Environment == SECURE_ONLY
+  local secureOnly = isSecureOnly(fn, system)
   return {
     args = fields(fn.Arguments, ctx),
     returns = fields(fn.Returns, ctx),
@@ -162,10 +166,30 @@ end
 
 local TABLE_HANDLERS = { Enumeration = addEnumeration, Constants = addConstants, Structure = addStructure }
 
+-- A function's own Namespace beats its system's; "" means a global (InCombatLockdown in C_RestrictedActions).
+local function functionKey(fn, doc)
+  local namespace = fn.Namespace or doc.Namespace
+  return (namespace and namespace ~= "") and (namespace .. "." .. fn.Name) or fn.Name
+end
+
+-- The namespace of a key the flavor's client lacks: Ketho's GlobalAPI (the client's own name lists) has no function
+-- in it, e.g. C_AuctionHouse on Classic Era. Secure-only functions stay: an addon-side list never shows them.
+local function missingNamespace(key, fn, doc, ctx)
+  local namespace = key:match("^(.+)%.[^.]+$")
+  if namespace and not ctx.listed[namespace] and not isSecureOnly(fn, doc) then
+    return namespace
+  end
+end
+
 local function addSystem(part, doc, ctx)
   for _, fn in ipairs(doc.Functions or {}) do
-    local key = doc.Namespace and (doc.Namespace .. "." .. fn.Name) or fn.Name
-    part.functions[key] = buildFunction(fn, doc, ctx)
+    local key = functionKey(fn, doc)
+    local missing = missingNamespace(key, fn, doc, ctx)
+    if missing then
+      ctx.report.dropped[missing] = (ctx.report.dropped[missing] or 0) + 1
+    else
+      part.functions[key] = buildFunction(fn, doc, ctx)
+    end
   end
   for _, ev in ipairs(doc.Events or {}) do
     part.events[ev.LiteralName] = buildEvent(ev, ctx)
@@ -241,8 +265,22 @@ local function buildFiles(entries, ctx)
   return files
 end
 
+-- Every namespace with at least one function in Ketho's GlobalAPI lists ("C_AuctionHouse", "table", ...).
+local function listedNamespaces(ketho)
+  local listed = {}
+  for _, names in ipairs(ketho.GlobalAPI) do
+    for _, name in ipairs(names) do
+      local namespace = name:match("^(.+)%.[^.]+$")
+      if namespace then
+        listed[namespace] = true
+      end
+    end
+  end
+  return listed
+end
+
 local function newReport()
-  local report = { unknownTypes = {}, duplicates = {}, ignoredFields = {} }
+  local report = { unknownTypes = {}, duplicates = {}, ignoredFields = {}, dropped = {} }
   for _, list in ipairs({ IGNORED_FUNCTION_FIELDS, IGNORED_VALUE_FIELDS }) do
     for _, name in ipairs(list) do
       report.ignoredFields[name] = 0
@@ -275,10 +313,10 @@ local function mergeFiles(manifest, files, duplicates)
 end
 
 -- entries: Docs.loadDir output; ketho: { GlobalAPI, Frames, FrameXML, WidgetAPI, Events } as loaded;
--- meta: { flavor, branch, version, mirrorCommit }. Returns { manifest, globals, report, files }.
+-- meta: { flavor, branch, version, mirrorCommit, kethoCommit } (kethoCommit goes to api/versions.lua only). Returns { manifest, globals, report, files }.
 function M.build(entries, ketho, meta)
   local report = newReport()
-  local files = buildFiles(entries, { known = knownTypes(entries), report = report })
+  local files = buildFiles(entries, { known = knownTypes(entries), report = report, listed = listedNamespaces(ketho) })
   local manifest = Manifest.empty()
   for _, key in ipairs(META_KEYS) do
     manifest[key] = meta[key]

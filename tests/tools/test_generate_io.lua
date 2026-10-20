@@ -84,6 +84,13 @@ local function test_update_versions_creates_missing_file()
   A.same(versions, { retail = { version = "12.1.0.69933", mirrorCommit = "abc123" } })
 end
 
+local function test_update_versions_records_the_ketho_commit()
+  local root = tempDir()
+  GenerateIo.updateVersions(root, { flavor = "vanilla", version = "1.15.9.1", mirrorCommit = "g", kethoCommit = "k" })
+  local versions = assert(loadfile(root .. "/api/versions.lua"))()
+  A.same(versions, { vanilla = { version = "1.15.9.1", mirrorCommit = "g", kethoCommit = "k" } })
+end
+
 local function test_docs_report_lists_unresolved_references()
   local _, _, report = Docs.loadDir(UNRESOLVED_DIR)
   A.contains(GenerateIo.docsReportLines(report), "  Constants.Nope.X")
@@ -109,6 +116,7 @@ return function()
   test_written_split_manifest_loads_back_whole()
   test_update_versions_keeps_other_flavors()
   test_update_versions_creates_missing_file()
+  test_update_versions_records_the_ketho_commit()
   test_docs_report_lists_unresolved_references()
   test_unresolved_references_alone_do_not_fail_the_run()
   test_unsettled_docs_are_reported_and_fail_the_run()
