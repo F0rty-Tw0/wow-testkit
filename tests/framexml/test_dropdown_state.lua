@@ -90,6 +90,22 @@ local function test_initialize_leaves_an_open_menu_api_menu_open()
   end)
 end
 
+-- The helper hides DropDownList frames wherever they sit (Mainline :52-63), so a list above a Menu API menu closes.
+local function test_initialize_hides_a_list_shown_above_an_open_menu_api_menu()
+  withFrameXML("retail", function(w)
+    _G.MenuUtil.CreateContextMenu(_G.CreateFrame("Frame", nil, _G.UIParent), function(_, root)
+      root:CreateButton("Hi", function() end)
+    end)
+    local frame = newDropdown({}, "AboveApiDD")
+    _G.ToggleDropDownMenu(2, nil, frame, nil, nil, nil, { { "Deep" } }, _G.CreateFrame("Button", "AboveApiAnchor", frame))
+    A.eq(_G.DropDownList2:IsShown(), true)
+    _G.UIDropDownMenu_Initialize(_G.CreateFrame("Frame", "AboveApiOtherDD", _G.UIParent, "UIDropDownMenuTemplate"), nil)
+    A.eq(_G.DropDownList2:IsShown(), false)
+    A.eq(w.menus[2], nil)
+    A.eq(w.menus[1].entries[1].text, "Hi")
+  end)
+end
+
 -- Mainline :1193-1197, Classic :1133-1136: a list with no buttons is not shown.
 local function test_toggle_with_no_entries_opens_nothing()
   withFrameXML("retail", function(w)
@@ -235,6 +251,7 @@ return function()
   test_initialize_on_the_open_menu_hides_from_the_last_toggled_level()
   test_initialize_on_another_frame_after_a_submenu_hides_every_list()
   test_initialize_leaves_an_open_menu_api_menu_open()
+  test_initialize_hides_a_list_shown_above_an_open_menu_api_menu()
   test_toggle_with_no_entries_opens_nothing()
   test_entering_an_arrow_entry_whose_submenu_is_empty_opens_nothing()
 end
