@@ -138,9 +138,10 @@ local function test_pick_menu_api_title_throws_no_click()
     _G.MenuUtil.CreateContextMenu(_G.UIParent, function(_, root)
       root:CreateTitle("Head")
     end)
-    A.errors(function()
+    local message = A.errors(function()
       s:pick("Head")
     end, 'pick: "Head" has no click')
+    A.contains(message, "test_scenario_menu.lua:")
   end)
 end
 
