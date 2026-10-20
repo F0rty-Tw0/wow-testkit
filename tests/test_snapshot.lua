@@ -70,6 +70,65 @@ local function test_frame_omits_a_hidden_child_subtree()
   end)
 end
 
+local function menu(levels)
+  return { kind = "menu", levels = levels }
+end
+
+local function item(kind, text, extra)
+  local e = { kind = kind, text = text, enabled = true, checked = false, hasSubmenu = false }
+  for k, v in pairs(extra or {}) do
+    e[k] = v
+  end
+  return e
+end
+
+local function test_menu_renders_one_line_per_entry_by_kind()
+  local value = menu({
+    {
+      entries = {
+        item("checkbox", "Show", { checked = true }),
+        item("checkbox", "Hide"),
+        item("radio", "A", { checked = true }),
+        item("radio", "B"),
+        item("button", "Open"),
+        item("title", "Head"),
+        item("divider"),
+      },
+    },
+  })
+  A.textEq(Snapshot.menu(value), "[x] [ffffff]Show\n[ ] [ffffff]Hide\n(o) [ffffff]A\n( ) [ffffff]B\n[ffffff]Open\n== [ffffff]Head ==\n---")
+end
+
+local function test_menu_marks_submenu_and_disabled_entries()
+  local value = menu({
+    {
+      entries = {
+        item("button", "More", { hasSubmenu = true, enabled = false }),
+        item("checkbox", "Both", { hasSubmenu = true, checked = true }),
+      },
+    },
+  })
+  A.textEq(Snapshot.menu(value), "> [ffffff]More (disabled)\n[x] > [ffffff]Both")
+end
+
+local function test_menu_nests_an_open_submenu_under_its_entry()
+  local value = menu({
+    { entries = { item("button", "A"), item("button", "More", { hasSubmenu = true }), item("button", "C") } },
+    { parentIndex = 2, entries = { item("button", "Nested") } },
+  })
+  A.textEq(Snapshot.menu(value), "[ffffff]A\n> [ffffff]More\n  [ffffff]Nested\n[ffffff]C")
+end
+
+local function test_menu_closed_submenu_shows_only_its_own_line()
+  local value = menu({ { entries = { item("button", "More", { hasSubmenu = true }) } } })
+  A.textEq(Snapshot.menu(value), "> [ffffff]More")
+end
+
+local function test_menu_keeps_color_as_runs()
+  local value = menu({ { entries = { item("button", "|cffff0000Red|r tail") } } })
+  A.textEq(Snapshot.menu(value), "[ff0000]Red[ffffff] tail")
+end
+
 return function()
   test_tooltip_color_escape_splits_the_line_into_runs()
   test_tooltip_double_line_adds_the_right_runs()
@@ -77,4 +136,9 @@ return function()
   test_tooltip_ends_with_the_border_color()
   test_frame_lists_size_font_strings_and_textures()
   test_frame_omits_a_hidden_child_subtree()
+  test_menu_renders_one_line_per_entry_by_kind()
+  test_menu_marks_submenu_and_disabled_entries()
+  test_menu_nests_an_open_submenu_under_its_entry()
+  test_menu_closed_submenu_shows_only_its_own_line()
+  test_menu_keeps_color_as_runs()
 end

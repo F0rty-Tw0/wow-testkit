@@ -201,6 +201,15 @@ local function test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_go
   A.eq(fs.exists(root .. "/tests/scenarios/golden/skip/t.vanilla.txt"), false)
 end
 
+local function test_snapshot_checks_a_menu_value_against_its_golden()
+  local root = tempRoot()
+  local report = goldenRun(root, function(s)
+    s:snapshot("menu", { kind = "menu", levels = { { entries = { { kind = "button", text = "Open", enabled = true } } } } })
+  end)
+  A.eq(report.status, "pass")
+  A.eq(fs.readFile(root .. "/tests/scenarios/golden/hover/menu.retail.txt"), "[ffffff]Open\n")
+end
+
 local function test_run_file_turns_on_golden_mode()
   local opts = { addon = HOVER.addon, root = HOVER.root, flavors = { "retail" } }
   A.eq(Scenario.runFile(GOLDEN_MODE_SCENARIO, opts).results.retail.status, "pass")
@@ -263,6 +272,7 @@ return function()
   test_snapshot_mismatch_fails_the_report_without_throwing()
   test_snapshot_writes_a_missing_golden_with_a_note()
   test_snapshot_reads_are_not_counted_as_unscripted()
+  test_snapshot_checks_a_menu_value_against_its_golden()
   test_run_file_turns_on_golden_mode()
   test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_golden()
 end

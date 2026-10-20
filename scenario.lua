@@ -153,6 +153,9 @@ function Scenario:slash(text)
 end
 
 local function snapshotText(target)
+  if target.kind == "menu" then
+    return Snapshot.menu(target)
+  end
   if target:GetObjectType() == "GameTooltip" then
     return Snapshot.tooltip(target)
   end

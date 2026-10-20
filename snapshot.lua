@@ -141,4 +141,46 @@ function M.frame(frame)
   return table.concat(out, "\n")
 end
 
+-- Entries by kind: a check or radio mark before the text, "> " for a submenu, " (disabled)" after.
+local MENU_TEXT_COLOR = "ffffff"
+local MENU_MARKS = {
+  checkbox = { [true] = "[x] ", [false] = "[ ] " },
+  radio = { [true] = "(o) ", [false] = "( ) " },
+}
+
+local function menuLine(entry)
+  local text = M.runs(entry.text, MENU_TEXT_COLOR)
+  if entry.kind == "title" then
+    return "== " .. text .. " =="
+  elseif entry.kind == "divider" then
+    return "---"
+  end
+  local marks = MENU_MARKS[entry.kind]
+  local mark = marks and marks[entry.checked == true] or ""
+  local submenu = entry.hasSubmenu and "> " or ""
+  local disabled = entry.enabled == false and " (disabled)" or ""
+  return mark .. submenu .. text .. disabled
+end
+
+local function emitMenu(levels, depth, out)
+  local level = levels[depth]
+  local below = levels[depth + 1]
+  for i, entry in ipairs(level.entries) do
+    out[#out + 1] = string.rep(INDENT, depth - 1) .. menuLine(entry)
+    if below and below.parentIndex == i then
+      emitMenu(levels, depth + 1, out)
+    end
+  end
+end
+
+-- value { kind = "menu", levels = { { parentIndex, entries }, ... } } as one line per entry, a level deeper
+-- indented under the submenu entry that opened it.
+function M.menu(value)
+  local out = {}
+  if value.levels[1] then
+    emitMenu(value.levels, 1, out)
+  end
+  return table.concat(out, "\n")
+end
+
 return M
