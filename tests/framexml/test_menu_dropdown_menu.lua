@@ -111,10 +111,98 @@ local function test_plain_dropdown_button_has_no_on_show_generate() -- (D5)
   end)
 end
 
+local function test_get_default_text_returns_what_set_default_text_stored() -- (D6)
+  withFrameXML("retail", function()
+    local dd = newDropdown()
+    A.eq(dd:GetDefaultText(), nil)
+    dd:SetDefaultText("Pick")
+    dd:OverrideText("Fixed")
+    A.eq(dd:GetDefaultText(), "Pick")
+  end)
+end
+
+local function test_set_menu_open_opens_and_closes_the_menu() -- (D2)
+  withFrameXML("retail", function(w)
+    local dd = newDropdown(oneButton("One"))
+    dd:SetMenuOpen(true)
+    A.eq(dd:IsMenuOpen(), true)
+    dd:SetMenuOpen(false)
+    A.eq(dd:IsMenuOpen(), false)
+    A.eq(#w.menus, 0)
+  end)
+end
+
+local function test_update_re_reads_the_selection_without_running_the_generator() -- (D9)
+  withFrameXML("retail", function()
+    local choice = { value = 1 }
+    local dd = newDropdown(radios(choice))
+    A.eq(dd.Text:GetText(), "One")
+    choice.value = 2
+    dd:Update()
+    A.eq(dd.Text:GetText(), "Two")
+    choice.value = 1
+    dd:SignalUpdate()
+    A.eq(dd.Text:GetText(), "One")
+    A.eq(choice.runs, 1)
+  end)
+end
+
+local function test_get_menu_description_and_has_elements_follow_the_last_generated_root() -- (D9)
+  withFrameXML("retail", function()
+    local dd = newDropdown()
+    A.eq(dd:GetMenuDescription(), nil)
+    A.eq(dd:HasElements(), false)
+    local seen
+    dd:SetupMenu(function(_, root)
+      seen = root
+    end)
+    A.eq(dd:GetMenuDescription(), seen)
+    A.eq(dd:HasElements(), false)
+    dd:SetupMenu(oneButton("One"))
+    A.eq(dd:HasElements(), true)
+  end)
+end
+
+local function test_clear_menu_state_closes_the_menu_and_forgets_the_generator() -- (D9)
+  withFrameXML("retail", function(w)
+    local choice = { value = 2 }
+    local dd = newDropdown(radios(choice))
+    dd:SetDefaultText("Pick")
+    dd:OpenMenu()
+    A.eq(dd.Text:GetText(), "Two")
+    dd:ClearMenuState()
+    A.eq(#w.menus, 0)
+    A.eq(dd.Text:GetText(), "Pick")
+    A.eq(dd:GetMenuDescription(), nil)
+    dd:OpenMenu()
+    A.eq(#w.menus, 0)
+  end)
+end
+
+local function test_enable_regenerate_on_response_runs_the_generator_after_a_pick() -- (D9)
+  withFrameXML("retail", function(w)
+    local choice = { value = 1 }
+    local dd = newDropdown(radios(choice))
+    dd:OpenMenu()
+    w.menus[1].pick(2)
+    A.eq(choice.runs, 2) -- SetupMenu, OpenMenu
+    dd:EnableRegenerateOnResponse()
+    dd:OpenMenu()
+    w.menus[1].pick(2)
+    A.eq(choice.runs, 4) -- OpenMenu, then the regenerate after the pick
+  end)
+end
+
 return function()
   test_setup_menu_on_an_open_menu_shows_the_new_generators_entries()
   test_template_on_show_generates_the_menu_set_up_while_hidden()
   test_template_on_show_runs_when_a_hidden_parent_is_shown()
   test_template_on_show_is_a_replaceable_script_and_runs_before_hooks()
   test_plain_dropdown_button_has_no_on_show_generate()
+  test_get_default_text_returns_what_set_default_text_stored()
+  test_set_menu_open_opens_and_closes_the_menu()
+  test_update_re_reads_the_selection_without_running_the_generator()
+  test_get_menu_description_and_has_elements_follow_the_last_generated_root()
+  test_clear_menu_state_closes_the_menu_and_forgets_the_generator()
+  test_enable_regenerate_on_response_runs_the_generator_after_a_pick()
 end

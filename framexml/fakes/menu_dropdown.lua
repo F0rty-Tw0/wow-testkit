@@ -56,12 +56,19 @@ local function updateSelection(w, obj, d)
   showText(w, obj, d)
 end
 
+local generate
+
 -- The menu opened for obj reports picks back: a response re-reads the selection, also after the menu closed
--- (DropdownButton.lua:279-288, SignalUpdate).
+-- (DropdownButton.lua:279-288, SignalUpdate), or runs the generator again after EnableRegenerateOnResponse (row D9,
+-- :290-300).
 local function watch(w, obj, d)
   local state = w.menus[1].state
   d.root = state.root
   state.onUpdate = function()
+    if d.regenerateOnResponse then
+      generate(w, obj, d)
+      return
+    end
     d.root = state.root
     updateSelection(w, obj, d)
   end
@@ -70,7 +77,7 @@ end
 -- source: confirmed (row D5) DropdownButton.lua:255-264: a generator always runs; an open menu is rebuilt in place, a
 -- closed one gets a throwaway root. The open menu takes the current generator first, since SetupMenu may have replaced
 -- it (:239, :195-201: the open menu gets the description the new generator built).
-local function generate(w, obj, d)
+function generate(w, obj, d)
   if not d.generator then
     return
   end
@@ -134,9 +141,57 @@ function methods.CloseMenu(w, obj, st)
   updateSelection(w, obj, st.dropdown)
 end
 
+-- source: confirmed (row D2) DropdownButton.lua:143-149.
+function methods.SetMenuOpen(_, obj, _, open)
+  if open then
+    obj:OpenMenu()
+  else
+    obj:CloseMenu()
+  end
+end
+
+-- source: confirmed (row D9) DropdownButton.lua:279-288, :330-332: re-reads the selection of the last description; the
+-- generator does not run. The OnUpdate callback event is not modelled.
+function methods.SignalUpdate(w, obj, st)
+  updateSelection(w, obj, st.dropdown)
+end
+
+methods.Update = methods.SignalUpdate
+
+-- source: confirmed (row D9) DropdownButton.lua:221-231: the last generated root, nil before any; HasElements is false
+-- without one.
+function methods.GetMenuDescription(_, _, st)
+  return st.dropdown.root
+end
+
+function methods.HasElements(_, _, st)
+  local root = st.dropdown.root
+  return root ~= nil and #root.children > 0
+end
+
+-- source: confirmed (row D9) DropdownButton.lua:210-215: forgets the description and the generator, then closes the
+-- menu, whose update finds no selection.
+function methods.ClearMenuState(w, obj, st)
+  local d = st.dropdown
+  d.generator, d.root = nil, nil
+  if isOpen(w, obj) then
+    MenuFrames.close(w, 1)
+  end
+  updateSelection(w, obj, d)
+end
+
+function methods.EnableRegenerateOnResponse(_, _, st)
+  st.dropdown.regenerateOnResponse = true
+end
+
 function methods.SetDefaultText(w, obj, st, text)
   st.dropdown.defaultText = text
   showText(w, obj, st.dropdown)
+end
+
+-- source: confirmed (row D9) MenuTemplates.lua:734-736.
+function methods.GetDefaultText(_, _, st)
+  return st.dropdown.defaultText
 end
 
 -- source: confirmed (row D6) MenuTemplates.lua:751-758: nil does nothing; else the text sticks over the selection.
