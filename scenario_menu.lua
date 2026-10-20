@@ -1,4 +1,4 @@
--- Scenario menu steps: menu (what is open), pick (enter down a path, click the last entry) and closeMenus.
+-- Scenario menu steps: menu (what is open), pick (enter down a path, click the last entry), openMenu and closeMenus.
 local M = {}
 
 local Input = require("input")
@@ -113,6 +113,15 @@ function M.extend(Scenario)
       act(w, entry.frame, depth == #path)
       previous = { text = text, index = index }
     end
+  end
+
+  -- Calls UnitPopup_OpenMenu(which, contextData) under engine context (the unit popup menu of a player row).
+  function Scenario:openMenu(which, contextData)
+    local open = rawget(_G, "UnitPopup_OpenMenu")
+    if not open then
+      error("openMenu: UnitPopup_OpenMenu is not on " .. self.flavor, 2)
+    end
+    self.w:run(ENGINE, open, which, contextData)
   end
 
   function Scenario:closeMenus()

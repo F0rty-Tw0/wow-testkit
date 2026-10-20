@@ -1,6 +1,6 @@
 -- Menu API fake (MenuApi): MenuUtil.CreateContextMenu renders a description tree as MenuFrames levels; picks and
 -- MenuResponse live in menu_pick.lua. Menu API levels are unnamed frames under UIParent.
--- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 4" (M5-M7); client paths are relative to
+-- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 4" (M5-M7, M9, M10); client paths are relative to
 -- Interface/AddOns/Blizzard_Menu/.
 local M = {}
 
@@ -10,6 +10,8 @@ local MenuPick = require("framexml.fakes.menu_pick")
 
 local GATE_KEY = "MenuUtil.CreateContextMenu"
 local NO_GATE = { gate = "none" }
+local UNIT_TAG_PREFIX = "MENU_UNIT_"
+local UNIT_NOTE = "Blizzard's own entries are not simulated"
 
 local function copyTable(source)
   local copy = {}
@@ -20,9 +22,10 @@ local function copyTable(source)
   return copy
 end
 
--- Task 4.4 hook point: ModifyMenu callbacks for state.tag run here, after the generator (Menu.lua:2634-2637).
--- A fresh root, filled by generator(owner, root, ...) under addon context. An error is recorded and the menu opens with
--- what was built so far.
+-- A fresh root, filled by generator(owner, root, ...) under addon context, then by every ModifyMenu hook stored for the
+-- root's tag, in registration order: hook(owner, root, root.contextData) (M10, Menu.lua:2634-2637, :2646,2654). An error
+-- is recorded and the menu opens with what was built so far; the remaining hooks still run. The client also calls a new
+-- hook at once on the last menu with that tag (:2642-2646); the kit does not.
 -- grug: open the partial menu; the client's behavior here is unsourced
 local function runGenerator(w, state)
   local root = MenuDescription.newRoot()
@@ -30,6 +33,10 @@ local function runGenerator(w, state)
     root:SetTag(state.tag, state.contextData)
   end
   w:callAsAddon(state.generator, state.owner, root, unpack(state.args, 1, state.args.n))
+  local hooks = root.tag and w.menuApi.modifiers[root.tag]
+  for _, hook in ipairs(hooks or {}) do
+    w:callAsAddon(hook, state.owner, root, root.contextData)
+  end
 
   return root
 end
@@ -134,10 +141,54 @@ function M.open(w, owner, generator, tag, contextData, ...)
   return openState(w, state, false)
 end
 
+-- M9 (assumed: Blizzard_UnitPopup is not in the mirror): UnitPopup_OpenMenu(which, contextData) opens the tag
+-- "MENU_UNIT_" .. which on a fresh unnamed Frame under UIParent. In the client the root holds Blizzard's own entries, which
+-- the kit does not simulate, so the menu opens even when no hook adds anything.
+local function openUnitPopup(w, which, contextData)
+  if type(which) ~= "string" then
+    error("UnitPopup_OpenMenu: which must be a string", 2)
+  end
+  local state = {
+    owner = w.ui.create("Frame", nil, _G.UIParent),
+    generator = function() end,
+    tag = UNIT_TAG_PREFIX .. which,
+    contextData = contextData,
+    args = { n = 0 },
+  }
+  openState(w, state, true)
+  for _, note in ipairs(w.notes) do
+    if note == UNIT_NOTE then
+      return
+    end
+  end
+  w.notes[#w.notes + 1] = UNIT_NOTE
+end
+
+-- M10 (Menu.lua:2639-2660): stores fn under tag; nothing is returned (the client returns a handle).
+local function modifyMenu(w, tag, fn)
+  if type(tag) ~= "string" or type(fn) ~= "function" then
+    error("Menu.ModifyMenu: tag must be a string and fn a function", 2)
+  end
+  local list = w.menuApi.modifiers[tag] or {}
+  w.menuApi.modifiers[tag] = list
+  list[#list + 1] = fn
+end
+
 function M.install(w)
   if not w.globals.framexml[GATE_KEY] then
     return
   end
+  w.menuApi = { modifiers = {} }
+  if w.globals.framexml.UnitPopup_OpenMenu then
+    w:install("UnitPopup_OpenMenu", function(which, contextData)
+      openUnitPopup(w, which, contextData)
+    end, NO_GATE)
+  end
+  w:install("Menu", {
+    ModifyMenu = function(tag, fn)
+      modifyMenu(w, tag, fn)
+    end,
+  }, NO_GATE)
   w:install("MenuUtil", {
     CreateContextMenu = function(owner, generator, ...)
       return M.open(w, owner, generator, nil, nil, ...)
