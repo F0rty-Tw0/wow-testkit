@@ -79,6 +79,39 @@ local function test_entering_a_disabled_entry_whose_submenu_is_open_keeps_it()
   end)
 end
 
+-- A dropdown's level-2 initialize that opens a Menu API menu leaves the dropdown level at depth 2 with the entered
+-- entry's index as its parent (row M17's stack shape). Entering that Menu API entry must still open its own submenu.
+local function test_entering_an_entry_replaces_another_menus_level_with_the_same_parent_index()
+  withFrameXML("retail", function(w)
+    local dd = _G.CreateFrame("Frame", "LevelsNestDD", _G.UIParent, "UIDropDownMenuTemplate")
+    _G.UIDropDownMenu_Initialize(dd, function(_, level)
+      if level == 2 then
+        _G.MenuUtil.CreateContextMenu(nil, function(_, root)
+          root:CreateButton("M1", noop)
+          root:CreateButton("M2"):CreateButton("M2a", noop)
+        end)
+        local info = _G.UIDropDownMenu_CreateInfo()
+        info.text = "DDsub"
+        _G.UIDropDownMenu_AddButton(info, 2)
+        return
+      end
+      for _, text in ipairs({ "D1", "D2" }) do
+        local info = _G.UIDropDownMenu_CreateInfo()
+        info.text = text
+        info.hasArrow = text == "D2"
+        _G.UIDropDownMenu_AddButton(info, 1)
+      end
+    end)
+    _G.ToggleDropDownMenu(1, nil, dd)
+    enter(w, 1, 2)
+    A.eq(w.menus[2].parentIndex, 2)
+    A.eq(w.menus[2].state, nil)
+    enter(w, 1, 2)
+    A.eq(w.menus[2].state, w.menus[1].state)
+    A.eq(w.menus[2].entries[1].text, "M2a")
+  end)
+end
+
 -- Row M17 (assumed): the two menu systems share one stack, so opening either closes the other's open lists.
 local function test_opening_either_menu_system_closes_the_other_assumed()
   withFrameXML("retail", function(w)
@@ -105,5 +138,6 @@ return function()
   test_entering_a_disabled_entry_with_children_opens_nothing()
   test_entering_a_disabled_entry_closes_a_sibling_submenu()
   test_entering_a_disabled_entry_whose_submenu_is_open_keeps_it()
+  test_entering_an_entry_replaces_another_menus_level_with_the_same_parent_index()
   test_opening_either_menu_system_closes_the_other_assumed()
 end
