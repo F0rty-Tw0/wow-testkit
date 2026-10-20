@@ -198,6 +198,16 @@ local function test_addon_name_ambiguous()
   A.contains(message, "found 2 TOC names")
 end
 
+-- Root "." names the folder from $PWD; addon code may clear the global os. The kit's root holds no TOC.
+local function test_addon_name_of_dot_works_while_the_global_os_is_cleared()
+  local hostOs = os
+  rawset(_G, "os", nil)
+  local ok, name, message = pcall(Toc.addonName, ".")
+  rawset(_G, "os", hostOs)
+  A.same({ ok, name }, { true, nil }, tostring(name))
+  A.contains(message, "found 0 TOC names")
+end
+
 return function()
   test_parse_reads_meta_keys_as_written()
   test_parse_skips_comments_and_blank_lines()
@@ -227,4 +237,5 @@ return function()
   test_unreadable_xml_is_reported()
   test_addon_name_from_folder()
   test_addon_name_ambiguous()
+  test_addon_name_of_dot_works_while_the_global_os_is_cleared()
 end

@@ -8,6 +8,8 @@ local fs = require("fs")
 local INTERFACE_KEY = "Interface"
 local GAME_TYPE_DIRECTIVE = "AllowLoadGameType"
 local UTF8_BOM = "^\239\187\191"
+-- Localized: addon code may assign a global named os.
+local osGetenv = os.getenv
 
 -- Game types the client knows: those some flavor answers to, plus the client game types the kit has no flavor for
 -- (warcraft.wiki.gg TOC_format). A game-type list naming none of them cannot exclude a file.
@@ -74,7 +76,7 @@ function M.addonName(root)
       names[#names + 1] = base
     end
   end
-  local folder = (root == "." and os.getenv("PWD") or root):gsub("\\", "/"):match("([^/]+)/*$")
+  local folder = (root == "." and osGetenv("PWD") or root):gsub("\\", "/"):match("([^/]+)/*$")
   if folder and seen[folder] then
     return folder
   elseif #names == 1 then
