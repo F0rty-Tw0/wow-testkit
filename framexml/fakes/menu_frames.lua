@@ -4,6 +4,8 @@ local M = {}
 
 local Core = require("framexml.fakes.core")
 
+local maxn = table.maxn
+
 local MAX_LEVELS = 3
 -- S9 (assumed): the shipped DropDownList frames come from UIDropDownMenu.xml, which the mirror does not hold; the
 -- same template makes them Buttons. Mainline Interface/AddOns/Blizzard_SharedXML/Mainline/UIDropDownMenu.lua:345
@@ -41,8 +43,8 @@ end
 
 -- The level's position in w.menus, or nil when it is not open.
 local function depthOf(w, level)
-  for depth, open in ipairs(w.menus) do
-    if open == level then
+  for depth = 1, maxn(w.menus) do
+    if w.menus[depth] == level then
       return depth
     end
   end
@@ -128,22 +130,21 @@ local function hideLevel(w, level)
 end
 
 -- Closes level depth and every deeper level, deepest first. Each level leaves w.menus before its OnLeave runs, so a
--- handler that closes menus itself sees only the levels still open.
+-- handler that closes menus itself sees only the levels still open. maxn, not #: w.menus can have gaps (open).
 function M.close(w, depth)
-  while #w.menus >= depth do
-    local last = #w.menus
+  while maxn(w.menus) >= depth do
+    local last = maxn(w.menus)
     local level = w.menus[last]
     w.menus[last] = nil
     hideLevel(w, level)
   end
 end
 
--- Opens level at depth (1 is the first menu): closes it and deeper levels first, then renders and shows it.
+-- Opens level at depth (1 is the first menu): closes it and deeper levels first, then renders and shows it. The
+-- shallower levels may be closed: ToggleDropDownMenu shows DropDownList<n> without looking at the lists below it
+-- (Mainline Interface/AddOns/Blizzard_SharedXML/Mainline/UIDropDownMenu.lua:1049-1202, Classic :990-1139).
 function M.open(w, depth, level)
   M.close(w, depth)
-  if depth > #w.menus + 1 then
-    error("open: depth " .. depth .. " leaves a gap", 2)
-  end
   w.menus[depth] = level
   M.render(w, level)
   level.frame:Show()
