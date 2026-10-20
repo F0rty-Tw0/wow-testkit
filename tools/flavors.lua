@@ -89,7 +89,7 @@ function M.get(name)
   return row
 end
 
--- versions: { [flavor] = { version = "12.1.0.69933", mirrorCommit = "..." } } (api/versions.lua).
+-- versions: { [flavor] = { version = "12.1.0.69933", mirrorCommit = "...", kethoCommit = "..." } } (api/versions.lua).
 function M.load(versions)
   for name, entry in pairs(versions) do
     setVersion(M.get(name), entry.version)
