@@ -155,7 +155,36 @@ local function test_close_drop_down_menus_closes_from_the_given_level()
   end)
 end
 
+-- UIDropDownMenuButtonTemplate sets OnClick and OnEnter once (Mainline UIDropDownMenuTemplates.xml:89-97, Classic
+-- :148-151); AddButton and Toggle never set a list button's scripts, so an addon's SetScript lasts across reopening.
+local function test_an_addon_script_on_a_list_button_survives_reopening()
+  withFrameXML("retail", function(w)
+    local picks, clicks, enters = 0, 0, 0
+    local frame = openMenu({
+      { "One", {
+        notCheckable = true,
+        func = function()
+          picks = picks + 1
+        end,
+      } },
+    })
+    _G.DropDownList1Button1:SetScript("OnClick", function()
+      clicks = clicks + 1
+    end)
+    _G.DropDownList1Button1:SetScript("OnEnter", function()
+      enters = enters + 1
+    end)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    _G.ToggleDropDownMenu(1, nil, frame)
+    A.eq(_G.DropDownList1Button1:IsShown(), true)
+    Input.enter(w, _G.DropDownList1Button1)
+    Input.click(w, _G.DropDownList1Button1, "LeftButton")
+    A.same({ picks, clicks, enters }, { 0, 1, 1 })
+  end)
+end
+
 return function()
+  test_an_addon_script_on_a_list_button_survives_reopening()
   test_toggle_opens_level_one_owned_by_the_frame()
   test_toggle_again_on_the_owning_frame_closes_the_menu()
   test_toggle_on_another_frame_replaces_the_open_menu()
