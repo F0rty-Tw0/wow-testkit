@@ -133,6 +133,9 @@ local function test_token_from_guid_follows_the_wiki_order()
     w:unit("player", { guid = "G1" })
     A.eq(_G.UnitTokenFromGUID("G1"), "player")
     A.eq(_G.UnitTokenFromGUID("G2"), nil)
+    w:unit("arena1", { guid = "G3" })
+    w:unit("nameplate100", { guid = "G3" })
+    A.eq(_G.UnitTokenFromGUID("G3"), "nameplate100")
   end)
 end
 
