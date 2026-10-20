@@ -30,7 +30,8 @@ local OS_KEPT = { "time", "date", "clock", "difftime" }
 
 local hostOs, hostLoadstring, hostGetfenv, hostSetfenv = os, loadstring, getfenv, setfenv
 local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
-local hostGetmetatable, hostSetmetatable = getmetatable, setmetatable
+local hostGetmetatable, hostSetmetatable, hostRawMetatable = getmetatable, setmetatable, debug.getmetatable
+local hostType, hostSelect, hostError = type, select, error
 
 local function keptOs()
   local out = {}
@@ -119,22 +120,48 @@ end
 
 -- setmetatable/getmetatable given the view act on w.addonGlobalsMt, the metatable addon code gave _G: one per
 -- world, shared by every addon view (the client has one _G), never set on the real _G, so kit reads ignore it.
+-- Both run Lua 5.1's own argument and __metatable checks (lbaselib.c), raised at the addon's line.
 local function addGlobalsMetatable(overrides, view, w)
-  overrides.setmetatable = function(t, mt)
+  local function current(t)
+    if t == view then
+      return w.addonGlobalsMt
+    end
+    return hostRawMetatable(t)
+  end
+  overrides.setmetatable = function(...)
+    local t, mt = ...
+    local count = hostSelect("#", ...)
+    if hostType(t) ~= "table" then
+      local got = count < 1 and "no value" or hostType(t)
+      hostError("bad argument #1 to 'setmetatable' (table expected, got " .. got .. ")", 2)
+    end
+    if count < 2 or (mt ~= nil and hostType(mt) ~= "table") then
+      hostError("bad argument #2 to 'setmetatable' (nil or table expected)", 2)
+    end
+    local old = current(t)
+    if old and hostRawget(old, "__metatable") ~= nil then
+      hostError("cannot change a protected metatable", 2)
+    end
     if t ~= view then
       return hostSetmetatable(t, mt)
-    end
-    if mt ~= nil and type(mt) ~= "table" then
-      error("bad argument #2 to 'setmetatable' (nil or table expected)", 2)
     end
     w.addonGlobalsMt = mt
     return view
   end
-  overrides.getmetatable = function(t)
-    if t == view then
-      return w.addonGlobalsMt
+  overrides.getmetatable = function(...)
+    if hostSelect("#", ...) < 1 then
+      hostError("bad argument #1 to 'getmetatable' (value expected)", 2)
     end
-    return hostGetmetatable(t)
+    local t = ...
+    if t ~= view then
+      return hostGetmetatable(t)
+    end
+    local mt = w.addonGlobalsMt
+    local protected = mt and hostRawget(mt, "__metatable")
+    if protected ~= nil then
+      return protected
+    end
+    return mt
   end
 end
 

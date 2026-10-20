@@ -268,6 +268,50 @@ local function test_setmetatable_on_g_with_a_non_table_errors_at_the_callers_lin
   end)
 end
 
+local METATABLE_MISUSE = [[
+local _, ns = ...
+ns.a = select(2, pcall(function() local t = setmetatable({}, 5) return t end))
+local locked = setmetatable({}, { __metatable = false })
+ns.b = select(2, pcall(function() local t = setmetatable(locked, {}) return t end))
+ns.c = select(2, pcall(function() local mt = getmetatable() return mt end))
+ns.d = select(2, pcall(function() local t = setmetatable(5, {}) return t end))
+ns.e = select(2, pcall(function() local t = setmetatable(_G) return t end))
+ns.f = getmetatable(locked)
+]]
+
+-- Runs source as a plain Lua chunk named like the addon's file, outside any sandbox; returns its ns.
+local function plainRun(source, chunkName)
+  local ns = {}
+  assert(loadstring(source, "@" .. chunkName))(nil, ns)
+  return ns
+end
+
+local function test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtMisuse", METATABLE_MISUSE)
+    local plain = plainRun(METATABLE_MISUSE, "addon:MtMisuse/Core.lua")
+    A.eq(ns.a, "addon:MtMisuse/Core.lua:2: bad argument #2 to 'setmetatable' (nil or table expected)")
+    for _, key in ipairs({ "a", "b", "c", "d", "e", "f" }) do
+      A.eq(ns[key], plain[key], key)
+    end
+  end)
+end
+
+local GLOBALS_PROTECTED = [[
+local _, ns = ...
+setmetatable(_G, { __metatable = "locked", __index = function() return "x" end })
+ns.mt = getmetatable(_G)
+ns.err = select(2, pcall(function() local t = setmetatable(_G, nil) return t end))
+ns.still = Nope
+]]
+
+local function test_protected_globals_metatable_is_hidden_and_kept()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtLocked", GLOBALS_PROTECTED)
+    A.same({ ns.mt, ns.err, ns.still }, { "locked", "addon:MtLocked/Core.lua:4: cannot change a protected metatable", "x" })
+  end)
+end
+
 local function test_globals_metatable_is_gone_after_destroy()
   local hostMt = debug.getmetatable(_G)
   HF.withFrameXML("retail", function(w)
@@ -331,5 +375,7 @@ return function()
   test_addon_globals_metatable_newindex_fires_only_for_new_globals_assumed()
   test_second_addon_sees_the_first_addons_globals_metatable_assumed()
   test_setmetatable_on_g_with_a_non_table_errors_at_the_callers_line()
+  test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
+  test_protected_globals_metatable_is_hidden_and_kept()
   test_globals_metatable_is_gone_after_destroy()
 end
