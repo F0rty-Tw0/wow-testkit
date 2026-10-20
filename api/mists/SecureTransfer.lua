@@ -7,62 +7,6 @@ return {
     SECURE_TRANSFER_CONFIRM_TRADE_ACCEPT = {},
     SECURE_TRANSFER_HOUSING_CURRENCY_PURCHASE_CONFIRMATION = {},
   },
-  functions = {
-    ["C_SecureTransfer.AcceptTrade"] = {
-      secret = {
-        returns = "never",
-      },
-    },
-    ["C_SecureTransfer.Cancel"] = {
-      secret = {
-        returns = "never",
-      },
-    },
-    ["C_SecureTransfer.GetMailInfo"] = {
-      returns = {
-        {
-          lua = "table",
-          name = "mailInfo",
-          nilable = false,
-          type = "MailInfo",
-        },
-      },
-      secret = {
-        returns = "never",
-      },
-    },
-    ["C_SecureTransfer.GetTradePartner"] = {
-      returns = {
-        {
-          lua = "string",
-          name = "name",
-          nilable = true,
-          type = "cstring",
-        },
-      },
-      secret = {
-        returns = "never",
-      },
-    },
-    ["C_SecureTransfer.SendMail"] = {
-      secret = {
-        returns = "never",
-      },
-    },
-    ["C_SecureTransfer.ShouldShowTradeOfferWarning"] = {
-      returns = {
-        {
-          lua = "boolean",
-          name = "shouldShow",
-          nilable = false,
-          type = "bool",
-        },
-      },
-      secret = {
-        returns = "never",
-      },
-    },
-  },
   structs = {
     MailInfo = {
       fields = {

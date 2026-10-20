@@ -179,8 +179,48 @@ local function keysOf(t)
   return keys
 end
 
+-- The fixture Ketho lists, with GlobalAPI replaced by these global API names.
+local function kethoListing(names)
+  local listing = {}
+  for key, value in pairs(ketho) do
+    listing[key] = value
+  end
+  listing.GlobalAPI = { names, {} }
+  return listing
+end
+
+local NAMESPACED_KETHO = kethoListing({ "table.wipe", "C_StringUtil.TrimWhitespace" })
+
 local function functionKeys(fn, namespace)
-  return keysOf(Generate.build({ systemEntry("ADocumentation.lua", fn, namespace) }, ketho, META).manifest.functions)
+  local one = { systemEntry("ADocumentation.lua", fn, namespace) }
+  return keysOf(Generate.build(one, NAMESPACED_KETHO, META).manifest.functions)
+end
+
+local function buildOne(fn, namespace)
+  return Generate.build({ systemEntry("ADocumentation.lua", fn, namespace) }, ketho, META)
+end
+
+-- Classic Era's docs carry C_AuctionHouse, yet its client (Ketho's GlobalAPI) has no C_AuctionHouse function.
+local function test_function_in_a_namespace_ketho_never_lists_is_dropped_and_counted()
+  local built = buildOne({ Name = "GetBids", Type = "Function" }, "C_AuctionHouse")
+  A.same(built.manifest.functions, {})
+  A.same(built.report.dropped, { C_AuctionHouse = 1 })
+end
+
+local function test_function_missing_from_a_listed_namespace_is_kept()
+  local built = buildOne({ Name = "DoOtherThing", Type = "Function" }, "C_SecureSystem")
+  A.truthy(built.manifest.functions["C_SecureSystem.DoOtherThing"], "kept")
+  A.same(built.report.dropped, {})
+end
+
+-- Ketho's lists come from an addon environment, where secure-only functions never show.
+local function test_secure_only_function_in_an_unlisted_namespace_is_kept()
+  local built = buildOne({ Name = "AcceptTrade", Type = "Function", Environment = "SecureOnly" }, "C_SecureTransfer")
+  A.truthy(built.manifest.functions["C_SecureTransfer.AcceptTrade"], "kept")
+end
+
+local function test_global_function_missing_from_ketho_is_kept()
+  A.truthy(buildOne({ Name = "ToggleCollision", Type = "Function" }).manifest.functions.ToggleCollision, "kept")
 end
 
 -- LuaTableUtilDocumentation.lua: `count` in system C_TableUtil carries Namespace = "table".
@@ -275,6 +315,10 @@ return function()
   test_function_namespace_replaces_system_namespace_in_key()
   test_empty_function_namespace_makes_a_global_key()
   test_function_namespace_applies_in_a_system_without_one()
+  test_function_in_a_namespace_ketho_never_lists_is_dropped_and_counted()
+  test_function_missing_from_a_listed_namespace_is_kept()
+  test_secure_only_function_in_an_unlisted_namespace_is_kept()
+  test_global_function_missing_from_ketho_is_kept()
   test_duplicate_key_across_files_is_reported_and_last_file_wins()
   test_fixture_docs_have_no_duplicates()
   test_ignored_doc_fields_are_counted()
