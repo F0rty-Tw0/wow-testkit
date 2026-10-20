@@ -394,6 +394,32 @@ local function test_set_text_on_an_edit_box_fires_on_text_changed_with_user_inpu
   end)
 end
 
+local function test_set_text_with_the_same_text_fires_no_on_text_changed() -- (I6)
+  withWidgets("retail", function()
+    local box = _G.CreateFrame("EditBox")
+    box:SetText("hi")
+    local log = Rec.record(box, { "OnTextSet", "OnTextChanged" })
+    box:SetText("hi")
+    A.same(log, { { "OnTextSet" } })
+  end)
+end
+
+local function test_on_text_changed_that_sets_its_own_text_does_not_recurse() -- (I6)
+  withWidgets("retail", function(w)
+    local box = _G.CreateFrame("EditBox")
+    local calls = 0
+    -- the shape of Blizzard's ColorPickerHexBoxMixin:OnTextChanged (row I6)
+    box:SetScript("OnTextChanged", function(self)
+      calls = calls + 1
+      self:SetText((self:GetText():gsub("[^A-Fa-f0-9]", "")))
+    end)
+    box:SetText("ab-c")
+    A.eq(box:GetText(), "abc")
+    A.eq(calls, 2)
+    A.eq(#w.errors, 0)
+  end)
+end
+
 local function test_set_text_on_other_types_is_unchanged()
   withWidgets("retail", function()
     local fontString = _G.CreateFrame("Frame"):CreateFontString()
@@ -411,6 +437,8 @@ return function()
   test_set_focus_on_the_focused_box_fires_nothing()
   test_clear_focus_fires_lost_and_clears_only_for_the_focused_box()
   test_set_text_on_an_edit_box_fires_on_text_changed_with_user_input_false()
+  test_set_text_with_the_same_text_fires_no_on_text_changed()
+  test_on_text_changed_that_sets_its_own_text_does_not_recurse()
   test_set_text_on_other_types_is_unchanged()
   test_widgets_install_creates_the_input_state()
   test_button_check_button_and_edit_box_start_mouse_enabled_assumed()

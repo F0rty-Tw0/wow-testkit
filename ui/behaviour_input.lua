@@ -217,11 +217,15 @@ local function hasFocus(w, obj)
   return w.input.editFocus == obj
 end
 
--- source: confirmed (row I6) SetText fires OnTextSet(self), then OnTextChanged(self, false).
+-- source: confirmed (row I6) SetText fires OnTextSet(self), then OnTextChanged(self, false) only when the text
+-- changed, so a handler that sets its own text does not recurse.
 local function setEditText(w, obj, st, text)
+  local old = st.text
   st.text = tostring(text or "")
   w:callScript(obj, "OnTextSet")
-  w:callScript(obj, "OnTextChanged", false)
+  if st.text ~= old then
+    w:callScript(obj, "OnTextChanged", false)
+  end
 end
 
 M.typed.SetFocus = M.onlyFor("editbox", setFocus)
