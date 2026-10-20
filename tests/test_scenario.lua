@@ -201,6 +201,15 @@ local function test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_go
   A.eq(fs.exists(root .. "/tests/scenarios/golden/skip/t.vanilla.txt"), false)
 end
 
+local function test_snapshot_checks_a_menu_value_against_its_golden()
+  local root = tempRoot()
+  local report = goldenRun(root, function(s)
+    s:snapshot("menu", { kind = "menu", levels = { { entries = { { kind = "button", text = "Open", enabled = true } } } } })
+  end)
+  A.eq(report.status, "pass")
+  A.eq(fs.readFile(root .. "/tests/scenarios/golden/hover/menu.retail.txt"), "[ffffff]Open\n")
+end
+
 local function test_run_file_turns_on_golden_mode()
   local opts = { addon = HOVER.addon, root = HOVER.root, flavors = { "retail" } }
   A.eq(Scenario.runFile(GOLDEN_MODE_SCENARIO, opts).results.retail.status, "pass")
@@ -231,12 +240,28 @@ local function test_hover_focuses_the_world_frame_when_its_motion_is_on() -- (I1
   end)
 end
 
+local function test_report_appends_world_notes()
+  withHover("retail", function(s)
+    s.w.notes[#s.w.notes + 1] = "from a menu fake"
+    A.contains(s:report().notes, "from a menu fake")
+  end)
+end
+
+local function test_report_works_when_the_world_has_no_notes()
+  withHover("retail", function(s)
+    s.w.notes = nil
+    A.same(s:report().notes, {})
+  end)
+end
+
 return function()
   test_hover_runs_the_unit_post_call_on_retail()
   test_hover_runs_the_tooltip_set_unit_hook_on_vanilla()
   test_login_fires_player_login_once()
   test_hover_leaves_no_focus_when_world_frame_motion_is_off()
   test_hover_focuses_the_world_frame_when_its_motion_is_on()
+  test_report_appends_world_notes()
+  test_report_works_when_the_world_has_no_notes()
   test_login_error_fails_the_report_with_its_addon_source()
   test_run_continues_after_a_handler_error()
   test_run_file_runs_every_flavor_by_default()
@@ -247,6 +272,7 @@ return function()
   test_snapshot_mismatch_fails_the_report_without_throwing()
   test_snapshot_writes_a_missing_golden_with_a_note()
   test_snapshot_reads_are_not_counted_as_unscripted()
+  test_snapshot_checks_a_menu_value_against_its_golden()
   test_run_file_turns_on_golden_mode()
   test_undeclared_flavor_skips_the_rest_of_the_run_and_writes_no_golden()
 end

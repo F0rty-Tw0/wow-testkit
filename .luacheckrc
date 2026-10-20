@@ -33,7 +33,14 @@ files["tests/fixtures/addons/Hover/*.lua"] = {
 
 -- Scenario fixture addon: written like a real addon against the WoW globals the world installs.
 files["tests/fixtures/addons/Clicky/*.lua"] = {
-  read_globals = { "CreateFrame", "UIParent" },
+  read_globals = {
+    "CreateFrame",
+    "ToggleDropDownMenu",
+    "UIDropDownMenu_AddButton",
+    "UIDropDownMenu_CreateInfo",
+    "UIDropDownMenu_Initialize",
+    "UIParent",
+  },
 }
 
 -- Unknown-event fixture: registers an event no flavor has.

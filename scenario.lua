@@ -153,6 +153,9 @@ function Scenario:slash(text)
 end
 
 local function snapshotText(target)
+  if target.kind == "menu" then
+    return Snapshot.menu(target)
+  end
   if target:GetObjectType() == "GameTooltip" then
     return Snapshot.tooltip(target)
   end
@@ -204,6 +207,9 @@ function Scenario:report()
   end
   local notes = copyList(info and info.report)
   for _, text in ipairs(self.notes) do
+    notes[#notes + 1] = text
+  end
+  for _, text in ipairs(w.notes or {}) do
     notes[#notes + 1] = text
   end
   return {

@@ -4,7 +4,8 @@ local M = {}
 
 local Widgets = require("ui.widgets")
 
--- Order matters: core creates UIParent before anything parents to it; frames (the lazy _G lookup) goes last.
+-- Order matters: core creates UIParent before anything parents to it; menu_frames creates the DropDownList frames, so it
+-- runs before frames (the lazy _G lookup), which goes last.
 local STAGE1 = {
   "framexml.fakes.core",
   "framexml.fakes.minimap",
@@ -12,6 +13,8 @@ local STAGE1 = {
   "framexml.fakes.strings",
   "framexml.fakes.slash",
   "framexml.fakes.tooltip",
+  "framexml.fakes.menu_frames",
+  "framexml.fakes.dropdown",
   "framexml.fakes.frames",
 }
 
