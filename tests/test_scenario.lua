@@ -215,7 +215,7 @@ local function test_run_file_turns_on_golden_mode()
   A.eq(Scenario.runFile(GOLDEN_MODE_SCENARIO, opts).results.retail.status, "pass")
 end
 
--- (I10, user ruling 2026-10-20) over the world: WorldFrame only when its motion is enabled, else no focus.
+-- (I10) over the world: WorldFrame only when its motion is enabled, else no focus.
 local function test_hover_leaves_no_focus_when_world_frame_motion_is_off() -- (I10)
   withHover("retail", function(s)
     local b = _G.CreateFrame("Button", nil, _G.UIParent)

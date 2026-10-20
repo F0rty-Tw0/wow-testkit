@@ -1,6 +1,6 @@
 -- Menu description tree: the object a Menu API generator fills (rootDescription:CreateButton(...) and friends). Pure Lua,
 -- no world. Every description, root included, has all builders; an element with children is a submenu.
--- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 4" (M1-M4, M10); client paths are relative to
+-- Sources: docs/client-sources.md "Menu API" (M1-M4, M10); client paths are relative to
 -- Interface/AddOns/Blizzard_Menu/ (Menu.lua, MenuTemplates.lua).
 local M = {}
 

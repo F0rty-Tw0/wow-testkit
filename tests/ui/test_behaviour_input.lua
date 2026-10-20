@@ -25,7 +25,7 @@ local function test_button_check_button_and_edit_box_start_mouse_enabled_assumed
   end)
 end
 
--- (I5, user ruling 2026-10-20: follow wiki API_ScriptRegion_EnableMouse) any of the four mouse scripts implies
+-- (I5, follows wiki API_ScriptRegion_EnableMouse) any of the four mouse scripts implies
 -- EnableMouse(true); OnClick and clearing a script enable nothing.
 local function test_mouse_scripts_enable_click_and_motion() -- (I5)
   withWidgets("retail", function()

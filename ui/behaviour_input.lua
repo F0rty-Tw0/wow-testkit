@@ -74,7 +74,7 @@ function methods.IsMouseMotionFocus(w, obj)
 end
 
 -- source: wiki API_ScriptRegion_EnableMouse, "Setting the OnEnter/Leave, OnMouseDown/Up script automatically implies
--- `EnableMouse(true)`" (row I5, user ruling 2026-10-20). OnClick enables nothing; a rejected or cleared script
+-- `EnableMouse(true)`" (row I5). OnClick enables nothing; a rejected or cleared script
 -- changes nothing.
 function methods.SetScript(w, obj, st, script, fn)
   if fn ~= nil and MOUSE_SCRIPTS[script] and BehaviourScripts.methods.HasScript(w, obj, st, script) then

@@ -1,6 +1,6 @@
 -- Menu API fake (MenuApi): MenuUtil.CreateContextMenu renders a description tree as MenuFrames levels; picks and
 -- MenuResponse live in menu_pick.lua. Menu API levels are unnamed frames under UIParent.
--- Sources: docs/specs/2026-10-19-input-steps-sources.md "Phase 4" (M5-M7, M9, M10); client paths are relative to
+-- Sources: docs/client-sources.md "Menu API" (M5-M7, M9, M10); client paths are relative to
 -- Interface/AddOns/Blizzard_Menu/.
 local M = {}
 
