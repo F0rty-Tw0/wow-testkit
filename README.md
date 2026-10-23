@@ -1,5 +1,7 @@
 # wow-testkit
 
+[![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-donate-yellow.svg)](https://buymeacoffee.com/f0rty_tw0)
+
 Shared offline test kit for World of Warcraft addons: load an addon's Lua outside the game, on every game flavor,
 and test it on plain Lua 5.1.
 
