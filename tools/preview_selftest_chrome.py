@@ -192,6 +192,11 @@ def test_kill_tree_runs_taskkill_from_system32_on_windows(tmp, monkeypatch):
     assert seen[0][1:] == ["/PID", "123", "/T", "/F"], seen
 
 
+def test_taskkill_path_is_absolute_when_systemroot_is_empty(tmp, monkeypatch):
+    monkeypatch(pc.os, "environ", {"SystemRoot": ""})
+    assert pc.taskkill_path() == os.path.join(r"C:\Windows", "System32", "taskkill.exe"), pc.taskkill_path()
+
+
 def test_png_without_a_snapshot_exits_2(tmp):
     assert quiet_png(tmp, tmp / "x.png", chrome=sys.executable) == 2
 
@@ -249,6 +254,7 @@ TESTS = [
     test_missing_chrome_exits_3,
     test_find_chrome_ignores_a_relative_path_hit,
     test_kill_tree_runs_taskkill_from_system32_on_windows,
+    test_taskkill_path_is_absolute_when_systemroot_is_empty,
     test_png_without_a_snapshot_exits_2,
     test_png_refuses_a_file_that_is_not_a_png_and_keeps_it,
     test_png_usage_errors_exit_2,
