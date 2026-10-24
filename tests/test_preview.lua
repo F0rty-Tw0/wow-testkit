@@ -314,16 +314,23 @@ local function test_default_out_folder_maps_every_non_ascii_byte_to_an_underscor
   })
 end
 
+-- Toc.addonName answers "..", as for a TOC named ...toc: the posix shell fallback of fs.list hides such a dot file.
 local function test_addon_named_only_dots_asks_for_out()
-  withExec(nil, function(calls)
+  local addonName = Toc.addonName
+  Toc.addonName = function()
+    return ".."
+  end
+  local ok, err = pcall(withExec, nil, function(calls)
     withHome(function(home)
-      local code, text = run({ addonDir = tempAddon(FRAME_ADDON, "..") })
+      local code, text = run({ addonDir = tempAddon(FRAME_ADDON) })
       A.eq(code, 2)
       A.contains(text, "pass --out")
       A.eq(fs.exists(home .. "/preview"), false)
       A.eq(#calls, 0)
     end)
   end)
+  Toc.addonName = addonName
+  assert(ok, err)
 end
 
 local function test_explicit_out_the_shell_would_expand_exits_2()
