@@ -76,11 +76,18 @@ local function defaultOut(addon)
   return Home.path("preview", folder)
 end
 
+local function isPngPath(path)
+  return path:lower():find("%.png$") ~= nil
+end
+
 -- { name, flavor, file, out, size, matrixOpts } for opts, or nil plus a message.
 local function context(opts)
   local root = opts.addonDir
   if not (root and fs.isdir(root)) then
     return nil, "no such directory: " .. tostring(root)
+  end
+  if opts.png and not isPngPath(opts.png) then
+    return nil, "--png must name a .png file, not " .. opts.png
   end
   local name, nameErr = Toc.addonName(root)
   if not name then
@@ -184,11 +191,11 @@ local function runSteps(steps, out, write)
   return true
 end
 
--- A run that fails must not leave the previous run's snapshot or picture behind to be read as this run's. Only a .png
--- path is deleted, so a mistyped --png naming some other file cannot destroy it.
+-- A run that fails must not leave the previous run's snapshot or picture behind to be read as this run's. context
+-- accepts only a .png path for --png, so a mistyped one naming some other file is refused before this deletes it.
 local function clearStale(ctx)
   os.remove(ctx.out .. SNAPSHOT_FILE)
-  if ctx.png and ctx.png:lower():find("%.png$") then
+  if ctx.png then
     os.remove(ctx.png)
   end
 end

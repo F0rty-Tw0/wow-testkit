@@ -347,22 +347,30 @@ local function test_run_whose_snapshot_cannot_be_written_removes_the_previous_sn
   ScenarioPreview.write = write
 end
 
--- A mistyped --png (here a notes file) is not the previous run's picture, so a failing run must leave it alone.
-local function test_failing_run_keeps_a_png_path_that_is_not_a_png()
+-- A --png that is not a .png file (here a notes file) is a usage error before anything runs: deleting it, or the old
+-- .png, would lose the user's file.
+local function test_png_flag_naming_a_file_that_is_not_a_png_exits_2_and_keeps_it()
+  withExec(nil, function(calls)
+    local out, notes = Tmp.dir("previewout"), Tmp.dir("previewpng") .. "/notes.md"
+    seedStale(out, notes)
+    local code, text = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = notes })
+    A.eq(code, 2)
+    A.contains(text, "--png must name a .png file")
+    A.same({ fs.readFile(notes), fs.readFile(out .. "/snapshot.json"), #calls }, { "stale", '{"stale":true}', 0 })
+  end)
+end
+
+local function test_png_flag_in_capitals_is_a_png_and_a_failing_run_removes_it()
   local write = ScenarioPreview.write
   ScenarioPreview.write = function()
     error("disk full", 0)
   end
   withExec(nil, function()
-    local out, notes = Tmp.dir("previewout"), Tmp.dir("previewpng") .. "/notes.md"
-    seedStale(out, notes)
-    local upper = Tmp.dir("previewpng") .. "/SHOT.PNG"
-    fs.writeFile(upper, "stale")
-    local code = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = notes })
-    local upperCode = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = upper })
+    local out, upper = Tmp.dir("previewout"), Tmp.dir("previewpng") .. "/SHOT.PNG"
+    seedStale(out, upper)
+    local code = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = upper })
     ScenarioPreview.write = write
-    A.same({ code, upperCode }, { 1, 1 })
-    A.same({ fs.readFile(notes), fs.exists(upper) }, { "stale", false })
+    A.same({ code, fs.exists(upper) }, { 1, false })
   end)
   ScenarioPreview.write = write
 end
@@ -383,7 +391,8 @@ end
 
 return function()
   test_run_whose_snapshot_cannot_be_written_removes_the_previous_snapshot_and_png()
-  test_failing_run_keeps_a_png_path_that_is_not_a_png()
+  test_png_flag_naming_a_file_that_is_not_a_png_exits_2_and_keeps_it()
+  test_png_flag_in_capitals_is_a_png_and_a_failing_run_removes_it()
   test_failed_png_step_leaves_no_previous_png()
   test_default_out_folder_replaces_unsafe_characters_in_the_addon_name()
   test_default_out_folder_never_runs_a_command_named_by_the_addon()
