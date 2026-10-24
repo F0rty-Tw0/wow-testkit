@@ -2,6 +2,8 @@
 -- and scripts. Widget creation goes through w.ui.create (ui/widgets.lua).
 local M = {}
 
+local Layout = require("ui.layout")
+
 -- A template child whose type the flavor's Ketho WidgetAPI lacks is created as a plain frame.
 local FALLBACK_CHILD_TYPE = "Frame"
 
@@ -19,6 +21,7 @@ function M.apply(w, frame, st, entry)
   end
   if entry.size then
     st.width, st.height = entry.size[1], entry.size[2]
+    Layout.invalidate(w, frame)
   end
   st.protected = st.protected or entry.protected
   for _, name in ipairs(entry.mixins) do

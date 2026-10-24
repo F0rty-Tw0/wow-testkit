@@ -1,11 +1,12 @@
--- Hand-written widget semantics: anchors, size, visibility, hierarchy, identity, mouse and movement.
--- Each method is fn(w, obj, st, ...) where st is obj's state in w.ui.state. M.methods also carries the text
--- (ui/behaviour_text.lua), alpha/scale/level/strata (ui/behaviour_render.lua) and script/event
--- (ui/behaviour_scripts.lua), animation (ui/behaviour_animation.lua), attribute (ui/behaviour_attributes.lua) and
--- GetDebugName (ui/behaviour_debug_name.lua) methods.
+-- Hand-written widget semantics: visibility, hierarchy, identity, mouse and movement.
+-- Each method is fn(w, obj, st, ...) where st is obj's state in w.ui.state. M.methods also carries the anchor and
+-- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), alpha/scale/level/strata (ui/behaviour_render.lua),
+-- script/event (ui/behaviour_scripts.lua), animation (ui/behaviour_animation.lua), attribute
+-- (ui/behaviour_attributes.lua) and GetDebugName (ui/behaviour_debug_name.lua) methods.
 local M = {}
 
 local Callsite = require("ui.callsite")
+local BehaviourLayout = require("ui.behaviour_layout")
 local BehaviourText = require("ui.behaviour_text")
 local BehaviourRender = require("ui.behaviour_render")
 local BehaviourScripts = require("ui.behaviour_scripts")
@@ -20,99 +21,6 @@ local methods = {}
 M.methods = methods
 M.typed = BehaviourInput.typed
 M.uncheckedArgs = BehaviourAttributes.uncheckedArgs
-
-local ANCHOR_FIELDS = 5
-
-local function upper(point)
-  return type(point) == "string" and point:upper() or point
-end
-
--- A frame name resolves through _G; nil defaults to the parent, else UIParent.
-local function relativeOf(st, relativeTo)
-  if type(relativeTo) == "string" then
-    return _G[relativeTo]
-  end
-  if relativeTo ~= nil then
-    return relativeTo
-  end
-  return st.parent or _G.UIParent
-end
-
--- The client's SetPoint forms: (point), (point, x, y), (point, relativeTo, x, y),
--- (point, relativeTo, relativePoint [, x, y]). Missing offsets are 0; a missing relativePoint is point.
-local function parsePoint(st, point, a, b, c, d)
-  point = upper(point)
-  if type(a) == "number" then
-    return { point, relativeOf(st, nil), point, a, b or 0 }
-  end
-  if type(b) == "number" then
-    return { point, relativeOf(st, a), point, b, c or 0 }
-  end
-  return { point, relativeOf(st, a), upper(b) or point, c or 0, d or 0 }
-end
-
-local function addAnchor(st, anchor)
-  for i, existing in ipairs(st.points) do
-    if existing[1] == anchor[1] then
-      st.points[i] = anchor
-      return
-    end
-  end
-  st.points[#st.points + 1] = anchor
-end
-
-function methods.SetPoint(_, _, st, ...)
-  addAnchor(st, parsePoint(st, ...))
-end
-
-function methods.ClearAllPoints(_, _, st)
-  st.points = {}
-end
-
-function methods.GetPoint(_, _, st, index)
-  local anchor = st.points[index or 1]
-  if anchor then
-    return unpack(anchor, 1, ANCHOR_FIELDS)
-  end
-end
-
-function methods.GetNumPoints(_, _, st)
-  return #st.points
-end
-
-function methods.SetAllPoints(_, _, st, relativeTo)
-  local target = relativeOf(st, relativeTo)
-  st.points = {
-    { "TOPLEFT", target, "TOPLEFT", 0, 0 },
-    { "BOTTOMRIGHT", target, "BOTTOMRIGHT", 0, 0 },
-  }
-end
-
--- Size --------------------------------------------------------------------------------------------------------
-
-function methods.SetSize(_, _, st, width, height)
-  st.width, st.height = width, height
-end
-
-function methods.SetWidth(_, _, st, width)
-  st.width = width
-end
-
-function methods.SetHeight(_, _, st, height)
-  st.height = height
-end
-
-function methods.GetWidth(_, _, st)
-  return st.width or 0
-end
-
-function methods.GetHeight(_, _, st)
-  return st.height or 0
-end
-
-function methods.GetSize(_, _, st)
-  return st.width or 0, st.height or 0
-end
 
 -- Visibility --------------------------------------------------------------------------------------------------
 
@@ -283,7 +191,8 @@ function methods.StartMoving() end
 function methods.StopMovingOrSizing() end
 
 -- BehaviourInput goes last: its SetScript wraps BehaviourScripts's.
-local MODULES = { BehaviourText, BehaviourRender, BehaviourScripts, BehaviourAnimation, BehaviourAttributes, BehaviourDebugName, BehaviourInput }
+local MODULES =
+  { BehaviourLayout, BehaviourText, BehaviourRender, BehaviourScripts, BehaviourAnimation, BehaviourAttributes, BehaviourDebugName, BehaviourInput }
 for _, module in ipairs(MODULES) do
   for name, fn in pairs(module.methods) do
     methods[name] = fn

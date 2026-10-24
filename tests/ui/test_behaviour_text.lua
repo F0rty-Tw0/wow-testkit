@@ -5,6 +5,10 @@ local HW = require("tests.helpers.widgets")
 local withWidgets = HW.withWidgets
 local FONT_PATH = "Fonts\\FRIZQT__.TTF"
 
+local function near(actual, expected)
+  A.truthy(math.abs(actual - expected) < 1e-9, string.format("expected %s, got %s", expected, actual))
+end
+
 local function newText()
   return _G.CreateFrame("Frame"):CreateFontString()
 end
@@ -14,7 +18,7 @@ local function test_string_width_ignores_color_codes_at_default_size()
     local text = newText()
     text:SetText("|cff00ff00abc|r")
     A.eq(text:GetStringWidth(), 18)
-    A.eq(text:GetStringHeight(), 12)
+    near(text:GetStringHeight(), 13.8) -- 12 * 1.15
   end)
 end
 
@@ -24,7 +28,7 @@ local function test_string_metrics_use_set_font_size()
     text:SetFont(FONT_PATH, 20)
     text:SetText("ab")
     A.eq(text:GetStringWidth(), 20)
-    A.eq(text:GetStringHeight(), 20)
+    near(text:GetStringHeight(), 23) -- 20 * 1.15
   end)
 end
 

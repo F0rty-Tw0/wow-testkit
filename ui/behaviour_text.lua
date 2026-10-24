@@ -2,14 +2,14 @@
 -- A FontString or Font without its own font or text color reads it through its font object chain.
 local M = {}
 
-local Metrics = require("ui.metrics_placeholder")
+local FontChain = require("ui.font_chain")
+local Layout = require("ui.layout")
 
 local unpack = unpack
 
 local methods = {}
 M.methods = methods
 
-local MAX_FONT_DEPTH = 10
 local DEFAULT_ALPHA = 1
 local WHITE = { 1, 1, 1, DEFAULT_ALPHA }
 local COLOR_FIELDS = 4
@@ -22,24 +22,7 @@ local function resolveObject(value)
   return value
 end
 
--- st[field], else the first one set along the font object chain.
-local function inherited(w, st, field)
-  for _ = 1, MAX_FONT_DEPTH do
-    if not st then
-      return nil
-    end
-    if st[field] ~= nil then
-      return st[field]
-    end
-    st = st.fontObject and w.ui.state[st.fontObject]
-  end
-  return nil
-end
-
-local function fontSize(w, st)
-  local font = inherited(w, st, "font")
-  return tonumber(font and font[2]) or Metrics.DEFAULT_FONT_SIZE
-end
+local inherited = FontChain.inherited
 
 local function color(r, g, b, a)
   return { r, g, b, a or DEFAULT_ALPHA }
@@ -97,12 +80,14 @@ function methods.GetTextColor(w, _, st)
   return unpack(inherited(w, st, "textColor") or WHITE, 1, COLOR_FIELDS)
 end
 
-function methods.GetStringWidth(w, _, st)
-  return Metrics.stringWidth(st.text, fontSize(w, st))
+-- Through Layout.autoSize (ui/measure.lua underneath): the font chain, size 12 when none, and wrapped at the
+-- width the anchors or SetWidth fix.
+function methods.GetStringWidth(w, obj)
+  return Layout.autoSize(w, obj, "x")
 end
 
-function methods.GetStringHeight(w, _, st)
-  return Metrics.stringHeight(fontSize(w, st))
+function methods.GetStringHeight(w, obj)
+  return Layout.autoSize(w, obj, "y", Layout.wrapWidth(w, obj))
 end
 
 -- Status bars and sliders -------------------------------------------------------------------------------------

@@ -8,6 +8,7 @@ local M = {}
 local Behaviour = require("ui.behaviour")
 local Callsite = require("ui.callsite")
 local Inherits = require("ui.inherits")
+local Layout = require("ui.layout")
 local TemplateApply = require("ui.template_apply")
 local Templates = require("ui.templates")
 local Validate = require("validate")
@@ -117,10 +118,14 @@ end
 local function bind(w, plan, name, impl, check)
   local label = plan.type .. ":" .. name
   local names = { name = label, flavor = w.flavor }
+  local changesLayout = Layout.MUTATORS[name]
   return function(self, ...)
     local st = w.ui.state[self]
     if not st then
       error(label .. ": self is not a widget of this world", 2)
+    end
+    if changesLayout then
+      Layout.invalidate(w, self)
     end
     if check and w:callerIsAddon() then
       local message = Validate.check(check, pack(...), w.realType, names)
@@ -158,7 +163,8 @@ end
 local function create(w, typeName, name, parent)
   local class = classFor(w, typeName)
   local obj = setmetatable({}, class.meta)
-  local st = { plan = class.plan, name = name, shown = true, points = {}, values = {}, children = {}, regions = {} }
+  w.ui.seq = w.ui.seq + 1
+  local st = { plan = class.plan, seq = w.ui.seq, name = name, shown = true, points = {}, values = {}, children = {}, regions = {} }
   w.ui.state[obj] = st
   Behaviour.setParent(w, obj, st, parent)
   if name ~= nil then
@@ -268,11 +274,13 @@ function M.install(w)
     state = setmetatable({}, { __mode = "k" }),
     classes = {},
     intrinsics = {},
+    seq = 0,
     create = function(typeName, name, parent)
       return create(w, typeName, name, parent)
     end,
   }
   w.input = { mouseFocus = nil, editFocus = nil }
+  Layout.install(w)
   w:install("CreateFrame", createFrame(w), { gate = "none" })
   w:install("CreateFont", function(name)
     return create(w, "Font", name, nil)

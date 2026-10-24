@@ -5,11 +5,12 @@ local Units = require("units")
 
 local M = {}
 
-function M.withFrameXML(flavor, fn)
+-- opts: World.new options (screen).
+function M.withFrameXML(flavor, fn, opts)
   H.withWorld(flavor, function(w)
     FrameXML.installStage1(w)
     fn(w)
-  end)
+  end, opts)
 end
 
 -- withFrameXML plus unit fixtures (w:unit, w:mouseover) for the tooltip fakes.

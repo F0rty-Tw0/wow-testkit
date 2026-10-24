@@ -50,8 +50,13 @@ function methods.GetScale(_, _, st)
   return st.scale or 1
 end
 
-function methods.GetEffectiveScale(w, _, st)
+-- The product of scales up the parent chain.
+function M.effectiveScale(w, st)
   return chainProduct(w, st, "scale")
+end
+
+function methods.GetEffectiveScale(w, _, st)
+  return M.effectiveScale(w, st)
 end
 
 function methods.SetFrameLevel(_, _, st, level)

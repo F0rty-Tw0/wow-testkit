@@ -69,6 +69,17 @@ local function test_template_size_is_applied()
   end)
 end
 
+local function test_a_template_size_refreshes_a_rect_cached_before_it()
+  withWidgets("retail", function(w)
+    local entry = Templates.TEMPLATES.UICheckButtonTemplate
+    local check = _G.CreateFrame("CheckButton")
+    check:SetPoint("BOTTOMLEFT", 10, 10)
+    A.eq(select("#", check:GetRect()), 0) -- caches "no rect": one anchor and no size
+    Widgets.applyTemplates(w, check, "UICheckButtonTemplate")
+    A.same({ check:GetRect() }, { 10, 10, entry.size[1], entry.size[2] })
+  end)
+end
+
 local function test_dropdown_template_entry_is_a_dropdown_button_with_a_text_child() -- (D7)
   local entry = Templates.TEMPLATES.WowStyle1DropdownTemplate
   A.eq(entry.type, "DropdownButton")
@@ -89,5 +100,6 @@ return function()
   test_template_records_mixin_names()
   test_existing_global_mixin_is_copied_onto_frame()
   test_template_size_is_applied()
+  test_a_template_size_refreshes_a_rect_cached_before_it()
   test_dropdown_template_entry_is_a_dropdown_button_with_a_text_child()
 end

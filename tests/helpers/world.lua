@@ -4,8 +4,9 @@ local World = require("world")
 
 local M = {}
 
-function M.withWorld(flavor, fn)
-  local w = World.new({ flavor = flavor })
+-- opts: extra World.new options (screen).
+function M.withWorld(flavor, fn, opts)
+  local w = World.new({ flavor = flavor, screen = opts and opts.screen })
   local ok, err = pcall(fn, w)
   w:destroy()
   if not ok then
