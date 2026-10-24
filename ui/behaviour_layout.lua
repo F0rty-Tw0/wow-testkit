@@ -3,6 +3,8 @@
 -- offsetX, offsetY } in st.points, one per point name in set order, and relativeTo == nil means the screen.
 local M = {}
 
+local Layout = require("ui.layout")
+
 local unpack = unpack
 
 local methods = {}
@@ -57,8 +59,10 @@ local function addAnchor(st, anchor)
   st.points[#st.points + 1] = anchor
 end
 
-function methods.SetPoint(_, _, st, ...)
-  addAnchor(st, parsePoint(st, select("#", ...), ...))
+function methods.SetPoint(w, obj, st, ...)
+  local anchor = parsePoint(st, select("#", ...), ...)
+  Layout.checkAnchor(w, obj, anchor)
+  addAnchor(st, anchor)
 end
 
 function methods.ClearAllPoints(_, _, st)
@@ -95,8 +99,9 @@ function methods.GetNumPoints(_, _, st)
   return #st.points
 end
 
-function methods.SetAllPoints(_, _, st, relativeTo)
+function methods.SetAllPoints(w, obj, st, relativeTo)
   local target = relativeOf(st, relativeTo)
+  Layout.checkAnchor(w, obj, { "TOPLEFT", target })
   st.points = {
     { "TOPLEFT", target, "TOPLEFT", 0, 0 },
     { "BOTTOMRIGHT", target, "BOTTOMRIGHT", 0, 0 },
