@@ -8,6 +8,7 @@ local M = {}
 
 local BehaviourRender = require("ui.behaviour_render")
 local Callsite = require("ui.callsite")
+local FontChain = require("ui.font_chain")
 local Measure = require("ui.measure")
 
 -- Method names whose call changes layout; ui/widgets.lua bumps the version before running them.
@@ -64,19 +65,20 @@ local function explicitSize(st, axis)
 end
 
 -- source: row LY10 is assumed (no source states the rule). A FontString's text size, in its own units, on one axis
--- (height wraps at wrap, nil = one line per paragraph); nil for any other region. The font is region:GetFont()
--- (inherited from font objects), size 12 when none.
+-- (height wraps at wrap, nil = one line per paragraph); nil for any other region. Text and font are read from the
+-- kit state, not through region:GetText() / GetFont(), so no addon override runs inside a resolve. The font
+-- is inherited from font objects, size 12 when none.
 function M.autoSize(w, region, axis, wrap)
   local st = w.ui.state[region]
   if not (st and st.plan.isA.fontstring) then
     return nil
   end
-  local file, size, flags = region:GetFont()
-  size = tonumber(size) or Measure.DEFAULT_FONT_SIZE
+  local font = FontChain.inherited(w, st, "font") or {}
+  local file, size, flags = font[1], tonumber(font[2]) or Measure.DEFAULT_FONT_SIZE, font[3]
   if axis == "x" then
-    return Measure.width(w, file, size, flags, region:GetText())
+    return Measure.width(w, file, size, flags, st.text)
   end
-  return Measure.height(w, file, size, flags, region:GetText(), wrap)
+  return Measure.height(w, file, size, flags, st.text, wrap)
 end
 
 -- The width wrapped text breaks at: the explicit width, or the width two opposite anchors fix (anchorWidth, units).

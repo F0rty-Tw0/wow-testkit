@@ -102,6 +102,27 @@ local function test_text_and_font_changes_refresh_the_size()
   end)
 end
 
+local function test_a_resolve_reads_the_kit_state_not_the_regions_methods()
+  HL.withLayout(SCREEN, function(w)
+    local r = root()
+    local font = _G.CreateFont("LayoutTextFont")
+    font:SetFont(FONT, 20)
+    local fs = r:CreateFontString()
+    fs:SetFontObject(font) -- the font comes down the font object chain
+    fs:SetText("Hello")
+    fs:SetPoint("TOPLEFT", r, "TOPLEFT")
+    local ran = false
+    local function addonCode()
+      ran = true
+      return "x", 99
+    end
+    fs.GetText, fs.GetFont = addonCode, addonCode -- an override or a hook replaced on the instance
+    near(Layout.rect(w, fs).width, 50) -- 5 * 0.5 * 20
+    near(Layout.rect(w, fs).height, 23) -- 20 * 1.15
+    A.eq(ran, false) -- no addon code ran inside the resolve
+  end)
+end
+
 return function()
   test_one_anchor_sizes_the_font_string_to_its_text_assumed()
   test_an_explicit_width_wins_over_the_text_width()
@@ -109,4 +130,5 @@ return function()
   test_without_anchors_get_width_and_height_report_the_text_size_assumed()
   test_a_height_alone_leaves_the_width_to_the_text_assumed()
   test_text_and_font_changes_refresh_the_size()
+  test_a_resolve_reads_the_kit_state_not_the_regions_methods()
 end
