@@ -5,6 +5,7 @@ local Assets = require("render_assets")
 local BehaviourRender = require("ui.behaviour_render")
 local FontChain = require("ui.font_chain")
 local Read = require("render_read")
+local Widgets = require("render_widgets")
 
 local ID_PREFIX = { frame = "f", texture = "t", fontstring = "s" }
 local WHITE = { 1, 1, 1, 1 }
@@ -136,6 +137,8 @@ function M.item(w, entry, assets)
   if entry.kind == "frame" then
     item.strata = BehaviourRender.methods.GetFrameStrata(w, entry.obj, st)
     item.level = BehaviourRender.methods.GetFrameLevel(w, entry.obj, st)
+    item.widget = Widgets.state(w, entry.obj, st)
+    item.backdrop = Widgets.backdrop(w, st, assets)
     return item
   end
   local layer = Read.stored(st, "DrawLayer")
