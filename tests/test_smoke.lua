@@ -4,6 +4,7 @@ local TEST_BUDGET = 100000
 local A = require("assert")
 local Flavors = require("tools.flavors")
 local Smoke = require("smoke")
+local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
@@ -11,6 +12,14 @@ local SMOKE_DIR = TEST_DIR .. "/fixtures/smoke"
 
 local function runFixture(name, flavors, budget)
   return Smoke.runAddon(SMOKE_DIR .. "/" .. name, flavors or Flavors.list, budget or TEST_BUDGET)
+end
+
+local function capture(fn)
+  local out = {}
+  local code = fn(function(text)
+    out[#out + 1] = text
+  end)
+  return code, table.concat(out)
 end
 
 local function test_one_row_per_addon_folder()
@@ -37,6 +46,45 @@ local function test_skips_blizzard_folders()
   for _, name in ipairs(Smoke.addonFolders(SMOKE_DIR)) do
     A.truthy(name ~= "Blizzard_Fake", "Blizzard_Fake was listed")
   end
+end
+
+local IS_WINDOWS = package.config:sub(1, 1) == "\\"
+
+-- A folder dir/<name> holding <name>.toc and an empty Main.lua.
+local function addonFolder(dir, name)
+  fs.mkdirp(dir .. "/" .. name)
+  fs.writeFile(dir .. "/" .. name .. "/" .. name .. ".toc", "## Interface: 120100\nMain.lua\n")
+  fs.writeFile(dir .. "/" .. name .. "/Main.lua", "")
+end
+
+-- Runs fn(dir) on a folder holding the addons "Plain" and "50%Off" with the run51 bridge cleared. Where cmd is the
+-- shell fallback (windows) it refuses the % path, so listing "50%Off" raises there.
+local function withPercentFolder(fn)
+  local dir = Tmp.dir("smoke")
+  addonFolder(dir, "Plain")
+  addonFolder(dir, "50%Off")
+  local bridge = rawget(_G, "__tk_fs")
+  rawset(_G, "__tk_fs", nil)
+  local ok, err = pcall(fn, dir)
+  rawset(_G, "__tk_fs", bridge)
+  assert(ok, err)
+end
+
+local function test_a_folder_the_shell_fallback_refuses_is_skipped_and_named()
+  withPercentFolder(function(dir)
+    local folders, skipped = Smoke.addonFolders(dir)
+    local _, text = capture(function(write)
+      return Smoke.run({ dir = dir, flavors = { "retail" }, budget = TEST_BUDGET }, write)
+    end)
+    if IS_WINDOWS then
+      A.same(folders, { "Plain" })
+      A.eq(skipped[1].name, "50%Off")
+      A.contains(text, "smoke: skipped 50%Off: fs: path contains %")
+    else
+      A.same({ folders, skipped }, { { "50%Off", "Plain" }, {} })
+    end
+    A.contains(text, "Plain")
+  end)
 end
 
 local function test_pass_fail_skip_cells()
@@ -134,14 +182,6 @@ local function unscriptedNames(...)
   return list
 end
 
-local function capture(fn)
-  local out = {}
-  local code = fn(function(text)
-    out[#out + 1] = text
-  end)
-  return code, table.concat(out)
-end
-
 local function test_scoreboard_rows_pad_columns_and_trim()
   local skipped = { status = "skipped", errors = {}, unscripted = {} }
   local results = {
@@ -212,6 +252,7 @@ end
 return function()
   test_one_row_per_addon_folder()
   test_skips_blizzard_folders()
+  test_a_folder_the_shell_fallback_refuses_is_skipped_and_named()
   test_pass_fail_skip_cells()
   test_unnamed_folder_fails_each_flavor()
   test_runaway_addon_fails_with_budget_message()
