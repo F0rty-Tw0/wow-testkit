@@ -159,9 +159,15 @@ def snapshot_size(out_dir):
         return None
 
 
+def taskkill_path():
+    """Absolute path of taskkill: CreateProcess searches the current directory before System32, so a bare name could
+    run a taskkill.exe shipped inside an addon."""
+    return os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "taskkill.exe")
+
+
 def kill_tree(proc):
     if sys.platform == "win32":
-        subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True)
+        subprocess.run([taskkill_path(), "/PID", str(proc.pid), "/T", "/F"], capture_output=True)
     else:
         proc.kill()
 

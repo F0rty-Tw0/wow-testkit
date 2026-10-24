@@ -10,6 +10,7 @@ import json
 import os
 import socket
 import sys
+import types
 from pathlib import Path
 
 from PIL import Image
@@ -181,6 +182,16 @@ def test_find_chrome_ignores_a_relative_path_hit(tmp, monkeypatch):
     assert pc.find_chrome() == absolute
 
 
+def test_kill_tree_runs_taskkill_from_system32_on_windows(tmp, monkeypatch):
+    seen = []
+    monkeypatch(pc.sys, "platform", "win32")
+    monkeypatch(pc.os, "environ", {"SystemRoot": str(tmp)})
+    monkeypatch(pc.subprocess, "run", lambda command, **kwargs: seen.append(command))
+    pc.kill_tree(types.SimpleNamespace(pid=123))
+    assert seen[0][0] == os.path.join(str(tmp), "System32", "taskkill.exe"), seen
+    assert seen[0][1:] == ["/PID", "123", "/T", "/F"], seen
+
+
 def test_png_without_a_snapshot_exits_2(tmp):
     assert quiet_png(tmp, tmp / "x.png", chrome=sys.executable) == 2
 
@@ -226,6 +237,7 @@ TESTS = [
     test_chrome_failure_exits_3_and_stops_the_server,
     test_missing_chrome_exits_3,
     test_find_chrome_ignores_a_relative_path_hit,
+    test_kill_tree_runs_taskkill_from_system32_on_windows,
     test_png_without_a_snapshot_exits_2,
     test_png_usage_errors_exit_2,
     test_png_matches_hand_known_pixels,
