@@ -204,6 +204,23 @@ local function test_invalidate_refreshes_after_a_direct_state_write()
   end)
 end
 
+local function test_a_region_resolves_again_after_a_compute_error()
+  HL.withLayout(SCREEN, function()
+    local f = frame()
+    f:SetSize(10, 10)
+    f:SetPoint("TOP", _G.UIParent, "TOP", "abc", 0) -- a string offset: the arithmetic raises while resolving
+    A.errors(function()
+      f:GetLeft()
+    end, "arithmetic")
+    A.errors(function()
+      f:GetLeft()
+    end, "arithmetic") -- the same error again, not a silent nothing from a stuck "resolving" mark
+    f:ClearAllPoints()
+    f:SetPoint("BOTTOMLEFT", 10, 10)
+    A.eq(f:GetLeft(), 10)
+  end)
+end
+
 local function test_a_two_frame_anchor_cycle_raises_at_the_closing_set_point() -- (LY9) Review Focus 2
   HL.withLayout(SCREEN, function(w)
     local a, b = frame(), frame()
@@ -278,6 +295,7 @@ return function()
   test_layout_follows_a_reparent_of_the_anchor_target()
   test_hiding_the_anchor_target_keeps_the_rect_assumed()
   test_invalidate_refreshes_after_a_direct_state_write()
+  test_a_region_resolves_again_after_a_compute_error()
   test_a_two_frame_anchor_cycle_raises_at_the_closing_set_point()
   test_a_three_frame_cycle_raises_and_keeps_the_old_anchors()
   test_set_all_points_to_a_dependant_raises()

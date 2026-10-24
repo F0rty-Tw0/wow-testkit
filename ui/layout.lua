@@ -39,12 +39,12 @@ local ALIGN = {
   BOTTOMRIGHT = { 1, 0 },
 }
 
--- A re-entrant resolve of one region means its data holds a cycle (SetPoint refuses them): that region has no rect.
-local resolving = {}
 local NO_RECT = {}
 
+-- w.layout.resolving: the states being resolved right now. A re-entrant resolve of one region means its data holds a
+-- cycle (SetPoint refuses them): that region has no rect.
 function M.install(w)
-  w.layout = { version = 0, cache = setmetatable({}, { __mode = "k" }) }
+  w.layout = { version = 0, cache = setmetatable({}, { __mode = "k" }), resolving = {} }
 end
 
 -- Clears the cached rects of region and everything depending on it: one counter clears every region's cache.
@@ -136,7 +136,7 @@ local function solveAxis(points, pos, align, size, scale)
 end
 
 -- Least shift that puts the clamp span [low, high] inside [0, limit]. The edge applied last wins when the span is
--- wider than the screen: the high edge for x (the left stays), the low edge for y (the top stays).
+-- wider than the screen: the low edge for x (the left stays), the high edge for y (the top stays).
 local function axisShift(low, high, limit, lowFirst)
   if lowFirst then
     local shift = low < 0 and -low or 0
@@ -209,12 +209,16 @@ function M.entry(w, region)
   if hit and hit.version == layout.version then
     return hit
   end
-  if resolving[st] then
+  if layout.resolving[st] then
     return NO_RECT
   end
-  resolving[st] = true
-  local result = compute(w, region, st) or NO_RECT
-  resolving[st] = nil
+  layout.resolving[st] = true
+  local ok, result = pcall(compute, w, region, st)
+  layout.resolving[st] = nil
+  if not ok then
+    error(result, 0)
+  end
+  result = result or NO_RECT
   hit = { version = layout.version, pixel = result.pixel, rect = result.rect, wrap = result.wrap }
   layout.cache[st] = hit
   return hit
