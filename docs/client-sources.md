@@ -236,3 +236,17 @@ Wiki pages read 2026-10-24 (`warcraft.wiki.gg`, raw wikitext; `Draw_layer` redir
 | V11 a fresh FontString: JustifyH CENTER, JustifyV MIDDLE, word wrap on, max lines 0, spacing 0 | confirmed (the XML attribute defaults); assumed (that a `CreateFontString` object with no XML has the same) | wiki `XML/FontString`, attribute table, Default column: `spacing` `0.0` ("The distance between lines"), `wordwrap` `true`, `justifyV` `MIDDLE`, `justifyH` `CENTER`, `maxLines` `0`. The Lua pages state no default: wiki `API:FontString_SetJustifyH`, `API:FontString_SetJustifyV`, `API:FontString_SetSpacing`, `API:FontString_SetMaxLines`, `API:FontString_SetWordWrap` and their getters list only the argument types; `Blizzard_APIDocumentationGenerated/SimpleFontStringAPIDocumentation.lua` has no `Default` on those arguments |
 | V12 a fresh Slider's orientation is VERTICAL; a fresh StatusBar's is HORIZONTAL | confirmed | wiki `API:Slider_GetOrientation`: "`VERTICAL` - Slider thumb moves from top to bottom as the slider's value increases (default)."; wiki `API:Slider_SetOrientation`: `orientation: Orientation default=VERTICAL`; wiki `XML/Slider`: `orientation` default `VERTICAL`. Wiki `API:StatusBar_SetOrientation`: `orientation: Orientation default=HORIZONTAL`, "`HORIZONTAL` - Fills from left to right as the status bar value increases."; wiki `XML/StatusBar`: `orientation` default `HORIZONTAL`. `Blizzard_APIDocumentationGenerated/SimpleSliderAPIDocumentation.lua:53` and `SimpleStatusBarAPIDocumentation.lua:53` (`GetOrientation`, `Orientation`, non-nilable) state no default |
 | V13 `BackdropTemplateMixin`: colours unset read as 1, 1, 1, 1 and `SetBackdropColor`/`SetBackdropBorderColor` alpha defaults to 1 | confirmed (once a backdrop is set; before it `GetBackdropColor` and `GetBackdropBorderColor` return nothing) | `Blizzard_SharedXML/Backdrop.lua:330-331` in `BackdropTemplateMixin:ApplyBackdrop`, called by `SetBackdrop` (`:346-347`): `self:SetBackdropColor(1, 1, 1, 1);` and `self:SetBackdropBorderColor(1, 1, 1, 1);`. Alpha: `SetBackdropColor` `self.Center:SetVertexColor(r, g, b, a or 1);` (`:412`), `SetBackdropBorderColor` `region:SetVertexColor(r, g, b, a or 1);` (`:437`). Without a backdrop: `if not self.backdropInfo then return; end` (`:398-400`, `:407-410`, `:417-419`, `:430-433`). The `OnBackdropLoaded` path (XML `backdropInfo`) uses `local r, g, b = 1, 1, 1;` and `self.backdropColorAlpha or 1` (`:168-173`, `:176-181`) |
+
+## Client extract
+
+`python -m tools.client extract` reads the installed client and writes Blizzard's Interface code under
+`$TESTKIT_HOME/client/<flavor>/<build>/code/` (lowercase paths, minus the leading `interface/`) and its GlobalStrings
+under `strings/<locale>.lua`. The extract is local-only: it is never committed, and it holds Blizzard's files, so a
+reader of this repo cannot open it.
+
+A row may cite it as a second source beside the Gethe mirror: `Blizzard FrameXML, local extract <flavor> build <n>,
+code/<path>:<line>`. A row whose only source is the extract says so, because only the mirror's lines can be checked from
+the repo. A rule stays `assumed` (test name ending `_assumed`) until Blizzard's code sets it or plainly relies on it;
+many widget defaults live in the C++ engine, so a search of the extract that finds nothing is recorded as "still
+unconfirmed: searched X, found nothing", not as a confirmation. No Blizzard text is quoted beyond one identifier per
+citation.

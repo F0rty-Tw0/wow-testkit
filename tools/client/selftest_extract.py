@@ -156,8 +156,8 @@ def test_cli_status_and_usage_exit_codes(tmp):
         assert run_cli("bogus")[0] == 2
         assert run_cli("status", "--flavor", "nope")[0] == 2
         assert run_cli("status") == (0, "retail: none\n", "")
-        code, out, err = run_cli("extract", "--what", "code")
-        assert (code, out, err) == (1, "", "error: unknown --what kind 'code'\n")
+        code, out, err = run_cli("extract", "--what", "bogus")
+        assert (code, out, err) == (1, "", "error: unknown --what kind 'bogus'\n")
         assert not (tmp / "home" / "client").exists()  # nothing was created before the kind check
 
 

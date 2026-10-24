@@ -6,13 +6,13 @@ Writes only under <home>/client/<flavor>/<build> and the listfile cache; the ins
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from tools.client import buildinfo, listfile, manifest, paths
+from tools.client import buildinfo, code, listfile, manifest, paths, strings
 from tools.client.casc import CascError
 from tools.client.casc_index import CascIndexError
 from tools.client.source import CascSource
 
-# kind -> writer(source, out_dir, ctx) -> file count; Tasks 3.3-3.5 register `code strings art fonts db2`
-WRITERS = {}
+# kind -> writer(source, out_dir, ctx) -> file count; Tasks 3.4-3.5 add `art fonts db2`
+WRITERS = {"code": code.write, "strings": strings.write}
 
 
 class ExtractError(Exception):
