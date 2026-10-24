@@ -15,9 +15,11 @@ local function host()
 end
 
 -- Why native cannot go inside double quotes for the shell fallbacks, or nil. sh is as strict as Proc.refusal. Inside
--- cmd's quotes only a double quote or a line break ends the argument and %VAR% still expands; ! and ^ stay literal, so
--- a folder such as !BugGrabber passes. A final backslash only matters to programs that parse their own command line;
--- mkdir and dir do not.
+-- cmd's quotes only a double quote or a line break ends the argument and %VAR% still expands; ! and ^ stay literal
+-- unless cmd runs with delayed expansion (registry DelayedExpansion=1), where !VAR! expands inside quotes too. That only
+-- changes the path text, so the call fails to find the folder instead of running anything. By default a folder such as
+-- !BugGrabber passes. A final backslash only matters to programs that parse their own command line; mkdir and dir do
+-- not.
 local function refusal(native)
   if not IS_WINDOWS then
     return Proc.refusal(native, false)

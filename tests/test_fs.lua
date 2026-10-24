@@ -132,8 +132,8 @@ local function test_shell_fallbacks_refuse_a_path_the_shell_would_expand()
   A.eq(fs.exists(dir .. "/pwned"), false)
 end
 
--- Inside cmd's double quotes ! and ^ are literal and inside sh's they are plain, so an addon folder such as !BugGrabber must
--- list without the bridge too.
+-- Inside cmd's double quotes ! and ^ are literal (unless delayed expansion is on) and inside sh's they are plain, so an
+-- addon folder such as !BugGrabber must list without the bridge too.
 local function test_shell_fallbacks_list_a_dir_named_with_bang_and_caret()
   local dir = tempDir()
   local named = dir .. "/!Foo^Bar"
