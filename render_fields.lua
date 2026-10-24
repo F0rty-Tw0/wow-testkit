@@ -1,9 +1,7 @@
--- Fields of a render snapshot item and the asset refs it emits. Ref keys: a path -> "path:" + lowercase with "/"; a
--- number -> "id:<n>"; an atlas -> "atlas:" + lowercase; a font file -> "font:" + the path as for "path:".
--- assets[ref] = { kind = "path"|"fileID"|"atlas"|"font", path?, fileID?, atlas? } where path and atlas keep the
--- addon's spelling (path with "/"). Mirrored in viewer.js.
+-- Fields of a render snapshot item and the asset refs it emits (render_assets.lua).
 local M = {}
 
+local Assets = require("render_assets")
 local BehaviourRender = require("ui.behaviour_render")
 local FontChain = require("ui.font_chain")
 local Read = require("render_read")
@@ -17,59 +15,15 @@ local BLACK = { 0, 0, 0, 1 }
 local DEFAULT_JUSTIFY_H, DEFAULT_JUSTIFY_V = "CENTER", "MIDDLE"
 local DEFAULT_MAX_LINES, DEFAULT_SPACING = 0, 0
 
-local function slashed(path)
-  return (path:gsub("\\", "/"))
-end
-
-function M.refPath(path)
-  return "path:" .. slashed(path):lower()
-end
-
-function M.refId(n)
-  return "id:" .. string.format("%.14g", n)
-end
-
-function M.refAtlas(atlas)
-  return "atlas:" .. atlas:lower()
-end
-
-local function refFont(path)
-  return "font:" .. slashed(path):lower()
-end
+M.refPath = Assets.refPath
+M.refId = Assets.refId
+M.refAtlas = Assets.refAtlas
 
 function M.id(entry)
   return ID_PREFIX[entry.kind] .. entry.st.seq
 end
 
-local function addPath(assets, path)
-  local ref = M.refPath(path)
-  assets[ref] = assets[ref] or { kind = "path", path = slashed(path) }
-  return ref
-end
-
-local function addAtlas(assets, atlas)
-  local ref = M.refAtlas(atlas)
-  assets[ref] = assets[ref] or { kind = "atlas", atlas = atlas }
-  return ref
-end
-
-local function addFont(assets, path)
-  local ref = refFont(path)
-  assets[ref] = assets[ref] or { kind = "font", path = slashed(path) }
-  return ref
-end
-
--- The ref of a texture path or fileID, registering it; nil for anything else (nil, "", a table).
-local function addFile(assets, file)
-  if type(file) == "number" then
-    local ref = M.refId(file)
-    assets[ref] = assets[ref] or { kind = "fileID", fileID = file }
-    return ref
-  elseif type(file) == "string" and file ~= "" then
-    return addPath(assets, file)
-  end
-  return nil
-end
+local addAtlas, addFont, addFile = Assets.addAtlas, Assets.addFont, Assets.addFile
 
 local function numbers(pack)
   local list = {}
