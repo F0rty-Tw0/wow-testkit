@@ -38,10 +38,11 @@ prerequisites as the tests above; `--png` also needs Chrome (the Windows install
 - `--size`: screen size, `WxH` (default `1920x1080`).
 - `--out`: output directory. Default `<home>/preview/<AddonName>`, where `<home>` is `$TESTKIT_HOME`, else
   `%LOCALAPPDATA%/wow-testkit` (Windows), else `~/.cache/wow-testkit`. In `<AddonName>` every character outside
-  letters, digits, `_`, `.` and `-` becomes `_` (`!Foo` -> `_Foo`), a Windows device name such as `NUL` or `COM1` gets a
+  ASCII letters, digits, `_`, `.` and `-` becomes `_` (`!Foo` -> `_Foo`), a Windows device name such as `NUL` or `COM1` gets a
   leading `_`, and a trailing dot becomes `_`; a name of only dots needs `--out`. A run deletes the previous
-  `snapshot.json` (and the `--png` file, when it ends in `.png`) first, so a failed run never leaves a stale picture.
-- `--png`: also write a PNG of the screen to this file.
+  `snapshot.json` and the `--png` file first, so a failed run never leaves a stale picture.
+- `--png`: also write a PNG of the screen to this file. It must end in `.png` (any case), or the run exits `2` before
+  anything runs or is deleted.
 
 Exit codes: `0` clean; `1` the addon or scenario raised an error, or a step failed (the snapshot is still written);
 `2` bad usage, unreadable scenario, or the addon is not declared for the flavor.
