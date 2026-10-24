@@ -9,6 +9,7 @@ local Widgets = require("ui.widgets")
 local STAGE1 = {
   "framexml.fakes.core",
   "framexml.fakes.mixin",
+  "framexml.fakes.backdrop",
   "framexml.fakes.minimap",
   "framexml.fakes.colors",
   "framexml.fakes.strings",
