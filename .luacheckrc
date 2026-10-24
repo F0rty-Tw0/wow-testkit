@@ -46,6 +46,11 @@ files["tests/fixtures/addons/Clicky/*.lua"] = {
   },
 }
 
+-- Preview fixture: builds a frame, then errors at load.
+files["tests/fixtures/addons/PreviewBroken/*.lua"] = {
+  read_globals = { "CreateFrame", "UIParent" },
+}
+
 -- Unknown-event fixture: registers an event no flavor has.
 files["tests/fixtures/addons/BadEvent/*.lua"] = {
   read_globals = { "CreateFrame" },
