@@ -44,6 +44,22 @@ local function loadScenario(path)
   return file
 end
 
+-- The default output folder name for an addon: every character outside [%w_.-] becomes "_", so an addon named
+-- "!Foo" or "$(cmd)" can neither trip the shell nor escape the preview folder. Nil when only dots (or nothing) are left.
+local function folderName(addon)
+  local name = addon:gsub("[^%w_.%-]", "_")
+  return not name:find("^%.*$") and name or nil
+end
+
+-- The default output folder for addon, or nil plus a message.
+local function defaultOut(addon)
+  local folder = folderName(addon)
+  if not folder then
+    return nil, "cannot name the output folder after the addon '" .. addon .. "': pass --out"
+  end
+  return Home.path("preview", folder)
+end
+
 -- { name, flavor, file, out, size, matrixOpts } for opts, or nil plus a message.
 local function context(opts)
   local root = opts.addonDir
@@ -64,7 +80,13 @@ local function context(opts)
     return nil, scenarioErr
   end
   local size = opts.size or DEFAULT_SIZE
-  local out = opts.out or Home.path("preview", name)
+  local out, outErr = opts.out, nil
+  if not out then
+    out, outErr = defaultOut(name)
+  end
+  if not out then
+    return nil, outErr
+  end
   local matrixOpts = { addon = name, root = root, screen = size, preview = { out = out }, saved = file.saved, config = file.config }
   return { flavor = flavor, file = file, out = out, size = size, png = opts.png, matrixOpts = matrixOpts }
 end
@@ -153,7 +175,11 @@ function M.run(opts, write)
     write("preview: " .. message .. "\n")
     return EXIT_USAGE
   end
-  fs.mkdirp(ctx.out)
+  local made, makeErr = pcall(fs.mkdirp, ctx.out)
+  if not made then
+    write("preview: " .. tostring(makeErr) .. "\n")
+    return EXIT_USAGE
+  end
   local state = {}
   local report = Scenario.matrix({ ctx.flavor }, scenarioFn(ctx, state), ctx.matrixOpts)[ctx.flavor]
   if report.status == "skipped" then

@@ -1,6 +1,7 @@
 -- Preview.run: loads an addon, runs a scenario, writes the render snapshot (even when the addon errors), then runs
 -- the resolve and PNG steps through Preview.exec, which these tests replace with a recorder.
 local A = require("assert")
+local Home = require("home")
 local Preview = require("preview")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
@@ -11,11 +12,11 @@ local PYTHON = os.getenv("TK_PYTHON") or "python"
 local NO_EXTRACT_NOTE = "note: no client extract; art falls back to stand-ins"
 local ERROR_LINES_SHOWN = 10
 
--- A temp addon whose Main.lua is body.
-local function tempAddon(body)
+-- A temp addon whose Main.lua is body; its TOC (so its name) is tocName, default TempAddon.
+local function tempAddon(body, tocName)
   local root = Tmp.dir("preview") .. "/TempAddon"
   fs.mkdirp(root)
-  fs.writeFile(root .. "/TempAddon.toc", "## Interface: 120100\nMain.lua\n")
+  fs.writeFile(root .. "/" .. (tocName or "TempAddon") .. ".toc", "## Interface: 120100\nMain.lua\n")
   fs.writeFile(root .. "/Main.lua", body)
   return root
 end
@@ -224,7 +225,68 @@ local function test_exec_that_raises_exits_1_after_the_snapshot_is_written()
   end)
 end
 
+-- Runs fn(home) with Home.dir pointing at a fresh temp dir, so a default output folder never lands in the real kit home.
+local function withHome(fn)
+  local home, saved = Tmp.dir("previewhome"), Home.dir
+  Home.dir = function()
+    return home
+  end
+  local ok, err = pcall(fn, home)
+  Home.dir = saved
+  if not ok then
+    error(err, 0)
+  end
+end
+
+-- The default output folder is named after the addon; a name the shell would reinterpret is mapped to underscores.
+local function test_default_out_folder_replaces_unsafe_characters_in_the_addon_name()
+  withExec(nil, function(calls)
+    withHome(function(home)
+      local code = run({ addonDir = tempAddon(FRAME_ADDON, "!Odd") })
+      A.eq(code, 0)
+      A.eq(calls[1][5], home .. "/preview/_Odd")
+      A.truthy(fs.exists(home .. "/preview/_Odd/snapshot.json"), "snapshot in the mapped folder")
+    end)
+  end)
+end
+
+local function test_default_out_folder_never_runs_a_command_named_by_the_addon()
+  withExec(nil, function(calls)
+    withHome(function(home)
+      local code = run({ addonDir = tempAddon(FRAME_ADDON, "$(touch X)") })
+      A.eq(code, 0)
+      A.eq(calls[1][5], home .. "/preview/__touch_X_")
+      A.eq(fs.exists("X"), false)
+    end)
+  end)
+end
+
+local function test_addon_named_only_dots_asks_for_out()
+  withExec(nil, function(calls)
+    withHome(function(home)
+      local code, text = run({ addonDir = tempAddon(FRAME_ADDON, "..") })
+      A.eq(code, 2)
+      A.contains(text, "pass --out")
+      A.eq(fs.exists(home .. "/preview"), false)
+      A.eq(#calls, 0)
+    end)
+  end)
+end
+
+local function test_explicit_out_the_shell_would_expand_exits_2()
+  withExec(nil, function(calls)
+    local code, text = run({ addonDir = tempAddon(FRAME_ADDON), out = Tmp.dir("previewout") .. '/a"b' })
+    A.eq(code, 2)
+    A.eq(text:sub(1, #"preview: "), "preview: ")
+    A.eq(#calls, 0)
+  end)
+end
+
 return function()
+  test_default_out_folder_replaces_unsafe_characters_in_the_addon_name()
+  test_default_out_folder_never_runs_a_command_named_by_the_addon()
+  test_addon_named_only_dots_asks_for_out()
+  test_explicit_out_the_shell_would_expand_exits_2()
   test_clean_addon_writes_snapshot_and_runs_resolve()
   test_load_error_still_writes_snapshot_and_exits_1()
   test_scenario_error_still_writes_snapshot_and_exits_1()
