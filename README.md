@@ -33,7 +33,7 @@ prerequisites as the tests above; `--png` also needs Chrome (the Windows install
 `google-chrome` / `chromium` on `PATH`).
 
 - `--flavor`: game flavor to run (default `retail`).
-- `--scenario`: a Lua file returning `{ run = function(s) ... end }`, like the files in `tests/scenarios/`. Default: log in.
+- `--scenario`: a Lua file returning `{ run = function(s) ... end }`, like the files in `tests/fixtures/scenarios/`. Default: log in.
   `s:snapshot` needs `tk test` and raises an error here.
 - `--size`: screen size, `WxH` (default `1920x1080`).
 - `--out`: output directory. Default `<home>/preview/<AddonName>`, where `<home>` is `$TESTKIT_HOME`, else
