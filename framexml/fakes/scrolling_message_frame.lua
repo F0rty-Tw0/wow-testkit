@@ -16,7 +16,9 @@ local methods = {}
 
 -- source: ScrollingMessageFrame.lua:10 AddMessage(message, r, g, b, ...) and :737-744 PackageEntry keep r, g, b as passed
 -- (nil when omitted; RefreshDisplay then uses the frame's text colour, :634 and :22). White for an omitted colour is
--- assumed: the kit does not model a frame's text colour.
+-- assumed: the kit does not model a frame's text colour. The extract (build 70575) confirms it only for a chat frame,
+-- whose font object ChatFontNormal is white (blizzard_chatframebase/mainline/chatframeoverrides.lua:4,
+-- blizzard_fonts_shared/shared/fonts.xml:1373-1374); a bare frame's colour comes from the engine (still unconfirmed).
 function methods.AddMessage(_, _, st, text, r, g, b)
   local messages = st.messages or {}
   st.messages = messages

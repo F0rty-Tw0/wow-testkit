@@ -250,3 +250,13 @@ the repo. A rule stays `assumed` (test name ending `_assumed`) until Blizzard's 
 many widget defaults live in the C++ engine, so a search of the extract that finds nothing is recorded as "still
 unconfirmed: searched X, found nothing", not as a confirmation. No Blizzard text is quoted beyond one identifier per
 citation.
+
+Slice 2 defaults checked against `Blizzard FrameXML, local extract retail build 70575` (all paths under `code/addons/`):
+
+| Default | Verdict | Source |
+|---|---|---|
+| EditBox cursor starts at 0 | still unconfirmed | Searched every `GetCursorPosition`/`SetCursorPosition` use and `blizzard_apidocumentationgenerated/simpleeditboxapidocumentation.lua` (non-nilable return, no default); found nothing that states or relies on a fresh box's value. Hint only: code resets with `SetCursorPosition(0)` right after `SetText` (`blizzard_calendar/mainline/blizzard_calendar.lua:3528`, `blizzard_photosharing/blizzard_photosharing.lua:23`), so `SetText` may not leave the cursor at 0 |
+| StatusBar colour starts white | still unconfirmed | Searched `GetStatusBarColor` uses (`blizzard_unitframe/shared/compactunitframe.lua:698` reads the old colour, no value assumed), `simplestatusbarapidocumentation.lua` (non-nilable, no default) and `blizzard_sharedxml/ui.xsd` (`BarColor` is `ColorType`, whose attributes default to 0, not a bar's initial colour); found nothing |
+| StatusBar min/max start at 0, 0 | still unconfirmed | Searched `GetMinMaxValues` uses; `blizzard_gametooltip/healthbar.lua:7-14` guards `max - min > 0` but is consistent with any range; `ui.xsd` `minValue`/`maxValue`/`defaultValue` carry no default; found nothing |
+| ScrollingMessageFrame message without colour is white | confirmed for a chat frame; still unconfirmed for a bare frame | `blizzard_sharedxml/scrollingmessageframe.lua:644` (`messageInfo.r or fontR`, from `:634` `self:GetTextColor()`), `blizzard_sharedxml/fontableframemixin.lua:38-41` (`GetTextColor` reads the font object), `blizzard_chatframebase/mainline/chatframeoverrides.lua:4` (`SetFontObject(ChatFontNormal)`), `blizzard_fonts_shared/shared/fonts.xml:1373-1374` (`ChatFontNormal` colour 1, 1, 1). A frame with no font object returns nothing from `GetTextColor`: the engine decides |
+| nested `|c` colours: what `|r` returns to | still unconfirmed | Searched `|c`/`|r` literals, `FONT_COLOR_CODE_CLOSE` chains and comments on colour escapes; every use is a flat `|c...|r` pair or re-opens a colour after `|r` (`blizzard_uipanels_game/mainline/paperdollframe.lua:628`), none depends on a pop. The kit's `snapshot.lua` pops one level per `|r` |
