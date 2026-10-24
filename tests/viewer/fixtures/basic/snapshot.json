@@ -55,6 +55,126 @@
       "rect": { "x": 40, "y": 240, "width": 20, "height": 16 },
       "text": "Auto width text", "size": 14, "color": [1, 1, 1, 1], "autoWidth": true,
       "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "t11", "kind": "texture", "name": "TexCoord", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 284, "y": 40, "width": 20, "height": 20 },
+      "file": "path:interface/addons/demo/pic", "texCoord": [0.5, 1, 0, 0.5]
+    },
+    {
+      "id": "t12", "kind": "texture", "name": "Gradient", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 308, "y": 40, "width": 20, "height": 20 },
+      "gradient": { "orientation": "HORIZONTAL", "min": [1, 0, 0, 1], "max": [0, 0, 1, 1] }
+    },
+    {
+      "id": "t13", "kind": "texture", "name": "Rotated", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 332, "y": 40, "width": 20, "height": 20 },
+      "file": "path:interface/addons/demo/pic", "rotation": 0.5
+    },
+    {
+      "id": "t14", "kind": "texture", "name": "Additive", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 356, "y": 40, "width": 20, "height": 20 },
+      "file": "path:interface/addons/demo/pic", "blendMode": "ADD"
+    },
+    {
+      "id": "t15", "kind": "texture", "name": "Desaturated", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 284, "y": 64, "width": 20, "height": 20 },
+      "file": "path:interface/addons/demo/pic", "desaturated": true
+    },
+    {
+      "id": "t16", "kind": "texture", "name": "HorizTile", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 308, "y": 64, "width": 20, "height": 20 },
+      "file": "path:interface/addons/demo/pic", "horizTile": true
+    },
+    {
+      "id": "t17", "kind": "texture", "name": "VertTile", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 332, "y": 64, "width": 20, "height": 20 },
+      "file": "path:interface/addons/demo/pic", "vertTile": true
+    },
+    {
+      "id": "t18", "kind": "texture", "name": "BothTile", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 356, "y": 64, "width": 20, "height": 20 },
+      "file": "path:interface/addons/demo/pic", "horizTile": true, "vertTile": true
+    },
+    {
+      "id": "f19", "kind": "frame", "name": "Slide", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
+      "rect": { "x": 284, "y": 92, "width": 88, "height": 10 },
+      "widget": { "type": "Slider", "value": 25, "min": 0, "max": 100, "orientation": "HORIZONTAL" },
+      "backdrop": { "color": [0.3, 0.3, 0.3, 1], "borderColor": [1, 1, 1, 1] }
+    },
+    {
+      "id": "f20", "kind": "frame", "name": "Ticked", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
+      "rect": { "x": 284, "y": 108, "width": 16, "height": 16 },
+      "widget": { "type": "CheckButton", "checked": true, "enabled": true },
+      "backdrop": { "color": [0.3, 0.3, 0.3, 1], "borderColor": [1, 1, 1, 1] }
+    },
+    {
+      "id": "f21", "kind": "frame", "name": "Unticked", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
+      "rect": { "x": 308, "y": 108, "width": 16, "height": 16 },
+      "widget": { "type": "CheckButton", "checked": false, "enabled": true },
+      "backdrop": { "color": [0.3, 0.3, 0.3, 1], "borderColor": [1, 1, 1, 1] }
+    },
+    {
+      "id": "f22", "kind": "frame", "name": "Log", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
+      "rect": { "x": 284, "y": 130, "width": 90, "height": 60 },
+      "widget": { "type": "ScrollingMessageFrame", "lines": [ { "text": "first", "r": 1, "g": 1, "b": 0 }, { "text": "second |cffff0000red|r", "r": 1, "g": 1, "b": 1 }, { "text": "third", "r": 0.5, "g": 0.5, "b": 0.5 } ] },
+      "backdrop": { "color": [0, 0, 0, 0.8], "borderColor": [1, 1, 1, 1] }
+    },
+    {
+      "id": "s23", "kind": "fontstring", "name": "Shadowed", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 284, "y": 196, "width": 90, "height": 16 },
+      "text": "Shadow", "size": 14, "color": [1, 1, 1, 1],
+      "shadow": { "color": [0, 0, 1, 1], "x": 2, "y": -2 },
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s24", "kind": "fontstring", "name": "Clamped", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 284, "y": 214, "width": 90, "height": 16 },
+      "text": "One two three four five six", "size": 12, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 1, "spacing": 0
+    },
+    {
+      "id": "s25", "kind": "fontstring", "name": "Boxed", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 284, "y": 232, "width": 90, "height": 16 },
+      "text": "Custom font", "size": 12, "color": [1, 1, 1, 1],
+      "font": "font:fonts/test.ttf", "flags": "",
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s26", "kind": "fontstring", "name": "Pipe", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 40, "y": 162, "width": 76, "height": 14 },
+      "text": "a||b", "size": 10, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s27", "kind": "fontstring", "name": "Nested", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 120, "y": 162, "width": 76, "height": 14 },
+      "text": "|cffff0000A|cff00ff00B|rC|rD", "size": 10, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s28", "kind": "fontstring", "name": "Link", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 200, "y": 162, "width": 78, "height": 14 },
+      "text": "see |Hitem:1:2|h[Sword]|h", "size": 10, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s29", "kind": "fontstring", "name": "FileId", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 40, "y": 178, "width": 76, "height": 14 },
+      "text": "|T136235:10|tX", "size": 10, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s30", "kind": "fontstring", "name": "Unended", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 120, "y": 178, "width": 76, "height": 14 },
+      "text": "ok |cff00ff00green", "size": 10, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s31", "kind": "fontstring", "name": "Newline", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 200, "y": 178, "width": 76, "height": 20 },
+      "text": "x|ny", "size": 10, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
     }
   ],
   "unplaced": [],
@@ -71,6 +191,8 @@
       "kind": "path", "path": "Interface/Icons/Foo", "source": "addon",
       "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAGElEQVR4nGNkYPj/n4GBgYEJRPz/z8gAACQUBAH39kd4AAAAAElFTkSuQmCC"
     },
+    "id:136235": { "kind": "fileID", "fileID": 136235, "source": "extract", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAGElEQVR4nGNkYPj/n4GBgYEJRPz/z8gAACQUBAH39kd4AAAAAElFTkSuQmCC" },
+    "font:fonts/test.ttf": { "kind": "font", "path": "fonts/test.ttf", "source": "addon", "url": "data:font/ttf;base64,AAEAAAAKAIAAAwAgT1MvMkUARHIAAAEoAAAAYGNtYXAAjgHtAAABlAAAAPJnbHlmsqCyngAAApAAAAA0aGVhZC/XoIYAAACsAAAANmhoZWEF3gJcAAAA5AAAACRobXR4BwgAyAAAAYgAAAAMbG9jYQANACcAAAKIAAAACG1heHAABQAGAAABCAAAACBuYW1l8nYRpgAAAsQAAABdcG9zdANqcHoAAAMkAAAALAABAAAAAQAAT9payl8PPPUAAwPoAAAAAOcCrnUAAAAA5wKudQBkAAACWAK8AAAAAwACAAAAAAAAAAEAAAMg/zgAAAK8AGQAZAJYAAEAAAAAAAAAAAAAAAAAAAADAAEAAAADAAQAAQAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAwJYAZAABQAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAPz8/PwAAACAAfgMg/zgAAAMgAMgAAAAAAAAAAAAAAAAAAAAgAAACvABkAZAAAAK8AGQAAAACAAAAAwAAABQAAwABAAAAFAAEAN4AAAAEAAQAAQAAAH7//wAAACD//wAAAAEABAAAAAEAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgAAAAAADQANABoAAQBkAAACWAK8AAMAADMRIRFkAfQCvP1EAAABAGQAAAJYArwAAwAAMxEhEWQB9AK8/UQAAAAABAA2AAEAAAAAAAEABgAAAAEAAAAAAAIABwAGAAMAAQQJAAEADAANAAMAAQQJAAIADgAZV3RrQm94UmVndWxhcgBXAHQAawBCAG8AeABSAGUAZwB1AGwAYQByAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAMBAgNib3g=" },
     "atlas:bar": { "kind": "atlas", "atlas": "bar", "source": "placeholder", "missing": true, "label": "bar" }
   }
 }
