@@ -217,9 +217,10 @@ function M.entry(w, region, resolving)
     return NO_RECT
   end
   resolving[st] = true
+  local version = layout.version -- taken before compute: a change while a resolve is paused leaves this entry stale
   local result = compute(w, region, st, resolving) or NO_RECT
   resolving[st] = nil
-  hit = { version = layout.version, pixel = result.pixel, rect = result.rect, wrap = result.wrap }
+  hit = { version = version, pixel = result.pixel, rect = result.rect, wrap = result.wrap }
   layout.cache[st] = hit
   return hit
 end

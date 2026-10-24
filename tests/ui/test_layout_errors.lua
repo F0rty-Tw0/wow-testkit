@@ -64,8 +64,46 @@ local function test_a_resolve_can_yield_and_resume()
   end)
 end
 
+local function test_a_change_made_while_a_resolve_is_paused_is_not_cached_as_fresh()
+  HL.withLayout(SCREEN, function(w)
+    local paused = false
+    local fs = measuredText(w, function(size, _, text)
+      if not paused then
+        paused = true
+        coroutine.yield("paused")
+      end
+      return #text * size
+    end)
+    local co = coroutine.create(function()
+      return fs:GetWidth()
+    end)
+    coroutine.resume(co)
+    fs:SetText("abcdefgh") -- lands while the resolve of "abc" is paused
+    local ok, first = coroutine.resume(co)
+    A.truthy(ok, tostring(first))
+    A.eq(first, 30) -- the paused resolve still answers for the text it started with
+    A.eq(fs:GetWidth(), 80) -- but its rect is stale, so the next read measures "abcdefgh"
+  end)
+end
+
+local function test_a_cycle_written_into_anchor_data_gives_no_rect()
+  HL.withLayout(SCREEN, function(w)
+    local a = _G.CreateFrame("Frame")
+    local b = _G.CreateFrame("Frame")
+    a:SetSize(10, 10)
+    b:SetSize(10, 10)
+    a:SetPoint("BOTTOMLEFT", b, "TOPRIGHT")
+    -- SetPoint refuses the closing anchor, so write it straight into b's state: the resolve guard must stop it
+    w.ui.state[b].points = { { "BOTTOMLEFT", a, "TOPRIGHT", 0, 0 } }
+    A.eq(b:GetLeft(), nil)
+    A.eq(a:GetLeft(), nil)
+  end)
+end
+
 return function()
   test_a_resolve_error_comes_back_with_its_message_and_traceback()
   test_a_table_error_from_a_nested_resolve_is_the_same_object()
   test_a_resolve_can_yield_and_resume()
+  test_a_change_made_while_a_resolve_is_paused_is_not_cached_as_fresh()
+  test_a_cycle_written_into_anchor_data_gives_no_rect()
 end
