@@ -139,6 +139,13 @@ def check_escape_unterminated(root):
     expect_equal(runs_of(root, "s30"), [("ok ", WHITE), ("green", "rgb(0, 255, 0)")], "s30 runs")
 
 
+def check_null_numbers(root):
+    # A null channel reads as 1 (what the render snapshot writes for a NaN or nil colour) and a null alpha as opaque.
+    node = by_id(root, "t32")
+    expect_style(node, {"background-color": "rgb(255, 0, 0)"})
+    lacks_style_of(node, "opacity")
+
+
 CHECKS = [
     ("texCoord crop t11", check_tex_coord),
     ("gradient t12", check_gradient),
@@ -158,4 +165,5 @@ CHECKS = [
     ("escape |T fileID s29", check_escape_file_id),
     ("escape |H hyperlink s28", check_escape_hyperlink),
     ("escape unterminated |c s30", check_escape_unterminated),
+    ("null colour channel and alpha t32", check_null_numbers),
 ]

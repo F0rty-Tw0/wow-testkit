@@ -175,6 +175,10 @@
       "rect": { "x": 200, "y": 178, "width": 76, "height": 20 },
       "text": "x|ny", "size": 10, "color": [1, 1, 1, 1],
       "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "t32", "kind": "texture", "name": "NullNumbers", "parent": "f1", "alpha": null, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 300, "y": 40, "width": 40, "height": 40 }, "color": [null, 0, 0, 1]
     }
   ],
   "unplaced": [],

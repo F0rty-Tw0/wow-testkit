@@ -72,7 +72,7 @@
   };
 
   function channel(color, i) {
-    const value = Number(color[i]);
+    const value = color[i] === null ? NaN : Number(color[i]);
     const clamped = Math.min(1, Math.max(0, Number.isFinite(value) ? value : 1));
 
     return Math.round(clamped * 255);

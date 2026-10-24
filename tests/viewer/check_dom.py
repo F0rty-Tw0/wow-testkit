@@ -14,7 +14,7 @@ from dom_tree import TreeParser, by_class, by_id, expect_style, find, one
 ORDER = [
     "f1", "t2", "t3", "t4", "s5", "s6", "t7", "f8", "f9", "s10",
     "t11", "t12", "t13", "t14", "t15", "t16", "t17", "t18", "f19", "f20", "f21", "f22",
-    "s23", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31",
+    "s23", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31", "t32",
 ]  # fmt: skip
 
 
