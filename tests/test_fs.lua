@@ -132,8 +132,25 @@ local function test_shell_fallbacks_refuse_a_path_the_shell_would_expand()
   A.eq(fs.exists(dir .. "/pwned"), false)
 end
 
+-- Inside cmd's double quotes ! and ^ are literal and inside sh's they are plain, so an addon folder such as !BugGrabber must
+-- list without the bridge too.
+local function test_shell_fallbacks_list_a_dir_named_with_bang_and_caret()
+  local dir = tempDir()
+  local named = dir .. "/!Foo^Bar"
+  fs.mkdirp(named)
+  fs.writeFile(named .. "/x.txt", "x")
+  local bridge = rawget(_G, "__tk_fs")
+  rawset(_G, "__tk_fs", nil)
+  local ok, listed = pcall(fs.list, named)
+  local made, created = pcall(fs.mkdir, named .. "/sub")
+  rawset(_G, "__tk_fs", bridge)
+  A.same({ ok, listed }, { true, { "x.txt" } })
+  A.same({ made, created }, { true, true })
+end
+
 return function()
   test_shell_fallbacks_refuse_a_path_the_shell_would_expand()
+  test_shell_fallbacks_list_a_dir_named_with_bang_and_caret()
   test_exists_and_list_work_without_the_bridge_while_the_global_io_is_cleared()
   test_exists_is_true_when_the_rename_probe_is_refused_with_eacces()
   test_exists_finds_a_file_that_cannot_be_renamed()
