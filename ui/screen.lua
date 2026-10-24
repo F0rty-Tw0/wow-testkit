@@ -6,8 +6,8 @@ local DEFAULT_WIDTH = 1920
 local DEFAULT_HEIGHT = 1080
 
 local function positive(value, field)
-  -- NaN fails value > 0; +inf passes it, so it needs its own test.
-  if type(value) ~= "number" or not (value > 0) or value == math.huge then
+  -- NaN is the only value not equal to itself; +inf is positive, so it needs its own test.
+  if type(value) ~= "number" or value ~= value or value <= 0 or value == math.huge then
     error("opts.screen." .. field .. " must be a positive number", 4)
   end
   return value
