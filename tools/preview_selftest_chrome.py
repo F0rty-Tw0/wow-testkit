@@ -196,6 +196,17 @@ def test_png_without_a_snapshot_exits_2(tmp):
     assert quiet_png(tmp, tmp / "x.png", chrome=sys.executable) == 2
 
 
+def test_png_refuses_a_file_that_is_not_a_png_and_keeps_it(tmp, monkeypatch):
+    write_snapshot(tmp)
+    notes = tmp / "notes.md"
+    notes.write_text("keep me", encoding="utf-8")
+    seen = []
+    monkeypatch(pc, "run_chrome", lambda command: seen.append(command) or "")
+    assert quiet_png(tmp, notes, chrome=sys.executable) == 2
+    assert notes.read_text(encoding="utf-8") == "keep me" and seen == [], seen
+    assert quiet_png(tmp, tmp / "SHOT.PNG", chrome=sys.executable) == 3, "a capital .PNG is accepted"
+
+
 def test_png_usage_errors_exit_2(tmp):
     for argv in (
         ["png"],
@@ -239,6 +250,7 @@ TESTS = [
     test_find_chrome_ignores_a_relative_path_hit,
     test_kill_tree_runs_taskkill_from_system32_on_windows,
     test_png_without_a_snapshot_exits_2,
+    test_png_refuses_a_file_that_is_not_a_png_and_keeps_it,
     test_png_usage_errors_exit_2,
     test_png_matches_hand_known_pixels,
 ]
