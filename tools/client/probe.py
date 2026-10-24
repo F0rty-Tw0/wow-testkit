@@ -50,29 +50,29 @@ def lua_id(store, names):
     return found[0][1] if found else None
 
 
+# name: (pick the fileID, check the bytes, read partial: DB2 readers skip encrypted sections, so zeros are safe there)
 PROBES = {
-    "lua": (lua_id, check_lua),
-    "blp": (lambda store, names: id_of(names, BLP_PATH), starts(b"BLP2", b"BLP1")),
-    "db2": (lambda store, names: id_of(names, DB2_PATH), starts(b"WDC")),
-    "ttf": (lambda store, names: id_of(names, TTF_PATH), starts(b"\x00\x01\x00\x00", b"true", b"OTTO")),
+    "lua": (lua_id, check_lua, False),
+    "blp": (lambda store, names: id_of(names, BLP_PATH), starts(b"BLP2", b"BLP1"), False),
+    "db2": (lambda store, names: id_of(names, DB2_PATH), starts(b"WDC"), True),
+    "ttf": (lambda store, names: id_of(names, TTF_PATH), starts(b"\x00\x01\x00\x00", b"true", b"OTTO"), False),
 }
 
 
 def run_one(name, store, names):
-    pick, check = PROBES[name]
+    pick, check, partial = PROBES[name]
     start = time.perf_counter()
     try:
         file_id = pick(store, names)
         if file_id is None:
             return ProbeResult(name, False, "no such file in the listfile or store", time.perf_counter() - start)
-        data = store.read(file_id)
+        data = store.read(file_id, partial=partial)
         if data is None:
-            reason = store.last_note or f"id {file_id} not in store"
+            reason = store.last_error or f"id {file_id} not in store"
             return ProbeResult(name, False, reason, time.perf_counter() - start)
         ok = check(data)
-        detail = f"id {file_id}, {len(data)} bytes" + ("" if ok else f", wrong content {data[:4]!r}")
-        if store.last_note:
-            detail += f" ({store.last_note})"
+        detail = f"{store.last_error or f'id {file_id}'}, {len(data)} bytes"
+        detail += "" if ok else f", wrong content {data[:4]!r}"
     except Exception as err:
         return ProbeResult(name, False, f"{type(err).__name__}: {err}", time.perf_counter() - start)
     return ProbeResult(name, ok, detail, time.perf_counter() - start)

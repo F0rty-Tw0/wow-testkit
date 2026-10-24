@@ -14,13 +14,13 @@ NO_NAME_HASH = 0x10000000
 class FakeCasc:
     """CascStore over a dict of fileID -> bytes."""
 
-    last_note = None
+    last_error = None
 
     def __init__(self, files):
         self.files = dict(files)
         self.closed = False
 
-    def read(self, file_id):
+    def read(self, file_id, partial=False):
         return self.files.get(file_id)
 
     def file_ids(self):

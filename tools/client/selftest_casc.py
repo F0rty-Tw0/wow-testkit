@@ -11,7 +11,7 @@ LUA = b"-- lua\nlocal x = 1\n" * 40
 BLP = b"BLP2" + bytes(range(256)) * 4
 DB2 = b"WDC5" + b"\x01\x02" * 300
 TTF = b"\x00\x01\x00\x00" + b"glyf" * 200
-FILES = {10: (LUA, "-"), 20: (BLP, "NZ"), 30: (DB2, "Z"), 40: (TTF, "ZNZ"), 50: (b"secret" * 20, "NE")}
+FILES = {10: (LUA, "-"), 20: (BLP, "NZ"), 30: (DB2, "Z"), 40: (TTF, "ZNZ"), 50: (b"secret" * 20, "ZE")}
 NAMES = {
     10: "interface/addons/blizzard_a/a.lua",
     20: "interface/buttons/white8x8.blp",
@@ -30,19 +30,19 @@ def test_blte_decodes_headerless_and_chunked_n_z_blocks(tmp):
     assert casc_blte.decode(fakes.blte(TTF, "ZNZ")) == TTF
 
 
-def test_blte_encrypted_block_is_unreadable_with_its_key_name(tmp):
+def test_blte_encrypted_blocks_are_unreadable_naming_count_and_keys(tmp):
     try:
-        casc_blte.decode(fakes.blte(LUA, "ZE"))
+        casc_blte.decode(fakes.blte(LUA, "ZEE"))
     except casc_blte.Unreadable as err:
-        assert "encrypted" in str(err) and "aaaaaaaaaaaaaaaa" in str(err)
+        assert "2 of 3 blocks encrypted" in str(err) and "aaaaaaaaaaaaaaaa" in str(err)
         return
     raise AssertionError("expected Unreadable")
 
 
 def test_blte_zero_fills_encrypted_blocks_only_when_asked_and_some_block_is_readable(tmp):
     holes = []
-    data = casc_blte.decode(fakes.blte(b"A" * 10 + b"B" * 10, "NE"), holes)
-    assert data == b"A" * 10 + b"\0" * 10 and len(holes) == 1 and "aaaaaaaaaaaaaaaa" in holes[0]
+    data = casc_blte.decode(fakes.blte(b"A" * 10 + b"B" * 10, "ZE"), holes)
+    assert data == b"A" * 10 + b"\0" * 10 and holes == ["aaaaaaaaaaaaaaaa"]
     try:
         casc_blte.decode(fakes.blte(b"C" * 20, "EE"), [])
     except casc_blte.Unreadable:
@@ -59,20 +59,32 @@ def test_store_reads_files_through_root_encoding_index_and_archive(tmp):
         store.close()
 
 
-def test_store_zero_fills_partly_encrypted_files_and_says_so(tmp):
+def test_store_reads_a_partly_encrypted_file_as_none_by_default(tmp):
     store = casc.open_store(install(tmp), "wow")
     try:
-        assert store.read(50) == b"secret" * 10 + b"\0" * 60 and "1 encrypted block" in store.last_note
-        assert store.read(10) == LUA and store.last_note is None
+        assert store.read(50) is None
+        assert "id 50" in store.last_error and "1 of 2 blocks encrypted" in store.last_error
+        assert "aaaaaaaaaaaaaaaa" in store.last_error
+        assert store.read(10) == LUA and store.last_error is None
     finally:
         store.close()
 
 
-def test_store_returns_none_with_a_reason_for_fully_encrypted_and_unknown_ids(tmp):
-    store = casc.open_store(install(tmp, files={**FILES, 60: (b"x" * 20, "E")}), "wow")
+def test_store_zero_fills_a_partly_encrypted_file_when_partial(tmp):
+    store = casc.open_store(install(tmp), "wow")
     try:
-        assert store.read(60) is None and "encrypted" in store.last_note
-        assert store.read(99) is None and "not in root" in store.last_note
+        data = store.read(50, partial=True)
+        assert data == b"secret" * 10 + b"\0" * 60  # Z block intact, E block zeros of its table size
+        assert "1 encrypted block zero-filled" in store.last_error
+    finally:
+        store.close()
+
+
+def test_store_returns_none_for_fully_encrypted_even_when_partial_and_for_unknown_ids(tmp):
+    store = casc.open_store(install(tmp, files={**FILES, 60: (b"x" * 20, "EE")}), "wow")
+    try:
+        assert store.read(60, partial=True) is None and "2 of 2 blocks encrypted" in store.last_error
+        assert store.read(99) is None and "not in root" in store.last_error
     finally:
         store.close()
 
@@ -198,26 +210,38 @@ def test_store_writes_nothing_under_the_install(tmp):
     assert sorted((p.relative_to(inst).as_posix(), p.stat().st_mtime_ns) for p in inst.rglob("*")) == before
 
 
-def test_probe_cli_runs_the_casc_candidate(tmp):
-    inst = install(tmp)
+def run_probe_cli(tmp, files):
+    inst = install(tmp, files)
     lf = tmp / "lf.csv"
     lf.write_text("".join(f"{fid};{name}\n" for fid, name in NAMES.items()))
     out = io.StringIO()
     argv = ["--candidate", "casc", "--install", str(inst), "--products", "wow", "--listfile", str(lf)]
     with contextlib.redirect_stdout(out):
         code = probe.main(argv)
-    lines = out.getvalue().splitlines()
+    return code, out.getvalue().splitlines()
+
+
+def test_probe_cli_runs_the_casc_candidate(tmp):
+    code, lines = run_probe_cli(tmp, FILES)
     assert code == 0, lines
     assert [line.split()[:3] for line in lines] == [["PASS", "wow", name] for name in ("lua", "blp", "db2", "ttf")]
 
 
+def test_probe_zero_fills_only_the_db2_and_says_so(tmp):
+    code, lines = run_probe_cli(tmp / "db2", {**FILES, 30: (DB2, "ZE")})
+    assert code == 0 and "1 encrypted block zero-filled" in lines[2], lines
+    code, lines = run_probe_cli(tmp / "blp", {**FILES, 20: (BLP, "ZE")})
+    assert code == 1 and lines[1].startswith("FAIL wow blp") and "1 of 2 blocks encrypted" in lines[1], lines
+
+
 TESTS = [
     test_blte_decodes_headerless_and_chunked_n_z_blocks,
-    test_blte_encrypted_block_is_unreadable_with_its_key_name,
+    test_blte_encrypted_blocks_are_unreadable_naming_count_and_keys,
     test_blte_zero_fills_encrypted_blocks_only_when_asked_and_some_block_is_readable,
     test_store_reads_files_through_root_encoding_index_and_archive,
-    test_store_zero_fills_partly_encrypted_files_and_says_so,
-    test_store_returns_none_with_a_reason_for_fully_encrypted_and_unknown_ids,
+    test_store_reads_a_partly_encrypted_file_as_none_by_default,
+    test_store_zero_fills_a_partly_encrypted_file_when_partial,
+    test_store_returns_none_for_fully_encrypted_even_when_partial_and_for_unknown_ids,
     test_store_opens_the_row_of_the_requested_product,
     test_unknown_product_is_an_error_naming_it,
     test_root_prefers_enus_and_skips_low_violence_and_other_locales,
@@ -230,4 +254,5 @@ TESTS = [
     test_root_ranks_high_res_texture_blocks_last,
     test_store_writes_nothing_under_the_install,
     test_probe_cli_runs_the_casc_candidate,
+    test_probe_zero_fills_only_the_db2_and_says_so,
 ]

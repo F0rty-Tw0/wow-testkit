@@ -1,11 +1,13 @@
 """Read-only, stdlib-only reader for the installed client's local CASC store (Ruling R3).
 
-    open_store(install, product) -> CascStore: read(file_id) -> bytes | None, file_ids(), close(), last_note
+    open_store(install, product) -> CascStore: read(file_id, partial=False) -> bytes | None, file_ids(), close(),
+    last_error
 
 Chain (wowdev.wiki/TACT, /CASC, /BLTE): `.build.info` row for the product -> build config under Data/config ->
 encoding file (CKey -> EKey) and root file (fileDataID -> CKey) -> Data/data/*.idx (EKey -> archive, offset) ->
-data.### -> BLTE. Local only: a file that is not on disk, or wholly encrypted, reads as None; a file with some
-encrypted blocks reads with those blocks zero-filled. Either way `last_note` says so.
+data.### -> BLTE. Local only: a file that is not on disk, or has any encrypted block, reads as None. With
+partial=True a file with some readable blocks reads with its encrypted blocks zero-filled (for DB2, whose
+readers skip sections with a tact_key_hash). Either way `last_error` says so.
 
 Root choice (as TACTSharp RootInstance.cs): a block counts when its locale flags include enUS (blocks for every
 locale set that bit too) and its content flags lack LowViolence; when several counted blocks hold one fileDataID,
@@ -132,7 +134,7 @@ class CascStore:
         data = install / "Data"
         config = read_config(data, build_row(install, product)["Build Key"])
         self.storage = LocalStorage(data / "data")
-        self.last_note = None
+        self.last_error = None
         try:
             encoding_ekey = bytes.fromhex(config["encoding"][1])
             self.encoding = Encoding(self.decode(encoding_ekey, "encoding file"))
@@ -155,28 +157,30 @@ class CascStore:
             raise CascError(f"{what} ekey {ekey.hex()} not in the local indices")
         return casc_blte.decode(blte)
 
-    def read(self, file_id):
-        """The file's bytes, or None; `last_note` says why it is None or which blocks were zero-filled."""
-        self.last_note = None
+    def read(self, file_id, partial=False):
+        """The file's bytes, or None; `last_error` says why it is None or, with `partial`, which blocks were
+        zero-filled. Only DB2 callers pass partial=True: elsewhere silent zeros would corrupt the output."""
+        self.last_error = None
         at = self.ckeys.get(file_id)
         if at is None:
-            self.last_note = f"id {file_id} not in root"
+            self.last_error = f"id {file_id} not in root"
             return None
         ckey = bytes(self.root[at : at + 16])
         for ekey in self.encoding.ekeys(ckey):
             blte = self.storage.read(ekey)
             if blte is None:
                 continue
-            holes = []
+            holes = [] if partial else None
             try:
                 data = casc_blte.decode(blte, holes)
             except casc_blte.Unreadable as err:
-                self.last_note = f"id {file_id}: {err}"
+                self.last_error = f"id {file_id}: {err}"
                 return None
             if holes:
-                self.last_note = f"id {file_id}: {len(holes)} encrypted block(s) zero-filled: " + "; ".join(holes)
+                plural = "s" if len(holes) > 1 else ""
+                self.last_error = f"id {file_id}: {len(holes)} encrypted block{plural} zero-filled (keys {', '.join(holes)})"
             return data
-        self.last_note = f"id {file_id} (ckey {ckey.hex()}) not in the local store"
+        self.last_error = f"id {file_id} (ckey {ckey.hex()}) not in the local store"
         return None
 
     def file_ids(self):
