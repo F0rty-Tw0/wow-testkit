@@ -4,6 +4,7 @@ local M = {}
 
 local BehaviourRender = require("ui.behaviour_render")
 local Fields = require("render_fields")
+local Finite = require("render_finite")
 local Json = require("json")
 local Layout = require("ui.layout")
 local Order = require("render_order")
@@ -40,14 +41,14 @@ local function clipsChildren(st)
 end
 
 -- The intersection of the screen rects of every clipping ancestor of entry (a region's own frame included); nil when
--- none clips. An ancestor without a rect clips nothing.
+-- none clips. An ancestor without a rect, or with a non-finite one, clips nothing.
 local function clipOf(w, entry)
   local clip
   local ancestor = entry.st.parent
   local st = ancestor and w.ui.state[ancestor]
   while st do
     local rect = clipsChildren(st) and Layout.screenRect(w, ancestor)
-    if rect then
+    if rect and Finite.rect(rect) then
       clip = clip and intersect(clip, rect) or rect
     end
     ancestor = st.parent
@@ -78,7 +79,7 @@ local function build(w)
   local items, unplaced = {}, {}
   for _, entry in ipairs(Order.collect(w)) do
     entry.rect = Layout.screenRect(w, entry.obj)
-    if entry.rect then
+    if entry.rect and Finite.rect(entry.rect) then
       entry.clip = clipOf(w, entry)
       items[#items + 1] = Fields.item(w, entry, assets)
     else
@@ -89,12 +90,13 @@ local function build(w)
   return { ver = SNAPSHOT_VERSION, screen = screen, items = items, unplaced = unplaced, errors = copyErrors(w), assets = assets }
 end
 
--- The render snapshot of w. Reading layout may count answers in w.unscripted; those counts are put back.
+-- The render snapshot of w. Reading layout may count answers in w.unscripted; those counts are put back. Json.encode
+-- accepts the result whatever numbers the addon stored.
 function M.snapshot(w)
   local saved = copyCounts(w.unscripted)
   local snapshot = build(w)
   restoreCounts(w.unscripted, saved)
-  return snapshot
+  return Finite.scrub(snapshot)
 end
 
 return M
