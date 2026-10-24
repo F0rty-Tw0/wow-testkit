@@ -1,6 +1,7 @@
 """Synthetic-file tests for preview_assets and the resolve command. Run: python tools/preview.py --selftest"""
 
 import contextlib
+import inspect
 import io
 import json
 import os
@@ -12,6 +13,7 @@ from PIL import Image
 
 import preview
 import preview_assets as pa
+import preview_selftest_chrome as chrome_tests
 
 NO_EXTRACT_NOTE = "note: no client extract; art falls back to stand-ins"
 
@@ -200,14 +202,42 @@ TESTS = [
 ]
 
 
+class Patches:
+    """monkeypatch for the tests that ask for one: patches(obj, name, value), undone after the test."""
+
+    def __init__(self):
+        self.saved = []
+
+    def __call__(self, obj, name, value):
+        self.saved.append((obj, name, getattr(obj, name)))
+        setattr(obj, name, value)
+
+    def undo(self):
+        for obj, name, value in reversed(self.saved):
+            setattr(obj, name, value)
+
+
+def run_one(test, tmp):
+    patches = Patches()
+    try:
+        if "monkeypatch" in inspect.signature(test).parameters:
+            test(tmp, patches)
+        else:
+            test(tmp)
+    finally:
+        patches.undo()
+
+
 def run():
     passed = failed = 0
-    for test in TESTS:
+    for test in TESTS + chrome_tests.TESTS:
         try:
             with tempfile.TemporaryDirectory() as tmp:
-                test(Path(tmp))
+                run_one(test, Path(tmp))
             print("PASS " + test.__name__)
             passed += 1
+        except chrome_tests.Skip as skip:
+            print(f"SKIP {test.__name__}: {skip}")
         except Exception:
             print("FAIL " + test.__name__)
             traceback.print_exc()
