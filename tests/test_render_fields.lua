@@ -128,6 +128,34 @@ local function test_fresh_font_string_defaults_assumed() -- (V11)
   end)
 end
 
+local function test_font_string_without_a_set_width_is_auto_width()
+  withFontString(function(_, fontString, read)
+    fontString:SetFont(FONT, 12, "")
+    fontString:SetText("Hello")
+    A.eq(read().autoWidth, true)
+  end)
+end
+
+local function test_font_string_with_a_set_width_is_not_auto_width()
+  withFontString(function(_, fontString, read)
+    fontString:SetFont(FONT, 12, "")
+    fontString:SetText("Hello")
+    fontString:SetWidth(100)
+    A.eq(read().autoWidth, nil)
+  end)
+end
+
+local function test_font_string_stretched_between_anchors_is_not_auto_width()
+  withFontString(function(_, fontString, read)
+    fontString:SetFont(FONT, 12, "")
+    fontString:SetText("Hello")
+    fontString:ClearAllPoints()
+    fontString:SetPoint("LEFT")
+    fontString:SetPoint("RIGHT")
+    A.eq(read().autoWidth, nil)
+  end)
+end
+
 local function test_font_string_escapes_register_assets()
   withFontString(function(_, fontString, read)
     fontString:SetFont(FONT, 12, "")
@@ -143,5 +171,8 @@ return function()
   test_texture_look_fields()
   test_font_string_fields()
   test_fresh_font_string_defaults_assumed()
+  test_font_string_without_a_set_width_is_auto_width()
+  test_font_string_with_a_set_width_is_not_auto_width()
+  test_font_string_stretched_between_anchors_is_not_auto_width()
   test_font_string_escapes_register_assets()
 end

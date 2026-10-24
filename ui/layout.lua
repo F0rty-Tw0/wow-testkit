@@ -176,8 +176,10 @@ local function compute(w, region, st, resolving)
       return nil
     end
   end
-  local width = explicitSize(st, "x") or M.autoSize(w, region, "x")
+  local explicitWidth = explicitSize(st, "x")
+  local width = explicitWidth or M.autoSize(w, region, "x")
   local left, right, widthSet = solveAxis(points, "x", "ax", width, scale)
+  local autoWidth = widthSet and not explicitWidth
   local wrap = wrapOf(st, left and not widthSet and (right - left) / scale)
   local height = explicitSize(st, "y") or M.autoSize(w, region, "y", wrap)
   local bottom, top, heightSet = solveAxis(points, "y", "ay", height, scale)
@@ -195,10 +197,11 @@ local function compute(w, region, st, resolving)
       height = heightSet and height or (top - bottom) / scale,
     },
     wrap = wrap,
+    autoWidth = autoWidth,
   }
 end
 
--- The cache entry { version, pixel, rect, wrap } of a region, recomputed when its version is stale. resolving is the
+-- The cache entry { version, pixel, rect, wrap, autoWidth } of a region, recomputed when its version is stale. resolving is the
 -- set of states being resolved by this top-level call (the caller passes none, nested resolves of anchor targets
 -- pass it down): a re-entrant resolve of one region means its data holds a cycle (SetPoint refuses them), so that
 -- region has no rect. The set is local to the call, so an error or a yield leaves nothing behind.
@@ -220,7 +223,7 @@ function M.entry(w, region, resolving)
   local version = layout.version -- taken before compute: a change while a resolve is paused leaves this entry stale
   local result = compute(w, region, st, resolving) or NO_RECT
   resolving[st] = nil
-  hit = { version = version, pixel = result.pixel, rect = result.rect, wrap = result.wrap }
+  hit = { version = version, pixel = result.pixel, rect = result.rect, wrap = result.wrap, autoWidth = result.autoWidth }
   layout.cache[st] = hit
   return hit
 end
@@ -241,6 +244,11 @@ function M.wrapWidth(w, region)
   end
   local st = w.ui.state[region]
   return st and wrapOf(st)
+end
+
+-- True when region's width is the text estimate (autoSize): no explicit width and not stretched between two anchors.
+function M.autoWidth(w, region)
+  return M.entry(w, region).autoWidth or false
 end
 
 -- { x, y, width, height } in physical pixels, origin top-left, or nil without a rect (index.md Cross-phase interface).

@@ -4,6 +4,7 @@ local M = {}
 local Assets = require("render_assets")
 local BehaviourRender = require("ui.behaviour_render")
 local FontChain = require("ui.font_chain")
+local Layout = require("ui.layout")
 local Read = require("render_read")
 local Widgets = require("render_widgets")
 
@@ -147,6 +148,7 @@ function M.item(w, entry, assets)
     textureFields(st, item, assets)
   else
     fontStringFields(w, st, item, assets)
+    item.autoWidth = Layout.autoWidth(w, entry.obj) or nil
   end
   return item
 end
