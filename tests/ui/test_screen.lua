@@ -27,6 +27,23 @@ local function test_world_new_rejects_a_non_positive_screen_size_and_leaves_no_w
   H.withWorld("retail", function() end) -- would raise "another world is active" if the failed call leaked one
 end
 
+local function test_world_new_rejects_nan_and_infinite_screen_values()
+  local nan, inf = 0 / 0, math.huge
+  for _, case in ipairs({
+    { "width", { width = nan, height = 1080 } },
+    { "width", { width = inf, height = 1080 } },
+    { "height", { width = 1920, height = nan } },
+    { "height", { width = 1920, height = inf } },
+    { "uiScale", { uiScale = nan } },
+    { "uiScale", { uiScale = inf } },
+  }) do
+    A.errors(function()
+      World.new({ flavor = "retail", screen = case[2] })
+    end, "screen." .. case[1] .. " must be a positive number")
+  end
+  H.withWorld("retail", function() end) -- no failed call left a world active
+end
+
 local function test_default_ui_parent_is_the_physical_size_at_scale_one_assumed() -- (LY8)
   HF.withFrameXML("retail", function()
     A.same({ _G.UIParent:GetSize() }, { 1920, 1080 })
@@ -88,6 +105,7 @@ return function()
   test_world_new_defaults_the_physical_screen_to_1920_by_1080_assumed()
   test_world_new_stores_the_screen_option()
   test_world_new_rejects_a_non_positive_screen_size_and_leaves_no_world()
+  test_world_new_rejects_nan_and_infinite_screen_values()
   test_default_ui_parent_is_the_physical_size_at_scale_one_assumed()
   test_ui_scale_grows_the_ui_size_and_shrinks_the_effective_scale()
   test_ui_scale_is_ignored_while_use_ui_scale_is_off_assumed()
