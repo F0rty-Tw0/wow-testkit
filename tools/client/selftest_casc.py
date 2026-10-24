@@ -5,6 +5,7 @@ import io
 import struct
 
 from tools.client import casc, casc_blte, casc_index, fakes, probe
+from tools.client.source import CascSource
 from tools.client.fakes import DEDE, ENUS, HIGH_RES, LOW_VIOLENCE, NO_NAME_HASH
 
 LUA = b"-- lua\nlocal x = 1\n" * 40
@@ -85,6 +86,20 @@ def test_store_returns_none_for_fully_encrypted_even_when_partial_and_for_unknow
     try:
         assert store.read(60, partial=True) is None and "2 of 2 blocks encrypted" in store.last_error
         assert store.read(99) is None and "not in root" in store.last_error
+    finally:
+        store.close()
+
+
+def test_source_names_what_the_store_holds_and_forwards_partial(tmp):
+    store = casc.open_store(install(tmp), "wow")
+    try:
+        names = {10: "interface/addons/blizzard_a/a.lua", 50: "db/x.db2", 999: "gone/not-in-store.lua"}
+        source = CascSource(store, names, ["enUS"])
+        assert source.paths() == ["db/x.db2", "interface/addons/blizzard_a/a.lua"]
+        assert source.file_id("DB\\X.db2") == 50 and source.file_id("gone/not-in-store.lua") is None
+        assert source.read("interface/addons/blizzard_a/a.lua") == LUA and source.read("nope") is None
+        assert source.read("db/x.db2") is None  # an encrypted block: unreadable unless the caller asks for partial
+        assert source.read("db/x.db2", partial=True) == b"secret" * 10 + b"\0" * 60
     finally:
         store.close()
 
@@ -242,6 +257,7 @@ TESTS = [
     test_store_reads_a_partly_encrypted_file_as_none_by_default,
     test_store_zero_fills_a_partly_encrypted_file_when_partial,
     test_store_returns_none_for_fully_encrypted_even_when_partial_and_for_unknown_ids,
+    test_source_names_what_the_store_holds_and_forwards_partial,
     test_store_opens_the_row_of_the_requested_product,
     test_unknown_product_is_an_error_naming_it,
     test_root_prefers_enus_and_skips_low_violence_and_other_locales,
