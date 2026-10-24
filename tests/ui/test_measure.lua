@@ -17,6 +17,37 @@ local function test_width_counts_visible_characters_assumed() -- R2
   end)
 end
 
+local function test_hyperlink_prefix_and_closing_tag_are_invisible_assumed() -- R2
+  H.withWorld("retail", function(w)
+    local link = "|cff0070dd|Hitem:19019::::::::60:::::|h[Thunderfury]|h|r"
+    A.eq(Measure.width(w, FONT, 10, "", link), 65) -- "[Thunderfury]" = 13 characters * 5
+    A.eq(Measure.width(w, FONT, 10, "", "a |Hspell:2096:0|h[Mind Vision]|h b"), 85) -- 2 + 13 + 2 = 17 characters
+  end)
+end
+
+local function test_an_escaped_pipe_is_one_character_assumed() -- R2
+  H.withWorld("retail", function(w)
+    A.eq(Measure.width(w, FONT, 10, "", "a||b"), 15) -- 3 characters
+    A.eq(Measure.width(w, FONT, 10, "", "||r"), 10) -- a pipe and an r, not a color reset
+    A.eq(Measure.width(w, FONT, 10, "", "||cff00ff00x"), 55) -- "|cff00ff00x" is 11 characters, not a color code
+  end)
+end
+
+local function test_a_texture_is_as_wide_as_the_wiki_sizing_rules_say_assumed() -- R2
+  H.withWorld("retail", function(w)
+    local icon = "|TInterface\\Icons\\INV_Misc_QuestionMark:%s|t"
+    local function width(params, tail)
+      return Measure.width(w, FONT, 10, "", string.format(icon, params) .. (tail or ""))
+    end
+    A.eq(width("0"), 10) -- height 0, no width: a square of the text height (the font size)
+    A.eq(width("16"), 16) -- positive height, no width: a square of that height
+    A.eq(width("16:0"), 10) -- positive height, width 0: the text height
+    A.eq(width("0:2"), 20) -- height 0, width 2: width times the text height
+    A.eq(width("16:8"), 8) -- both positive: the width
+    A.eq(width("0", " a"), 20) -- the texture, a space and a: 10 + 2 * 5
+  end)
+end
+
 local function test_width_of_several_lines_is_the_widest_assumed()
   H.withWorld("retail", function(w)
     A.eq(Measure.width(w, FONT, 10, "", "ab\ncdef"), 20) -- 4 * 5
@@ -59,6 +90,9 @@ end
 
 return function()
   test_width_counts_visible_characters_assumed()
+  test_hyperlink_prefix_and_closing_tag_are_invisible_assumed()
+  test_an_escaped_pipe_is_one_character_assumed()
+  test_a_texture_is_as_wide_as_the_wiki_sizing_rules_say_assumed()
   test_width_of_several_lines_is_the_widest_assumed()
   test_height_is_lines_times_the_line_height_assumed()
   test_wrapping_breaks_at_spaces_assumed()
