@@ -12,7 +12,7 @@ local Callsite = require("ui.callsite")
 -- Method names whose call changes layout; ui/widgets.lua bumps the version before running them.
 M.MUTATORS = {}
 for name in
-  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap"):gmatch(
+  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap"):gmatch(
     "%S+"
   )
 do
@@ -106,6 +106,34 @@ local function solveAxis(points, pos, align, size, scale)
   return nil
 end
 
+-- Least shift that puts the clamp span [low, high] inside [0, limit]. The edge applied last wins when the span is
+-- wider than the screen: the high edge for x (the left stays), the low edge for y (the top stays).
+local function axisShift(low, high, limit, lowFirst)
+  if lowFirst then
+    local shift = low < 0 and -low or 0
+    return high + shift > limit and limit - high or shift
+  end
+  local shift = high > limit and limit - high or 0
+  return low + shift < 0 and -low or shift
+end
+
+-- source: row LY14 (wiki API_Frame_SetClampedToScreen, API_Frame_SetClampRectInsets): a clamped frame stays on the
+-- screen whenever its rect resolves; the clamp rect is the rect with each inset (times the effective scale) added to
+-- its edge. Assumed (row LY14): least-distance move of the whole rect, left and top win when oversize.
+-- Regions and non-frames are never clamped. Returns the pixel shift dx, dy.
+local function clampShift(w, st, pixel, scale)
+  local on = st.plan.isFrame and st.values.ClampedToScreen
+  if not (on and on[1]) then
+    return 0, 0
+  end
+  local insets = st.values.ClampRectInsets or {}
+  local left = pixel.left + (insets[1] or 0) * scale
+  local right = pixel.right + (insets[2] or 0) * scale
+  local top = pixel.top + (insets[3] or 0) * scale
+  local bottom = pixel.bottom + (insets[4] or 0) * scale
+  return axisShift(left, right, w.screen.width, false), axisShift(bottom, top, w.screen.height, true)
+end
+
 local function compute(w, st)
   -- source: row LY7: offsets and sizes are in the region's own scale space, scale multiplies down the parent chain.
   local scale = BehaviourRender.effectiveScale(w, st)
@@ -124,6 +152,8 @@ local function compute(w, st)
   if not (left and bottom) then
     return nil
   end
+  local dx, dy = clampShift(w, st, { left = left, bottom = bottom, right = right, top = top }, scale)
+  left, right, bottom, top = left + dx, right + dx, bottom + dy, top + dy
   return {
     pixel = { left = left, bottom = bottom, right = right, top = top },
     rect = {
@@ -164,6 +194,14 @@ end
 
 function M.rect(w, region)
   return entryOf(w, region).rect
+end
+
+-- { x, y, width, height } in physical pixels, origin top-left, or nil without a rect (index.md Cross-phase interface).
+function M.screenRect(w, region)
+  local pixel = M.pixelRect(w, region)
+  if pixel then
+    return { x = pixel.left, y = w.screen.height - pixel.top, width = pixel.right - pixel.left, height = pixel.top - pixel.bottom }
+  end
 end
 
 -- True when from is region or anchors to it, directly or through other anchors.

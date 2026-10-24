@@ -122,16 +122,84 @@ function methods.SetHeight(_, _, st, height)
   st.height = height
 end
 
-function methods.GetWidth(_, _, st)
-  return st.width or 0
+-- source: row LY13 (`ignoreRect`, default false), row LY5/LY6: with ignoreRect only the size the addon set counts;
+-- otherwise a valid rect's size, else the set size, else 0.
+local function sizeOf(w, obj, st, field, ignoreRect)
+  local rect = not ignoreRect and Layout.rect(w, obj)
+  if rect then
+    return rect[field]
+  end
+  return st[field] or 0
 end
 
-function methods.GetHeight(_, _, st)
-  return st.height or 0
+function methods.GetWidth(w, obj, st, ignoreRect)
+  return sizeOf(w, obj, st, "width", ignoreRect)
 end
 
-function methods.GetSize(_, _, st)
-  return st.width or 0, st.height or 0
+function methods.GetHeight(w, obj, st, ignoreRect)
+  return sizeOf(w, obj, st, "height", ignoreRect)
+end
+
+function methods.GetSize(w, obj, st, ignoreRect)
+  return sizeOf(w, obj, st, "width", ignoreRect), sizeOf(w, obj, st, "height", ignoreRect)
+end
+
+-- Rect ---------------------------------------------------------------------------------------------------------
+
+-- source: row LY6: a region with no resolvable rect returns nothing (not nil) from these getters.
+function methods.GetLeft(w, obj)
+  local rect = Layout.rect(w, obj)
+  if rect then
+    return rect.left
+  end
+end
+
+function methods.GetRight(w, obj)
+  local rect = Layout.rect(w, obj)
+  if rect then
+    return rect.left + rect.width
+  end
+end
+
+function methods.GetBottom(w, obj)
+  local rect = Layout.rect(w, obj)
+  if rect then
+    return rect.bottom
+  end
+end
+
+function methods.GetTop(w, obj)
+  local rect = Layout.rect(w, obj)
+  if rect then
+    return rect.bottom + rect.height
+  end
+end
+
+function methods.GetCenter(w, obj)
+  local rect = Layout.rect(w, obj)
+  if rect then
+    return rect.left + rect.width / 2, rect.bottom + rect.height / 2
+  end
+end
+
+function methods.GetRect(w, obj)
+  local rect = Layout.rect(w, obj)
+  if rect then
+    return rect.left, rect.bottom, rect.width, rect.height
+  end
+end
+
+-- source: row LY7: GetScaledRect is GetRect times the effective scale, i.e. the pixel rect.
+function methods.GetScaledRect(w, obj)
+  local pixel = Layout.pixelRect(w, obj)
+  if pixel then
+    return pixel.left, pixel.bottom, pixel.right - pixel.left, pixel.top - pixel.bottom
+  end
+end
+
+-- assumed (row LY6): a region is valid exactly when its rect resolves.
+function methods.IsRectValid(w, obj)
+  return Layout.rect(w, obj) ~= nil
 end
 
 return M
