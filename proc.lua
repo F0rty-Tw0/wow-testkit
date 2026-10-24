@@ -27,6 +27,8 @@ local function refusal(arg, isWindows)
   return nil
 end
 
+M.refusal = refusal
+
 local function quoted(arg, isWindows)
   local reason = refusal(arg, isWindows)
   if reason then

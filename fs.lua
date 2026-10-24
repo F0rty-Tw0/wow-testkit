@@ -2,6 +2,8 @@
 -- else shell fallbacks (cmd.exe on Windows, POSIX tools elsewhere).
 local M = {}
 
+local Proc = require("proc")
+
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 local EACCES = 13
 -- Localized: addon code may assign a global named io or os. The tables, not their functions, so a test can still
@@ -12,8 +14,16 @@ local function host()
   return rawget(_G, "__tk_fs")
 end
 
+-- path inside double quotes for the shell fallbacks. Raises when the shell would still expand something inside the
+-- quotes ($(...) on sh, %VAR% on cmd), since paths here can come from an addon's name.
 local function shellPath(path)
-  return '"' .. (IS_WINDOWS and path:gsub("/", "\\") or path) .. '"'
+  local native = IS_WINDOWS and path:gsub("/", "\\") or path
+  -- A final backslash only matters to programs that parse their own command line; mkdir and dir do not.
+  local reason = Proc.refusal(IS_WINDOWS and native:gsub("\\+$", "") or native, IS_WINDOWS)
+  if reason then
+    error("fs: path " .. reason .. ": " .. path:gsub("%c", "?"), 0)
+  end
+  return '"' .. native .. '"'
 end
 
 function M.readFile(path)
