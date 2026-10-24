@@ -1,6 +1,6 @@
 -- Text measurement. Fallback estimate until glyph tables exist (Measure.useGlyphs): each visible character is
 -- AVERAGE_ADVANCE * size wide, a line is LINE_HEIGHT * size tall. UI escapes (visibleWidth) are invisible, a
--- texture is as wide as it is drawn, "||" is one pipe and a UTF-8 character counts once. Both ratios are assumed
+-- texture or atlas is as wide as it is drawn, "||" is one pipe and a UTF-8 character counts once. Both ratios are assumed
 -- (row LY10, ruling R2).
 local M = {}
 
@@ -36,8 +36,10 @@ local function textureWidth(params, size)
   return height > 0 and width or width * size
 end
 
--- source: wiki UI_escape_sequences: `|cAARRGGBB` ... `|r` color, `||` "Escapes the "|" character", `|T...|t` texture; wiki
--- Hyperlinks: `|cffxxxxxx|Htype:payload|h[text]|h|r`, where only `[text]` is shown, so `|H...|h` and the closing `|h`
+-- source: wiki UI_escape_sequences: `|cAARRGGBB` ... `|r` color, `|cncolorname:text|r` named color (the start ends at the
+-- colon, `|r` closes it), `||` "Escapes the "|" character", `|T...|t` texture, `|A:atlas:height:width[:offsetX...]|a`
+-- atlas markup (the page gives no sizing rule for it, so its height and width fields are read like |T's: assumed);
+-- wiki Hyperlinks: `|cffxxxxxx|Htype:payload|h[text]|h|r`, where only `[text]` is shown, so `|H...|h` and the closing `|h`
 -- take no room. Width of the visible part of line: characters at AVERAGE_ADVANCE * size, textures at their own width.
 -- An unknown `|x` counts as the pipe and the letter.
 local function visibleWidth(line, size)
@@ -48,8 +50,12 @@ local function visibleWidth(line, size)
     if not bar then
       return chars * M.AVERAGE_ADVANCE * size + textures
     end
-    local nextPos = line:match("^|c%x%x%x%x%x%x%x%x()", bar) or line:match("^|[rh]()", bar) or line:match("^|H[^|]*|h()", bar)
+    local nextPos = line:match("^|c%x%x%x%x%x%x%x%x()", bar) or line:match("^|cn[%w_]+:()", bar)
+    nextPos = nextPos or line:match("^|[rh]()", bar) or line:match("^|H[^|]*|h()", bar)
     local params, textureEnd = line:match("^|T([^|]*)|t()", bar)
+    if not params then
+      params, textureEnd = line:match("^|A:([^|]*)|a()", bar)
+    end
     if params then
       textures, nextPos = textures + textureWidth(params, size), textureEnd
     elseif not nextPos then

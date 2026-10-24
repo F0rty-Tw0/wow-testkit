@@ -48,6 +48,27 @@ local function test_a_texture_is_as_wide_as_the_wiki_sizing_rules_say_assumed() 
   end)
 end
 
+local function test_a_named_color_start_is_invisible_up_to_its_colon_assumed() -- R2
+  H.withWorld("retail", function(w)
+    A.eq(Measure.width(w, FONT, 10, "", "|cnRED_FONT_COLOR:ab|r"), 10) -- only "ab" is drawn
+    A.eq(Measure.width(w, FONT, 10, "", "|cnIQ3:rare|r x"), 30) -- "rare x" = 6 characters; the digit belongs to the name
+    A.eq(Measure.width(w, FONT, 10, "", "|cn:ab|r"), 30) -- no name: not a color start, so "|cn:ab" counts as 6 characters; only the |r is invisible
+  end)
+end
+
+local function test_an_atlas_is_sized_like_a_texture_assumed() -- R2
+  H.withWorld("retail", function(w)
+    local function width(params, tail)
+      return Measure.width(w, FONT, 10, "", "|A:" .. params .. "|a" .. (tail or ""))
+    end
+    A.eq(width("4259:19:19"), 19) -- "|A:atlas:height:width|a": both positive set the width
+    A.eq(width("4259:16:0"), 10) -- the |T sizing rules apply to the height and width fields (assumed)
+    A.eq(width("4259:0:2"), 20)
+    A.eq(width("4259:16"), 16)
+    A.eq(width("tank:16:16:0:0:1:1:1", " a"), 26) -- offsets and vertex colors take no room: 16 + " a" (2 * 5)
+  end)
+end
+
 local function test_width_of_several_lines_is_the_widest_assumed()
   H.withWorld("retail", function(w)
     A.eq(Measure.width(w, FONT, 10, "", "ab\ncdef"), 20) -- 4 * 5
@@ -93,6 +114,8 @@ return function()
   test_hyperlink_prefix_and_closing_tag_are_invisible_assumed()
   test_an_escaped_pipe_is_one_character_assumed()
   test_a_texture_is_as_wide_as_the_wiki_sizing_rules_say_assumed()
+  test_a_named_color_start_is_invisible_up_to_its_colon_assumed()
+  test_an_atlas_is_sized_like_a_texture_assumed()
   test_width_of_several_lines_is_the_widest_assumed()
   test_height_is_lines_times_the_line_height_assumed()
   test_wrapping_breaks_at_spaces_assumed()
