@@ -9,7 +9,17 @@ local function test_command_quotes_each_argument_and_redirects()
 end
 
 local function test_command_on_windows_is_wrapped_in_one_more_pair_of_quotes()
-  A.eq(Proc.command({ "python", "a b.py" }, "log.txt", true), '""python" "a b.py" > "log.txt" 2>&1"')
+  local line = Proc.command({ "python", "a b.py" }, "log.txt", true)
+  A.eq(line:sub(1, 1), '"')
+  A.eq(line:sub(-1), '"')
+  A.truthy(line:find('"python" "a b.py" > "log.txt" 2>&1"', 1, true))
+end
+
+-- cmd.exe looks in the current directory before PATH; an addon folder holding python.bat would otherwise run.
+local function test_command_on_windows_stops_cmd_searching_the_current_directory()
+  local line = Proc.command({ "python" }, "log.txt", true)
+  A.eq(line, '"set "NoDefaultCurrentDirectoryInExePath=1" & "python" > "log.txt" 2>&1"')
+  A.eq(Proc.command({ "python" }, "log.txt", false):find("NoDefaultCurrentDirectoryInExePath", 1, true), nil)
 end
 
 local function test_argument_with_a_double_quote_raises()
@@ -62,6 +72,7 @@ end
 return function()
   test_command_quotes_each_argument_and_redirects()
   test_command_on_windows_is_wrapped_in_one_more_pair_of_quotes()
+  test_command_on_windows_stops_cmd_searching_the_current_directory()
   test_argument_with_a_double_quote_raises()
   test_log_path_is_checked_like_an_argument()
   test_newline_in_an_argument_raises()

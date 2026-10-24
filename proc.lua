@@ -7,6 +7,7 @@ local os = os
 
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 local SIGNAL_STATUS_UNIT = 256
+local NO_CWD_SEARCH = 'set "NoDefaultCurrentDirectoryInExePath=1" & '
 
 -- Why arg cannot be quoted safely, or nil. Inside double quotes cmd.exe still expands %VAR% (and !VAR! when delayed
 -- expansion is on) and the C runtime reads a final backslash before the closing quote as an escape; sh still
@@ -35,7 +36,8 @@ local function quoted(arg, isWindows)
 end
 
 -- The shell command line running argv with stdout and stderr redirected to logPath. On Windows the whole line gets
--- one more pair of quotes, which cmd /c strips.
+-- one more pair of quotes, which cmd /c strips, and starts by stopping cmd from searching the current directory for
+-- the program, so a python.bat inside an addon folder cannot shadow the real one.
 function M.command(argv, logPath, isWindows)
   if isWindows == nil then
     isWindows = IS_WINDOWS
@@ -45,7 +47,7 @@ function M.command(argv, logPath, isWindows)
     parts[i] = quoted(arg, isWindows)
   end
   local line = table.concat(parts, " ") .. " > " .. quoted(logPath, isWindows) .. " 2>&1"
-  return isWindows and '"' .. line .. '"' or line
+  return isWindows and '"' .. NO_CWD_SEARCH .. line .. '"' or line
 end
 
 -- Lua 5.1 returns the raw status (a POSIX exit code sits in the high byte); 5.4 returns ok, "exit"|"signal", code.
