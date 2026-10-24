@@ -7,6 +7,7 @@ import contextlib
 import http.client
 import io
 import json
+import os
 import socket
 import sys
 from pathlib import Path
@@ -153,6 +154,16 @@ def test_missing_chrome_exits_3(tmp):
     assert quiet_png(tmp, tmp / "x.png", chrome=str(tmp / "no-such-chrome")) == 3
 
 
+def test_find_chrome_ignores_a_relative_path_hit(tmp, monkeypatch):
+    monkeypatch(pc, "WINDOWS_CHROME", str(tmp / "no-such-chrome"))
+    monkeypatch(pc.os, "environ", {})
+    monkeypatch(pc.shutil, "which", lambda name: "." + os.sep + name + ".bat")
+    assert pc.find_chrome() is None
+    absolute = str(tmp / "chrome")
+    monkeypatch(pc.shutil, "which", lambda name: absolute)
+    assert pc.find_chrome() == absolute
+
+
 def test_png_without_a_snapshot_exits_2(tmp):
     assert quiet_png(tmp, tmp / "x.png", chrome=sys.executable) == 2
 
@@ -196,6 +207,7 @@ TESTS = [
     test_png_defaults_size_to_the_snapshot_and_outline_adds_the_flag,
     test_chrome_failure_exits_3_and_stops_the_server,
     test_missing_chrome_exits_3,
+    test_find_chrome_ignores_a_relative_path_hit,
     test_png_without_a_snapshot_exits_2,
     test_png_usage_errors_exit_2,
     test_png_matches_hand_known_pixels,

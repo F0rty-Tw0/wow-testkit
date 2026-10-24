@@ -122,7 +122,9 @@ def chrome_args(url, png, width, height, profile):
 
 def find_chrome(explicit=None):
     """--chrome, else $CHROME, else the Windows install, else chrome/google-chrome/chromium on PATH; a path that is
-    not a file counts as missing. Never starts Chrome to ask: a bare launch can open a tab in the user's browser."""
+    not a file counts as missing. A PATH hit counts only as an absolute path: Windows searches the current directory
+    first and answers `.\chrome.bat`, which could be shipped inside an addon. Never starts Chrome to ask: a bare launch
+    can open a tab in the user's browser."""
     for candidate in (explicit, os.environ.get("CHROME"), WINDOWS_CHROME):
         if candidate and os.path.isfile(candidate):
             return candidate
@@ -130,7 +132,7 @@ def find_chrome(explicit=None):
             return None
     for name in PATH_NAMES:
         found = shutil.which(name)
-        if found:
+        if found and os.path.isabs(found):
             return found
     return None
 
