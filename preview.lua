@@ -168,6 +168,14 @@ local function runSteps(steps, out, write)
   return true
 end
 
+-- A run that fails must not leave the previous run's snapshot or picture behind to be read as this run's.
+local function clearStale(ctx)
+  os.remove(ctx.out .. SNAPSHOT_FILE)
+  if ctx.png then
+    os.remove(ctx.png)
+  end
+end
+
 -- opts: { addonDir, flavor?, scenario?, size? = { width, height }, out?, png? }; all output goes through write.
 function M.run(opts, write)
   local ctx, message = context(opts)
@@ -180,6 +188,7 @@ function M.run(opts, write)
     write("preview: " .. tostring(makeErr) .. "\n")
     return EXIT_USAGE
   end
+  clearStale(ctx)
   local state = {}
   local report = Scenario.matrix({ ctx.flavor }, scenarioFn(ctx, state), ctx.matrixOpts)[ctx.flavor]
   if report.status == "skipped" then

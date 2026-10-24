@@ -3,6 +3,7 @@
 local A = require("assert")
 local Home = require("home")
 local Preview = require("preview")
+local ScenarioPreview = require("scenario_preview")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
@@ -282,7 +283,46 @@ local function test_explicit_out_the_shell_would_expand_exits_2()
   end)
 end
 
+-- The previous run's snapshot and picture must not survive a run that fails, or they read as this run's output.
+local function seedStale(out, png)
+  fs.writeFile(out .. "/snapshot.json", '{"stale":true}')
+  fs.writeFile(png, "stale")
+end
+
+local function test_run_whose_snapshot_cannot_be_written_removes_the_previous_snapshot_and_png()
+  local write = ScenarioPreview.write
+  ScenarioPreview.write = function()
+    error("disk full", 0)
+  end
+  withExec(nil, function(calls)
+    local out, png = Tmp.dir("previewout"), Tmp.dir("previewpng") .. "/shot.png"
+    seedStale(out, png)
+    local code, text = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = png })
+    ScenarioPreview.write = write
+    A.eq(code, 1)
+    A.contains(text, "disk full")
+    A.same({ fs.exists(out .. "/snapshot.json"), fs.exists(png), #calls }, { false, false, 0 })
+  end)
+  ScenarioPreview.write = write
+end
+
+local function test_failed_png_step_leaves_no_previous_png()
+  local function step(argv)
+    return argv[3] == "png" and 3 or 0
+  end
+  withExec(step, function()
+    local out, png = Tmp.dir("previewout"), Tmp.dir("previewpng") .. "/shot.png"
+    seedStale(out, png)
+    local code = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = png })
+    A.eq(code, 1)
+    A.eq(fs.exists(png), false)
+    A.contains(assert(fs.readFile(out .. "/snapshot.json")), '"ver": 1')
+  end)
+end
+
 return function()
+  test_run_whose_snapshot_cannot_be_written_removes_the_previous_snapshot_and_png()
+  test_failed_png_step_leaves_no_previous_png()
   test_default_out_folder_replaces_unsafe_characters_in_the_addon_name()
   test_default_out_folder_never_runs_a_command_named_by_the_addon()
   test_addon_named_only_dots_asks_for_out()
