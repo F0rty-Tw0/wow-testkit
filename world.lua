@@ -9,6 +9,7 @@ local Luaext = require("luaext")
 local WorldApi = require("world_api")
 local WorldEvents = require("world_events")
 local WorldSnapshot = require("world_snapshot")
+local Screen = require("ui.screen")
 
 local unpack = unpack
 -- Host functions new and destroy use, kept as upvalues: addon writes land raw in _G, so an addon that reassigns
@@ -133,7 +134,8 @@ local function installBase(w, row)
   LuaApi.install(w)
 end
 
--- opts.flavor: one of Flavors.list. Errors while another world is still active.
+-- opts.flavor: one of Flavors.list. opts.screen: { width, height, useUiScale, uiScale }, see ui/screen.lua. Errors
+-- while another world is still active.
 function M.new(opts)
   local row = Flavors.get(opts.flavor)
   if active then
@@ -144,6 +146,7 @@ function M.new(opts)
     flavor = row.name,
     manifest = manifest,
     globals = globals,
+    screen = Screen.normalize(opts.screen),
     calls = {},
     unscripted = {},
     errors = {},

@@ -1,14 +1,15 @@
 -- Layout test helper: a retail world with widgets installed and a physical screen, always destroyed.
-local HW = require("tests.helpers.widgets")
+local H = require("tests.helpers.world")
+local Widgets = require("ui.widgets")
 
 local M = {}
 
 -- screen is { width, height } in physical pixels.
 function M.withLayout(screen, fn)
-  HW.withWidgets("retail", function(w)
-    w.screen = screen
+  H.withWorld("retail", function(w)
+    Widgets.install(w)
     fn(w)
-  end)
+  end, { screen = screen })
 end
 
 return M
