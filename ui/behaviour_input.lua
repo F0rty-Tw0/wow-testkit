@@ -5,6 +5,7 @@ local M = {}
 local select = select
 
 local BehaviourScripts = require("ui.behaviour_scripts")
+local LayoutHit = require("ui.layout_hit")
 
 local methods = {}
 M.methods = methods
@@ -58,8 +59,13 @@ function methods.IsMouseEnabled(_, _, st)
   return mouseState(st, "mouseClick") or mouseState(st, "mouseMotion")
 end
 
--- True when obj is the mouse focus or one of its ancestors.
-function methods.IsMouseOver(w, obj)
+-- With a cursor set (Input.setCursor): true when it lies in obj's own hit rect grown by the offsets, descendants not
+-- included (row LY11). With none: true when obj is the mouse focus or one of its ancestors, so scenario hovers work.
+function methods.IsMouseOver(w, obj, _, top, bottom, left, right)
+  local cursor = w.input.cursor
+  if cursor then
+    return LayoutHit.contains(w, obj, cursor[1], cursor[2], top, bottom, left, right)
+  end
   local frame = w.input.mouseFocus
   while frame do
     if frame == obj then

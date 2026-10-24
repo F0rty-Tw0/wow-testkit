@@ -3,6 +3,7 @@
 local M = {}
 
 local BehaviourInput = require("ui.behaviour_input")
+local LayoutHit = require("ui.layout_hit")
 
 local DEFAULT_BUTTON = "LeftButton"
 local KEY_SCRIPTS = { ENTER = "OnEnterPressed", ESCAPE = "OnEscapePressed", TAB = "OnTabPressed" }
@@ -139,6 +140,50 @@ function M.press(w, box, key)
     error("press: " .. label(w, box) .. " does not have focus", 2)
   end
   w:callScript(box, script)
+end
+
+-- Hit testing ------------------------------------------------------------------------------------------------
+
+-- Frame strata, lowest first (wiki Frame_Strata, row LY12). An unknown strata ranks below all of them.
+local STRATA_RANK = {}
+for rank, name in ipairs({ "WORLD", "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" }) do
+  STRATA_RANK[name] = rank
+end
+
+-- source: row LY12: higher strata first, then higher frame level; the creation tie-break (later frame, st.seq) is
+-- assumed, so equal frames never depend on pairs order.
+local function outranks(w, frame, best)
+  local a, b = STRATA_RANK[frame:GetFrameStrata()] or 0, STRATA_RANK[best:GetFrameStrata()] or 0
+  if a ~= b then
+    return a > b
+  end
+  a, b = frame:GetFrameLevel(), best:GetFrameLevel()
+  if a ~= b then
+    return a > b
+  end
+  return w.ui.state[frame].seq > w.ui.state[best].seq
+end
+
+-- The topmost visible, mouse-enabled frame whose hit rect holds the physical pixel x, y (origin top-left), or nil.
+function M.frameAt(w, x, y)
+  local best
+  for frame, st in pairs(w.ui.state) do
+    if
+      st.plan.isFrame
+      and frame:IsVisible()
+      and frame:IsMouseEnabled()
+      and LayoutHit.contains(w, frame, x, y)
+      and (not best or outranks(w, frame, best))
+    then
+      best = frame
+    end
+  end
+  return best
+end
+
+-- Puts the cursor at the physical pixel x, y (origin top-left) for IsMouseOver; x == nil clears it.
+function M.setCursor(w, x, y)
+  w.input.cursor = x ~= nil and { x, y } or nil
 end
 
 -- source: confirmed (row I9) GetMouseFoci() returns the focus in a table, or an empty table.
