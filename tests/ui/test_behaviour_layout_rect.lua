@@ -86,6 +86,35 @@ local function test_scaled_rect_multiplies_the_rect_by_the_effective_scale() -- 
   end)
 end
 
+local function test_is_rect_valid_is_true_exactly_when_the_rect_resolves_assumed() -- (LY6)
+  HF.withFrameXML("retail", function()
+    local f = _G.CreateFrame("Frame", nil, _G.UIParent)
+    f:SetSize(10, 10)
+    A.eq(f:IsRectValid(), false) -- no points
+    f:SetPoint("BOTTOMLEFT", 5, 5)
+    A.eq(f:IsRectValid(), true)
+    local dependant = _G.CreateFrame("Frame", nil, _G.UIParent)
+    dependant:SetSize(10, 10)
+    dependant:SetPoint("BOTTOMLEFT", _G.CreateFrame("Frame"), "TOPRIGHT") -- target has no rect
+    A.eq(dependant:IsRectValid(), false)
+    f:ClearAllPoints()
+    A.eq(f:IsRectValid(), false)
+  end)
+end
+
+local function test_scaled_rect_uses_the_effective_scale_not_the_own_scale_assumed() -- (LY7)
+  HF.withFrameXML("retail", function()
+    local parent = _G.CreateFrame("Frame", nil, _G.UIParent)
+    parent:SetScale(2)
+    local f = _G.CreateFrame("Frame", nil, parent)
+    f:SetScale(1.5) -- effective scale 2 * 1.5 = 3
+    f:SetSize(10, 10)
+    f:SetPoint("BOTTOMLEFT", _G.UIParent, "BOTTOMLEFT", 100, 100) -- offsets scale: 100 * 3 = 300 px
+    A.same({ f:GetRect() }, { 100, 100, 10, 10 })
+    A.same({ f:GetScaledRect() }, { 300, 300, 30, 30 }) -- own scale 1.5 would give 150, 150, 15, 15
+  end)
+end
+
 local function test_screen_rect_is_pixels_from_the_top_left()
   HF.withFrameXML("retail", function(w)
     -- P pixels x 100..400, y 100..300 bottom-up: top-left origin y = 1080 - 300 = 780
@@ -134,6 +163,25 @@ local function test_clamp_rect_insets_move_the_edges_that_must_stay_inside_assum
     A.eq(p:GetLeft(), 1600) -- 1900 - 300
     p:SetClampRectInsets(0, -100, 0, 0) -- the right 100 px may leave the screen: right <= 2020
     A.eq(p:GetLeft(), 1720)
+  end)
+end
+
+local function test_clamp_rect_top_and_bottom_insets_move_the_edges_that_must_stay_inside_assumed() -- (LY14)
+  HF.withFrameXML("retail", function()
+    local p = panel() -- 300 x 200
+    p:SetClampedToScreen(true)
+    p:SetPoint("BOTTOMLEFT", 100, 1100) -- y 1100..1300: 220 px past the 1080 edge
+    A.eq(p:GetBottom(), 880)
+    p:SetClampRectInsets(0, 0, -100, 0) -- the top 100 px may leave the screen: top <= 1180
+    A.same({ p:GetClampRectInsets() }, { 0, 0, -100, 0 })
+    A.eq(p:GetBottom(), 980) -- 1180 - 200
+    p:SetClampRectInsets(0, 0, 20, 0) -- top + 20 <= 1080, so top <= 1060
+    A.eq(p:GetBottom(), 860)
+    p:SetPoint("BOTTOMLEFT", 100, 10)
+    A.eq(p:GetBottom(), 10)
+    p:SetClampRectInsets(0, 0, 0, -50) -- bottom - 50 >= 0: stays 50 px above the bottom edge
+    A.same({ p:GetClampRectInsets() }, { 0, 0, 0, -50 })
+    A.eq(p:GetBottom(), 50)
   end)
 end
 
@@ -200,10 +248,13 @@ return function()
   test_a_height_alone_does_not_stand_in_for_the_width()
   test_a_size_without_anchors_still_reads_back()
   test_scaled_rect_multiplies_the_rect_by_the_effective_scale()
+  test_is_rect_valid_is_true_exactly_when_the_rect_resolves_assumed()
+  test_scaled_rect_uses_the_effective_scale_not_the_own_scale_assumed()
   test_screen_rect_is_pixels_from_the_top_left()
   test_hit_insets_round_trip_without_moving_the_rect()
   test_a_clamped_frame_stays_on_the_screen_assumed()
   test_clamp_rect_insets_move_the_edges_that_must_stay_inside_assumed()
+  test_clamp_rect_top_and_bottom_insets_move_the_edges_that_must_stay_inside_assumed()
   test_a_clamp_rect_larger_than_the_screen_keeps_its_left_and_top_edges_assumed()
   test_clamp_insets_scale_with_the_frame_assumed()
   test_a_region_is_never_clamped()
