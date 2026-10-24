@@ -92,6 +92,46 @@ local function test_nan_backdrop_insets_encode_as_null()
   end)
 end
 
+local function test_negative_infinite_alpha_encodes_as_null()
+  H.withRender(function(w)
+    frame("NegInfAlpha"):SetAlpha(-INF)
+    local snap, text = encoded(w)
+    A.eq(H.item(snap, "NegInfAlpha").alpha, Json.null)
+    A.contains(text, '"alpha":null')
+  end)
+end
+
+-- A stored table whose numeric keys are far apart (an infinite key would loop forever, 2^22 would write 46 MB of
+-- nulls) is not a list; it becomes null, as does a table that mixes names with positions.
+local function test_a_sparse_or_mixed_stored_table_encodes_as_null()
+  local bad = { { [INF] = 1 }, { [-INF] = 1 }, { [2 ^ 22] = 1 }, { [1.5] = 1 }, { [0] = 1 }, { 1, 2, name = "x" } }
+  H.withRender(function(w)
+    for i, stored in ipairs(bad) do
+      local texture = frame("SparseHost" .. i):CreateTexture("SparseTex" .. i)
+      texture:SetAllPoints()
+      texture:SetBlendMode(stored)
+    end
+    local started = os.clock()
+    local snap, text = encoded(w)
+    for i = 1, #bad do
+      A.eq(H.item(snap, "SparseTex" .. i).blendMode, Json.null, "table " .. i)
+    end
+    A.truthy(os.clock() - started < 5, "scrub stays fast")
+    A.truthy(#text < 100000, "snapshot stays small")
+  end)
+end
+
+-- A list with a few holes (an addon that stored nil in the middle) keeps its place, the holes read null.
+local function test_a_stored_list_with_a_small_hole_keeps_its_length()
+  H.withRender(function(w)
+    local texture = frame("HoleHost"):CreateTexture("HoleTex")
+    texture:SetAllPoints()
+    texture:SetBlendMode({ 1, nil, 3 })
+    local snap = encoded(w)
+    A.same(H.item(snap, "HoleTex").blendMode, { 1, Json.null, 3 })
+  end)
+end
+
 local function test_an_empty_assets_table_still_encodes_as_an_object()
   H.withRender(function(w)
     A.contains(select(2, encoded(w)), '"assets":{}')
@@ -104,5 +144,8 @@ return function()
   test_a_non_finite_clipping_ancestor_clips_nothing()
   test_nan_texcoord_and_nil_vertex_colour_encode_as_null()
   test_nan_backdrop_insets_encode_as_null()
+  test_negative_infinite_alpha_encodes_as_null()
+  test_a_sparse_or_mixed_stored_table_encodes_as_null()
+  test_a_stored_list_with_a_small_hole_keeps_its_length()
   test_an_empty_assets_table_still_encodes_as_an_object()
 end
