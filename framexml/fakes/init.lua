@@ -18,6 +18,7 @@ local STAGE1 = {
   "framexml.fakes.menu_frames",
   "framexml.fakes.dropdown",
   "framexml.fakes.menu",
+  "framexml.fakes.scrolling_message_frame",
   "framexml.fakes.frames",
 }
 
