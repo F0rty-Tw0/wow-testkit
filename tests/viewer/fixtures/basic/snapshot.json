@@ -1,0 +1,70 @@
+{
+  "ver": 1,
+  "screen": { "width": 400, "height": 300, "scale": 1 },
+  "items": [
+    {
+      "id": "f1", "kind": "frame", "name": "Panel", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 20, "y": 20, "width": 360, "height": 260 },
+      "backdrop": { "color": [0.1, 0.1, 0.1, 0.9], "borderColor": [1, 1, 1, 1] }
+    },
+    {
+      "id": "t2", "kind": "texture", "name": "Swatch", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 40, "y": 40, "width": 40, "height": 40 },
+      "color": [1, 0, 0, 1]
+    },
+    {
+      "id": "t3", "kind": "texture", "name": "Pic", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 100, "y": 40, "width": 40, "height": 40 },
+      "file": "path:interface/addons/demo/pic", "vertexColor": [1, 1, 1, 0.5]
+    },
+    {
+      "id": "t4", "kind": "texture", "name": "Gone", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 160, "y": 40, "width": 40, "height": 40 },
+      "file": "path:interface/addons/demo/missing"
+    },
+    {
+      "id": "s5", "kind": "fontstring", "name": "Greeting", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 40, "y": 100, "width": 200, "height": 16 },
+      "text": "Hello |cffff0000red|r world", "size": 14, "color": [1, 1, 1, 1],
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "s6", "kind": "fontstring", "name": "Icons", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 40, "y": 130, "width": 200, "height": 20 },
+      "text": "|TInterface\\Icons\\Foo:16|t|A:bar:16:16|a x", "size": 14, "color": [1, 1, 1, 1],
+      "justifyH": "CENTER", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
+    },
+    {
+      "id": "t7", "kind": "texture", "name": "Clipped", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 200, "y": 100, "width": 100, "height": 100 },
+      "clip": { "x": 220, "y": 120, "width": 40, "height": 40 },
+      "color": [0, 0, 1, 1]
+    },
+    {
+      "id": "f8", "kind": "frame", "name": "Bar", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
+      "rect": { "x": 40, "y": 200, "width": 100, "height": 10 },
+      "widget": { "type": "StatusBar", "value": 50, "min": 0, "max": 100, "color": [0, 1, 0, 1], "orientation": "HORIZONTAL" }
+    },
+    {
+      "id": "f9", "kind": "frame", "name": "Box", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
+      "rect": { "x": 160, "y": 200, "width": 120, "height": 20 },
+      "widget": { "type": "EditBox", "text": "abc", "cursor": 1, "focused": true, "multiLine": false }
+    }
+  ],
+  "unplaced": [],
+  "errors": [{ "message": "boom" }],
+  "assets": {
+    "path:interface/addons/demo/pic": {
+      "kind": "path", "path": "Interface/AddOns/Demo/Pic", "source": "addon",
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAGElEQVR4nGNkYPj/n4GBgYEJRPz/z8gAACQUBAH39kd4AAAAAElFTkSuQmCC"
+    },
+    "path:interface/addons/demo/missing": {
+      "kind": "path", "path": "Interface/AddOns/Demo/Missing", "source": "placeholder", "missing": true, "label": "missing"
+    },
+    "path:interface/icons/foo": {
+      "kind": "path", "path": "Interface/Icons/Foo", "source": "addon",
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAGElEQVR4nGNkYPj/n4GBgYEJRPz/z8gAACQUBAH39kd4AAAAAElFTkSuQmCC"
+    },
+    "atlas:bar": { "kind": "atlas", "atlas": "bar", "source": "placeholder", "missing": true, "label": "bar" }
+  }
+}

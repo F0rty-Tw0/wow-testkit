@@ -1,0 +1,100 @@
+// FontString items and escaped text: one span per colour run, an <img> per resolved |T or |A, the addon's fonts.
+(function (V) {
+  'use strict';
+
+  const FALLBACK_FAMILY = '"Friz Quadrata TT", "Segoe UI", sans-serif';
+  const DEFAULT_SIZE = 12;
+  const JUSTIFY_H = { LEFT: 'left', CENTER: 'center', RIGHT: 'right' };
+  const JUSTIFY_V = { TOP: 'flex-start', MIDDLE: 'center', BOTTOM: 'flex-end' };
+  const OUTLINE = {
+    thin: '-1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000',
+    thick: '-2px 0 0 #000, 2px 0 0 #000, 0 -2px 0 #000, 0 2px 0 #000',
+  };
+
+  async function loadFont(ref, href, name, families) {
+    const face = new FontFace(name, V.cssUrl(href));
+    try {
+      await face.load();
+      document.fonts.add(face);
+      families.set(ref, `"${name}", ${FALLBACK_FAMILY}`);
+    } catch (err) {
+      console.warn('viewer: font ' + ref + ' did not load, using the fallback family', err);
+    }
+  }
+
+  // A Map from font ref to CSS font-family for every font asset with a url; a font that fails to load is left out.
+  V.loadFonts = async function (assets, baseUrl) {
+    const families = new Map();
+    const ctx = { assets, baseUrl };
+    const refs = Object.keys(assets).filter((ref) => assets[ref].kind === 'font' && V.assetUrl(ctx, ref));
+    const loads = refs.map((ref, i) => loadFont(ref, V.assetUrl(ctx, ref), 'wtk-font-' + i, families));
+    await Promise.all(loads);
+
+    return families;
+  };
+
+  V.fontFamily = (ctx, ref) => ctx.families.get(ref) || FALLBACK_FAMILY;
+
+  function textRun(segment, color) {
+    const span = document.createElement('span');
+    span.textContent = segment.text;
+    span.style.color = V.rgb(segment.color || color);
+
+    return span;
+  }
+
+  function inlineImage(segment, ctx, size) {
+    const height = segment.height || size;
+    const width = segment.width || height;
+    const href = V.assetUrl(ctx, segment.ref);
+    const node = document.createElement(href ? 'img' : 'span');
+    node.className = href ? 'inline' : 'inline placeholder';
+    if (href) node.src = href;
+    else node.title = V.assetLabel(ctx, segment.ref);
+    node.style.width = width + 'px';
+    node.style.height = height + 'px';
+
+    return node;
+  }
+
+  // Appends text to parent: colour runs default to color; a |T or |A of height 0 takes the font size.
+  V.appendText = function (parent, text, color, ctx, size) {
+    for (const segment of V.parseEscapes(text)) {
+      const isText = segment.kind === 'text';
+      parent.append(isText ? textRun(segment, color) : inlineImage(segment, ctx, size));
+    }
+  };
+
+  function outlineOf(flags) {
+    if (/THICKOUTLINE/.test(flags)) return OUTLINE.thick;
+
+    return /OUTLINE/.test(flags) ? OUTLINE.thin : null;
+  }
+
+  function textShadow(item) {
+    const outline = outlineOf(String(item.flags || ''));
+    const shadow = item.shadow;
+    const drop = shadow && `${shadow.x || 0}px ${-(shadow.y || 0)}px 0 ${V.rgba(shadow.color || [0, 0, 0, 1])}`;
+
+    return [outline, drop].filter(Boolean).join(', ');
+  }
+
+  V.fontString = function (node, item, ctx) {
+    const size = Number(item.size) || DEFAULT_SIZE;
+    const lines = document.createElement('div');
+    node.style.justifyContent = JUSTIFY_V[item.justifyV] || 'center';
+    node.style.fontFamily = V.fontFamily(ctx, item.font);
+    node.style.fontSize = size + 'px';
+    lines.className = 'lines';
+    lines.style.textAlign = JUSTIFY_H[item.justifyH] || 'center';
+    lines.style.lineHeight = size + (Number(item.spacing) || 0) + 'px';
+    lines.style.whiteSpace = item.wrap === false ? 'pre' : 'pre-wrap';
+    lines.style.textShadow = textShadow(item);
+    if (item.maxLines > 0) {
+      lines.classList.add('clamped');
+      lines.style.webkitLineClamp = String(item.maxLines);
+    }
+    V.appendText(lines, String(item.text || ''), item.color || V.WHITE, ctx, size);
+    node.append(lines);
+  };
+})((window.Viewer = window.Viewer || {}));

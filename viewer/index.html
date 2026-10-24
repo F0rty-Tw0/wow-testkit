@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Render preview</title>
+    <link rel="stylesheet" href="viewer.css" />
+  </head>
+  <body>
+    <div id="toolbar">
+      <button id="zoom-out" type="button" aria-label="Zoom out">&minus;</button>
+      <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+      <button id="zoom-fit" type="button">Fit</button>
+      <span id="zoom-label"></span>
+    </div>
+    <div id="status" role="alert" hidden></div>
+    <div id="errors" hidden></div>
+    <div id="viewport"><div id="stage"></div></div>
+    <script src="viewer_text.js"></script>
+    <script src="viewer_font.js"></script>
+    <script src="viewer_items.js"></script>
+    <script src="viewer.js"></script>
+  </body>
+</html>
