@@ -184,10 +184,11 @@ local function runSteps(steps, out, write)
   return true
 end
 
--- A run that fails must not leave the previous run's snapshot or picture behind to be read as this run's.
+-- A run that fails must not leave the previous run's snapshot or picture behind to be read as this run's. Only a .png
+-- path is deleted, so a mistyped --png naming some other file cannot destroy it.
 local function clearStale(ctx)
   os.remove(ctx.out .. SNAPSHOT_FILE)
-  if ctx.png then
+  if ctx.png and ctx.png:lower():find("%.png$") then
     os.remove(ctx.png)
   end
 end

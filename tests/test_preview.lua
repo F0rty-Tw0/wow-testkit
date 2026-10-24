@@ -347,6 +347,26 @@ local function test_run_whose_snapshot_cannot_be_written_removes_the_previous_sn
   ScenarioPreview.write = write
 end
 
+-- A mistyped --png (here a notes file) is not the previous run's picture, so a failing run must leave it alone.
+local function test_failing_run_keeps_a_png_path_that_is_not_a_png()
+  local write = ScenarioPreview.write
+  ScenarioPreview.write = function()
+    error("disk full", 0)
+  end
+  withExec(nil, function()
+    local out, notes = Tmp.dir("previewout"), Tmp.dir("previewpng") .. "/notes.md"
+    seedStale(out, notes)
+    local upper = Tmp.dir("previewpng") .. "/SHOT.PNG"
+    fs.writeFile(upper, "stale")
+    local code = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = notes })
+    local upperCode = run({ addonDir = tempAddon(FRAME_ADDON), out = out, png = upper })
+    ScenarioPreview.write = write
+    A.same({ code, upperCode }, { 1, 1 })
+    A.same({ fs.readFile(notes), fs.exists(upper) }, { "stale", false })
+  end)
+  ScenarioPreview.write = write
+end
+
 local function test_failed_png_step_leaves_no_previous_png()
   local function step(argv)
     return argv[3] == "png" and 3 or 0
@@ -363,6 +383,7 @@ end
 
 return function()
   test_run_whose_snapshot_cannot_be_written_removes_the_previous_snapshot_and_png()
+  test_failing_run_keeps_a_png_path_that_is_not_a_png()
   test_failed_png_step_leaves_no_previous_png()
   test_default_out_folder_replaces_unsafe_characters_in_the_addon_name()
   test_default_out_folder_never_runs_a_command_named_by_the_addon()
