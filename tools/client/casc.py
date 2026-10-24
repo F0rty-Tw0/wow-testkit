@@ -19,7 +19,7 @@ import bisect
 import struct
 from pathlib import Path
 
-from tools.client import casc_blte
+from tools.client import buildinfo, casc_blte
 from tools.client.casc_index import LocalStorage
 
 HIGH_RES = 0x1
@@ -32,18 +32,11 @@ class CascError(Exception):
     """The store cannot be opened: missing product, config or a table this reader does not understand."""
 
 
-def build_info_rows(text):
-    """`.build.info` rows as dicts keyed by header name without its `!TYPE:n` suffix."""
-    lines = [line for line in text.splitlines() if line.strip()]
-    header = [name.split("!")[0] for name in lines[0].split("|")] if lines else []
-    return [dict(zip(header, line.split("|"))) for line in lines[1:]]
-
-
 def build_row(install, product):
-    rows = [row for row in build_info_rows((install / ".build.info").read_text()) if row.get("Product") == product]
-    if not rows:
+    row = buildinfo.pick(buildinfo.parse((install / ".build.info").read_text()), product)
+    if row is None:
         raise CascError(f"product {product!r} is not in {install / '.build.info'}")
-    return next((row for row in rows if row.get("Active") == "1"), rows[0])
+    return row
 
 
 def read_config(data, key):

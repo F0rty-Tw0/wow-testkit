@@ -1,9 +1,10 @@
-"""Community listfile (wowdev/wow-listfile): fileID -> path, fetched once and cached by the caller."""
+"""Community listfile (wowdev/wow-listfile): fileID -> path, fetched once and cached under the kit home by ensure."""
 
 import hashlib
 import json
 import os
 import urllib.request
+from pathlib import Path
 
 API = "https://api.github.com/repos/wowdev/wow-listfile/releases/latest"
 ASSET = "community-listfile.csv"
@@ -40,3 +41,28 @@ def fetch(dest, opener=urllib.request.urlopen):
         handle.write(data)
     os.replace(part, dest)
     return {"source": "wowdev/wow-listfile", "tag": release["tag_name"], "sha256": hashlib.sha256(data).hexdigest()}
+
+
+def sha256_of(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def ensure(home, path=None, fetch=fetch):
+    """(listfile path, info): `path` when given (info {source: local, sha256}), else the copy cached under
+    <home>/listfile, fetched on the first call only."""
+    if path is not None:
+        return Path(path), {"source": "local", "sha256": sha256_of(path)}
+    cache = Path(home) / "listfile" / ASSET
+    meta = cache.with_name("listfile.json")
+    if cache.is_file() and meta.is_file():
+        try:
+            return cache, json.loads(meta.read_text(encoding="utf-8"))
+        except ValueError:
+            pass  # a damaged note about the cache: fetch again
+    info = fetch(cache)
+    meta.write_text(json.dumps(info, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+    return cache, info

@@ -3,6 +3,7 @@
 import hashlib
 import struct
 import zlib
+from pathlib import Path
 
 HIGH_RES = 0x1
 ENUS = 0x2
@@ -28,6 +29,53 @@ class FakeCasc:
 
     def close(self):
         self.closed = True
+
+
+class FakeSource:
+    """extract.Source over {path: bytes}; `ids` gives paths a fileID (default: their order, from 1)."""
+
+    def __init__(self, files, ids=None, locales=("enUS",)):
+        self.files = {path.lower(): data for path, data in files.items()}
+        self.ids = ids if ids is not None else {path: n for n, path in enumerate(self.files, 1)}
+        self.locales = list(locales)
+
+    def paths(self):
+        return sorted(self.files)
+
+    def read(self, path, partial=False):
+        return self.files.get(path.lower())
+
+    def file_id(self, path):
+        return self.ids.get(path.lower())
+
+
+def make_install(root, build_info):
+    """A bare install folder holding only `.build.info`; returns it."""
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    (root / ".build.info").write_text(build_info, newline="\n")
+    return root
+
+
+def write_listfile(tmp, names):
+    """<tmp>/listfile.csv with `id;path` lines for {fileID: path}; returns its path."""
+    path = Path(tmp) / "listfile.csv"
+    path.write_text("".join(f"{file_id};{name}\n" for file_id, name in sorted(names.items())), newline="\n")
+    return path
+
+
+def lua_value(path):
+    """The table a Lua file returns, as dicts and lists (an empty table is {}), loaded with lupa."""
+    import lupa
+
+    def convert(value):
+        if not lupa.lua_type(value):
+            return value
+        if len(value) and list(value.keys()) == list(range(1, len(value) + 1)):
+            return [convert(item) for item in value.values()]
+        return {key: convert(item) for key, item in value.items()}
+
+    return convert(lupa.LuaRuntime().execute(Path(path).read_text(encoding="utf-8")))
 
 
 def md5(data):
