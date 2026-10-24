@@ -1,14 +1,16 @@
 -- Hand-written widget semantics: visibility, hierarchy, identity, mouse and movement.
 -- Each method is fn(w, obj, st, ...) where st is obj's state in w.ui.state. M.methods also carries the anchor and
 -- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), alpha/scale/level/strata (ui/behaviour_render.lua),
--- script/event (ui/behaviour_scripts.lua), animation (ui/behaviour_animation.lua), attribute
--- (ui/behaviour_attributes.lua) and GetDebugName (ui/behaviour_debug_name.lua) methods.
+-- region creation (ui/behaviour_regions.lua), script/event (ui/behaviour_scripts.lua), animation
+-- (ui/behaviour_animation.lua), attribute (ui/behaviour_attributes.lua) and GetDebugName
+-- (ui/behaviour_debug_name.lua) methods.
 local M = {}
 
 local Callsite = require("ui.callsite")
 local BehaviourLayout = require("ui.behaviour_layout")
 local BehaviourText = require("ui.behaviour_text")
 local BehaviourRender = require("ui.behaviour_render")
+local BehaviourRegions = require("ui.behaviour_regions")
 local BehaviourScripts = require("ui.behaviour_scripts")
 local BehaviourInput = require("ui.behaviour_input")
 local BehaviourAnimation = require("ui.behaviour_animation")
@@ -145,14 +147,6 @@ function methods.GetRegions(_, _, st)
   return unpack(st.regions)
 end
 
-function methods.CreateTexture(w, obj, _, name)
-  return w.ui.create("Texture", name, obj)
-end
-
-function methods.CreateFontString(w, obj, _, name)
-  return w.ui.create("FontString", name, obj)
-end
-
 -- Identity ----------------------------------------------------------------------------------------------------
 
 function methods.GetName(_, _, st)
@@ -191,8 +185,17 @@ function methods.StartMoving() end
 function methods.StopMovingOrSizing() end
 
 -- BehaviourInput goes last: its SetScript wraps BehaviourScripts's.
-local MODULES =
-  { BehaviourLayout, BehaviourText, BehaviourRender, BehaviourScripts, BehaviourAnimation, BehaviourAttributes, BehaviourDebugName, BehaviourInput }
+local MODULES = {
+  BehaviourLayout,
+  BehaviourText,
+  BehaviourRender,
+  BehaviourRegions,
+  BehaviourScripts,
+  BehaviourAnimation,
+  BehaviourAttributes,
+  BehaviourDebugName,
+  BehaviourInput,
+}
 for _, module in ipairs(MODULES) do
   for name, fn in pairs(module.methods) do
     methods[name] = fn
