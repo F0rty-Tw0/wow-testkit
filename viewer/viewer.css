@@ -118,6 +118,13 @@ body.bare #errors {
   text-overflow: ellipsis;
 }
 
+/* The width is the kit's text estimate, not an addon width: the stand-in font may be wider, so the text overflows
+   to the right of the rect instead of being clipped. A maxLines clamp keeps its overflow: hidden. */
+.fontstring .lines.auto:not(.clamped) {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .fontstring .lines.clamped {
   display: -webkit-box;
   -webkit-box-orient: vertical;

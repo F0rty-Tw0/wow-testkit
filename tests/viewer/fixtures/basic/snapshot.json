@@ -49,6 +49,12 @@
       "id": "f9", "kind": "frame", "name": "Box", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
       "rect": { "x": 160, "y": 200, "width": 120, "height": 20 },
       "widget": { "type": "EditBox", "text": "abc", "cursor": 1, "focused": true, "multiLine": false }
+    },
+    {
+      "id": "s10", "kind": "fontstring", "name": "Estimate", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
+      "rect": { "x": 40, "y": 240, "width": 20, "height": 16 },
+      "text": "Auto width text", "size": 14, "color": [1, 1, 1, 1], "autoWidth": true,
+      "justifyH": "LEFT", "justifyV": "MIDDLE", "wrap": true, "maxLines": 0, "spacing": 0
     }
   ],
   "unplaced": [],

@@ -88,7 +88,9 @@
     lines.className = 'lines';
     lines.style.textAlign = JUSTIFY_H[item.justifyH] || 'center';
     lines.style.lineHeight = size + (Number(item.spacing) || 0) + 'px';
-    lines.style.whiteSpace = item.wrap === false ? 'pre' : 'pre-wrap';
+    const unwrapped = item.wrap === false || item.autoWidth === true;
+    lines.style.whiteSpace = unwrapped ? 'pre' : 'pre-wrap';
+    if (item.autoWidth === true) lines.classList.add('auto');
     lines.style.textShadow = textShadow(item);
     if (item.maxLines > 0) {
       lines.classList.add('clamped');

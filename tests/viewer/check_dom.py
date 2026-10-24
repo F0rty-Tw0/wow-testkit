@@ -10,7 +10,7 @@ import sys
 from html.parser import HTMLParser
 
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
-ORDER = ["f1", "t2", "t3", "t4", "s5", "s6", "t7", "f8", "f9"]
+ORDER = ["f1", "t2", "t3", "t4", "s5", "s6", "t7", "f8", "f9", "s10"]
 
 
 class Node:
@@ -152,6 +152,16 @@ def check_backdrop(root):
     expect_style(backdrop, {"background-color": "rgba(26, 26, 26, 0.9)"})
 
 
+def check_auto_width(root):
+    auto = one(by_id(root, "s10"), by_class("lines"), "s10 .lines")
+    if "auto" not in auto.classes():
+        raise AssertionError("s10 .lines classes %s" % auto.classes())
+    expect_style(auto, {"white-space": "pre"})
+    fixed = one(by_id(root, "s5"), by_class("lines"), "s5 .lines")
+    if "auto" in fixed.classes():
+        raise AssertionError("s5 .lines classes %s" % fixed.classes())
+
+
 def check_errors(root):
     errors = one(root, lambda n: n.attrs.get("id") == "errors", "#errors")
     if "boom" not in errors.text():
@@ -170,6 +180,7 @@ CHECKS = [
     ("widgets f8 f9", check_widgets),
     ("backdrop f1", check_backdrop),
     ("errors banner", check_errors),
+    ("auto-width text s10", check_auto_width),
 ]
 
 
