@@ -44,11 +44,27 @@ local function loadScenario(path)
   return file
 end
 
+local DEVICE_NAMES = { CON = true, PRN = true, AUX = true, NUL = true }
+
+-- True when windows would open name as a device: CON, PRN, AUX, NUL, COM0-9 or LPT0-9, with or without an extension.
+local function isDeviceName(name)
+  local stem = name:match("^[^.]*"):upper()
+  return DEVICE_NAMES[stem] or stem:find("^COM%d$") or stem:find("^LPT%d$")
+end
+
 -- The default output folder name for an addon: every character outside [%w_.-] becomes "_", so an addon named
--- "!Foo" or "$(cmd)" can neither trip the shell nor escape the preview folder. Nil when only dots (or nothing) are left.
+-- "!Foo" or "$(cmd)" can neither trip the shell nor escape the preview folder. A windows device name gets a leading
+-- "_" and a trailing dot (which windows drops) becomes "_", so the folder is the same on every OS. Nil when only dots
+-- (or nothing) are left.
 local function folderName(addon)
   local name = addon:gsub("[^%w_.%-]", "_")
-  return not name:find("^%.*$") and name or nil
+  if name:find("^%.*$") then
+    return nil
+  end
+  name = name:gsub("%.+$", function(dots)
+    return ("_"):rep(#dots)
+  end)
+  return isDeviceName(name) and "_" .. name or name
 end
 
 -- The default output folder for addon, or nil plus a message.

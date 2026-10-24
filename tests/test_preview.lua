@@ -4,6 +4,7 @@ local A = require("assert")
 local Home = require("home")
 local Preview = require("preview")
 local ScenarioPreview = require("scenario_preview")
+local Toc = require("toc")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
@@ -262,6 +263,46 @@ local function test_default_out_folder_never_runs_a_command_named_by_the_addon()
   end)
 end
 
+-- The default folder for each addon name in names (name -> folder), run with Toc.addonName answering that name: a TOC
+-- file named NUL.toc cannot be created on windows, since the name opens the NUL device. The addon itself fails to
+-- load under a made-up name, but its snapshot, and so the resolve step in calls[1], still comes out.
+local function defaultFolders(names)
+  local folders, addonName = {}, Toc.addonName
+  local ok, err = pcall(function()
+    for _, name in ipairs(names) do
+      Toc.addonName = function()
+        return name
+      end
+      withExec(nil, function(calls)
+        withHome(function(home)
+          run({ addonDir = tempAddon(FRAME_ADDON) })
+          folders[name] = calls[1] and calls[1][5]:sub(#home + #"/preview/" + 1)
+        end)
+      end)
+    end
+  end)
+  Toc.addonName = addonName
+  assert(ok, err)
+  return folders
+end
+
+-- Windows opens NUL, con.txt or COM1 as a device and drops a trailing dot, so the folder gets a leading or trailing "_".
+local function test_default_out_folder_avoids_windows_device_names_and_trailing_dots()
+  local names = { "NUL", "con.txt", "COM1", "Foo.", "Foo..", "Aux", "lpt9.x", "COM10", "Console", "Foo.bar" }
+  A.same(defaultFolders(names), {
+    NUL = "_NUL",
+    ["con.txt"] = "_con.txt",
+    COM1 = "_COM1",
+    ["Foo."] = "Foo_",
+    ["Foo.."] = "Foo__",
+    Aux = "_Aux",
+    ["lpt9.x"] = "_lpt9.x",
+    COM10 = "COM10",
+    Console = "Console",
+    ["Foo.bar"] = "Foo.bar",
+  })
+end
+
 local function test_addon_named_only_dots_asks_for_out()
   withExec(nil, function(calls)
     withHome(function(home)
@@ -325,6 +366,7 @@ return function()
   test_failed_png_step_leaves_no_previous_png()
   test_default_out_folder_replaces_unsafe_characters_in_the_addon_name()
   test_default_out_folder_never_runs_a_command_named_by_the_addon()
+  test_default_out_folder_avoids_windows_device_names_and_trailing_dots()
   test_addon_named_only_dots_asks_for_out()
   test_explicit_out_the_shell_would_expand_exits_2()
   test_clean_addon_writes_snapshot_and_runs_resolve()
