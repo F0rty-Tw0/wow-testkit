@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw
 
 IMAGE_EXTS = (".png", ".jpg", ".tga", ".blp")  # probe order when a path has no extension
 COPIED_EXTS = (".png", ".jpg", ".jpeg")  # everything else Pillow reads is converted to PNG
+FONT_EXTS = (".ttf", ".otf")  # a font file of any other type is not copied: the viewer would serve it by that type
 NO_EXTRACT_NOTE = "no client extract; art falls back to stand-ins"
 DERIVED = ("source", "url", "missing", "label")
 
@@ -121,6 +122,11 @@ def _addon_lookup(parts, addons):
     return True, (find_addon_file(root, parts[3:]) if root else None)
 
 
+def _usable(kind, hit):
+    """hit, unless it is a font file of a type the viewer should not be handed."""
+    return hit if hit and (kind != "font" or hit.suffix.lower() in FONT_EXTS) else None
+
+
 def locate(ref, asset, addons, extract):
     """(source, file or standin factory or None) for one asset."""
     kind = asset.get("kind")
@@ -129,13 +135,13 @@ def locate(ref, asset, addons, extract):
         if parts is None:
             return ("standin" if kind == "font" else "placeholder"), None
         is_addon, hit = _addon_lookup(parts, addons)
-        if hit:
+        if _usable(kind, hit):
             return "addon", hit
         if is_addon and kind == "path":
             return "placeholder", None
     if extract:
         hit = lookup_extract(extract, ref, asset)
-        if hit:
+        if _usable(kind, hit):
             return "extract", hit
     if kind == "path":
         factory = STANDINS.get("/".join(_strip_image_ext([p.casefold() for p in parts])))

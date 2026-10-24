@@ -176,6 +176,19 @@ def test_font_assets_copy_addon_fonts_only(tmp):
     assert snap["missing"] == []
 
 
+def test_font_assets_copy_only_ttf_and_otf(tmp):
+    fonts = tmp / "demo" / "Fonts"
+    fonts.mkdir(parents=True)
+    for name in ("x.otf", "page.html", "script.js"):
+        (fonts / name).write_bytes(b"DATA")
+    refs = dict(font_asset("Interface\AddOns\Demo\Fonts\\" + name) for name in ("x.otf", "page.html", "script.js"))
+    _, snap, out = resolve(tmp, refs, {"Demo": tmp / "demo"})
+    sources = {ref.rsplit("/", 1)[-1]: got["source"] for ref, got in snap["assets"].items()}
+    assert sources == {"x.otf": "addon", "page.html": "standin", "script.js": "standin"}, sources
+    assert all("url" not in got for ref, got in snap["assets"].items() if not ref.endswith("x.otf")), snap["assets"]
+    assert sorted(f.suffix for f in (out / "assets").iterdir()) == [".otf"], list((out / "assets").iterdir())
+
+
 def test_resolve_twice_gives_the_same_snapshot(tmp):
     png(tmp / "demo" / "icon.png")
     ri, icon = path_asset("Interface/AddOns/Demo/icon")
@@ -198,6 +211,7 @@ TESTS = [
     test_no_extract_prints_the_note_once,
     test_bad_input_exits_2,
     test_font_assets_copy_addon_fonts_only,
+    test_font_assets_copy_only_ttf_and_otf,
     test_resolve_twice_gives_the_same_snapshot,
 ]
 
