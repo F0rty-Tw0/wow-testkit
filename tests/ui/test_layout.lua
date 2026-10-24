@@ -101,6 +101,19 @@ local function test_too_few_constraints_give_no_rect_assumed() -- (LY5)
   end)
 end
 
+local function test_an_axis_with_no_size_and_one_anchor_gives_no_rect_whatever_the_other_axis_holds_assumed() -- (LY5)
+  HL.withLayout(SCREEN, function(w)
+    local r = root()
+    local heightOnly, widthOnly = frame(r), frame(r)
+    heightOnly:SetHeight(30)
+    heightOnly:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 10, 10)
+    A.eq(Layout.rect(w, heightOnly), nil) -- no width: a height must not stand in for it
+    widthOnly:SetWidth(30)
+    widthOnly:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", 10, 10)
+    A.eq(Layout.rect(w, widthOnly), nil)
+  end)
+end
+
 local function test_an_anchor_to_a_region_without_a_rect_gives_no_rect()
   HL.withLayout(SCREEN, function(w)
     local nowhere, f = frame(), frame()
@@ -257,6 +270,7 @@ return function()
   test_two_opposite_anchors_set_the_size_and_beat_an_explicit_size()
   test_left_and_right_anchors_with_a_height_place_a_strip_assumed()
   test_too_few_constraints_give_no_rect_assumed()
+  test_an_axis_with_no_size_and_one_anchor_gives_no_rect_whatever_the_other_axis_holds_assumed()
   test_an_anchor_to_a_region_without_a_rect_gives_no_rect()
   test_offsets_and_sizes_are_in_the_regions_own_scale_space()
   test_a_size_the_user_set_comes_back_exactly()

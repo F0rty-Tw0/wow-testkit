@@ -51,6 +51,19 @@ local function test_size_comes_from_two_anchors_and_ignore_rect_reads_the_set_si
   end)
 end
 
+local function test_a_height_alone_does_not_stand_in_for_the_width() -- (LY5, LY13)
+  HF.withFrameXML("retail", function()
+    local f = _G.CreateFrame("Frame", nil, _G.UIParent)
+    f:SetHeight(30)
+    A.same({ f:GetSize() }, { 0, 30 })
+    A.eq(f:GetWidth(true), 0)
+    f:SetPoint("BOTTOMLEFT", 10, 10) -- one anchor and only a height: no width, so no rect
+    A.eq(select("#", f:GetRect()), 0)
+    A.eq(f:GetWidth(), 0)
+    A.eq(f:GetHeight(), 30)
+  end)
+end
+
 local function test_a_size_without_anchors_still_reads_back()
   HF.withFrameXML("retail", function()
     local f = _G.CreateFrame("Frame", nil, _G.UIParent)
@@ -184,6 +197,7 @@ return function()
   test_edges_center_and_rect_come_from_the_anchors()
   test_a_region_with_no_rect_returns_nothing()
   test_size_comes_from_two_anchors_and_ignore_rect_reads_the_set_size()
+  test_a_height_alone_does_not_stand_in_for_the_width()
   test_a_size_without_anchors_still_reads_back()
   test_scaled_rect_multiplies_the_rect_by_the_effective_scale()
   test_screen_rect_is_pixels_from_the_top_left()

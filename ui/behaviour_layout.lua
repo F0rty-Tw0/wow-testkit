@@ -129,7 +129,12 @@ local function sizeOf(w, obj, st, axis, ignoreRect)
   if rect then
     return rect[axis == "x" and "width" or "height"]
   end
-  local set = axis == "x" and st.width or st.height
+  local set
+  if axis == "x" then
+    set = st.width
+  else
+    set = st.height
+  end
   if set then
     return set
   end

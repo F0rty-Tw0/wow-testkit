@@ -75,6 +75,20 @@ local function test_without_anchors_get_width_and_height_report_the_text_size_as
   end)
 end
 
+local function test_a_height_alone_leaves_the_width_to_the_text_assumed() -- (LY10)
+  HL.withLayout(SCREEN, function(w)
+    local r = root()
+    local fs = text(r, "Hello world foo bar") -- 19 characters * 5 = 95 wide
+    fs:SetHeight(20)
+    fs:SetPoint("TOPLEFT", r, "TOPLEFT")
+    near(fs:GetWidth(), 95) -- not the 20 of the height
+    A.eq(Layout.wrapWidth(w, fs), nil) -- no width was set: nothing to wrap at
+    near(fs:GetStringHeight(), 11.5) -- one line
+    near(Layout.rect(w, fs).width, 95)
+    near(Layout.rect(w, fs).height, 20)
+  end)
+end
+
 local function test_text_and_font_changes_refresh_the_size()
   HL.withLayout(SCREEN, function(w)
     local r = root()
@@ -93,5 +107,6 @@ return function()
   test_an_explicit_width_wins_over_the_text_width()
   test_two_anchors_fix_the_width_and_the_text_wraps_in_it_assumed()
   test_without_anchors_get_width_and_height_report_the_text_size_assumed()
+  test_a_height_alone_leaves_the_width_to_the_text_assumed()
   test_text_and_font_changes_refresh_the_size()
 end

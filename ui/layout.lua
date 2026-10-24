@@ -54,7 +54,12 @@ end
 
 -- The size set on an axis, when it counts.
 local function explicitSize(st, axis)
-  local size = axis == "x" and st.width or st.height
+  local size
+  if axis == "x" then
+    size = st.width
+  else
+    size = st.height
+  end
   return size and size > 0 and size or nil
 end
 
