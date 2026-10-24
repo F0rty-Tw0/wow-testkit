@@ -8,6 +8,7 @@ local M = {}
 
 local BehaviourRender = require("ui.behaviour_render")
 local Callsite = require("ui.callsite")
+local Measure = require("ui.measure")
 
 -- Method names whose call changes layout; ui/widgets.lua bumps the version before running them.
 M.MUTATORS = {}
@@ -51,10 +52,33 @@ function M.invalidate(w, _)
   w.layout.version = w.layout.version + 1
 end
 
--- The size set on an axis, when it counts (Task 1.6 extends this for FontStrings).
+-- The size set on an axis, when it counts.
 local function explicitSize(st, axis)
   local size = axis == "x" and st.width or st.height
   return size and size > 0 and size or nil
+end
+
+-- source: row LY10 is assumed (no source states the rule). A FontString's text size, in its own units, on one axis
+-- (height wraps at wrap, nil = one line per paragraph); nil for any other region. The font is region:GetFont()
+-- (inherited from font objects), size 12 when none.
+function M.autoSize(w, region, axis, wrap)
+  local st = w.ui.state[region]
+  if not (st and st.plan.isA.fontstring) then
+    return nil
+  end
+  local file, size, flags = region:GetFont()
+  size = tonumber(size) or Measure.DEFAULT_FONT_SIZE
+  if axis == "x" then
+    return Measure.width(w, file, size, flags, region:GetText())
+  end
+  return Measure.height(w, file, size, flags, region:GetText(), wrap)
+end
+
+-- The width wrapped text breaks at: the explicit width, or the width two opposite anchors fix (anchorWidth, units).
+-- nil when word wrap is off (SetWordWrap(false)) or the width would come from the text.
+local function wrapOf(st, anchorWidth)
+  local wrapOff = st.values.WordWrap and st.values.WordWrap[1] == false
+  return not wrapOff and (anchorWidth or explicitSize(st, "x")) or nil
 end
 
 -- assumed (row LY3): the screen target is the physical screen rect, whatever the region's scale.
@@ -65,7 +89,7 @@ local function targetPixels(w, anchor)
     return screen and { left = 0, bottom = 0, right = screen.width, top = screen.height }
   end
   local targetState = w.ui.state[target]
-  return targetState and M.entry(w, targetState).pixel
+  return targetState and M.entry(w, target).pixel
 end
 
 -- Where anchor lands in pixels, with the anchor point's alignments; nil when the point name or the target is bad.
@@ -134,7 +158,7 @@ local function clampShift(w, st, pixel, scale)
   return axisShift(left, right, w.screen.width, false), axisShift(bottom, top, w.screen.height, true)
 end
 
-local function compute(w, st)
+local function compute(w, region, st)
   -- source: row LY7: offsets and sizes are in the region's own scale space, scale multiplies down the parent chain.
   local scale = BehaviourRender.effectiveScale(w, st)
   if scale <= 0 then
@@ -147,8 +171,11 @@ local function compute(w, st)
       return nil
     end
   end
-  local left, right, widthSet = solveAxis(points, "x", "ax", explicitSize(st, "x"), scale)
-  local bottom, top, heightSet = solveAxis(points, "y", "ay", explicitSize(st, "y"), scale)
+  local width = explicitSize(st, "x") or M.autoSize(w, region, "x")
+  local left, right, widthSet = solveAxis(points, "x", "ax", width, scale)
+  local wrap = wrapOf(st, left and not widthSet and (right - left) / scale)
+  local height = explicitSize(st, "y") or M.autoSize(w, region, "y", wrap)
+  local bottom, top, heightSet = solveAxis(points, "y", "ay", height, scale)
   if not (left and bottom) then
     return nil
   end
@@ -159,15 +186,20 @@ local function compute(w, st)
     rect = {
       left = left / scale,
       bottom = bottom / scale,
-      width = widthSet and st.width or (right - left) / scale,
-      height = heightSet and st.height or (top - bottom) / scale,
+      width = widthSet and width or (right - left) / scale,
+      height = heightSet and height or (top - bottom) / scale,
     },
+    wrap = wrap,
   }
 end
 
--- The cache entry { version, pixel, rect } of a region state, recomputed when its version is stale.
-function M.entry(w, st)
+-- The cache entry { version, pixel, rect, wrap } of a region, recomputed when its version is stale.
+function M.entry(w, region)
   local layout = w.layout
+  local st = w.ui.state[region]
+  if not st then
+    return NO_RECT
+  end
   local hit = layout.cache[st]
   if hit and hit.version == layout.version then
     return hit
@@ -176,24 +208,29 @@ function M.entry(w, st)
     return NO_RECT
   end
   resolving[st] = true
-  local result = compute(w, st) or NO_RECT
+  local result = compute(w, region, st) or NO_RECT
   resolving[st] = nil
-  hit = { version = layout.version, pixel = result.pixel, rect = result.rect }
+  hit = { version = layout.version, pixel = result.pixel, rect = result.rect, wrap = result.wrap }
   layout.cache[st] = hit
   return hit
 end
 
-local function entryOf(w, region)
-  local st = w.ui.state[region]
-  return st and M.entry(w, st) or NO_RECT
-end
-
 function M.pixelRect(w, region)
-  return entryOf(w, region).pixel
+  return M.entry(w, region).pixel
 end
 
 function M.rect(w, region)
-  return entryOf(w, region).rect
+  return M.entry(w, region).rect
+end
+
+-- The width region's text wraps at, in region units (wrapOf); nil without a state or when it comes from the text.
+function M.wrapWidth(w, region)
+  local entry = M.entry(w, region)
+  if entry.rect then
+    return entry.wrap
+  end
+  local st = w.ui.state[region]
+  return st and wrapOf(st)
 end
 
 -- { x, y, width, height } in physical pixels, origin top-left, or nil without a rect (index.md Cross-phase interface).

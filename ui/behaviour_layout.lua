@@ -123,25 +123,29 @@ function methods.SetHeight(_, _, st, height)
 end
 
 -- source: row LY13 (`ignoreRect`, default false), row LY5/LY6: with ignoreRect only the size the addon set counts;
--- otherwise a valid rect's size, else the set size, else 0.
-local function sizeOf(w, obj, st, field, ignoreRect)
+-- otherwise a valid rect's size, else the set size, else a FontString's text size (row LY10), else 0.
+local function sizeOf(w, obj, st, axis, ignoreRect)
   local rect = not ignoreRect and Layout.rect(w, obj)
   if rect then
-    return rect[field]
+    return rect[axis == "x" and "width" or "height"]
   end
-  return st[field] or 0
+  local set = axis == "x" and st.width or st.height
+  if set then
+    return set
+  end
+  return not ignoreRect and Layout.autoSize(w, obj, axis, Layout.wrapWidth(w, obj)) or 0
 end
 
 function methods.GetWidth(w, obj, st, ignoreRect)
-  return sizeOf(w, obj, st, "width", ignoreRect)
+  return sizeOf(w, obj, st, "x", ignoreRect)
 end
 
 function methods.GetHeight(w, obj, st, ignoreRect)
-  return sizeOf(w, obj, st, "height", ignoreRect)
+  return sizeOf(w, obj, st, "y", ignoreRect)
 end
 
 function methods.GetSize(w, obj, st, ignoreRect)
-  return sizeOf(w, obj, st, "width", ignoreRect), sizeOf(w, obj, st, "height", ignoreRect)
+  return sizeOf(w, obj, st, "x", ignoreRect), sizeOf(w, obj, st, "y", ignoreRect)
 end
 
 -- Rect ---------------------------------------------------------------------------------------------------------

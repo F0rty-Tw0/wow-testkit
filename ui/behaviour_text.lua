@@ -2,7 +2,7 @@
 -- A FontString or Font without its own font or text color reads it through its font object chain.
 local M = {}
 
-local Metrics = require("ui.metrics_placeholder")
+local Layout = require("ui.layout")
 
 local unpack = unpack
 
@@ -34,11 +34,6 @@ local function inherited(w, st, field)
     st = st.fontObject and w.ui.state[st.fontObject]
   end
   return nil
-end
-
-local function fontSize(w, st)
-  local font = inherited(w, st, "font")
-  return tonumber(font and font[2]) or Metrics.DEFAULT_FONT_SIZE
 end
 
 local function color(r, g, b, a)
@@ -97,12 +92,14 @@ function methods.GetTextColor(w, _, st)
   return unpack(inherited(w, st, "textColor") or WHITE, 1, COLOR_FIELDS)
 end
 
-function methods.GetStringWidth(w, _, st)
-  return Metrics.stringWidth(st.text, fontSize(w, st))
+-- Through Layout.autoSize (ui/measure.lua underneath): the font chain, size 12 when none, and wrapped at the
+-- width the anchors or SetWidth fix.
+function methods.GetStringWidth(w, obj)
+  return Layout.autoSize(w, obj, "x")
 end
 
-function methods.GetStringHeight(w, _, st)
-  return Metrics.stringHeight(fontSize(w, st))
+function methods.GetStringHeight(w, obj)
+  return Layout.autoSize(w, obj, "y", Layout.wrapWidth(w, obj))
 end
 
 -- Status bars and sliders -------------------------------------------------------------------------------------
