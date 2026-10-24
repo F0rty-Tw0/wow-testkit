@@ -303,6 +303,17 @@ local function test_default_out_folder_avoids_windows_device_names_and_trailing_
   })
 end
 
+-- %w and %d match bytes of a windows locale's letters and digits, which would let COM followed by a superscript one
+-- (a device name to windows) through as it is; the folder uses ASCII letters and digits only, one "_" per byte.
+local function test_default_out_folder_maps_every_non_ascii_byte_to_an_underscore()
+  local names = { "Caf\195\169", "COM\194\185", "LPT\194\178.txt" }
+  A.same(defaultFolders(names), {
+    ["Caf\195\169"] = "Caf__",
+    ["COM\194\185"] = "COM__",
+    ["LPT\194\178.txt"] = "LPT__.txt",
+  })
+end
+
 local function test_addon_named_only_dots_asks_for_out()
   withExec(nil, function(calls)
     withHome(function(home)
@@ -397,6 +408,7 @@ return function()
   test_default_out_folder_replaces_unsafe_characters_in_the_addon_name()
   test_default_out_folder_never_runs_a_command_named_by_the_addon()
   test_default_out_folder_avoids_windows_device_names_and_trailing_dots()
+  test_default_out_folder_maps_every_non_ascii_byte_to_an_underscore()
   test_addon_named_only_dots_asks_for_out()
   test_explicit_out_the_shell_would_expand_exits_2()
   test_clean_addon_writes_snapshot_and_runs_resolve()
