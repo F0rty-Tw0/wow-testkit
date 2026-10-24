@@ -2,6 +2,8 @@
 -- else shell fallbacks (cmd.exe on Windows, POSIX tools elsewhere).
 local M = {}
 
+local Proc = require("proc")
+
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 local EACCES = 13
 -- Localized: addon code may assign a global named io or os. The tables, not their functions, so a test can still
@@ -12,8 +14,34 @@ local function host()
   return rawget(_G, "__tk_fs")
 end
 
+-- Why native cannot go inside double quotes for the shell fallbacks, or nil. sh is as strict as Proc.refusal. Inside
+-- cmd's quotes only a double quote or a line break ends the argument and %VAR% still expands; ! and ^ stay literal
+-- unless cmd runs with delayed expansion (registry DelayedExpansion=1), where !VAR! expands inside quotes too. That only
+-- changes the path text, so the call fails to find the folder instead of running anything. By default a folder such as
+-- !BugGrabber passes. A final backslash only matters to programs that parse their own command line; mkdir and dir do
+-- not.
+local function refusal(native)
+  if not IS_WINDOWS then
+    return Proc.refusal(native, false)
+  elseif native:find('"', 1, true) then
+    return "contains a double quote"
+  elseif native:find("[\r\n]") or native:find("\0", 1, true) then
+    return "contains a line break"
+  elseif native:find("%", 1, true) then
+    return "contains %, which windows cmd expands inside quotes"
+  end
+  return nil
+end
+
+-- path inside double quotes for the shell fallbacks. Raises when the shell would still expand something inside the
+-- quotes ($(...) on sh, %VAR% on cmd), since paths here can come from an addon's name.
 local function shellPath(path)
-  return '"' .. (IS_WINDOWS and path:gsub("/", "\\") or path) .. '"'
+  local native = IS_WINDOWS and path:gsub("/", "\\") or path
+  local reason = refusal(native)
+  if reason then
+    error("fs: path " .. reason .. ": " .. path:gsub("%c", "?"), 0)
+  end
+  return '"' .. native .. '"'
 end
 
 function M.readFile(path)

@@ -4,6 +4,7 @@ local A = require("assert")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 local Cli = require("bin.tk")
+local Preview = require("preview")
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local HOVER_FIXTURE = TEST_DIR .. "/fixtures/addons/Hover"
@@ -153,6 +154,53 @@ local function test_smoke_without_dir_exits_2()
   A.eq(code, 2)
 end
 
+local function test_preview_without_a_directory_exits_2()
+  local code, out = run({ "preview" })
+  A.contains(out, "usage")
+  A.contains(out, "tk preview")
+  A.eq(code, 2)
+end
+
+local function test_preview_bad_options_exit_2()
+  local bad = {
+    { "preview", "dir", "--bogus" },
+    { "preview", "dir", "--size", "12x" },
+    { "preview", "dir", "--size", "0x0" },
+    { "preview", "dir", "--flavor", "pandaria" },
+    { "preview", "dir", "--out" },
+    { "preview", "dir", "extra" },
+  }
+  for _, argv in ipairs(bad) do
+    local code, out = run(argv)
+    A.contains(out, "usage")
+    A.eq(code, 2)
+  end
+end
+
+-- Runs argv with Preview.run replaced by a recorder returning 7; returns the opts it got and the exit code.
+local function previewOpts(argv)
+  local saved, got = Preview.run, nil
+  Preview.run = function(opts)
+    got = opts
+    return 7
+  end
+  local ok, code = pcall(run, argv)
+  Preview.run = saved
+  assert(ok, code)
+  return got, code
+end
+
+local function test_preview_passes_the_parsed_options_to_preview_run()
+  local argv = { "preview", "dir/", "--flavor", "vanilla", "--scenario", "s.lua", "--size", "1280x720", "--out", "o", "--png", "p.png" }
+  local opts, code = previewOpts(argv)
+  A.eq(code, 7)
+  A.same(opts, { addonDir = "dir", flavor = "vanilla", scenario = "s.lua", size = { width = 1280, height = 720 }, out = "o", png = "p.png" })
+end
+
+local function test_preview_leaves_unset_options_to_the_defaults()
+  A.same(previewOpts({ "preview", "dir" }), { addonDir = "dir" })
+end
+
 return function()
   test_test_command_passes_the_hover_scenario()
   test_missing_golden_fails_until_update_writes_it()
@@ -167,4 +215,8 @@ return function()
   test_smoke_duplicate_flavor_runs_once()
   test_smoke_unknown_flavor_exits_2()
   test_smoke_without_dir_exits_2()
+  test_preview_without_a_directory_exits_2()
+  test_preview_bad_options_exit_2()
+  test_preview_passes_the_parsed_options_to_preview_run()
+  test_preview_leaves_unset_options_to_the_defaults()
 end

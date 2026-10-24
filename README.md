@@ -21,6 +21,52 @@ python tools/run51.py tests/test_assert.lua   # Lua 5.1 via lupa
 lua tests/run.lua tests/test_assert.lua       # system Lua
 ```
 
+## Previewing an addon
+
+```bash
+bin/tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]
+```
+
+Runs the addon on the fake client, then writes what it drew as `<out>/snapshot.json` (frames, textures and text),
+copies or stands in for its art under `<out>/assets/`, and with `--png` shoots the result with headless Chrome. Same
+prerequisites as the tests above; `--png` also needs Chrome (the Windows install path, `$CHROME`, or `chrome` /
+`google-chrome` / `chromium` on `PATH`).
+
+- `--flavor`: game flavor to run (default `retail`).
+- `--scenario`: a Lua file returning `{ run = function(s) ... end }`, like the files in `tests/fixtures/scenarios/`. Default: log in.
+  `s:snapshot` needs `tk test` and raises an error here.
+- `--size`: screen size, `WxH` (default `1920x1080`).
+- `--out`: output directory. Default `<home>/preview/<AddonName>`, where `<home>` is `$TESTKIT_HOME`, else
+  `%LOCALAPPDATA%/wow-testkit` (Windows), else `~/.cache/wow-testkit`. In `<AddonName>` every character outside
+  ASCII letters, digits, `_`, `.` and `-` becomes `_` (`!Foo` -> `_Foo`), a Windows device name such as `NUL` or `COM1` gets a
+  leading `_`, and a trailing dot becomes `_`; a name of only dots needs `--out`. A run deletes the previous
+  `snapshot.json` and the `--png` file first, so a failed run never leaves a stale picture.
+- `--png`: also write a PNG of the screen to this file. It must end in `.png` (any case), or the run exits `2` before
+  anything runs or is deleted.
+
+Exit codes: `0` clean; `1` the addon or scenario raised an error, or a step failed (the snapshot is still written);
+`2` bad usage, unreadable scenario, or the addon is not declared for the flavor.
+
+Shoot an existing output directory again, with a 1px outline and the name on every frame:
+
+```bash
+python tools/preview.py png <out> shot.png --outline [--size WxH]
+```
+
+To look at a snapshot in a browser, serve it with the viewer over http (the page fetches the snapshot, so a `file://`
+page will not do):
+
+```bash
+cp -r viewer <out>/viewer
+python -m http.server 8000 --bind 127.0.0.1 --directory <out>
+# open http://127.0.0.1:8000/viewer/index.html?snapshot=/snapshot.json
+```
+
+The page also takes `&zoom=1|fit|<n>`, `&bare=1` (no toolbar) and `&outline=1`.
+
+Limit: there is no Blizzard art yet. Textures from the game client show as labelled placeholders or flat stand-ins,
+and `tk preview` prints `note: no client extract`. Art that ships inside the addon is drawn as is.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Where each simulated client behavior comes from is in

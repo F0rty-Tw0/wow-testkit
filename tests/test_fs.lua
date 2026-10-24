@@ -113,7 +113,44 @@ local function test_exists_is_true_when_the_rename_probe_is_refused_with_eacces(
   A.same({ ok, found }, { true, true })
 end
 
+-- The shell fallbacks run paths through sh or cmd; one the shell would still expand inside double quotes must raise.
+local function test_shell_fallbacks_refuse_a_path_the_shell_would_expand()
+  local dir = tempDir()
+  local windows = package.config:sub(1, 1) == "\\"
+  local hostile = { dir .. '/a"b', windows and dir .. "/%TEMP%" or dir .. "/$(touch " .. dir .. "/pwned)" }
+  local bridge = rawget(_G, "__tk_fs")
+  rawset(_G, "__tk_fs", nil)
+  local failures = {}
+  for _, path in ipairs(hostile) do
+    for name, call in pairs({ mkdirp = fs.mkdirp, mkdir = fs.mkdir, list = fs.list }) do
+      local ok, err = pcall(call, path)
+      failures[#failures + 1] = ok and name .. " accepted " .. path or not tostring(err):find("fs: path ", 1, true) and tostring(err) or nil
+    end
+  end
+  rawset(_G, "__tk_fs", bridge)
+  A.same(failures, {})
+  A.eq(fs.exists(dir .. "/pwned"), false)
+end
+
+-- Inside cmd's double quotes ! and ^ are literal (unless delayed expansion is on) and inside sh's they are plain, so an
+-- addon folder such as !BugGrabber must list without the bridge too.
+local function test_shell_fallbacks_list_a_dir_named_with_bang_and_caret()
+  local dir = tempDir()
+  local named = dir .. "/!Foo^Bar"
+  fs.mkdirp(named)
+  fs.writeFile(named .. "/x.txt", "x")
+  local bridge = rawget(_G, "__tk_fs")
+  rawset(_G, "__tk_fs", nil)
+  local ok, listed = pcall(fs.list, named)
+  local made, created = pcall(fs.mkdir, named .. "/sub")
+  rawset(_G, "__tk_fs", bridge)
+  A.same({ ok, listed }, { true, { "x.txt" } })
+  A.same({ made, created }, { true, true })
+end
+
 return function()
+  test_shell_fallbacks_refuse_a_path_the_shell_would_expand()
+  test_shell_fallbacks_list_a_dir_named_with_bang_and_caret()
   test_exists_and_list_work_without_the_bridge_while_the_global_io_is_cleared()
   test_exists_is_true_when_the_rename_probe_is_refused_with_eacces()
   test_exists_finds_a_file_that_cannot_be_renamed()

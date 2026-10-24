@@ -1,0 +1,222 @@
+/* Page chrome follows the system theme; the stage is always the dark game canvas. */
+:root {
+  color-scheme: light dark;
+  --page: #eef0f3;
+  --ink: #1d2128;
+  --banner: #fde7e5;
+  --banner-ink: #8c1d18;
+  --canvas: #0b0c10;
+  --placeholder: #ff00ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #15171c;
+    --ink: #e6e8ec;
+    --banner: #3b1d1b;
+    --banner-ink: #ffb4ab;
+  }
+}
+
+body {
+  margin: 16px;
+  background: var(--page);
+  color: var(--ink);
+  font: 13px system-ui, sans-serif;
+}
+
+body.bare {
+  margin: 0;
+}
+
+body.bare #toolbar,
+body.bare #errors {
+  display: none;
+}
+
+#toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#toolbar button {
+  min-width: 32px;
+  font: inherit;
+}
+
+#status,
+#errors {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--banner);
+  color: var(--banner-ink);
+  white-space: pre-wrap;
+}
+
+#status[hidden],
+#errors[hidden] {
+  display: none;
+}
+
+#viewport {
+  position: relative;
+  overflow: hidden;
+}
+
+#stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas);
+  transform-origin: 0 0;
+  font-family: "Friz Quadrata TT", "Segoe UI", sans-serif;
+  color: #fff;
+}
+
+.item,
+.clip {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.clip {
+  overflow: hidden;
+}
+
+.texture {
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.placeholder {
+  border: 1px dashed var(--placeholder);
+  background: rgba(255, 0, 255, 0.12);
+}
+
+.texture.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.placeholder .label {
+  color: var(--placeholder);
+  font: 10px system-ui, sans-serif;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.fontstring {
+  display: flex;
+  flex-direction: column;
+}
+
+.fontstring .lines {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The width is the kit's text estimate, not an addon width: the stand-in font may be wider, so the text overflows
+   to the right of the rect instead of being clipped. A maxLines clamp keeps its overflow: hidden. */
+.fontstring .lines.auto:not(.clamped) {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.fontstring .lines.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
+
+.inline {
+  display: inline-block;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+}
+
+.text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.caret {
+  display: inline-block;
+  width: 1px;
+  height: 1.1em;
+  background: #fff;
+}
+
+.check {
+  position: absolute;
+  inset: 25%;
+  background: #ffd100;
+}
+
+.thumb {
+  position: absolute;
+  background: #c8c8c8;
+}
+
+.thumb.horizontal {
+  top: 0;
+  width: 8px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.thumb.vertical {
+  left: 0;
+  width: 100%;
+  height: 8px;
+  transform: translateY(-50%);
+}
+
+.messages {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.line {
+  white-space: pre-wrap;
+}
+
+body.outlined .frame {
+  outline: 1px solid rgba(0, 255, 255, 0.7);
+}
+
+.name {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0 2px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #0ff;
+  font: 10px system-ui, sans-serif;
+  pointer-events: none;
+}

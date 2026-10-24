@@ -5,8 +5,11 @@
 -- prints failures first, then one line per scenario and flavor, the most common unscripted calls and the totals.
 -- `tk smoke <dir> [flavor...]` runs every addon folder in <dir> through the built-in smoke scenario and prints
 -- one scoreboard.
+-- `tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]` runs the addon, writes
+-- the render snapshot to <out>/snapshot.json and, with --png, a Chrome screenshot of it.
 local fs = require("fs")
 local Flavors = require("tools.flavors")
+local Preview = require("preview")
 local Scenario = require("scenario")
 local Smoke = require("smoke")
 local Toc = require("toc")
@@ -15,9 +18,12 @@ local Cli = {}
 
 local isModule = (...) == "bin.tk"
 
-local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...]\n"
+local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...]"
+  .. " | tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]\n"
 local EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 local UNSCRIPTED_TOP = 10
+local MAX_SIDE = 16384
+local PREVIEW_PATH_FLAGS = { ["--scenario"] = "scenario", ["--out"] = "out", ["--png"] = "png" }
 local SCENARIO_DIR = "/tests/scenarios"
 local SCENARIO_FILE = "^scn_(.+)%.lua$"
 local GOLDEN_WRITTEN = "^golden written: "
@@ -64,6 +70,63 @@ local function parseSmoke(argv)
     end
   end
   return { dir = dir:gsub("\\", "/"):gsub("(.)/+$", "%1"), flavors = #flavors > 0 and flavors or nil }
+end
+
+local function slashes(path)
+  return (path:gsub("\\", "/"):gsub("(.)/+$", "%1"))
+end
+
+-- { width, height } from "WxH" (both in 1..MAX_SIDE), or nil.
+local function parseSize(text)
+  local width, height = text:match("^(%d+)x(%d+)$")
+  width, height = tonumber(width), tonumber(height)
+  if width and height and width >= 1 and height >= 1 and width <= MAX_SIDE and height <= MAX_SIDE then
+    return { width = width, height = height }
+  end
+  return nil
+end
+
+-- Sets opts for one preview flag from value; returns an error message or nil.
+local function setPreviewFlag(opts, flag, value)
+  if flag == "--flavor" then
+    if not pcall(Flavors.get, value) then
+      return "unknown flavor '" .. value .. "'; flavors: " .. table.concat(Flavors.list, ", ")
+    end
+    opts.flavor = value
+  elseif flag == "--size" then
+    opts.size = parseSize(value)
+    if not opts.size then
+      return "--size needs WxH with both sides from 1 to " .. MAX_SIDE .. ", got '" .. value .. "'"
+    end
+  else
+    opts[PREVIEW_PATH_FLAGS[flag]] = slashes(value)
+  end
+  return nil
+end
+
+-- { addonDir, flavor?, scenario?, size?, out?, png? } from argv[2..], or nil plus a message.
+local function parsePreview(argv)
+  local dir = argv[2]
+  if not dir or dir:sub(1, 2) == "--" then
+    return nil, "preview needs an addon directory"
+  end
+  local opts, i = { addonDir = slashes(dir) }, 3
+  while i <= #argv do
+    local flag = argv[i]
+    if flag ~= "--flavor" and flag ~= "--size" and not PREVIEW_PATH_FLAGS[flag] then
+      return nil, "unknown option '" .. flag .. "'"
+    end
+    i = i + 1
+    if not argv[i] then
+      return nil, flag .. " needs a value"
+    end
+    local err = setPreviewFlag(opts, flag, argv[i])
+    if err then
+      return nil, err
+    end
+    i = i + 1
+  end
+  return opts
 end
 
 local function scenarioPaths(root)
@@ -195,12 +258,23 @@ local function smokeCommand(argv, write)
   return Smoke.run(opts, write)
 end
 
+local function previewCommand(argv, write)
+  local opts, err = parsePreview(argv)
+  if not opts then
+    write(err .. "\n" .. USAGE)
+    return EXIT_USAGE
+  end
+  return Preview.run(opts, write)
+end
+
 -- Runs argv (without the program name); all output goes through write. Returns the exit code.
 function Cli.main(argv, write)
   if argv[1] == "test" then
     return testCommand(argv, write)
   elseif argv[1] == "smoke" then
     return smokeCommand(argv, write)
+  elseif argv[1] == "preview" then
+    return previewCommand(argv, write)
   end
   write(USAGE)
   return EXIT_USAGE

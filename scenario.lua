@@ -26,6 +26,7 @@ local CONTAINS_BINDINGS = false
 local Scenario = {}
 Scenario.__index = Scenario
 require("scenario_input").extend(Scenario)
+require("scenario_preview").extend(Scenario)
 
 -- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor
 -- as skipped instead of failed.
@@ -49,10 +50,10 @@ local function installWorld(w)
   FrameXML.installStage1(w)
 end
 
--- opts: { addon, root, flavor, saved, config, golden? = { root, scenario, update } }. s.ns / s.info exist only
--- after s:login. With golden, s:snapshot checks goldens under golden.root and the world runs in golden mode.
+-- opts: { addon, root, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario, update } }.
+-- s.ns / s.info exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden mode.
 function M.new(opts)
-  local w = World.new({ flavor = opts.flavor })
+  local w = World.new({ flavor = opts.flavor, screen = opts.screen })
   local ok, err = pcall(installWorld, w)
   if not ok then
     w:destroy()
@@ -67,6 +68,7 @@ function M.new(opts)
     root = opts.root,
     saved = opts.saved,
     config = opts.config,
+    previewOpts = opts.preview,
     goldenRoot = golden.root,
     scenarioName = golden.scenario,
     update = golden.update,
@@ -248,7 +250,7 @@ end
 -- One flavor: a thrown error from fn is recorded in the world (so it fails the report), except SKIPPED; the world
 -- is always destroyed.
 local function runFlavor(flavor, fn, opts)
-  local newOpts = { addon = opts.addon, root = opts.root, flavor = flavor, saved = opts.saved, config = opts.config, golden = opts.golden }
+  local newOpts = setmetatable({ flavor = flavor }, { __index = opts })
   local okNew, s = pcall(M.new, newOpts)
   if not okNew then
     return failedReport(flavor, s, nil)
@@ -265,7 +267,7 @@ local function runFlavor(flavor, fn, opts)
   return report
 end
 
--- Runs fn(s) on each flavor with a fresh scenario built from opts { addon, root, saved, config, golden }.
+-- Runs fn(s) on each flavor with a fresh scenario built from opts (M.new's, without flavor).
 -- Returns { [flavor] = report }.
 function M.matrix(flavors, fn, opts)
   local results = {}

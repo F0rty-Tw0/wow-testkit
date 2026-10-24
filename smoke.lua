@@ -139,17 +139,24 @@ local function hasToc(root)
   return false
 end
 
--- Direct subfolders of dir holding at least one .toc, except the client's own Blizzard_ addons; sorted.
+-- Direct subfolders of dir holding at least one .toc, except the client's own Blizzard_ addons; sorted. Second value:
+-- { name, reason } for each folder skipped because listing it raised (without the fs bridge on windows the shell
+-- fallback refuses a path such as "50%Off").
 function M.addonFolders(dir)
-  local folders = {}
+  local folders, skipped = {}, {}
   for _, name in ipairs(fs.list(dir)) do
     local root = dir .. "/" .. name
-    if name:sub(1, #BLIZZARD_PREFIX) ~= BLIZZARD_PREFIX and fs.isdir(root) and hasToc(root) then
-      folders[#folders + 1] = name
+    if name:sub(1, #BLIZZARD_PREFIX) ~= BLIZZARD_PREFIX and fs.isdir(root) then
+      local listed, found = pcall(hasToc, root)
+      if listed and found then
+        folders[#folders + 1] = name
+      elseif not listed then
+        skipped[#skipped + 1] = { name = name, reason = tostring(found) }
+      end
     end
   end
   table.sort(folders)
-  return folders
+  return folders, skipped
 end
 
 local function drive(s)
@@ -205,7 +212,10 @@ function M.run(opts, write)
     write("smoke: no such directory: " .. tostring(dir) .. "\n")
     return 2
   end
-  local folders = M.addonFolders(dir)
+  local folders, skipped = M.addonFolders(dir)
+  for _, folder in ipairs(skipped) do
+    write("smoke: skipped " .. folder.name .. ": " .. folder.reason .. "\n")
+  end
   if #folders == 0 then
     write("smoke: no addon folders in " .. dir .. "\n")
     return 2
