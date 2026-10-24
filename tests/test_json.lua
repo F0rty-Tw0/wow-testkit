@@ -19,6 +19,11 @@ local function test_indent_option()
   A.eq(Json.encode({ a = { 1 } }, 2), '{\n  "a": [\n    1\n  ]\n}')
 end
 
+local function test_null_encodes_as_json_null_inside_lists_and_objects()
+  A.eq(Json.encode({ 1, Json.null, 3 }), "[1,null,3]")
+  A.eq(Json.encode({ a = Json.null }), '{"a":null}')
+end
+
 local function test_rejects_what_json_cannot_hold()
   A.errors(function()
     Json.encode(0 / 0)
@@ -35,5 +40,6 @@ return function()
   test_encodes_scalars_arrays_and_sorted_objects()
   test_escapes_strings()
   test_indent_option()
+  test_null_encodes_as_json_null_inside_lists_and_objects()
   test_rejects_what_json_cannot_hold()
 end

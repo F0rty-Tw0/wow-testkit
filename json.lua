@@ -1,6 +1,6 @@
 -- JSON encoder (pure Lua, 5.1 and 5.4). Keys are sorted so the output is stable. An empty table is an array unless
 -- Json.object marked it; a table with only keys 1..n is an array, one with only string keys an object, anything else
--- raises "json: mixed table".
+-- raises "json: mixed table". Json.null stands for a null inside a list or object (a bare nil would leave a hole).
 local M = {}
 
 local format, concat, sort = string.format, table.concat, table.sort
@@ -8,6 +8,8 @@ local format, concat, sort = string.format, table.concat, table.sort
 local EMPTY_OBJECTS = setmetatable({}, { __mode = "k" })
 
 local ESCAPES = { ['"'] = '\\"', ["\\"] = "\\\\", ["\n"] = "\\n", ["\r"] = "\\r", ["\t"] = "\\t", ["\b"] = "\\b", ["\f"] = "\\f" }
+
+M.null = {}
 
 -- Marks t as an object, so it encodes as {} when empty. Returns t.
 function M.object(t)
@@ -91,7 +93,7 @@ end
 
 function encode(value, indent)
   local kind = type(value)
-  if kind == "nil" then
+  if kind == "nil" or value == M.null then
     return "null"
   elseif kind == "boolean" then
     return tostring(value)
