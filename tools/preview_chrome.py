@@ -1,7 +1,7 @@
 """PNG of a render snapshot: serves the viewer and the output directory on 127.0.0.1, shoots the page with headless Chrome.
 
-Used through `python tools/preview.py png <out-dir> <png-file>`. Only viewer/ and the output directory are reachable
-(`..` refused, one Host check against DNS rebinding), and the server stops on every exit path. Chrome always runs
+Used through `python tools/preview.py png <out-dir> <png-file>`. Only viewer/, the output directory's snapshot.json and
+its assets/ are reachable (`..` refused, one Host check against DNS rebinding), and the server stops on every exit path. Chrome always runs
 with a private profile so it never attaches to the user's own browser.
 """
 
@@ -20,6 +20,8 @@ EXIT_OK, EXIT_USAGE, EXIT_NO_PNG = 0, 2, 3
 
 VIEWER_DIR = Path(__file__).resolve().parent.parent / "viewer"
 VIEWER_PREFIX = "/viewer/"
+SNAPSHOT_NAME = "snapshot.json"
+ASSETS_DIR = "assets"
 WINDOWS_CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 PATH_NAMES = ("chrome", "google-chrome", "chromium")
 CHROME_TIMEOUT = 60
@@ -52,6 +54,16 @@ def safe_file(root, rel):
     return target if inside and os.path.isfile(target) else None
 
 
+def out_file(out_dir, rel):
+    """The file the page may read from the output directory: snapshot.json or something under assets/. Nothing else
+    there (the log, a previous run's files, whatever the user keeps beside them) is served."""
+    if rel == SNAPSHOT_NAME:
+        return safe_file(out_dir, rel)
+    if rel.startswith(ASSETS_DIR + "/"):
+        return safe_file(os.path.join(out_dir, ASSETS_DIR), rel[len(ASSETS_DIR) + 1 :])
+    return None
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
@@ -67,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(raw).path
         if path.startswith(VIEWER_PREFIX):
             return safe_file(VIEWER_DIR, path[len(VIEWER_PREFIX) :])
-        return safe_file(self.server.out_dir, path[1:])
+        return out_file(self.server.out_dir, path[1:])
 
     def reply(self, send_body):
         if not self.host_allowed():
@@ -92,7 +104,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def start_server(out_dir):
-    """Serves viewer/ at /viewer/ and out_dir at / on a random port of 127.0.0.1; the server runs on a thread."""
+    """Serves viewer/ at /viewer/ and out_dir's snapshot.json and assets/ at / on a random port of 127.0.0.1; the
+    server runs on a thread."""
     server = ThreadingHTTPServer((HOST, 0), Handler)
     server.daemon_threads = True
     server.out_dir = str(out_dir)

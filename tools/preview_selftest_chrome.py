@@ -100,6 +100,22 @@ def test_server_serves_only_viewer_and_out_dir(tmp):
         assert get(server, "http://evil.example/snapshot.json") in (403, 404)
 
 
+def test_server_serves_only_the_snapshot_and_assets_from_the_out_dir(tmp):
+    out = tmp / "out"
+    write_snapshot(out)
+    (out / "assets").mkdir()
+    (out / "assets" / "a.png").write_bytes(b"PNG")
+    (out / ".step.log").write_text("log", encoding="utf-8")
+    (out / "notes.txt").write_text("notes", encoding="utf-8")
+    (out / "1-start").mkdir()
+    (out / "1-start" / "snapshot.json").write_text("{}", encoding="utf-8")
+    with served(out) as server:
+        assert get(server, "/snapshot.json") == 200
+        assert get(server, "/assets/a.png") == 200
+        for other in ("/.step.log", "/notes.txt", "/1-start/snapshot.json", "/assets", "/assets/", "/assets/missing.png"):
+            assert get(server, other) == 404, other
+
+
 def test_server_refuses_a_foreign_host_header(tmp):
     write_snapshot(tmp)
     with served(tmp) as server:
@@ -114,12 +130,13 @@ def test_server_does_not_follow_a_link_out_of_the_out_dir(tmp):
     (outside / "secret.txt").write_text("secret", encoding="utf-8")
     out = tmp / "out"
     write_snapshot(out)
+    (out / "assets").mkdir()
     try:
-        (out / "link").symlink_to(outside, target_is_directory=True)
+        (out / "assets" / "link").symlink_to(outside, target_is_directory=True)
     except OSError:
         raise Skip("no symlink privilege on this machine")
     with served(out) as server:
-        assert get(server, "/link/secret.txt") == 404
+        assert get(server, "/assets/link/secret.txt") == 404
 
 
 def test_png_defaults_size_to_the_snapshot_and_outline_adds_the_flag(tmp, monkeypatch):
@@ -202,6 +219,7 @@ def test_png_matches_hand_known_pixels(tmp):
 TESTS = [
     test_chrome_args,
     test_server_serves_only_viewer_and_out_dir,
+    test_server_serves_only_the_snapshot_and_assets_from_the_out_dir,
     test_server_refuses_a_foreign_host_header,
     test_server_does_not_follow_a_link_out_of_the_out_dir,
     test_png_defaults_size_to_the_snapshot_and_outline_adds_the_flag,
