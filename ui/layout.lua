@@ -42,10 +42,8 @@ local ALIGN = {
 
 local NO_RECT = {}
 
--- w.layout.resolving: the states being resolved right now. A re-entrant resolve of one region means its data holds a
--- cycle (SetPoint refuses them): that region has no rect.
 function M.install(w)
-  w.layout = { version = 0, cache = setmetatable({}, { __mode = "k" }), resolving = {} }
+  w.layout = { version = 0, cache = setmetatable({}, { __mode = "k" }) }
 end
 
 -- Clears the cached rects of region and everything depending on it: one counter clears every region's cache.
@@ -89,20 +87,20 @@ local function wrapOf(st, anchorWidth)
 end
 
 -- assumed (row LY3): the screen target is the physical screen rect, whatever the region's scale.
-local function targetPixels(w, anchor)
+local function targetPixels(w, anchor, resolving)
   local target = anchor[2]
   if target == nil then
     local screen = w.screen
     return screen and { left = 0, bottom = 0, right = screen.width, top = screen.height }
   end
   local targetState = w.ui.state[target]
-  return targetState and M.entry(w, target).pixel
+  return targetState and M.entry(w, target, resolving).pixel
 end
 
 -- Where anchor lands in pixels, with the anchor point's alignments; nil when the point name or the target is bad.
-local function anchorPosition(w, anchor, scale)
+local function anchorPosition(w, anchor, scale, resolving)
   local own, relative = ALIGN[anchor[1]], ALIGN[anchor[3]]
-  local box = own and relative and targetPixels(w, anchor)
+  local box = own and relative and targetPixels(w, anchor, resolving)
   if not box then
     return nil
   end
@@ -165,7 +163,7 @@ local function clampShift(w, st, pixel, scale)
   return axisShift(left, right, w.screen.width, false), axisShift(bottom, top, w.screen.height, true)
 end
 
-local function compute(w, region, st)
+local function compute(w, region, st, resolving)
   -- source: row LY7: offsets and sizes are in the region's own scale space, scale multiplies down the parent chain.
   local scale = BehaviourRender.effectiveScale(w, st)
   if scale <= 0 then
@@ -173,7 +171,7 @@ local function compute(w, region, st)
   end
   local points = {}
   for i, anchor in ipairs(st.points) do
-    points[i] = anchorPosition(w, anchor, scale)
+    points[i] = anchorPosition(w, anchor, scale, resolving)
     if not points[i] then
       return nil
     end
@@ -200,8 +198,11 @@ local function compute(w, region, st)
   }
 end
 
--- The cache entry { version, pixel, rect, wrap } of a region, recomputed when its version is stale.
-function M.entry(w, region)
+-- The cache entry { version, pixel, rect, wrap } of a region, recomputed when its version is stale. resolving is the
+-- set of states being resolved by this top-level call (the caller passes none, nested resolves of anchor targets
+-- pass it down): a re-entrant resolve of one region means its data holds a cycle (SetPoint refuses them), so that
+-- region has no rect. The set is local to the call, so an error or a yield leaves nothing behind.
+function M.entry(w, region, resolving)
   local layout = w.layout
   local st = w.ui.state[region]
   if not st then
@@ -211,16 +212,13 @@ function M.entry(w, region)
   if hit and hit.version == layout.version then
     return hit
   end
-  if layout.resolving[st] then
+  resolving = resolving or {}
+  if resolving[st] then
     return NO_RECT
   end
-  layout.resolving[st] = true
-  local ok, result = pcall(compute, w, region, st)
-  layout.resolving[st] = nil
-  if not ok then
-    error(result, 0)
-  end
-  result = result or NO_RECT
+  resolving[st] = true
+  local result = compute(w, region, st, resolving) or NO_RECT
+  resolving[st] = nil
   hit = { version = layout.version, pixel = result.pixel, rect = result.rect, wrap = result.wrap }
   layout.cache[st] = hit
   return hit
