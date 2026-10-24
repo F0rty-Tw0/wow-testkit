@@ -1,6 +1,7 @@
 -- A number the addon stored (NaN, infinity, a nil argument) must not stop Json.encode from writing the snapshot:
 -- a rect that cannot be placed is listed as unplaced, any other bad value becomes null.
 local A = require("assert")
+local Finite = require("render_finite")
 local H = require("tests.helpers.render")
 local Json = require("json")
 local Render = require("render")
@@ -132,6 +133,61 @@ local function test_a_stored_list_with_a_small_hole_keeps_its_length()
   end)
 end
 
+-- A table that holds itself (directly or through another) would recurse forever; the table already being copied
+-- reads null where it comes back.
+local function test_a_stored_table_that_contains_itself_encodes_with_null_where_it_repeats()
+  local own = {}
+  own.self = own
+  local a, b = {}, {}
+  a.b, b.a = b, a
+  H.withRender(function(w)
+    frame("OwnHost"):CreateTexture("OwnTex"):SetAllPoints()
+    _G.OwnTex:SetBlendMode(own)
+    frame("LoopHost"):CreateTexture("LoopTex"):SetAllPoints()
+    _G.LoopTex:SetBlendMode(a)
+    local snap = encoded(w)
+    A.same(H.item(snap, "OwnTex").blendMode, { self = Json.null })
+    A.same(H.item(snap, "LoopTex").blendMode, { b = { a = Json.null } })
+  end)
+end
+
+-- Children shared between levels (v = { v, v } twenty-two deep) are a handful of tables but 2^22 copies, and a chain
+-- of 90000 nested tables overflows the stack; the work is bounded, tables past the limits read null, and the rest of
+-- the snapshot is untouched.
+local function test_a_stored_table_with_shared_children_or_deep_nesting_is_copied_within_a_bound()
+  local shared, deep = { 1 }, { 1 }
+  for _ = 1, 22 do
+    shared = { shared, shared }
+  end
+  for _ = 1, 90000 do
+    deep = { deep }
+  end
+  H.withRender(function(w)
+    for i, stored in ipairs({ shared, deep }) do
+      frame("BoundHost" .. i):CreateTexture("BoundTex" .. i):SetAllPoints()
+      _G["BoundTex" .. i]:SetBlendMode(stored)
+    end
+    frame("AfterBound")
+    local started = os.clock()
+    local snap, text = encoded(w)
+    A.truthy(os.clock() - started < 5, "scrub stays fast")
+    A.truthy(#text < 2000000, "snapshot stays small: " .. #text)
+    A.same(H.rect(snap, "AfterBound"), { x = 955, y = 535, width = 10, height = 10 })
+    A.eq(type(H.item(snap, "BoundTex1").blendMode), "table")
+    A.eq(type(H.item(snap, "BoundTex2").blendMode), "table")
+  end)
+end
+
+-- Only repeat copies and nesting are limited: a snapshot of many different tables is copied whole.
+local function test_scrub_copies_many_distinct_tables_whole()
+  local list = {}
+  for i = 1, 30000 do
+    list[i] = { i, { i } }
+  end
+  local copy = Finite.scrub(list)
+  A.same({ #copy, copy[30000][2][1] }, { 30000, 30000 })
+end
+
 local function test_an_empty_assets_table_still_encodes_as_an_object()
   H.withRender(function(w)
     A.contains(select(2, encoded(w)), '"assets":{}')
@@ -147,5 +203,8 @@ return function()
   test_negative_infinite_alpha_encodes_as_null()
   test_a_sparse_or_mixed_stored_table_encodes_as_null()
   test_a_stored_list_with_a_small_hole_keeps_its_length()
+  test_a_stored_table_that_contains_itself_encodes_with_null_where_it_repeats()
+  test_a_stored_table_with_shared_children_or_deep_nesting_is_copied_within_a_bound()
+  test_scrub_copies_many_distinct_tables_whole()
   test_an_empty_assets_table_still_encodes_as_an_object()
 end
