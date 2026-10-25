@@ -184,4 +184,8 @@ class CascStore:
 
 
 def open_store(install, product):
-    return CascStore(Path(install), product)
+    """Raises CascError for any config or table this reader cannot use, so callers catch one type."""
+    try:
+        return CascStore(Path(install), product)
+    except (KeyError, ValueError, IndexError, struct.error, casc_blte.BlteError, casc_blte.Unreadable) as err:
+        raise CascError(f"malformed build config or table ({type(err).__name__}: {err})") from err

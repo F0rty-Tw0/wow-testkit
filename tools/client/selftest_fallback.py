@@ -71,6 +71,19 @@ def test_failed_casc_open_prints_the_fallback_hint(tmp):
     assert lines[1].endswith("then rerun with --from-export")
 
 
+def test_build_config_without_encoding_prints_the_fallback_hint(tmp):
+    inst = fakes.write_install(tmp / "wow", {"wow": [(fakes.ENUS, 0, {})]})
+    (config,) = [path for path in (inst / "Data" / "config").rglob("*") if path.is_file()]
+    config.write_text("".join(line for line in config.read_text().splitlines(True) if "encoding" not in line))
+    out, err = io.StringIO(), io.StringIO()
+    with env(TESTKIT_HOME=str(tmp / "home"), TESTKIT_WOW_DIR=str(inst)):
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["extract", "--listfile", str(fakes.write_listfile(tmp, {}))])
+    lines = err.getvalue().splitlines()
+    assert code == 1 and lines[0].startswith("error: CASC store unreadable: ") and "encoding" in lines[0], err.getvalue()
+    assert lines[1].startswith("fallback: "), lines
+
+
 def test_repo_tracks_no_blp_ttf_otf_db2(tmp):
     tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True).stdout
     assert [name for name in tracked.splitlines() if BLIZZARD_BYTES.search(name)] == []
@@ -82,5 +95,6 @@ TESTS = [
     test_missing_export_dir_is_an_error_naming_the_commands,
     test_export_without_globalstrings_lua_says_so_not_a_listfile_gap,
     test_failed_casc_open_prints_the_fallback_hint,
+    test_build_config_without_encoding_prints_the_fallback_hint,
     test_repo_tracks_no_blp_ttf_otf_db2,
 ]
