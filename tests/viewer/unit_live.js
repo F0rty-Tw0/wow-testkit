@@ -1,6 +1,7 @@
 // Live mode against a fake backend (unit_live.html?live=1): the session is down for the first snapshot and the first
 // two info calls, then a stream hello names server "a", a console line arrives, the server restarts as "b" (hello with
-// a new boot, its seq and console lines from 1 again) and sends its own line 2 and snapshot 2. Writes PASS/FAIL lines
+// a new boot, its seq and console lines from 1 again) and sends its own line 2 and snapshot 2. Each console backlog
+// answers late, after a stream line newer than its own lines (and, on "b", one it also holds). Writes PASS/FAIL lines
 // into #out like unit.js, for check_unit.py.
 window.TK = window.TK || {};
 
@@ -11,7 +12,11 @@ window.TK = window.TK || {};
   const marks = { beforeSnapshot2: 0 };
   const attached = [];
   const server = { boot: 'a', seq: 5, snapshotFailures: 1, infoFailures: 2 };
-  const LINES = { a: [{ seq: 1, kind: 'print', text: 'old-1' }], b: [{ seq: 1, kind: 'print', text: 'new-1' }] };
+  const NEW_2 = { seq: 2, kind: 'print', text: 'new-2' };
+  const LINES = { a: [{ seq: 1, kind: 'print', text: 'old-1' }], b: [{ seq: 1, kind: 'print', text: 'new-1' }, NEW_2] };
+  // ms each server's console backlog takes to answer: "a" is asked at load and answers after old-2 (400 ms) streams,
+  // "b" is asked at its hello (600 ms) and answers after new-2 (800 ms) streams.
+  const BACKLOG_MS = { a: 500, b: 250 };
   const INFO = { ok: true, flavors: ['retail', 'vanilla'], flavor: 'retail', addon: 'X', loads: 1, errors: 0 };
 
   function down(field) {
@@ -23,7 +28,11 @@ window.TK = window.TK || {};
   const ANSWERS = {
     snapshot: () => (down('snapshotFailures') ? null : { screen: { width: 100, height: 100 }, items: [], session: { seq: server.seq } }),
     info: () => (down('infoFailures') ? null : { ...INFO, screen: { width: 1920, height: 1080 }, seq: server.seq }),
-    console: () => ({ ok: true, lines: LINES[server.boot] }),
+    console: () => {
+      const lines = LINES[server.boot];
+
+      return new Promise((resolve) => setTimeout(() => resolve({ ok: true, lines }), BACKLOG_MS[server.boot]));
+    },
   };
 
   function call(method) {
@@ -55,7 +64,7 @@ window.TK = window.TK || {};
     const out = document.getElementById('out');
     check(out, 'live attaches the pointer and keys on the first snapshot drawn', attached, ['pointer', 'keys']);
     check(out, "a restart lets the new server's lower seq draw", TK.state.seq, 2);
-    check(out, "console reloads after a restart and keeps the new server's lines", texts('#console .line'), [
+    check(out, 'console merges a late backlog with earlier stream lines by seq, across a restart', texts('#console .line'), [
       'old-1',
       'old-2',
       'new-1',
@@ -76,13 +85,13 @@ window.TK = window.TK || {};
       Object.assign(server, { boot: 'b', seq: 1 });
       emit('hello', { boot: 'b' });
     });
-    at(800, () => emit('console', { seq: 2, kind: 'print', text: 'new-2' }));
+    at(800, () => emit('console', NEW_2));
     at(900, () => {
       marks.beforeSnapshot2 = calls.length;
       server.seq = 2;
       emit('snapshot', { seq: 2 });
     });
-    at(1000, report);
+    at(1200, report);
   }
 
   spy('pointer', 'pointer');

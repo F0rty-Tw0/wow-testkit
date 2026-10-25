@@ -66,11 +66,18 @@ local function renameProbe(path)
   return ok ~= nil or code == EACCES
 end
 
--- Moves the file from onto to, replacing a file already there. Windows' rename refuses an existing target, so that
--- target is removed first and the rename retried: a crash between the two leaves the data only in from.
+-- Moves the file from onto to, replacing a file already there: atomically through the bridge (Python's os.replace).
+-- Without it, Windows' rename refuses an existing target, so there that target is removed first and the rename
+-- retried: a crash between the two leaves the data only in from. Elsewhere os.rename already replaces.
 function M.rename(from, to)
+  local bridge = host()
+  if bridge then
+    bridge.replace(from, to)
+    return
+  end
   local ok, err = os.rename(from, to)
-  if not ok and M.exists(to) then
+  local refused = not ok and IS_WINDOWS
+  if refused and M.exists(to) then
     assert(os.remove(to))
     ok, err = os.rename(from, to)
   end

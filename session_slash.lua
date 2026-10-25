@@ -16,11 +16,13 @@ local function compile(w, code, name)
   local refusal = AddonEnv.binaryRefusal(code)
   if refusal then
     Console.push(w, "error", refusal)
+
     return nil
   end
   local chunk, err = loadstring(code, name)
   if not chunk then
     Console.push(w, "error", err)
+
     return nil
   end
   return setfenv(chunk, AddonEnv.newEnv(w))

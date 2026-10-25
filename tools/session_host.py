@@ -147,6 +147,7 @@ class LuaHost:
         self.cache = {}
         self.extract_dir = extract
         session_dir = Path(session_dir) if session_dir else session_dir_for(addon_dir)
+        self.session_dir = session_dir
         self.assets_dir = session_dir / "preview" / "assets"
         lua = run51.new_runtime(register_eval=False, register_builtins=False)
         root = KIT_ROOT.as_posix()

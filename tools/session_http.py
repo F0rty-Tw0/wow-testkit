@@ -17,51 +17,32 @@
 Every request is checked before it is routed: the Host header must name this server, a request with an Origin must come
 from this server's own page, and a POST must carry Content-Type: application/json. Every route but / and /viewer/* also
 needs the session's token, from the cookie or an X-Session-Token header (401 otherwise); a GET whose query carries
-token=<token> sets that cookie (HttpOnly, SameSite=Strict, named per port so two sessions keep their own).
+token=<token> sets that cookie (HttpOnly, SameSite=Strict, named per port so two sessions keep their own). The token is
+saved in the session folder, so a restarted server accepts the cookie its viewer holds. Every reply carries
+Referrer-Policy: no-referrer. At most MAX_CONNECTIONS connections are served at once.
 """
 
 import hmac
 import json
-import os
 import queue
 import re
 import secrets
+import threading
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import parse_qs, urlsplit
+
+import session_files
 
 KEEPALIVE_SECONDS = 15
+# Connections served at once. timeout bounds one read, not a request, so a client that trickles a header line every few
+# seconds holds its thread for as long as it likes; past this many, a new connection is closed unanswered.
+MAX_CONNECTIONS = 32
 MAX_BODY = 1 << 20
 VIEWER_URL = "/viewer/index.html?live=1&zoom=fit"
 CALL_PATH = re.compile(r"^/call/([a-z]+)$")
 READ_ONLY = ("/tree", "/events", "/dev")
 REST_METHODS = {"/input": "input", "/fire": "fire", "/slash": "slash", "/state": "state", "/reload": "reload"}
-CONTENT_TYPES = {
-    ".html": "text/html; charset=utf-8",
-    ".js": "text/javascript; charset=utf-8",
-    ".css": "text/css; charset=utf-8",
-    ".json": "application/json",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".ttf": "font/ttf",
-    ".otf": "font/otf",
-}
-
-
-def _static_file(root, relative):
-    """The file under root that the url remainder names, or None unless its real path stays inside root."""
-    relative = unquote(relative)
-    if not relative or "\0" in relative or ":" in relative:
-        return None
-    real_root = os.path.realpath(root)
-    target = os.path.realpath(os.path.join(real_root, relative))
-    try:
-        inside = os.path.commonpath([real_root, target]) == real_root
-    except ValueError:  # another drive
-        return None
-    return Path(target) if inside and os.path.isfile(target) else None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -69,10 +50,15 @@ class Handler(BaseHTTPRequestHandler):
 
     server_version = "wow-testkit-session"
     timeout = 30  # seconds a socket may stall before its handler gives up, so a silent client cannot hold a thread
-    grant = False  # the request's query carries the token: the reply sets the session cookie
+    grant = False  # the request passed every check with the token in its query: the reply sets the session cookie
 
     def log_message(self, format, *args):  # noqa: A002  (the base class's name)
         pass
+
+    def end_headers(self):
+        """Every reply's headers end here, the base class's error replies too."""
+        self.send_header("Referrer-Policy", "no-referrer")
+        super().end_headers()
 
     # Replies ---------------------------------------------------------------------------------------------------
 
@@ -113,9 +99,11 @@ class Handler(BaseHTTPRequestHandler):
         return self._is_token(self.headers.get("X-Session-Token")) or bool(morsel and self._is_token(morsel.value))
 
     def _problem(self, post):
-        """(status, message) of the first check the request fails, or None."""
+        """(status, message) of the first check the request fails, or None. A request that passes them all with the
+        token in its query sets grant, so no refusal sets the cookie."""
         url = urlsplit(self.path)
-        self.grant = not post and self._is_token(parse_qs(url.query).get("token", [None])[0])
+        offered = parse_qs(url.query).get("token", [None])[0]
+        granting = not post and self._is_token(offered)
         port = self.server.server_address[1]
         host = (self.headers.get("Host") or "").lower()
         if host not in (f"127.0.0.1:{port}", f"localhost:{port}"):
@@ -126,8 +114,10 @@ class Handler(BaseHTTPRequestHandler):
         content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         if post and content_type != "application/json":
             return 415, "content type must be application/json"
-        if not (url.path.startswith("/viewer/") or self.grant or self._authorized()):
+        if not (url.path.startswith("/viewer/") or granting or self._authorized()):
             return 401, "no session token: open the URL session.py printed"
+        self.grant = granting
+
         return None
 
     def _guard(self, post=False):
@@ -146,6 +136,7 @@ class Handler(BaseHTTPRequestHandler):
         if 0 < length <= MAX_BODY:
             self.rfile.read(length)
         self._refuse(*problem)
+
         return False
 
     def _body(self):
@@ -235,11 +226,11 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json(200 if reply.get("ok") else 404, reply)
 
     def _static(self, root, relative):
-        found = _static_file(root, relative)
+        found = session_files.static_file(root, relative)
         if found is None:
             self._refuse(404, "not found")
             return
-        self._send(200, found.read_bytes(), CONTENT_TYPES.get(found.suffix.lower(), "application/octet-stream"))
+        self._send(200, found.read_bytes(), session_files.content_type(found))
 
     def _stream(self):
         bus = self.server.bus
@@ -249,7 +240,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            self.wfile.write(f"event: hello\ndata: {json.dumps({'boot': self.server.boot})}\n\n".encode("utf-8"))
+            hello = json.dumps({"boot": self.server.boot})
+            self.wfile.write(f"event: hello\ndata: {hello}\n\n".encode("utf-8"))
             self.wfile.flush()
             while True:
                 try:
@@ -273,8 +265,26 @@ class Handler(BaseHTTPRequestHandler):
 class Server(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port, host, bus, viewer_dir, assets_dir):
+    def __init__(self, port, host, bus, viewer_dir, assets_dir, token):
         super().__init__(("127.0.0.1", port), Handler)
         self.host, self.bus, self.viewer_dir, self.assets_dir = host, bus, viewer_dir, assets_dir
-        self.token = secrets.token_urlsafe(24)
+        self.token = token
         self.boot = secrets.token_hex(8)
+        self.slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
+
+    def process_request(self, request, client_address):
+        """Serves the connection on a new thread while a slot is free; closes it unanswered otherwise."""
+        if not self.slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.slots.release()

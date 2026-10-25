@@ -1,8 +1,9 @@
 // Console panel (live mode): the session's console lines (print, chat, error-frame, send, error, system), coloured by
 // kind or by the line's own r, g, b, kept scrolled to the newest unless the reader scrolled up, and a Clear button that
-// empties the view. It loads the lines so far, then appends each console event. A reload keeps the lines and their
-// seq (session_console.lua copies the ring); a restarted server (live.js's 'restart') numbers them from 1 again, so
-// the last seq resets and its lines load afresh. Classic script; colorOf is pure for tests/viewer/unit_panels.js.
+// empties the view. It loads the lines so far and takes each console event, merged by seq: a line shows once, in seq
+// order, whichever of the two brings it first. A reload keeps the lines and their seq (session_console.lua copies the
+// ring); a restarted server (live.js's 'restart') numbers them from 1 again, so the rows shown so far count as older
+// than all of its lines, and its lines load afresh. Classic script; colorOf is pure for tests/viewer/unit_panels.js.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -21,24 +22,47 @@ window.TK = window.TK || {};
 
   // DOM ------------------------------------------------------------------------------------------------------------
 
-  const ui = { seq: 0 };
+  // seen: the seqs of this server's lines taken so far, shown or cleared.
+  const ui = { seen: new Set() };
   const dom = {};
 
-  function addRow(kind, text, color) {
+  // The row a line of this seq goes before: the first of this server's rows with a higher seq, or null for the end.
+  function rowAfter(seq) {
+    let next = null;
+    for (let row = dom.lines.lastElementChild; row && row.dataset.seq !== undefined; row = row.previousElementSibling) {
+      const rowSeq = Number(row.dataset.seq);
+      if (rowSeq < seq) break;
+      next = row;
+    }
+
+    return next;
+  }
+
+  // seq is undefined for the panel's own lines, which go at the end.
+  function addRow(kind, text, color, seq) {
     const atBottom = dom.lines.scrollTop + dom.lines.clientHeight >= dom.lines.scrollHeight - 4;
     const row = document.createElement('li');
     row.className = 'line ' + kind;
     row.textContent = text;
     if (color) row.style.color = color;
-    dom.lines.append(row);
+    const next = seq === undefined ? null : rowAfter(seq);
+    if (seq !== undefined) row.dataset.seq = seq;
+    dom.lines.insertBefore(row, next);
     if (atBottom) dom.lines.scrollTop = dom.lines.scrollHeight;
   }
 
-  // Adds a session line once: the backlog and the stream may both carry it.
+  // Adds a session line once, in seq order: the backlog and the stream may both carry it, in either order.
   function append(line) {
-    if (line.seq <= ui.seq) return;
-    ui.seq = line.seq;
-    addRow(line.kind, line.text, panel.colorOf(line));
+    if (ui.seen.has(line.seq)) return;
+    ui.seen.add(line.seq);
+    addRow(line.kind, line.text, panel.colorOf(line), line.seq);
+  }
+
+  // A restarted server numbers its lines from 1: forget the old seqs, and the rows shown stay above its lines.
+  function restart() {
+    ui.seen = new Set();
+    dom.lines.querySelectorAll('[data-seq]').forEach((row) => row.removeAttribute('data-seq'));
+    loadLines();
   }
 
   function mount() {
@@ -72,10 +96,7 @@ window.TK = window.TK || {};
 
   function start() {
     TK.on('console', append);
-    TK.on('restart', () => {
-      ui.seq = 0;
-      loadLines();
-    });
+    TK.on('restart', restart);
     loadLines();
   }
 

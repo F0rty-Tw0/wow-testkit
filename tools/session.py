@@ -5,10 +5,11 @@
                             [--extract DIR] [--bindings FILE] [--no-watch]
     python tools/session.py --selftest
 
-Prints `session: http://127.0.0.1:<port>/?token=<token>` (the token every request but the viewer's files needs) and
-serves until Ctrl-C (exit 0). Exit 2 on a usage error or a --bind that is not 127.0.0.1: the session answers only the
-local machine. A save of a .lua, .xml or .toc file under the addon folder reloads the addon (--no-watch turns that
-off; a failed reload prints on stderr); SavedVariables are written at a reload and at shutdown.
+Prints `session: http://127.0.0.1:<port>/?token=<token>` (the token every request but the viewer's files needs, kept
+in the session folder so a restart on the same addon accepts the viewer's cookie) and serves until Ctrl-C (exit 0).
+Exit 2 on a usage error or a --bind that is not 127.0.0.1: the session answers only the local machine. A save of a
+.lua, .xml or .toc file under the addon folder reloads the addon (--no-watch turns that off; a failed reload prints on
+stderr); SavedVariables are written at a reload and at shutdown.
 """
 
 import argparse
@@ -55,6 +56,7 @@ def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, ex
     import threading
 
     import session_bus
+    import session_files
     import session_host
     import session_http
     import session_watch
@@ -62,7 +64,8 @@ def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, ex
     bus = session_bus.Bus()
     host = session_host.LuaHost(bus, os.path.abspath(addon_dir), flavor, size, extract, bindings)
     try:
-        server = session_http.Server(port, host, bus, VIEWER_DIR, host.assets_dir)
+        token = session_files.session_token(host.session_dir)
+        server = session_http.Server(port, host, bus, VIEWER_DIR, host.assets_dir, token)
     except OSError:
         host.shutdown()
         raise

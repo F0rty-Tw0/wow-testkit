@@ -1,5 +1,5 @@
 -- Inspector reads of a world: the widget tree (every frame, texture and font string, hidden and unplaced ones too, in
--- creation order) and one widget's properties. Like render.lua it reads kit state directly, never an addon-facing
+-- creation order), one widget's properties and the flavor's event list. Like render.lua it reads kit state directly, never an addon-facing
 -- method, so no addon code runs and w.unscripted stays as it was (tests/test_session_view.lua pins that).
 local M = {}
 
@@ -128,6 +128,30 @@ function M.frame(w, id)
   end
   props.render = renderItem(w, props.id)
   return Finite.scrub(props)
+end
+
+-- { name, type, nilable } per payload parameter of a manifest event; type is the parameter's Lua type.
+local function payloadOf(event)
+  local out = {}
+  for i, param in ipairs(event.payload or {}) do
+    out[i] = { name = param.name, type = param.lua, nilable = param.nilable }
+  end
+  return out
+end
+
+-- Every event of the flavor's API docs as { name, payload }, sorted by name.
+function M.events(w)
+  local events = w.manifest.events
+  local names = {}
+  for name in pairs(events) do
+    names[#names + 1] = name
+  end
+  table.sort(names)
+  local list = {}
+  for i, name in ipairs(names) do
+    list[i] = { name = name, payload = payloadOf(events[name]) }
+  end
+  return list
 end
 
 return M

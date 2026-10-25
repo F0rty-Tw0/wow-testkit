@@ -225,9 +225,23 @@ local function test_a_reload_that_cannot_rebuild_any_world_loses_the_session()
   end)
 end
 
+local function test_a_lost_session_reloads_once_a_world_can_be_built_again()
+  H.withHost(nil, function(host)
+    withFailingWorlds(2, function()
+      host:handleJson("reload", "{}")
+    end)
+    A.eq(Json.decode(host:handleJson("reload", '{"flavor":"nope"}')).ok, false)
+    A.eq(Json.decode(host:handleJson("snapshot", "{}")).error, "session lost: no world")
+    local reply = Json.decode(host:handleJson("reload", "{}"))
+    A.same({ reply.ok, host.lost, host.sess.closed }, { true, nil, nil })
+    A.eq(Json.decode(host:handleJson("slash", '{"text":"/sdemo alive"}')).handled, true)
+  end)
+end
+
 return function()
   test_a_reload_whose_world_fails_reopens_the_previous_options()
   test_a_reload_that_cannot_rebuild_any_world_loses_the_session()
+  test_a_lost_session_reloads_once_a_world_can_be_built_again()
   test_console_lines_reach_the_outbox()
   test_slash_reload_is_honoured_by_the_host()
   test_a_failed_slash_reload_keeps_the_session_and_says_why()

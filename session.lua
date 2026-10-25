@@ -43,15 +43,6 @@ local function folderName(root)
   return root:gsub("\\", "/"):match("([^/]+)/*$") or root
 end
 
-local function sortedKeys(t)
-  local keys = {}
-  for key in pairs(t) do
-    keys[#keys + 1] = key
-  end
-  table.sort(keys)
-  return keys
-end
-
 -- Logs the addon in (reloading: the way the client does after /reload). A skipped addon (not declared on the flavor, no
 -- TOC for it) records why in sess.skipped; any other failure is recorded in the world, so the snapshot lists it.
 -- Nothing raises.
@@ -87,15 +78,6 @@ local function infoOf(sess)
     errors = #w.errors,
     skipped = sess.skipped,
   }
-end
-
--- { name, type, nilable } per payload parameter of a manifest event; type is the parameter's Lua type.
-local function payloadOf(event)
-  local out = {}
-  for i, param in ipairs(event.payload or {}) do
-    out[i] = { name = param.name, type = param.lua, nilable = param.nilable }
-  end
-  return out
 end
 
 -- The binding API and the user's bindings file go in before the addon runs; its Bindings.xml loads after it.
@@ -173,6 +155,7 @@ function M.reload(sess, over)
     end
   end
   fresh.loads, fresh.seq = sess.loads + 1, sess.seq + 1
+
   return fresh, failure
 end
 
@@ -235,14 +218,8 @@ local METHODS = {
   console = function(sess, req)
     return { ok = true, lines = SessionConsole.since(sess.w, tonumber(req.since) or 0) }, false
   end,
-  -- Every event of the flavor's API docs with its payload parameters (type is the Lua type), sorted by name.
   events = function(sess)
-    local events = sess.w.manifest.events
-    local list = {}
-    for i, name in ipairs(sortedKeys(events)) do
-      list[i] = { name = name, payload = payloadOf(events[name]) }
-    end
-    return { ok = true, events = list }, false
+    return { ok = true, events = SessionView.events(sess.w) }, false
   end,
   tree = function(sess)
     local tree = SessionView.tree(sess.w)

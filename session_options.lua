@@ -115,7 +115,8 @@ function M.reopen(opts, over)
     out.flavor = over.flavor
   end
   if over.screen ~= nil then
-    if not fits(over.screen) then
+    local fitting = fits(over.screen)
+    if not fitting then
       error(SCREEN_ERROR, 0)
     end
     out.screen = over.screen

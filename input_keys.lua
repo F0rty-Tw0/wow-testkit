@@ -92,7 +92,8 @@ end
 function M.press(w, key, mods)
   key = key:upper()
   local box = w.input.editFocus
-  if box and box:IsVisible() then
+  local typing = box and box:IsVisible()
+  if typing then
     editKey(w, box, key)
 
     return { consumedBy = box }

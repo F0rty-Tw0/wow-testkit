@@ -1,28 +1,12 @@
-"""The session server's HTTP surface and its guards: routes, the Host/Origin/content-type checks, the session token,
-static files, the stream and the /run sandbox. Run through: python tools/session.py --selftest"""
+"""The session server's HTTP surface: routes, static files, the stream and /run's client globals (its guards are in
+session_selftest_guard.py). Run through: python tools/session.py --selftest"""
 
-import contextlib
-import http.client
-import io
 import json
 
 import run51
-import session
 import session_host
 import session_http
-from session_selftest import (
-    DEMO,
-    DEV_DEMO,
-    data_of,
-    get_json,
-    item,
-    open_stream,
-    post_json,
-    read_until,
-    request,
-    running,
-    testkit_home,
-)
+from session_selftest import DEV_DEMO, data_of, get_json, item, open_stream, post_json, read_until, request, running
 
 
 def test_snapshot_over_http(tmp):
@@ -31,77 +15,6 @@ def test_snapshot_over_http(tmp):
         assert snapshot["ver"] == 1
         assert item(snapshot, "SessionDemoFrame")
         assert snapshot["session"]["addon"] == "SessionDemo"
-
-
-def test_foreign_host_header_is_refused(tmp):
-    with running(tmp) as live:
-        for host, expected in (("evil.example", 403), (f"127.0.0.1:{live.port}", 200), (f"localhost:{live.port}", 200)):
-            conn = http.client.HTTPConnection("127.0.0.1", live.port, timeout=10)
-            conn.putrequest("GET", "/snapshot", skip_host=True)
-            conn.putheader("Host", host)
-            conn.putheader("X-Session-Token", live.token)
-            conn.endheaders()
-            status = conn.getresponse().status
-            conn.close()
-            assert status == expected, (host, status)
-
-
-def test_cross_origin_and_wrong_content_type_are_refused(tmp):
-    body = {"event": "PLAYER_REGEN_DISABLED"}
-    with running(tmp) as live:
-        assert request(live, "POST", "/fire", body, {"Origin": "http://evil.example"})[0] == 403
-        assert request(live, "POST", "/fire", body, {"Content-Type": "text/plain"})[0] == 415
-        assert request(live, "POST", "/fire", body, {"Origin": f"http://127.0.0.1:{live.port}"})[0] == 200
-        assert request(live, "POST", "/fire", body)[0] == 200
-
-
-def test_data_routes_need_the_token(tmp):
-    with running(tmp) as live:
-        for method, path, body in (
-            ("GET", "/snapshot", None),
-            ("GET", "/stream", None),
-            ("GET", "/assets/x.png", None),
-            ("POST", "/call/fire", {"event": "PLAYER_REGEN_DISABLED"}),
-            ("POST", "/slash", {"text": "/sdemo hi"}),
-            ("GET", "/", None),
-        ):
-            assert request(live, method, path, body, token=False)[0] == 401, path
-            assert request(live, method, path, body, {"X-Session-Token": live.token + "x"}, token=False)[0] == 401, path
-        assert request(live, "GET", "/viewer/index.html", token=False)[0] == 200
-
-
-def test_token_url_sets_the_cookie_and_the_cookie_works(tmp):
-    with running(tmp) as live:
-        assert live.url == f"http://127.0.0.1:{live.port}/?token={live.token}"
-        conn = http.client.HTTPConnection("127.0.0.1", live.port, timeout=10)
-        try:
-            conn.request("GET", "/?token=" + live.token)
-            reply = conn.getresponse()
-            location, cookie = reply.getheader("Location"), reply.getheader("Set-Cookie")
-        finally:
-            conn.close()
-        assert (reply.status, location) == (302, "/viewer/index.html?live=1&zoom=fit"), (reply.status, location)
-        name = f"tk_session_{live.port}"
-        assert cookie == f"{name}={live.token}; HttpOnly; SameSite=Strict; Path=/", cookie
-        sent = {"Cookie": f"{name}={live.token}"}
-        assert request(live, "GET", "/snapshot", headers=sent, token=False)[0] == 200
-        assert request(live, "POST", "/slash", {"text": "/sdemo hi"}, sent, token=False)[0] == 200
-        assert request(live, "GET", "/", headers=sent, token=False)[0] == 302
-        other = {"Cookie": f"tk_session_{live.port + 1}={live.token}"}
-        assert request(live, "GET", "/snapshot", headers=other, token=False)[0] == 401
-        assert request(live, "GET", "/snapshot", headers={"Cookie": "a=\"b"}, token=False)[0] == 401
-
-
-def test_non_loopback_bind_is_refused(tmp):
-    out, err = io.StringIO(), io.StringIO()
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        assert session.main(["--bind", "0.0.0.0", str(DEMO)]) == 2
-    assert "127.0.0.1" in err.getvalue(), err.getvalue()
-    shown = []
-    with contextlib.redirect_stdout(out), testkit_home(tmp):
-        assert session.main(["--bind", "127.0.0.1", str(DEMO)], wait=shown.append) == 0
-    printed = out.getvalue()
-    assert shown and printed.startswith(f"session: http://127.0.0.1:{shown[0].port}/?token={shown[0].token}"), printed
 
 
 def test_static_serving_is_confined(tmp):
@@ -206,7 +119,8 @@ def test_dev_endpoint(tmp):
         assert request(live, "POST", "/dev", {})[0] == 405
 
 
-def test_run_cannot_reach_python(tmp):
+def test_run_reads_no_host_bridge_global(tmp):
+    """Client fidelity, not a security boundary (addon code is trusted): the client has no python or __tk_fs."""
     with running(tmp) as live:
         stream = open_stream(live)
         code = "/run print(type(python), type(__tk_fs), type(rawget(_G, 'python')), type(getfenv(0).__tk_fs))"
@@ -214,7 +128,7 @@ def test_run_cannot_reach_python(tmp):
         _, data = read_until(stream, "event: console")
         assert data_of(data)["text"] == "nil nil nil nil", data
     lua = run51.new_runtime()
-    assert lua.execute("return python") is None
+    assert lua.execute("return python, package.loaded.python") == (None, None)
     for reach in ("return __tk_fs.list.__globals__", "__tk_fs.list.__doc__ = 'x'"):
         try:
             lua.execute(reach)
@@ -225,11 +139,6 @@ def test_run_cannot_reach_python(tmp):
 
 TESTS = [
     test_snapshot_over_http,
-    test_foreign_host_header_is_refused,
-    test_cross_origin_and_wrong_content_type_are_refused,
-    test_data_routes_need_the_token,
-    test_token_url_sets_the_cookie_and_the_cookie_works,
-    test_non_loopback_bind_is_refused,
     test_static_serving_is_confined,
     test_stream_says_hello_with_the_server_boot_id,
     test_stream_announces_changes,
@@ -240,5 +149,5 @@ TESTS = [
     test_tree_and_frame_endpoints,
     test_state_and_events_endpoints,
     test_dev_endpoint,
-    test_run_cannot_reach_python,
+    test_run_reads_no_host_bridge_global,
 ]

@@ -95,7 +95,8 @@ window.TK = window.TK || {};
   function fillFlavors(info) {
     if (ui.flavorsFilled || !info.flavors) return;
     ui.flavorsFilled = true;
-    dom.flavor.append(...info.flavors.map((name) => option(name, name)));
+    const options = info.flavors.map((name) => option(name, name));
+    dom.flavor.append(...options);
     dom.flavor.value = info.flavor;
   }
 

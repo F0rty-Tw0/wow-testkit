@@ -1,7 +1,8 @@
 """Tests of the session server, each against a real server on a free loopback port. Run: python tools/session.py --selftest
 
-This file holds the runner and the helpers; the tests live in session_selftest_http.py (the HTTP surface and its
-guards) and session_selftest_live.py (input, reloads, the watcher, assets and saved variables).
+This file holds the runner and the helpers; the tests live in session_selftest_guard.py (the guards, the token and the
+connection cap), session_selftest_http.py (the HTTP surface) and session_selftest_live.py (input, reloads, the watcher,
+assets and saved variables).
 """
 
 import contextlib
@@ -38,10 +39,10 @@ def testkit_home(tmp):
 
 
 @contextlib.contextmanager
-def running(tmp, addon=DEMO, watch=False, bindings=None):
+def running(tmp, addon=DEMO, watch=False, bindings=None, port=0):
     """A started session on `addon` (with a bindings file, if given) and a temp testkit home, always stopped."""
     with testkit_home(tmp):
-        live = session.start(str(addon), port=0, watch=watch, bindings=bindings)
+        live = session.start(str(addon), port=port, watch=watch, bindings=bindings)
         try:
             yield live
         finally:
@@ -151,11 +152,12 @@ def wait_for_loads(live, wanted, seconds=5):
 
 
 def run():
+    import session_selftest_guard
     import session_selftest_http
     import session_selftest_live
 
     passed = failed = 0
-    for test in session_selftest_http.TESTS + session_selftest_live.TESTS:
+    for test in session_selftest_guard.TESTS + session_selftest_http.TESTS + session_selftest_live.TESTS:
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 test(Path(tmp))

@@ -90,8 +90,9 @@ end
 -- frame drawn on top is the one hit.
 function M.frameKey(w, obj, st)
   local strata = methods.GetFrameStrata(w, obj, st)
+  local key = { STRATA[strata] or STRATA[DEFAULT_STRATA], methods.GetFrameLevel(w, obj, st), st.seq }
 
-  return { STRATA[strata] or STRATA[DEFAULT_STRATA], methods.GetFrameLevel(w, obj, st), st.seq }
+  return key
 end
 
 return M
