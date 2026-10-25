@@ -287,7 +287,7 @@ body.outlined .frame {
 }
 
 /* Side panels (live mode), right of the stage; viewer.js fitScale leaves room for them. The inspector fills the first
-   column; console, command line, events and mock state stack in the second. */
+   column above the developer panel; console, command line, events and mock state stack in the second. */
 #panels {
   display: grid;
   flex: none;
@@ -338,7 +338,13 @@ body.outlined .frame {
 
 #inspector {
   grid-column: 1;
-  grid-row: 1 / -1;
+  grid-row: 1 / 4;
+}
+
+#dev {
+  grid-column: 1;
+  grid-row: 4;
+  overflow-x: auto;
 }
 
 #console,
@@ -404,6 +410,52 @@ body.outlined .frame {
 
 #state textarea {
   resize: vertical;
+}
+
+#dev table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+#dev th,
+#dev td {
+  padding: 2px 3px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+#dev td {
+  white-space: nowrap;
+}
+
+#dev th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+#dev tbody tr {
+  cursor: pointer;
+}
+
+#dev tbody tr.selected {
+  background: var(--accent);
+}
+
+#dev .detail {
+  max-height: 25vh;
+  overflow: auto;
+}
+
+#dev h3 {
+  margin: 4px 0 2px;
+  font-size: 12px;
+}
+
+#dev ul {
+  margin: 0;
+  padding-left: 16px;
+  overflow-wrap: anywhere;
 }
 
 #inspector .pick[aria-pressed="true"] {

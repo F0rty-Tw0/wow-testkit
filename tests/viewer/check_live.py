@@ -107,6 +107,13 @@ def check_size_picker(root):
         raise AssertionError("status line %r" % text)
 
 
+def check_dev(root):
+    panel = element(root, "dev")
+    one(panel, lambda n: n.tag == "tr" and n.attrs.get("data-addon") == "SessionDemo", '#dev tr[data-addon="SessionDemo"]')
+    if "Memory (estimate)" not in panel.text():
+        raise AssertionError("no Memory (estimate) header in %r" % panel.text()[:200])
+
+
 # (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
     ("ready flag, live snapshot drawn", check_ready, 0),
@@ -118,6 +125,7 @@ CHECKS = [
     ("the keys, drag and wheel frames are drawn", check_input_frames, 0),
     ("toolbar #flavor lists auto then the five flavors", check_flavor_picker, 0),
     ("toolbar #size lists the presets and custom; the status line names the addon", check_size_picker, 0),
+    ("#dev lists SessionDemo under a Memory (estimate) header", check_dev, 0),
 ]
 
 

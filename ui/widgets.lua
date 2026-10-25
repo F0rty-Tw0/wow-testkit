@@ -165,6 +165,7 @@ local function create(w, typeName, name, parent)
   w.ui.seq = w.ui.seq + 1
   local st = { plan = class.plan, seq = w.ui.seq, name = name, shown = true, points = {}, values = {}, children = {}, regions = {} }
   w.ui.state[obj] = st
+  Callsite.credit(w, "widgets", typeName)
   Behaviour.setParent(w, obj, st, parent)
   if name ~= nil then
     w:rawWrite(_G, name, obj)

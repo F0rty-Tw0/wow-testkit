@@ -4,6 +4,7 @@ local Tmp = require("tests.helpers.tmp")
 local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local H = require("tests.helpers.world")
+local Xml = require("ui.xml")
 local fs = require("fs")
 
 local withWorld = H.withWorld
@@ -118,6 +119,54 @@ local function test_missing_toc_file_is_an_error_and_later_files_load()
   end)
 end
 
+-- Runs fn with Addon.gc recording its "stop" and "restart" calls (the real collectgarbage still runs); returns them.
+local function gcCalls(fn)
+  local gc, calls = Addon.gc, {}
+  Addon.gc = function(opt)
+    if opt ~= "count" then
+      calls[#calls + 1] = opt
+    end
+    return gc(opt)
+  end
+  local ok, err = pcall(fn)
+  Addon.gc = gc
+  if not ok then
+    error(err, 0)
+  end
+  return calls
+end
+
+local function test_the_gc_pauses_for_the_file_loop_only()
+  local calls = gcCalls(function()
+    withWorld("retail", function(w)
+      load(w, "Mini")
+    end)
+  end)
+  A.same(calls, { "stop", "restart" })
+end
+
+local function test_a_raising_file_still_restarts_the_gc()
+  local root = Tmp.dir("addon")
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Raise.toc", "## Interface: 120100\n\nRaise.xml\n")
+  local loadFile = Xml.loadFile
+  Xml.loadFile = function()
+    error("kit raised", 0)
+  end
+  local ok, err
+  local calls = gcCalls(function()
+    withWorld("retail", function(w)
+      ok, err = pcall(Addon.load, w, { name = "Raise", root = root })
+      A.eq(w.dev.loading, nil)
+      A.same(w.dev.loads, {})
+    end)
+  end)
+  Xml.loadFile = loadFile
+  A.eq(ok, false)
+  A.eq(err, "kit raised")
+  A.same(calls, { "stop", "restart" })
+end
+
 local function test_missing_xml_and_xml_script_are_errors()
   withWorld("retail", function(w)
     load(w, "Missing")
@@ -195,6 +244,8 @@ return function()
   test_outdated_interface_loads_with_a_report_line()
   test_ahead_interface_loads_with_a_report_line()
   test_missing_toc_file_is_an_error_and_later_files_load()
+  test_the_gc_pauses_for_the_file_loop_only()
+  test_a_raising_file_still_restarts_the_gc()
   test_missing_xml_and_xml_script_are_errors()
   test_long_chunk_name_error_keeps_full_source()
   test_apply_saved_sets_saved_variable_globals()

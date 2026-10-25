@@ -1,7 +1,8 @@
 -- Session: one addon logged into one flavor's world and kept alive, driven by wire requests (input, fire, slash, state)
--- and read as render snapshots, inspector views (tree, frame), console lines and the event list. call() answers with a
--- table, handle() with JSON; neither raises, so a bad request never ends the session. Only the holder swaps sessions
--- (Session.reload, or a /reload the slash method leaves in sess.pendingReload); session_host.lua is that holder.
+-- and read as render snapshots, inspector views (tree, frame), console lines, the event list and the developer report.
+-- call() answers with a table, handle() with JSON; neither raises, so a bad request never ends the session. Only the
+-- holder swaps sessions (Session.reload, or a /reload the slash method leaves in sess.pendingReload); session_host.lua
+-- is that holder.
 local M = {}
 
 local Bindings = require("bindings")
@@ -11,6 +12,7 @@ local Json = require("json")
 local Render = require("render")
 local Scenario = require("scenario")
 local SessionConsole = require("session_console")
+local SessionDev = require("session_dev")
 local SessionInput = require("session_input")
 local SessionOptions = require("session_options")
 local SessionSaved = require("session_saved")
@@ -242,6 +244,12 @@ local METHODS = {
       return { ok = false, error = "frame: no widget with id '" .. tostring(req.id) .. "'" }, false
     end
     return { ok = true, props = props }, false
+  end,
+  -- Per-addon load time, heap growth, widgets, unscripted calls and missing globals (session_dev.lua); a read.
+  dev = function(sess)
+    local report = SessionDev.report(sess.w)
+    report.ok = true
+    return report, false
   end,
 }
 

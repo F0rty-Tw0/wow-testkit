@@ -46,4 +46,36 @@ function M.level()
   end
 end
 
+-- The addon a kit call is credited to: nil outside addon context; else the <Name> of the nearest addon chunk
+-- (@addon:<Name>/<file>) on the stack, else the addon whose files are loading (w.dev.loading).
+function M.addon(w)
+  if not w:callerIsAddon() then
+    return nil
+  end
+  local level = 2
+  while true do
+    local info = getinfo(level, "S")
+    if not info then
+      return w.dev.loading
+    end
+    local name = info.source:match("^@addon:([^/]+)/")
+    if name then
+      return name
+    end
+    level = level + 1
+  end
+end
+
+-- Counts key once under w.dev[field][addon] for the addon M.addon credits; nothing outside addon context.
+function M.credit(w, field, key)
+  local addon = M.addon(w)
+  if not addon then
+    return
+  end
+  local byAddon = w.dev[field]
+  local counts = byAddon[addon] or {}
+  byAddon[addon] = counts
+  counts[key] = (counts[key] or 0) + 1
+end
+
 return M

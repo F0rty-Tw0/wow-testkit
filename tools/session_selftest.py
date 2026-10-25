@@ -18,7 +18,7 @@ import session_host
 import session_http
 
 ADDONS = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "addons"
-DEMO, CLICKY = ADDONS / "SessionDemo", ADDONS / "Clicky"
+DEMO, CLICKY, DEV_DEMO = ADDONS / "SessionDemo", ADDONS / "Clicky", ADDONS / "DevDemo"
 STREAM_WAIT = 3
 
 
@@ -325,6 +325,14 @@ def test_state_and_events_endpoints(tmp):
         assert status == 400 and "bogus" in reply["error"], (status, reply)
 
 
+def test_dev_endpoint(tmp):
+    with running(tmp, DEV_DEMO) as live:
+        report = get_json(live, "/dev")
+        addon = report["addons"][0]
+        assert (report["ok"], addon["name"], len(addon["missing"])) == (True, "DevDemo", 2), report
+        assert request(live, "POST", "/dev", {})[0] == 405
+
+
 def test_slash_reload_serves_changed_assets(tmp):
     root = temp_addon(tmp)
     with running(tmp, root) as live:
@@ -430,6 +438,7 @@ TESTS = [
     test_tree_and_frame_endpoints,
     test_console_events_stream,
     test_state_and_events_endpoints,
+    test_dev_endpoint,
     test_slash_reload_serves_changed_assets,
     test_file_save_reloads_and_keeps_saved_variables,
     test_unwatched_file_changes_do_not_reload,

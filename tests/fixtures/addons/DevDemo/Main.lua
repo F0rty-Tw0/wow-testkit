@@ -1,0 +1,8 @@
+local frame = CreateFrame("Frame", "DevDemoFrame", UIParent, "DevDemoNoSuchTemplate")
+CreateFrame("Button", nil, frame)
+frame:CreateTexture()
+frame:CreateFontString()
+frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+frame:SetScript("OnEvent", function()
+  CreateFrame("Frame")
+end)

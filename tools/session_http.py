@@ -5,6 +5,7 @@
     GET  /frame?id=<id>      one widget's properties: { ok, props }, or 404 { ok: false } for an unknown id
     GET  /events             the flavor's events with their payload parameters: { ok, events }
     GET  /state              the mock state: { ok, state }
+    GET  /dev                the developer report: { ok, addons, notes } (POST to /tree, /events or /dev is 405)
     POST /call/<method>      any method, through SessionHost:handleJson; the reply is always status 200
     POST /input /fire /slash /state /reload   the same calls for curl and the selftests (400 when the request is malformed)
                              (/reload takes { flavor?, size?, keepSaved? }; session_options.lua checks it, 400 if bad)
@@ -28,6 +29,7 @@ KEEPALIVE_SECONDS = 15
 MAX_BODY = 1 << 20
 QUEUE_SIZE = 256
 CALL_PATH = re.compile(r"^/call/([a-z]+)$")
+READ_ONLY = ("/tree", "/events", "/dev")
 REST_METHODS = {"/input": "input", "/fire": "fire", "/slash": "slash", "/state": "state", "/reload": "reload"}
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -175,7 +177,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(302, b"", "text/plain", [("Location", "/viewer/index.html?live=1&zoom=fit")])
         elif path == "/snapshot":
             self._send_json(200, self.server.host.snapshot_json())
-        elif path in ("/tree", "/events", "/state"):
+        elif path in READ_ONLY or path == "/state":
             self._send_json(200, self.server.host.call_json(path[1:], "{}"))
         elif path == "/frame":
             self._frame(parse_qs(url.query).get("id", [""])[0])
@@ -197,6 +199,8 @@ class Handler(BaseHTTPRequestHandler):
             self._call(call.group(1))
         elif path in REST_METHODS:
             self._rest(REST_METHODS[path])
+        elif path in READ_ONLY:
+            self._send(405, b'{"ok": false, "error": "method not allowed"}', "application/json", [("Allow", "GET")])
         else:
             self._refuse(404, "not found")
 
