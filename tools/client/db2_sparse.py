@@ -28,9 +28,9 @@ def read_field(rec, column, at):
     return (out if field.is_array else out[0]), at
 
 
-def rows(data, section, map_at, ids, fields, cols):
+def rows(data, section, map_at, ids, relations, fields, cols):
     """(id, row) for each map entry of `section`; `map_at` is where its offset map starts, `ids` the id list (empty
-    when the id is an inline field)."""
+    when the id is an inline field), `relations` {record number: foreign id}."""
     count = section.offset_map_ids
     if map_at + ENTRY.size * count > len(data):
         raise ValueError("DB2 offset map runs past the end of the file")
@@ -44,5 +44,5 @@ def rows(data, section, map_at, ids, fields, cols):
             return value
 
         record_id = ids[number] if ids else None
-        row = db2_fields.build_row(fields, cols, record_id, read)
+        row = db2_fields.build_row(fields, cols, record_id, read, relations.get(number, 0))
         yield (row[id_field.name] if record_id is None and id_field is not None else record_id), row

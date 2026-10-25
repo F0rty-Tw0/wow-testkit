@@ -104,7 +104,7 @@ def columns(data, head, stored):
     return [db2_fields.Column(f, i, b) for f, i, b in zip(stored, infos, db2_fields.blocks(infos, pallet, common))]
 
 
-def dense_rows(data, head, section, base, fields, cols, id_column, ids, strings):
+def dense_rows(data, head, section, base, fields, cols, id_column, ids, relations, strings):
     """(id, row) for each fixed-size record of `section`."""
     size = head.record_size
     for number in range(section.records):
@@ -113,22 +113,37 @@ def dense_rows(data, head, section, base, fields, cols, id_column, ids, strings)
         record_id = ids[number] if ids else None
         if record_id is None and id_column is not None:
             record_id = id_column.value(rec, None, at, strings)
-        row = db2_fields.build_row(fields, cols, record_id, lambda col: col.value(rec, record_id, at, strings))
+        row = db2_fields.build_row(
+            fields, cols, record_id, lambda col: col.value(rec, record_id, at, strings), relations.get(number, 0)
+        )
         yield record_id, row
+
+
+def relation_map(data, section, at):
+    """{record number: foreign id} from the relationship map at byte `at` (a count, the id range, then pairs)."""
+    if not section.relation_bytes:
+        return {}
+    if at + section.relation_bytes > len(data):
+        raise ValueError("DB2 relationship map runs past the end of the file")
+    count = struct.unpack_from("<I", data, at)[0]
+    return {index: foreign for foreign, index in struct.iter_unpack("<II", data[at + 12 : at + 12 + 8 * count])}
 
 
 def section_rows(data, head, section, base, fields, cols, id_column, strings):
     sparse = head.flags & SPARSE
     first = section.records_end if sparse else section.offset + section.records * head.record_size + section.strings
     copies = first + section.id_bytes
-    if copies + COPY.size * section.copies > len(data):
+    after_copies = copies + COPY.size * section.copies
+    if after_copies > len(data):
         raise ValueError("DB2 section runs past the end of the file")
     ids = struct.unpack_from(f"<{section.id_bytes // 4}I", data, first) if section.id_bytes else ()
     id_field = next((f for f in fields if "id" in f.flags), None)
     if sparse:
-        found = db2_sparse.rows(data, section, copies + COPY.size * section.copies, ids, fields, cols)
+        relations = relation_map(data, section, after_copies + db2_sparse.ENTRY.size * section.offset_map_ids)
+        found = db2_sparse.rows(data, section, after_copies, ids, relations, fields, cols)
     else:
-        found = dense_rows(data, head, section, base, fields, cols, id_column, ids, strings)
+        relations = relation_map(data, section, after_copies)
+        found = dense_rows(data, head, section, base, fields, cols, id_column, ids, relations, strings)
     by_id = {}
     for record_id, row in found:
         by_id[record_id] = row

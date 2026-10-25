@@ -56,6 +56,16 @@ def sparse_record(fields, row):
     return out
 
 
+def relation_map(fields, rows):
+    """The relationship map for a noninline relation field: (foreign id, record index) per row, under a small header."""
+    field = next((f for f in fields if "relation" in f.flags and "noninline" in f.flags), None)
+    if field is None:
+        return b""
+    pairs = [(row[field.name], index) for index, row in enumerate(rows)]
+    head = struct.pack("<III", len(pairs), min((p[0] for p in pairs), default=0), max((p[0] for p in pairs), default=0))
+    return head + b"".join(struct.pack("<II", *pair) for pair in pairs)
+
+
 def make_sparse(fields, rows, layout_hash, copies):
     """WDC5 bytes whose records are an offset map: the id list holds the ids of a noninline ID, else the ID is a
     field of each record."""
@@ -67,6 +77,7 @@ def make_sparse(fields, rows, layout_hash, copies):
     copy_table = b"".join(struct.pack("<II", new, old) for new, old in copies)
     head_size = 4 + 4 + 128 + struct.calcsize(HEADER) + 40 + 4 * len(stored) + 24 * len(stored)
     ends = [sum(map(len, records[:n])) for n in range(len(records) + 1)]
+    relation = relation_map(fields, rows)
     offset_map = b"".join(struct.pack("<IH", head_size + ends[n], len(rec)) for n, rec in enumerate(records))
     body = b"".join(records)
     ids_total = [row[id_field.name] for row in rows]
@@ -77,7 +88,7 @@ def make_sparse(fields, rows, layout_hash, copies):
         1 | (4 if noninline else 0), 0,
         len(stored), 0, 0, 24 * len(stored), 0, 0, 1,
     )  # fmt: skip
-    section = struct.pack("<Q8I", 0, head_size, len(rows), 0, head_size + len(body), len(ids), 0, len(rows), len(copies))
+    section = struct.pack("<Q8I", 0, head_size, len(rows), 0, head_size + len(body), len(ids), len(relation), len(rows), len(copies))
     structure = b"".join(struct.pack("<hH", 0, 0) for _ in stored)
     cursor, storage = 0, b""
     for field in stored:
@@ -85,7 +96,7 @@ def make_sparse(fields, rows, layout_hash, copies):
         storage += struct.pack("<HHII3I", cursor, bits, 0, 0, 0, 0, 0)
         cursor += bits
     prefix = b"WDC5" + struct.pack("<I", 5) + b"test".ljust(128, b"\0")
-    return prefix + header + section + structure + storage + body + ids + copy_table + offset_map
+    return prefix + header + section + structure + storage + body + ids + copy_table + offset_map + relation
 
 
 def make_wdc5(fields, rows, layout_hash=0, compression=None, copies=(), locked_rows=0, sparse=False):
@@ -129,11 +140,12 @@ def make_wdc5(fields, rows, layout_hash=0, compression=None, copies=(), locked_r
     strings = bytes(table["bytes"])
     ids = b"".join(struct.pack("<I", row[id_name]) for row in rows) if noninline else b""
     copy_table = b"".join(struct.pack("<II", new, old) for new, old in copies)
+    relation = relation_map(fields, rows)
     locked_ids = bytes(4 * locked_rows) if noninline else b""
     sections = 2 if locked_rows else 1
     head_size = 4 + 4 + 128 + struct.calcsize(HEADER) + 40 * sections + 4 * len(stored) + 24 * len(stored)
     start = head_size + len(pallet) + len(common)
-    body = records + strings + ids + copy_table
+    body = records + strings + ids + copy_table + relation
     id_index = stored.index(id_field) if id_field in stored else 0
     ids_total = [row[id_name] for row in rows]
     header = struct.pack(
@@ -143,7 +155,7 @@ def make_wdc5(fields, rows, layout_hash=0, compression=None, copies=(), locked_r
         4 if noninline else 0, id_index,
         len(stored), 0, 0, 24 * len(stored), len(common), len(pallet), sections,
     )  # fmt: skip
-    headers = struct.pack("<Q8I", 0, start, len(rows), len(strings), 0, len(ids), 0, 0, len(copies))
+    headers = struct.pack("<Q8I", 0, start, len(rows), len(strings), 0, len(ids), len(relation), 0, len(copies))
     if locked_rows:
         headers += struct.pack("<Q8I", 0x1234, start + len(body), locked_rows, 0, 0, len(locked_ids), 0, 0, 0)
     structure = b"".join(struct.pack("<hH", 0, 0) for _ in stored)

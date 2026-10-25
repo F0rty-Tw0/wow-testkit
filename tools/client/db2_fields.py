@@ -99,11 +99,14 @@ class Column:
         return out if self.field.is_array else out[0]
 
 
-def build_row(fields, cols, record_id, read):
-    """{field name: value} in DBD order; `read(column)` yields each stored field, a noninline field takes the id."""
+def build_row(fields, cols, record_id, read, relation=0):
+    """{field name: value} in DBD order; `read(column)` yields each stored field. A noninline relation field takes
+    `relation` (the foreign id the relationship map gives this record), any other noninline field takes the id."""
     row, stored = {}, iter(cols)
     for field in fields:
-        if "noninline" in field.flags:
+        if "noninline" in field.flags and "relation" in field.flags:
+            row[field.name] = relation
+        elif "noninline" in field.flags:
             if record_id is None:
                 raise ValueError(f"{field.name}: no id list in the file")
             row[field.name] = record_id
