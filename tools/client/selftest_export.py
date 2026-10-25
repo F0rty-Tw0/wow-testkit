@@ -66,6 +66,11 @@ def test_db2_text_escapes_are_decoded_and_other_text_kept(tmp):
     assert ctx.notes == [], ctx.notes
 
 
+def test_db2_decimal_escapes_are_bytes_read_as_utf8(tmp):
+    assert strings.unescape(r"caf\195\169 \226\128\148") == "café —"  # a run of \ddd is one byte string
+    assert strings.unescape(r"\233t\0651\256") == "étA1\\256"  # not UTF-8: one char per byte; greedy; too large
+
+
 def test_a_globalstrings_lua_wins_over_the_db2(tmp):
     seed(GlobalStrings=GLOBAL_STRINGS)
     src = global_strings([row(1, "FROM_DB2", "x")])
@@ -195,6 +200,7 @@ TESTS = [
     test_strings_come_from_the_db2_when_there_is_no_lua,
     test_a_globalstrings_lua_wins_over_the_db2,
     test_db2_text_escapes_are_decoded_and_other_text_kept,
+    test_db2_decimal_escapes_are_bytes_read_as_utf8,
     test_missing_db2_or_dbd_is_a_note_not_an_error,
     test_locked_sections_yield_no_rows_and_are_counted,
     test_stale_dbd_cache_is_refreshed_once,

@@ -11,7 +11,8 @@ RUNNER = (
     "function(text) local chunk, err = loadstring(text, '=globalstrings'); if not chunk then error(err, 0) end; "
     "local env = {}; setfenv(chunk, env); chunk(); return env end"
 )
-LUA_ESCAPE = re.compile(r"\\(\d{1,3}|[abfnrtv\\\"'])")
+BYTE_ESCAPE = r"\\(?:\d{1,2}(?!\d)|[01]\d\d|2[0-4]\d|25[0-5])"  # Lua 5.1 \ddd: up to 3 digits, greedy, at most 255
+LUA_ESCAPE = re.compile(rf"((?:{BYTE_ESCAPE})+)|\\([abfnrtv\\\"'])")
 LUA_CHARS = {"a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
 ESCAPES = {'"': '\\"', "\\": "\\\\", "\n": "\\n", "\r": "\\r"}
 
@@ -45,13 +46,18 @@ def unescape(text):
     """DB2 TagText with its Lua escapes decoded. Retail 70575 mixes forms: `Abandon \\"%s\\"?` and `says:\\32` are
     escaped, `Message of the Day: "%s"` and KEY_BACKSLASH `\\` are not. So only Lua 5.1's escapes (\\n, \\", \\\\,
     \\ddd and the rest) are decoded, and any other backslash stays as written. That the client reads them the same
-    way is assumed: it would otherwise show a literal \\n in 382 strings."""
+    way is assumed: it would otherwise show a literal \\n in 382 strings. A \\ddd is a byte, as in Lua: a run of
+    them is read as UTF-8 (`caf\\195\\169` is café), or one char per byte when the run is not UTF-8; a \\ddd over
+    255 stays as written."""
 
     def decode(match):
-        code = match.group(1)
-        if code.isdigit():
-            return chr(int(code)) if int(code) < 256 else match.group(0)
-        return LUA_CHARS.get(code, code)
+        if match.group(1):
+            data = bytes(int(code) for code in match.group(1).split("\\")[1:])
+            try:
+                return data.decode("utf-8")
+            except UnicodeDecodeError:
+                return data.decode("latin-1")
+        return LUA_CHARS.get(match.group(2), match.group(2))
 
     return LUA_ESCAPE.sub(decode, text)
 
