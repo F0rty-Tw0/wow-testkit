@@ -105,6 +105,15 @@ def make_install(root, build_info):
     return root
 
 
+def write_export(flavor_dir, code=None, art=None):
+    """The folders `exportInterfaceFiles code|art` writes into a flavour folder, from {relative path: bytes}."""
+    for folder, files in (("BlizzardInterfaceCode", code), ("BlizzardInterfaceArt", art)):
+        for rel, data in (files or {}).items():
+            target = Path(flavor_dir) / folder / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+
+
 def write_listfile(tmp, names):
     """<tmp>/listfile.csv with `id;path` lines for {fileID: path}; returns its path."""
     path = Path(tmp) / "listfile.csv"

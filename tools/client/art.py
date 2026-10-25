@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from tools.client import casc, listfile, manifest, paths
+from tools.client import casc, fallback, listfile, manifest, paths
 from tools.client.casc_index import CascIndexError
 from tools.client.source import CascSource
 
@@ -65,6 +65,9 @@ def open_from_manifest(extract_dir):
     info = manifest.read(extract_dir)
     if not info.get("install") or not info.get("product"):
         return None
+    if info.get("source") == fallback.SOURCE_NAME:
+        code_root, art_root = fallback.roots(info["install"], info["flavor"])
+        return fallback.FolderSource(code_root, art_root, info.get("locales", []))
     try:
         store = casc.open_store(info["install"], info["product"])
     except (casc.CascError, CascIndexError, OSError):

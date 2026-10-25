@@ -1,4 +1,5 @@
-"""python -m tools.client extract [--flavor F] [--what KINDS] [--install DIR] [--listfile FILE] | status [--flavor F]"""
+"""python -m tools.client extract [--flavor F] [--what KINDS] [--install DIR] [--listfile FILE] [--from-export]
+| status [--flavor F]"""
 
 import argparse
 import sys
@@ -16,6 +17,9 @@ def parser():
     sub.choices["extract"].add_argument("--what", help="comma-separated kinds; default all")
     sub.choices["extract"].add_argument("--install", type=Path)
     sub.choices["extract"].add_argument("--listfile", type=Path)
+    sub.choices["extract"].add_argument(
+        "--from-export", action="store_true", help="read the exportInterfaceFiles folders instead of the CASC store"
+    )
     return top
 
 
@@ -28,11 +32,18 @@ def do_extract(args, open_store):
         raise extract.ExtractError(str(err)) from err
     home = paths.testkit_home()
     data = extract.run(
-        args.flavor, what, install=install, home=home, open_store=open_store, listfile_path=args.listfile
+        args.flavor,
+        what,
+        install=install,
+        home=home,
+        open_store=open_store,
+        listfile_path=args.listfile,
+        from_export=args.from_export,
     )
     print(f"extracted {args.flavor} {data['build']} to {paths.extract_dir(home, args.flavor, data['build'])}")
     for kind in what:
-        print(f"  {kind}: {data['extracted'][kind]} files")
+        if kind in data["extracted"]:  # --from-export skips the kinds it cannot read
+            print(f"  {kind}: {data['extracted'][kind]} files")
     for text in data.get("notes", []):
         print(f"note: {text}")
     for old in manifest.stale(home, args.flavor, data["build"]):
@@ -73,6 +84,8 @@ def main(argv=None, open_store=casc.open_store):
             do_status(args)
     except extract.ExtractError as err:
         print(f"error: {err}", file=sys.stderr)
+        if err.hint:
+            print(err.hint, file=sys.stderr)
         return 1
     return 0
 
