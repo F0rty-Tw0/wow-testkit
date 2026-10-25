@@ -121,16 +121,27 @@ local function context(opts)
   return { flavor = flavor, file = file, out = out, size = size, png = opts.png, client = client, matrixOpts = matrixOpts }
 end
 
--- The scenario function: runs the scenario, writes the final snapshot whatever happened, then rethrows the scenario's
--- error unchanged (so Scenario's SKIPPED sentinel keeps its identity). state gets the previews and whether the final
--- snapshot was written.
+-- The scenario function: runs the scenario, records its error in the world (so the final snapshot lists it, with its
+-- traceback), writes the final snapshot whatever happened, then rethrows a skip unchanged (so Scenario's SKIPPED
+-- sentinel keeps its identity) or the snapshot's write error. state gets the previews and whether the final snapshot
+-- was written.
 local function scenarioFn(ctx, state)
   return function(s)
-    local ran, runErr = pcall(ctx.file.run, s)
+    local traceback
+    local ran, runErr = xpcall(function()
+      ctx.file.run(s)
+    end, function(e)
+      traceback = debug.traceback()
+      return e
+    end)
+    local skipped = not ran and s.info and s.info.status == "skipped"
+    if not ran and not skipped then
+      s.w:recordError(runErr, traceback)
+    end
     state.previews = s.previews
     local wrote, writeErr = pcall(ScenarioPreview.write, s, ctx.out)
     state.wrote = wrote
-    if not ran then
+    if skipped then
       error(runErr, 0)
     elseif not wrote then
       error(writeErr, 0)
