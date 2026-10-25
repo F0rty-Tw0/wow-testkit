@@ -5,6 +5,7 @@ local M = {}
 
 local Ids = require("session_ids")
 local Input = require("input")
+local SessionInputKeys = require("session_input_keys")
 
 local ENGINE = "blizzard"
 local DEFAULT_BUTTON = "LeftButton"
@@ -19,11 +20,6 @@ local function resolve(w, target)
   end
   local found = Ids.find(w, target) or rawget(_G, target)
   return found, not found and "unknown target " .. target or nil
-end
-
-local function targetOf(w, frame)
-  local id = Ids.of(w, frame)
-  return id and { id = id, name = w.ui.state[frame].name } or nil
 end
 
 -- The reason a leave is ignored: the mouse is elsewhere.
@@ -93,7 +89,6 @@ local KINDS = {
     act = function(w, frame, req)
       w:run(ENGINE, Input.press, w, frame, req.key)
     end,
-    untargeted = focusedBox,
   },
 }
 
@@ -129,7 +124,7 @@ local function perform(w, kind, frame, req, reason)
   if frame then
     reason = kind.reason(w, frame, req)
   end
-  local target = frame and targetOf(w, frame)
+  local target = frame and Ids.target(w, frame)
   if reason then
     return { ok = false, reason = reason, target = target }, false
   end
@@ -165,7 +160,7 @@ end
 local POINTS = {
   enter = function(w, req)
     local frame, reason, moved = hover(w, req.target)
-    local reply = { ok = not reason, reason = reason, target = frame and targetOf(w, frame) }
+    local reply = { ok = not reason, reason = reason, target = frame and Ids.target(w, frame) }
 
     return reply, moved
   end,
@@ -182,6 +177,10 @@ local POINTS = {
 
 -- Runs one input request on sess. Returns the reply and whether the world was touched (the caller bumps seq).
 function M.dispatch(sess, req)
+  local handler = SessionInputKeys.handlerFor(req)
+  if handler then
+    return handler(sess, req)
+  end
   local kind = KINDS[req.kind]
   if not kind then
     return { ok = false, reason = "unknown input kind " .. tostring(req.kind) }, false

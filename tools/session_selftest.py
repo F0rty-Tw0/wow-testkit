@@ -37,10 +37,10 @@ def testkit_home(tmp):
 
 
 @contextlib.contextmanager
-def running(tmp, addon=DEMO, watch=False):
-    """A started session on `addon` with a temp testkit home, always stopped."""
+def running(tmp, addon=DEMO, watch=False, bindings=None):
+    """A started session on `addon` (with a bindings file, if given) and a temp testkit home, always stopped."""
     with testkit_home(tmp):
-        live = session.start(str(addon), port=0, watch=watch)
+        live = session.start(str(addon), port=0, watch=watch, bindings=bindings)
         try:
             yield live
         finally:
@@ -145,6 +145,22 @@ def test_point_click_over_http(tmp):
         assert (status, reply["ok"], reply["target"]["name"]) == (200, True, "ClickyCheck"), reply
         status, reply = post_json(live, "/input", {"kind": "enter", "target": {"x": 1500, "y": 900}})
         assert (status, reply) == (200, {"ok": True}), reply
+
+
+def test_press_wheel_drag_over_http(tmp):
+    with running(tmp, bindings=DEMO / "demo-bindings.wtf") as live:
+        status, reply = post_json(live, "/input", {"kind": "press", "key": "K"})
+        assert (status, reply["ok"], reply["binding"]) == (200, True, "SESSIONDEMO_TOGGLE"), reply
+        assert item(get_json(live, "/snapshot"), "SessionDemoText")["text"] == "binding:down"
+        status, reply = post_json(live, "/input", {"kind": "wheel", "target": {"x": 1260, "y": 540}, "delta": 1})
+        assert (status, reply["target"]["name"]) == (200, "SessionDemoWheel"), reply
+        assert item(get_json(live, "/snapshot"), "SessionDemoText")["text"] == "wheel:1"
+        before = item(get_json(live, "/snapshot"), "SessionDemoDrag")["rect"]
+        drag = {"kind": "drag", "from": {"x": 660, "y": 540}, "to": {"x": 760, "y": 540}}
+        status, reply = post_json(live, "/input", drag)
+        assert (status, reply["ok"], reply["target"]["name"]) == (200, True, "SessionDemoDrag"), reply
+        after = item(get_json(live, "/snapshot"), "SessionDemoDrag")["rect"]
+        assert (after["x"] - before["x"], after["y"] - before["y"]) == (100, 0), (before, after)
 
 
 def test_foreign_host_header_is_refused(tmp):
@@ -374,6 +390,7 @@ TESTS = [
     test_snapshot_over_http,
     test_input_fire_slash_state_round_trip,
     test_point_click_over_http,
+    test_press_wheel_drag_over_http,
     test_foreign_host_header_is_refused,
     test_cross_origin_and_wrong_content_type_are_refused,
     test_non_loopback_bind_is_refused,

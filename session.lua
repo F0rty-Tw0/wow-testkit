@@ -4,6 +4,7 @@
 -- (Session.reload, or a /reload the slash method leaves in sess.pendingReload); session_host.lua is that holder.
 local M = {}
 
+local Bindings = require("bindings")
 local Client = require("client")
 local Flavors = require("tools.flavors")
 local Json = require("json")
@@ -95,6 +96,15 @@ local function payloadOf(event)
   return out
 end
 
+-- The binding API and the user's bindings file go in before the addon runs; its Bindings.xml loads after it.
+local function loadBindings(sess, file)
+  Bindings.install(sess.w)
+  local ok, err = Bindings.loadFile(sess.w, file)
+  if not ok then
+    SessionConsole.push(sess.w, "system", "bindings ignored: " .. err)
+  end
+end
+
 -- Builds the world and logs the addon in, with the saved variables sessionDir holds. A session that follows `prior` (a
 -- reload) continues its console and logs in as a reloading UI.
 local function open(opts, prior)
@@ -123,8 +133,12 @@ local function open(opts, prior)
   if opts.state then
     SessionState.apply(sess, opts.state)
   end
+  loadBindings(sess, opts.bindingsFile)
   if name then
     login(sess, prior ~= nil)
+    if not sess.skipped then
+      Bindings.loadAddon(sess.w, name, root)
+    end
   else
     sess.w:recordError(nameErr)
   end

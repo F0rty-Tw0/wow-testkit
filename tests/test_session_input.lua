@@ -123,7 +123,8 @@ local function test_click_on_an_edit_box_focuses_it_assumed()
     A.same(tail(sess.s.ns.log, 1), { "ClickyBox:enter-pressed:hi" })
     _G.ClickyBox:ClearFocus()
     A.eq(input(sess, { kind = "type", text = "x" }).reason, "no focused EditBox")
-    A.eq(input(sess, { kind = "press", key = "ENTER" }).reason, "no focused EditBox")
+    local unfocused = input(sess, { kind = "press", key = "ENTER" })
+    A.same({ unfocused.ok, unfocused.reason, unfocused.target }, { true, nil, nil }, "a key press needs no focus")
   end)
 end
 

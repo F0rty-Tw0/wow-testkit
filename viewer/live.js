@@ -1,7 +1,7 @@
 // Live mode: index.html?live=1[&stream=0]. TK.start() installs the http transport unless a host page installed its
 // own first, draws the session snapshot with render(), draws it again on each snapshot event, and sends stage mouse
-// input to the session (pointer.js). #hover outlines the frame the last input reply named. stream=0 turns the event
-// stream off. <html data-ready="1"> is set once the first snapshot is drawn or has failed.
+// input and key presses to the session (pointer.js, keys.js). #hover outlines the frame the last input reply named.
+// stream=0 turns the event stream off. <html data-ready="1"> is set once the first snapshot is drawn or has failed.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -20,6 +20,9 @@ window.TK = window.TK || {};
 
     return item && item.rect ? item.rect : null;
   };
+
+  // True when the snapshot has an EditBox with the keyboard focus.
+  live.hasEditFocus = (snapshot) => ((snapshot && snapshot.items) || []).some((it) => it.widget && it.widget.focused);
 
   function showStatus(messages) {
     window.Viewer.showMessages('status', messages);
@@ -90,6 +93,10 @@ window.TK = window.TK || {};
     });
   }
 
+  function attachKeys() {
+    TK.keys.attach(document, { post, focused: () => live.hasEditFocus(TK.state.snapshot) });
+  }
+
   TK.start = async () => {
     const stream = new URLSearchParams(location.search).get('stream') !== '0';
     if (!TK.transport.current) TK.transport.use(TK.transport.http(location.origin, { stream }));
@@ -98,7 +105,10 @@ window.TK = window.TK || {};
       if (newer) refresh();
     });
     await refresh();
-    if (TK.state.snapshot) attachPointer();
+    if (TK.state.snapshot) {
+      attachPointer();
+      attachKeys();
+    }
     document.documentElement.dataset.ready = '1';
   };
 

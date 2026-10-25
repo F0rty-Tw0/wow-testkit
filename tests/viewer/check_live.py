@@ -82,6 +82,11 @@ def check_event_names(root):
         raise AssertionError("PLAYER_REGEN_DISABLED not among %d event names" % len(names))
 
 
+def check_input_frames(root):
+    for name in ("SessionDemoKeys", "SessionDemoDrag", "SessionDemoWheel"):
+        one(root, lambda n, name=name: n.attrs.get("data-name") == name, "[data-name=%s]" % name)
+
+
 # (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
     ("ready flag, live snapshot drawn", check_ready, 0),
@@ -90,6 +95,7 @@ CHECKS = [
     ("select= shows the frame's properties and outline", check_selected, 1),
     ("console, events, state and command line panels", check_panels, 0),
     ("events datalist names PLAYER_REGEN_DISABLED", check_event_names, 0),
+    ("the keys, drag and wheel frames are drawn", check_input_frames, 0),
 ]
 
 

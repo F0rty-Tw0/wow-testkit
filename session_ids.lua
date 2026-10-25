@@ -20,6 +20,13 @@ function M.of(w, obj)
   return kind and PREFIX[kind] .. st.seq or nil
 end
 
+-- { id, name? } for obj, or nil when obj is nil or has no id.
+function M.target(w, obj)
+  local id = obj and M.of(w, obj)
+
+  return id and { id = id, name = w.ui.state[obj].name } or nil
+end
+
 -- The widget a snapshot id names, or nil for an unknown id or text that is no id.
 function M.find(w, id)
   local prefix, digits = tostring(id):match("^([fts])(%d+)$")

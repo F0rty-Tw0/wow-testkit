@@ -53,7 +53,7 @@ files["tests/fixtures/addons/Clicky/*.lua"] = {
 
 -- Session fixture addon: a slash command and a SavedVariables table, written like a real addon.
 files["tests/fixtures/addons/SessionDemo/*.lua"] = {
-  globals = { "SLASH_SDEMO1", "SlashCmdList", "SessionDemoDB" },
+  globals = { "SLASH_SDEMO1", "SlashCmdList", "SessionDemoDB", "SessionDemoToggle" },
   read_globals = { "CreateFrame", "UIParent" },
 }
 
