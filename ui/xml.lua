@@ -2,6 +2,7 @@
 -- a Lua file or inline source, every other element goes to Xml.element.
 local M = {}
 
+local XmlBuild = require("ui.xml_build")
 local XmlParse = require("ui.xml_parse")
 
 -- Path with "\" turned into "/" and "." and ".." segments resolved, so one file never has two spellings.
@@ -23,17 +24,9 @@ local function join(includer, relative)
   return clean((dir and dir .. "/" or "") .. relative)
 end
 
--- Reports `what` for this file once per key.
-local function reportOnce(ctx, file, key, what)
-  if not file.seen[key] then
-    file.seen[key] = true
-    ctx.report[#ctx.report + 1] = file.path .. ": " .. what
-  end
-end
-
--- Builds one element of the root <Ui>. Frames come in a later task; for now every element is reported and skipped.
-function M.element(_, node, ctx, session)
-  reportOnce(ctx, session.file, "tag:" .. node.tag, "unsupported XML <" .. node.rawTag .. "> ignored")
+-- Builds one element of the root <Ui>. Only frames so far; every other element is reported and skipped.
+function M.element(w, node, _, session)
+  XmlBuild.frame(w, node, nil, session)
 end
 
 local loadInto
@@ -57,7 +50,7 @@ local function walk(w, root, ctx, file, loading)
     elseif node.tag == "script" then
       ctx.runSource(node.text, "addon:" .. ctx.name .. "/" .. file.path, node.textLine)
     else
-      M.element(w, node, ctx, { ctx = ctx, file = file, anchors = {} })
+      M.element(w, node, ctx, XmlBuild.session(ctx, file))
     end
   end
 end
@@ -78,7 +71,7 @@ loadInto = function(w, path, ctx, loading)
   if root.tag == "ui" then
     walk(w, root, ctx, file, loading)
   else
-    M.element(w, root, ctx, { ctx = ctx, file = file, anchors = {} })
+    M.element(w, root, ctx, XmlBuild.session(ctx, file))
   end
   loading[path] = nil
   return true
