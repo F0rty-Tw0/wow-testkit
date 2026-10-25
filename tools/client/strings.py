@@ -7,12 +7,15 @@ from tools.client.manifest import IDENT, KEYWORDS
 
 LOCALE_NAMES = "enUS deDE esES esMX frFR itIT koKR ptBR ruRU zhCN zhTW"
 LOCALES = {name.lower(): name for name in LOCALE_NAMES.split()}
+MAX_INSTRUCTIONS = 50_000_000  # GlobalStrings runs ~0.1M; the cap only stops a chunk that loops
 RUNNER = (
     "function(text) local chunk, err = loadstring(text, '=globalstrings'); if not chunk then error(err, 0) end; "
-    "local env = {}; setfenv(chunk, env); chunk(); return env end"
-)
+    "local env = {}; setfenv(chunk, env); "
+    f"debug.sethook(function() error('the chunk ran too long', 0) end, '', {MAX_INSTRUCTIONS}); "
+    "chunk(); return env end"
+)  # the hook stays set: every parse gets a fresh runtime
 MAX_MEMORY = 256 * 1024 * 1024  # GlobalStrings is a few MB; the cap only stops a runaway chunk
-BYTE_ESCAPE =r"\\(?:\d{1,2}(?!\d)|[01]\d\d|2[0-4]\d|25[0-5])"  # Lua 5.1 \ddd: up to 3 digits, greedy, at most 255
+BYTE_ESCAPE = r"\\(?:\d{1,2}(?!\d)|[01]\d\d|2[0-4]\d|25[0-5])"  # Lua 5.1 \ddd: up to 3 digits, greedy, at most 255
 LUA_ESCAPE = re.compile(rf"((?:{BYTE_ESCAPE})+)|\\([abfnrtv\\\"'])")
 LUA_CHARS = {"a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
 ESCAPES = {'"': '\\"', "\\": "\\\\", "\n": "\\n", "\r": "\\r"}
@@ -25,7 +28,8 @@ class StringsError(Exception):
 def parse_global_strings(text):
     """The string-valued globals `text` sets. The chunk runs under an empty environment, so it has no os, io or
     require; anything it needs beyond plain assignments raises StringsError. So do precompiled bytecode, which
-    loadstring would run unchecked, and a chunk that allocates more than MAX_MEMORY."""
+    loadstring would run unchecked, a chunk that allocates more than MAX_MEMORY, and one that runs more than
+    MAX_INSTRUCTIONS VM instructions."""
     from lupa import lua51
 
     data = text.encode("utf-8") if isinstance(text, str) else text

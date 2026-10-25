@@ -53,9 +53,10 @@ def test_strings_chunk_cannot_reach_os_and_bad_input_is_a_strings_error(tmp):
         raise AssertionError(f"expected StringsError for {text!r}")
 
 
-def test_strings_refuse_bytecode_and_cap_memory(tmp):
+def test_strings_refuse_bytecode_and_cap_memory_and_time(tmp):
     dumped = lua51.LuaRuntime(encoding=None).eval('string.dump(function() A = "x" end)')  # loadstring would run it
-    for text, words in ((dumped, "bytecode"), ('A = ("x"):rep(300 * 1024 * 1024)', "memory")):
+    cases = ((dumped, "bytecode"), ('A = ("x"):rep(300 * 1024 * 1024)', "memory"), ("while true do end", "too long"))
+    for text, words in cases:
         try:
             strings.parse_global_strings(text)
         except StringsError as err:
@@ -92,7 +93,7 @@ TESTS = [
     test_code_refuses_paths_that_escape,
     test_global_strings_parse_edge_cases,
     test_strings_chunk_cannot_reach_os_and_bad_input_is_a_strings_error,
-    test_strings_refuse_bytecode_and_cap_memory,
+    test_strings_refuse_bytecode_and_cap_memory_and_time,
     test_strings_written_per_locale_and_loadable_in_lua51,
     test_strings_locale_defaults_to_the_installed_one,
 ]
