@@ -202,10 +202,13 @@ def shoot(chrome, out_dir, png_file, size, outline):
 
 def png(out_dir, png_file, size=None, chrome=None, outline=False):
     """Writes png_file: the viewer's picture of <out_dir>/snapshot.json. size defaults to the snapshot's screen.
-    Exit 0; 2 for a png_file that does not end in .png (it is deleted first, so another kind of file would be lost) or
-    without a readable snapshot; 3 when Chrome is missing or wrote no PNG."""
+    Exit 0; 2 for a png_file that does not end in .png (it is deleted first, so another kind of file would be lost), that
+    names an existing directory, or without a readable snapshot; 3 when Chrome is missing or wrote no PNG."""
     if not str(png_file).lower().endswith(".png"):
         print(f"error: the picture must be a .png file, not {png_file}", file=sys.stderr)
+        return EXIT_USAGE
+    if os.path.isdir(png_file):
+        print(f"error: the picture must be a .png file, but {png_file} is a directory", file=sys.stderr)
         return EXIT_USAGE
     size = size or snapshot_size(out_dir)
     if size is None:

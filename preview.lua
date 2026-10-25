@@ -121,16 +121,27 @@ local function context(opts)
   return { flavor = flavor, file = file, out = out, size = size, png = opts.png, client = client, matrixOpts = matrixOpts }
 end
 
--- The scenario function: runs the scenario, writes the final snapshot whatever happened, then rethrows the scenario's
--- error unchanged (so Scenario's SKIPPED sentinel keeps its identity). state gets the previews and whether the final
--- snapshot was written.
+-- The scenario function: runs the scenario, records its error in the world (so the final snapshot lists it, with its
+-- traceback), writes the final snapshot whatever happened, then rethrows a skip unchanged (so Scenario's SKIPPED
+-- sentinel keeps its identity) or the snapshot's write error. state gets the previews and whether the final snapshot
+-- was written.
 local function scenarioFn(ctx, state)
   return function(s)
-    local ran, runErr = pcall(ctx.file.run, s)
+    local traceback
+    local ran, runErr = xpcall(function()
+      ctx.file.run(s)
+    end, function(e)
+      traceback = debug.traceback()
+      return e
+    end)
+    local skipped = not ran and s.info and s.info.status == "skipped"
+    if not ran and not skipped then
+      s.w:recordError(runErr, traceback)
+    end
     state.previews = s.previews
     local wrote, writeErr = pcall(ScenarioPreview.write, s, ctx.out)
     state.wrote = wrote
-    if not ran then
+    if skipped then
       error(runErr, 0)
     elseif not wrote then
       error(writeErr, 0)
@@ -151,25 +162,26 @@ local function writeErrors(report, write)
   end
 end
 
-local function pythonStep(label, ...)
-  return { label = label, argv = { os.getenv("TK_PYTHON") or "python", KIT_ROOT .. "/tools/preview.py", label, ... } }
+local function pythonStep(python, label, ...)
+  return { label = label, argv = { python, KIT_ROOT .. "/tools/preview.py", label, ... } }
 end
 
 -- resolve for the snapshot in dir; with a client extract the resolver reads art, atlases and fonts from it too.
-local function resolveStep(ctx, dir)
+local function resolveStep(ctx, python, dir)
   local extract = ctx.client and { "--extract", ctx.client.dir } or {}
-  return pythonStep("resolve", dir .. SNAPSHOT_FILE, dir, unpack(extract))
+  return pythonStep(python, "resolve", dir .. SNAPSHOT_FILE, dir, unpack(extract))
 end
 
 -- resolve for the final snapshot and each s:preview dir, then png.
 local function stepsFor(ctx, previews)
-  local steps = { resolveStep(ctx, ctx.out) }
+  local python = Proc.python()
+  local steps = { resolveStep(ctx, python, ctx.out) }
   for _, dir in ipairs(previews or {}) do
-    steps[#steps + 1] = resolveStep(ctx, dir)
+    steps[#steps + 1] = resolveStep(ctx, python, dir)
   end
   if ctx.png then
     local size = ctx.size.width .. "x" .. ctx.size.height
-    steps[#steps + 1] = pythonStep("png", ctx.out, ctx.png, "--size", size)
+    steps[#steps + 1] = pythonStep(python, "png", ctx.out, ctx.png, "--size", size)
     steps[#steps].done = "preview: wrote " .. ctx.png
   end
   return steps
@@ -204,10 +216,16 @@ local function runSteps(steps, out, write)
   return true
 end
 
--- A run that fails must not leave the previous run's snapshot or picture behind to be read as this run's. context
+-- A run that fails must not leave the previous run's snapshots or picture behind to be read as this run's: the final
+-- snapshot, and the snapshot of each numbered s:preview dir (<n>-<name>, as ScenarioPreview names them). context
 -- accepts only a .png path for --png, so a mistyped one naming some other file is refused before this deletes it.
 local function clearStale(ctx)
   os.remove(ctx.out .. SNAPSHOT_FILE)
+  for _, name in ipairs(fs.list(ctx.out)) do
+    if name:find("^%d+%-[A-Za-z0-9_%-]+$") then
+      os.remove(ctx.out .. "/" .. name .. SNAPSHOT_FILE)
+    end
+  end
   if ctx.png then
     os.remove(ctx.png)
   end

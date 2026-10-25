@@ -7,7 +7,8 @@ local Json = require("json")
 local Render = require("render")
 local fs = require("fs")
 
-local NAME_PATTERN = "^[%w_-]+$"
+-- ASCII classes: %w also takes the bytes of a locale's letters (preview.lua's folderName avoids it for the same reason).
+local NAME_PATTERN = "^[A-Za-z0-9_%-]+$"
 local JSON_INDENT = 1
 
 -- Writes the render snapshot of s's world, plus the addons map the asset resolver reads, to <dir>/snapshot.json.

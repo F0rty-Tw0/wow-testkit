@@ -65,11 +65,70 @@ end
 
 local function test_run_returns_the_exit_code()
   local log = Tmp.dir("proc") .. "/run.log"
-  A.eq(Proc.run({ "python", "-c", "import sys; sys.exit(3)" }, log), 3)
-  A.eq(Proc.run({ "python", "-c", "pass" }, log), 0)
+  A.eq(Proc.run({ Proc.python(), "-c", "import sys; sys.exit(3)" }, log), 3)
+  A.eq(Proc.run({ Proc.python(), "-c", "pass" }, log), 0)
+end
+
+local function noEnv()
+  return nil
+end
+
+-- Runs fn with Proc.hasCommand answering found, whatever fn does; the names asked are collected in asked.
+local function withHasCommand(found, fn)
+  local saved, asked = Proc.hasCommand, {}
+  Proc.hasCommand = function(name)
+    asked[#asked + 1] = name
+    return found
+  end
+  local ok, err = pcall(fn, asked)
+  Proc.hasCommand = saved
+  if not ok then
+    error(err, 0)
+  end
+end
+
+local function test_python_falls_back_to_python3_when_python_is_not_on_the_path()
+  withHasCommand(false, function(asked)
+    A.eq(Proc.python(noEnv), "python3")
+    A.same(asked, { "python" })
+  end)
+end
+
+local function test_python_is_python_when_it_is_on_the_path()
+  withHasCommand(true, function()
+    A.eq(Proc.python(noEnv), "python")
+  end)
+end
+
+local function test_tk_python_wins_without_looking_anything_up()
+  local function tkPython(name)
+    return name == "TK_PYTHON" and "/opt/py" or nil
+  end
+  withHasCommand(false, function(asked)
+    A.eq(Proc.python(tkPython), "/opt/py")
+    A.same(asked, {})
+  end)
+end
+
+local function test_has_command_assumes_windows_has_python()
+  A.eq(Proc.hasCommand("no-such-program-tk", true), true)
+end
+
+-- The real lookup, on a shell that has `command -v`: Linux CI is where this runs.
+local function test_has_command_asks_the_posix_shell()
+  if package.config:sub(1, 1) == "\\" then
+    return
+  end
+  A.eq(Proc.hasCommand("sh", false), true)
+  A.eq(Proc.hasCommand("no-such-program-tk", false), false)
 end
 
 return function()
+  test_python_falls_back_to_python3_when_python_is_not_on_the_path()
+  test_python_is_python_when_it_is_on_the_path()
+  test_tk_python_wins_without_looking_anything_up()
+  test_has_command_assumes_windows_has_python()
+  test_has_command_asks_the_posix_shell()
   test_command_quotes_each_argument_and_redirects()
   test_command_on_windows_is_wrapped_in_one_more_pair_of_quotes()
   test_command_on_windows_stops_cmd_searching_the_current_directory()
