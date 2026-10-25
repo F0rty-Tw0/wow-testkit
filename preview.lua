@@ -4,6 +4,7 @@
 -- a usage error, an unreadable scenario or an addon skipped on the flavor.
 local M = {}
 
+local Client = require("client")
 local Flavors = require("tools.flavors")
 local Home = require("home")
 local Proc = require("proc")
@@ -11,6 +12,8 @@ local Scenario = require("scenario")
 local ScenarioPreview = require("scenario_preview")
 local Toc = require("toc")
 local fs = require("fs")
+
+local unpack = unpack
 
 local EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 local DEFAULT_FLAVOR = "retail"
@@ -23,6 +26,9 @@ local KIT_ROOT = debug.getinfo(1, "S").source:match("^@(.*)[/\\]preview%.lua$") 
 
 -- Runs argv, logging its output to logPath; returns its exit code. Tests replace this field.
 M.exec = Proc.run
+
+-- The client extract for flavor, or nil. Tests replace this field, so a developer's own extract never changes a result.
+M.findClient = Client.find
 
 local function defaultScenario(s)
   s:login()
@@ -110,8 +116,9 @@ local function context(opts)
   if not out then
     return nil, outErr
   end
-  local matrixOpts = { addon = name, root = root, screen = size, preview = { out = out }, saved = file.saved, config = file.config }
-  return { flavor = flavor, file = file, out = out, size = size, png = opts.png, matrixOpts = matrixOpts }
+  local client = M.findClient(flavor)
+  local matrixOpts = { addon = name, root = root, screen = size, preview = { out = out }, saved = file.saved, config = file.config, client = client }
+  return { flavor = flavor, file = file, out = out, size = size, png = opts.png, client = client, matrixOpts = matrixOpts }
 end
 
 -- The scenario function: runs the scenario, writes the final snapshot whatever happened, then rethrows the scenario's
@@ -148,11 +155,17 @@ local function pythonStep(label, ...)
   return { label = label, argv = { os.getenv("TK_PYTHON") or "python", KIT_ROOT .. "/tools/preview.py", label, ... } }
 end
 
+-- resolve for the snapshot in dir; with a client extract the resolver reads art, atlases and fonts from it too.
+local function resolveStep(ctx, dir)
+  local extract = ctx.client and { "--extract", ctx.client.dir } or {}
+  return pythonStep("resolve", dir .. SNAPSHOT_FILE, dir, unpack(extract))
+end
+
 -- resolve for the final snapshot and each s:preview dir, then png.
 local function stepsFor(ctx, previews)
-  local steps = { pythonStep("resolve", ctx.out .. SNAPSHOT_FILE, ctx.out) }
+  local steps = { resolveStep(ctx, ctx.out) }
   for _, dir in ipairs(previews or {}) do
-    steps[#steps + 1] = pythonStep("resolve", dir .. SNAPSHOT_FILE, dir)
+    steps[#steps + 1] = resolveStep(ctx, dir)
   end
   if ctx.png then
     local size = ctx.size.width .. "x" .. ctx.size.height
@@ -221,6 +234,9 @@ function M.run(opts, write)
   end
   if state.wrote then
     write("preview: wrote " .. ctx.out .. SNAPSHOT_FILE .. "\n")
+  end
+  if ctx.client then
+    write("note: client extract build " .. tostring(ctx.client.build) .. "\n")
   end
   writeErrors(report, write)
   local stepsOk = state.wrote and runSteps(stepsFor(ctx, state.previews), ctx.out, write)

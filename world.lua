@@ -134,7 +134,8 @@ local function installBase(w, row)
   LuaApi.install(w)
 end
 
--- opts.flavor: one of Flavors.list. opts.screen: { width, height, useUiScale, uiScale }, see ui/screen.lua. Errors
+-- opts.flavor: one of Flavors.list. opts.screen: { width, height, useUiScale, uiScale }, see ui/screen.lua. opts.client:
+-- a client extract (client.lua) whose data the framexml.fakes.client fake installs; nil leaves the kit's own values. Errors
 -- while another world is still active.
 function M.new(opts)
   local row = Flavors.get(opts.flavor)
@@ -147,6 +148,7 @@ function M.new(opts)
     manifest = manifest,
     globals = globals,
     screen = Screen.normalize(opts.screen),
+    client = opts.client,
     calls = {},
     unscripted = {},
     errors = {},

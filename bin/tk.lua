@@ -7,6 +7,9 @@
 -- one scoreboard.
 -- `tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]` runs the addon, writes
 -- the render snapshot to <out>/snapshot.json and, with --png, a Chrome screenshot of it.
+-- `tk client extract|status [args]` extracts data from the installed game client or reports the extract's state
+-- (client_cli.lua).
+local ClientCli = require("client_cli")
 local fs = require("fs")
 local Flavors = require("tools.flavors")
 local Preview = require("preview")
@@ -19,7 +22,8 @@ local Cli = {}
 local isModule = (...) == "bin.tk"
 
 local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...]"
-  .. " | tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]\n"
+  .. " | tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]"
+  .. " | tk client extract|status [args]\n"
 local EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 local UNSCRIPTED_TOP = 10
 local MAX_SIDE = 16384
@@ -267,6 +271,10 @@ local function previewCommand(argv, write)
   return Preview.run(opts, write)
 end
 
+local function clientCommand(argv, write)
+  return ClientCli.run({ unpack(argv, 2) }, write)
+end
+
 -- Runs argv (without the program name); all output goes through write. Returns the exit code.
 function Cli.main(argv, write)
   if argv[1] == "test" then
@@ -275,6 +283,8 @@ function Cli.main(argv, write)
     return smokeCommand(argv, write)
   elseif argv[1] == "preview" then
     return previewCommand(argv, write)
+  elseif argv[1] == "client" then
+    return clientCommand(argv, write)
   end
   write(USAGE)
   return EXIT_USAGE

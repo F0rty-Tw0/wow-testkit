@@ -53,7 +53,7 @@ end
 -- opts: { addon, root, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario, update } }.
 -- s.ns / s.info exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden mode.
 function M.new(opts)
-  local w = World.new({ flavor = opts.flavor, screen = opts.screen })
+  local w = World.new({ flavor = opts.flavor, screen = opts.screen, client = opts.client })
   local ok, err = pcall(installWorld, w)
   if not ok then
     w:destroy()

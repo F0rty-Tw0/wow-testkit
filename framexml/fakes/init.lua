@@ -13,6 +13,7 @@ local STAGE1 = {
   "framexml.fakes.minimap",
   "framexml.fakes.colors",
   "framexml.fakes.strings",
+  "framexml.fakes.client",
   "framexml.fakes.slash",
   "framexml.fakes.tooltip",
   "framexml.fakes.menu_frames",
