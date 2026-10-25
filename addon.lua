@@ -19,16 +19,23 @@ local function readListed(w, ctx, relative)
   return text
 end
 
--- Compiles source as chunkName and runs it as the addon, in the addon's environment.
-local function runChunk(w, ctx, source, chunkName)
+-- Compiles source as chunkName in the addon's environment. A syntax error goes to the error handler (nil returned).
+local function compile(w, ctx, source, chunkName)
   w:registerChunk(chunkName)
   local chunk, loadErr = loadstring(source, "@" .. chunkName)
   if not chunk then
     w:reportError(loadErr)
-    return
+    return nil
   end
-  setfenv(chunk, ctx.env)
-  w:callAsAddon(chunk, ctx.name, ctx.ns)
+  return setfenv(chunk, ctx.env)
+end
+
+-- Compiles source as chunkName and runs it as the addon, in the addon's environment.
+local function runChunk(w, ctx, source, chunkName)
+  local chunk = compile(w, ctx, source, chunkName)
+  if chunk then
+    w:callAsAddon(chunk, ctx.name, ctx.ns)
+  end
 end
 
 -- Runs a TOC- or XML-listed Lua file, relative to the addon root.
@@ -41,13 +48,13 @@ function M.runFile(w, ctx, relative)
   runChunk(w, ctx, source, "addon:" .. ctx.name .. "/" .. relative)
 end
 
--- Runs source that sits at `line` of its file: the padding makes an error name that line, not line 1.
-local function runSource(w, ctx, source, chunkName, line)
-  runChunk(w, ctx, string.rep("\n", line - 1) .. source, chunkName)
+-- Source that sits at `line` of its file: the padding makes an error name that line, not line 1.
+local function padded(source, line)
+  return string.rep("\n", line - 1) .. source
 end
 
 -- The per-addon load context: { name, root, ns, env, report, readFile(relative) -> text | nil, runFile(relative),
--- runSource(source, chunkName, line) }. report is the list of what the kit ignored; M.load replaces it with the TOC's.
+-- runSource(source, chunkName, line), compile(source, chunkName, line) -> chunk | nil (the chunk is not run) }. report is the list of what the kit ignored; M.load replaces it with the TOC's.
 function M.context(w, name, root)
   local ctx = { name = name, root = root, ns = {}, env = AddonEnv.newEnv(w), report = {} }
   function ctx.readFile(relative)
@@ -57,7 +64,10 @@ function M.context(w, name, root)
     M.runFile(w, ctx, relative)
   end
   function ctx.runSource(source, chunkName, line)
-    runSource(w, ctx, source, chunkName, line)
+    runChunk(w, ctx, padded(source, line), chunkName)
+  end
+  function ctx.compile(source, chunkName, line)
+    return compile(w, ctx, padded(source, line), chunkName)
   end
   return ctx
 end

@@ -9,6 +9,7 @@ local XmlParse = require("ui.xml_parse")
 require("ui.xml_layout")
 require("ui.xml_widgets")
 require("ui.xml_animations")
+require("ui.xml_scripts")
 
 -- Path with "\" turned into "/" and "." and ".." segments resolved, so one file never has two spellings.
 local function clean(path)
