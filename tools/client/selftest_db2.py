@@ -3,7 +3,7 @@
 from PIL import Image
 
 from tools.client import art, atlas, db2, dbd
-from tools.client.fakes import FakeSource, make_blp, make_wdc5
+from tools.client.fakes import FakeSource, lua_value, make_blp, make_wdc5
 
 FIELDS = dbd.parse(
     "COLUMNS\nint ID\nint A\nint B\nstring Name_lang\n\nLAYOUT DEADBEEF\nBUILD 12.0.0.0-12.9.9.99999\n"
@@ -104,6 +104,13 @@ def test_atlas_crop_scales_each_side_by_its_own_axis(tmp):
     assert image.getpixel((0, 0)) == (0, 255, 0, 255) and image.getpixel((63, 63)) == (255, 0, 0, 255)
 
 
+def test_atlas_lua_quotes_a_string_file_or_size_never_writes_it_raw(tmp):
+    sides = {"left": 0, "right": 1, "top": 0, "bottom": 1}
+    entry = {"name": "X", "file": "1, os = nil, y = 2", "width": "2 }", "height": 3, **sides}
+    (tmp / "atlas.lua").write_text(atlas.to_lua({"x": entry}))
+    assert lua_value(tmp / "atlas.lua") == {"x": entry}
+
+
 TESTS = [
     test_wdc5_inline_and_bitpacked_fields,
     test_pallet_and_common_fields,
@@ -113,4 +120,5 @@ TESTS = [
     test_atlas_names_join_member_to_sheet_coords,
     test_atlas_crop_writes_the_member_rect_png,
     test_atlas_crop_scales_each_side_by_its_own_axis,
+    test_atlas_lua_quotes_a_string_file_or_size_never_writes_it_raw,
 ]

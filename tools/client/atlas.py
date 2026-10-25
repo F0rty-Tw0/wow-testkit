@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image
 
 from tools.client import art
-from tools.client.manifest import lua_string
+from tools.client.manifest import lua_string, lua_value
 
 UNSAFE = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 SIDES = ("left", "right", "top", "bottom")
@@ -46,7 +46,8 @@ def to_lua(entries):
     lines = ["return {"]
     for key in sorted(entries):
         e = entries[key]
-        head = f"name = {lua_string(e['name'])}, file = {e['file']}, width = {e['width']}, height = {e['height']}"
+        sizes = ", ".join(f"{field} = {lua_value(e[field])}" for field in ("file", "width", "height"))
+        head = f"name = {lua_string(e['name'])}, {sizes}"  # lua_value quotes a string a DBD might hand us
         sides = ", ".join(f"{side} = {e[side]!r}" for side in SIDES)
         lines.append(f"\t[{lua_string(key)}] = {{ {head}, {sides} }},")
     lines.append("}")

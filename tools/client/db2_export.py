@@ -79,21 +79,30 @@ def lua_scalar(value):
 
 
 def lua_rows(entries):
-    """`return { [id] = { Field = value, ... } }` for (id, row) pairs, ids ascending."""
+    """`return { [id] = { Field = value, ... } }` for (id, row) pairs with int ids (see int_keyed), ids ascending."""
     lines = ["return {"]
     for key, row in sorted(entries, key=lambda entry: entry[0]):
         cells = []
         for field, value in row.items():
             name = field if IDENT.match(field) and field not in KEYWORDS else f"[{lua_string(field)}]"
             cells.append(f"{name} = {lua_scalar(value)}")
-        lines.append(f"\t[{key}] = {{ {', '.join(cells)} }},")
+        lines.append(f"\t[{int(key)}] = {{ {', '.join(cells)} }},")
     lines.append("}")
     return "\n".join(lines) + "\n"
 
 
-def to_lua(rows):
-    """The table of rows keyed by their ID; a row without an ID is left out."""
-    return lua_rows((row["ID"], row) for row in rows if "ID" in row)
+def int_keyed(name, entries, ctx):
+    """The (key, row) pairs whose key is an int. A DBD that types the key column as a string would otherwise put
+    its text into the generated Lua; such rows are counted in ctx.notes."""
+    kept = [entry for entry in entries if type(entry[0]) is int]  # not bool, which would print as True
+    if len(kept) < len(entries):
+        ctx.notes.append(f"db2: {name}: {len(entries) - len(kept)} rows without an integer key were skipped")
+    return kept
+
+
+def to_lua(rows, name, ctx):
+    """The table of rows keyed by their ID; a row without an ID or with a non-int one is left out."""
+    return lua_rows(int_keyed(name, [(row["ID"], row) for row in rows if "ID" in row], ctx))
 
 
 def r5_entries(name, rows, ctx):
@@ -113,7 +122,7 @@ def r5_entries(name, rows, ctx):
     if len(entries) < len(keyed):
         dropped = len(keyed) - len(entries)
         ctx.notes.append(f"db2: {name}: {dropped} rows repeat a {key} and were dropped (the lowest ID wins)")
-    return entries
+    return int_keyed(name, entries, ctx)
 
 
 def write_chunks(out, name, entries):
@@ -143,7 +152,7 @@ def write(source, out, ctx):
         tables[name] = {row["ID"]: row for row in rows if "ID" in row}
         target = Path(out) / "db2" / f"{name.lower()}.lua"
         target.parent.mkdir(parents=True, exist_ok=True)
-        write_atomic(target, to_lua(rows))
+        write_atomic(target, to_lua(rows, name, ctx))
         written += 1
     if len(tables) == len(ATLAS_TABLES):
         entries = atlas.build(*(tables[name] for name in ATLAS_TABLES))

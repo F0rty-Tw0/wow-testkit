@@ -81,8 +81,18 @@ def test_array_and_float_fields(tmp):
     fields = dbd.parse(SPELL_MISC)[0].fields
     row = {"ID": 4, "SpellID": 40, "SpellIconFileDataID": 1, "SchoolMask": 1, "Flags": [1, 2], "Speed": 0.5}
     rows = list(db2.read(make_wdc5(fields, [row], layout_hash=0xA5A5), fields))
-    (tmp / "t.lua").write_text(db2_export.to_lua(rows))
+    (tmp / "t.lua").write_text(db2_export.to_lua(rows, "SpellMisc", home(tmp)))
     assert lua_value(tmp / "t.lua") == {4: row}
+
+
+def test_a_key_that_is_not_an_integer_is_skipped_and_noted_never_written_raw(tmp):
+    ctx = home(tmp)  # a DBD that types ID or SpellID as a string would hand these keys to the writer
+    rows = [{"ID": "1] = os.exit() --", "A": 1}, {"ID": True, "A": 3}, {"ID": 2, "A": 2}]
+    (tmp / "t.lua").write_text(db2_export.to_lua(rows, "T", ctx))
+    assert lua_value(tmp / "t.lua") == {2: {"ID": 2, "A": 2}}
+    assert db2_export.r5_entries("SpellMisc", [{"ID": 1, "SpellID": "x"}], ctx) == []
+    assert ctx.notes[0] == "db2: T: 2 rows without an integer key were skipped", ctx.notes
+    assert ctx.notes[-1] == "db2: SpellMisc: 1 rows without an integer key were skipped", ctx.notes
 
 
 def test_only_whitelisted_columns_are_written_and_a_missing_one_is_noted(tmp):
@@ -148,6 +158,7 @@ TESTS = [
     test_chunks_split_at_ten_thousand_ids,
     test_a_rewrite_leaves_no_stale_chunk_or_single_file,
     test_array_and_float_fields,
+    test_a_key_that_is_not_an_integer_is_skipped_and_noted_never_written_raw,
     test_only_whitelisted_columns_are_written_and_a_missing_one_is_noted,
     test_spellmisc_is_keyed_by_spell_id_and_repeats_are_counted,
     test_missing_table_or_dbd_is_skipped_and_recorded,
