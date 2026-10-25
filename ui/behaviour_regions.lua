@@ -1,6 +1,8 @@
 -- Hand-written region creation: Frame:CreateTexture and Frame:CreateFontString store the draw layer the region was
--- created in, so GetDrawLayer answers. Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
+-- created in, so GetDrawLayer answers, and CreateFontString applies a font object template. Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
 local M = {}
+
+local WorldApi = require("world_api")
 
 local methods = {}
 M.methods = methods
@@ -21,9 +23,29 @@ function methods.CreateTexture(w, obj, _, name, drawLayer, _, subLevel)
   return createRegion(w, obj, "Texture", name, drawLayer, subLevel)
 end
 
+-- A template name is a font object (a global Font): the font string takes its font, size and flags as SetFontObject
+-- would. A name that is no font object adds nothing and is counted in w.unscripted["template:<Name>"], as CreateFrame
+-- counts an unknown template. Virtual FontString templates written in XML are not modelled.
+local function applyFontTemplates(w, fontString, templates)
+  if type(templates) ~= "string" then
+    return
+  end
+  for name in templates:gmatch("[^,%s]+") do
+    local font = rawget(_G, name)
+    local st = type(font) == "table" and w.ui.state[font]
+    if st and st.plan.isA.font then
+      fontString:SetFontObject(font)
+    else
+      WorldApi.markUnscripted(w, "template:" .. name)
+    end
+  end
+end
+
 -- A FontString has no sublevel (row V6): the client takes no subLevel argument, so it starts at 0.
-function methods.CreateFontString(w, obj, _, name, drawLayer)
-  return createRegion(w, obj, "FontString", name, drawLayer, nil)
+function methods.CreateFontString(w, obj, _, name, drawLayer, template)
+  local fontString = createRegion(w, obj, "FontString", name, drawLayer, nil)
+  applyFontTemplates(w, fontString, template)
+  return fontString
 end
 
 return M
