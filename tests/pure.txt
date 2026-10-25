@@ -13,4 +13,5 @@ tests/test_toc.lua
 tests/test_golden.lua
 tests/framexml/test_menu_description.lua
 tests/test_json.lua
+tests/test_json_decode.lua
 tests/ui/test_xml_parse.lua
