@@ -151,6 +151,40 @@ local function test_a_stored_table_that_contains_itself_encodes_with_null_where_
   end)
 end
 
+-- A table stored in two places without a cycle (a diamond) is no repeat to refuse: both places get the whole copy.
+local function test_a_stored_table_shared_without_a_cycle_is_copied_whole_into_both_places()
+  local t = { 1, 2 }
+  H.withRender(function(w)
+    frame("DiamondHost"):CreateTexture("DiamondTex"):SetAllPoints()
+    _G.DiamondTex:SetBlendMode({ x = t, y = t })
+    local snap = encoded(w)
+    A.same(H.item(snap, "DiamondTex").blendMode, { x = { 1, 2 }, y = { 1, 2 } })
+  end)
+end
+
+-- How many Json.null the copy t holds.
+local function countNulls(t)
+  if t == Json.null then
+    return 1
+  end
+  local count = 0
+  if type(t) == "table" then
+    for _, member in pairs(t) do
+      count = count + countNulls(member)
+    end
+  end
+  return count
+end
+
+-- How many tables go down t[1] before Json.null or a non-table, and what ends the chain.
+local function chainDepth(t)
+  local depth = 0
+  while type(t) == "table" and t ~= Json.null do
+    depth, t = depth + 1, t[1]
+  end
+  return depth, t
+end
+
 -- Children shared between levels (v = { v, v } twenty-two deep) are a handful of tables but 2^22 copies, and a chain
 -- of 90000 nested tables overflows the stack; the work is bounded, tables past the limits read null, and the rest of
 -- the snapshot is untouched.
@@ -173,8 +207,10 @@ local function test_a_stored_table_with_shared_children_or_deep_nesting_is_copie
     A.truthy(os.clock() - started < 5, "scrub stays fast")
     A.truthy(#text < 2000000, "snapshot stays small: " .. #text)
     A.same(H.rect(snap, "AfterBound"), { x = 955, y = 535, width = 10, height = 10 })
-    A.eq(type(H.item(snap, "BoundTex1").blendMode), "table")
-    A.eq(type(H.item(snap, "BoundTex2").blendMode), "table")
+    A.truthy(countNulls(H.item(snap, "BoundTex1").blendMode) > 0, "repeat copies past the budget read null")
+    local depth, bottom = chainDepth(H.item(snap, "BoundTex2").blendMode)
+    A.truthy(depth >= 1 and depth <= 100, "the chain is cut at the depth cap, not " .. depth)
+    A.eq(bottom, Json.null)
   end)
 end
 
@@ -204,6 +240,7 @@ return function()
   test_a_sparse_or_mixed_stored_table_encodes_as_null()
   test_a_stored_list_with_a_small_hole_keeps_its_length()
   test_a_stored_table_that_contains_itself_encodes_with_null_where_it_repeats()
+  test_a_stored_table_shared_without_a_cycle_is_copied_whole_into_both_places()
   test_a_stored_table_with_shared_children_or_deep_nesting_is_copied_within_a_bound()
   test_scrub_copies_many_distinct_tables_whole()
   test_an_empty_assets_table_still_encodes_as_an_object()
