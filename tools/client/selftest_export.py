@@ -5,7 +5,7 @@ import struct
 
 from PIL import Image
 
-from tools.client import art, db2, db2_export, dbd, paths
+from tools.client import art, db2, db2_export, dbd, paths, strings
 from tools.client.extract import Ctx
 from tools.client.fakes import FakeCasc, FakeSource, lua_value, make_wdc5
 from tools.client.source import CascSource
@@ -43,6 +43,41 @@ def global_strings(rows, **kw):
 
 def row(n, tag, text):
     return {"ID": n, "BaseTag": tag, "TagText_lang": text, "Flags": 1}
+
+
+def test_strings_come_from_the_db2_when_there_is_no_lua(tmp):
+    seed(GlobalStrings=GLOBAL_STRINGS)
+    ctx = Ctx(**CTX_ARGS)
+    src = global_strings([row(1, "TOOLTIP_UNIT_LEVEL", "Level %s"), row(2, "QUOTE", 'say "hi"\n')], locked_rows=3)
+    assert strings.write(src, tmp / "out", ctx) == 1
+    assert lua_value(tmp / "out/strings/enUS.lua") == {"TOOLTIP_UNIT_LEVEL": "Level %s", "QUOTE": 'say "hi"\n'}
+    assert ctx.notes == ["db2: GlobalStrings: 3 rows lost to 1 encrypted sections"], ctx.notes
+
+
+def test_a_globalstrings_lua_wins_over_the_db2(tmp):
+    seed(GlobalStrings=GLOBAL_STRINGS)
+    src = global_strings([row(1, "FROM_DB2", "x")])
+    src.files["interface/framexml/globalstrings.lua"] = b'FROM_LUA = "y"'
+    strings.write(src, tmp / "out", Ctx(**CTX_ARGS))
+    assert lua_value(tmp / "out/strings/enUS.lua") == {"FROM_LUA": "y"}
+
+
+def test_missing_db2_or_dbd_is_a_note_not_an_error(tmp):
+    ctx = Ctx(**CTX_ARGS)
+    assert strings.write(FakeSource({}), tmp / "out", ctx) == 0
+    assert any("GlobalStrings has no listfile entry" in n for n in ctx.notes), ctx.notes
+    ctx = Ctx(**CTX_ARGS)
+
+    def offline(*args, **kwargs):
+        raise OSError("offline")
+
+    real, dbd.fetch = dbd.fetch, offline
+    try:
+        assert strings.write(global_strings([row(1, "A", "b")]), tmp / "out", ctx) == 0
+    finally:
+        dbd.fetch = real
+    assert any("GlobalStrings not read: offline" in n for n in ctx.notes), ctx.notes
+    assert not (tmp / "out/strings").exists()
 
 
 def test_locked_sections_yield_no_rows_and_are_counted(tmp):
@@ -144,6 +179,9 @@ def test_bitpacked_unaligned_signed_and_float_fields(tmp):
 
 
 TESTS = [
+    test_strings_come_from_the_db2_when_there_is_no_lua,
+    test_a_globalstrings_lua_wins_over_the_db2,
+    test_missing_db2_or_dbd_is_a_note_not_an_error,
     test_locked_sections_yield_no_rows_and_are_counted,
     test_stale_dbd_cache_is_refreshed_once,
     test_dbd_fetch_caches_and_sends_no_personal_headers,

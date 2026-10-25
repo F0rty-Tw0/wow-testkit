@@ -1,6 +1,7 @@
 """GlobalStrings: runs Blizzard's globalstrings.lua in a bare Lua 5.1 and writes the string globals per locale."""
 
-from tools.client import paths
+from tools.client import db2_export, paths
+from tools.client.manifest import IDENT, KEYWORDS
 
 LOCALE_NAMES = "enUS deDE esES esMX frFR itIT koKR ptBR ruRU zhCN zhTW"
 LOCALES = {name.lower(): name for name in LOCALE_NAMES.split()}
@@ -58,8 +59,25 @@ def locale_of(path, default):
     return default
 
 
+def from_db2(source, out, ctx):
+    """Writes <out>/strings/<ctx.locales[0]>.lua from dbfilesclient/globalstrings.db2 (BaseTag -> TagText_lang);
+    returns 1, or 0 when the table cannot be read. Rows lost to encrypted sections are counted in ctx.notes."""
+    rows = db2_export.read_table(source, "GlobalStrings", ctx)
+    if rows is None:
+        return 0
+    usable = [r for r in rows if IDENT.match(r["BaseTag"]) and r["BaseTag"] not in KEYWORDS]  # globals need Lua names
+    values = {r["BaseTag"]: r["TagText_lang"] for r in usable}
+    if len(usable) < len(rows):
+        ctx.notes.append(f"strings: {len(rows) - len(usable)} GlobalStrings tags are not Lua names and were skipped")
+    target = out / "strings" / f"{ctx.locales[0]}.lua"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(to_lua(values), encoding="utf-8", newline="\n")
+    return 1
+
+
 def write(source, out, ctx):
-    """Writes <out>/strings/<locale>.lua for every globalstrings.lua the source holds; returns how many."""
+    """Writes <out>/strings/<locale>.lua for every globalstrings.lua the source holds, else from the DB2
+    (retail 12.x ships the strings only there); returns how many files."""
     written = 0
     for path in source.paths():
         if path.replace("\\", "/").lower().rsplit("/", 1)[-1] != "globalstrings.lua":
@@ -80,4 +98,4 @@ def write(source, out, ctx):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(to_lua(values), encoding="utf-8", newline="\n")
         written += 1
-    return written
+    return written or from_db2(source, out, ctx)
