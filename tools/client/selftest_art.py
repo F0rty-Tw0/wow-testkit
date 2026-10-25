@@ -84,6 +84,17 @@ def test_png_held_open_by_another_reader_is_kept_not_an_error(tmp):
     assert target.read_bytes() in (b"first", b"second") and [p.name for p in target.parent.iterdir()] == ["a.png"]
 
 
+def test_png_that_cannot_be_replaced_and_is_not_there_is_an_error(tmp):
+    target = tmp / "art/a.png"
+    target.mkdir(parents=True)  # a folder in the PNG's place: os.replace fails and there is no PNG to keep
+    try:
+        art.write_png(target, b"x")
+    except OSError:
+        assert [p.name for p in target.parent.iterdir()] == ["a.png"]
+        return
+    raise AssertionError("expected OSError")
+
+
 def test_lookup_extract_uses_lazy_art(tmp):
     sys.path.insert(0, TOOLS)
     import preview_assets
@@ -107,5 +118,6 @@ TESTS = [
     test_prewarm_decodes_only_the_common_prefixes,
     test_two_writers_of_one_png_each_leave_a_complete_file,
     test_png_held_open_by_another_reader_is_kept_not_an_error,
+    test_png_that_cannot_be_replaced_and_is_not_there_is_an_error,
     test_lookup_extract_uses_lazy_art,
 ]
