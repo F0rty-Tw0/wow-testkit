@@ -58,6 +58,14 @@ def test_corrupt_font_is_skipped_and_noted(tmp):
     assert not (tmp / "fonts").exists()
 
 
+def test_drive_relative_font_name_is_skipped_and_noted(tmp):
+    c = ctx()
+    out = tmp / "out"
+    assert fonts.write(FakeSource({"fonts/c:evil.ttf": make_ttf(GLYPHS)}), out, c) == 0  # on Windows: c:evil.ttf
+    assert c.notes == ["fonts: skipped unsafe path 'fonts/c:evil.ttf'"], c.notes
+    assert not out.exists() and not list(tmp.rglob("*evil*")) and not Path("evil.ttf").exists()
+
+
 def test_lookup_extract_serves_fonts(tmp):
     sys.path.insert(0, TOOLS)
     import preview_assets
@@ -77,5 +85,6 @@ TESTS = [
     test_no_kerning_gives_empty_kern,
     test_write_copies_ttf_and_glyph_table_loads_in_lua51,
     test_corrupt_font_is_skipped_and_noted,
+    test_drive_relative_font_name_is_skipped_and_noted,
     test_lookup_extract_serves_fonts,
 ]

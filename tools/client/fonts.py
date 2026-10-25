@@ -5,6 +5,8 @@ import io
 
 from fontTools.ttLib import TTFont
 
+from tools.client import paths
+
 KERN_SHIFT = 0x200000  # above any codepoint, so left * KERN_SHIFT + right is a unique key
 FONT_SUFFIXES = (".ttf", ".otf")
 HORIZONTAL_KERN = 0x5  # coverage bits 1 (horizontal) and 4 (cross-stream); plain kerning has only bit 1
@@ -119,6 +121,11 @@ def write(source, out, ctx):
     for path in source.paths():
         if not is_font(path):
             continue
+        rel = paths.safe_rel(path)
+        if rel is None or rel.rpartition("/")[0] != "fonts":  # fonts/c:x.ttf would join to a drive-relative c:x.ttf
+            ctx.notes.append(f"fonts: skipped unsafe path {path!r}")
+            continue
+        name = rel.rpartition("/")[2]
         data = source.read(path)
         try:
             if data is None:
@@ -127,7 +134,6 @@ def write(source, out, ctx):
         except Exception as err:  # fontTools raises many types on damaged files
             ctx.notes.append(f"fonts: {path} skipped ({type(err).__name__}: {err})")
             continue
-        name = path.rpartition("/")[2]
         (out / "fonts" / "glyphs").mkdir(parents=True, exist_ok=True)
         (out / "fonts" / name).write_bytes(data)
         (out / "fonts" / "glyphs" / f"{name}.lua").write_text(lua, encoding="utf-8", newline="\n")
