@@ -92,12 +92,17 @@ local function test_malformed_xml_is_one_error_and_returns_false()
   end)
 end
 
-local function test_unknown_element_is_reported_once_per_file_and_include_cycles_stop_assumed()
-  H.withXml({ ["Ui.xml"] = '<Ui><Font name="F"/><Font name="G"/><Include file="Ui.xml"/></Ui>' }, function(w, ctx)
+local function test_unknown_element_is_reported_once_per_file_assumed() -- (X16)
+  H.withXml({ ["Ui.xml"] = '<Ui><Font name="F"/><Font name="G"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
-    local text = reportText(ctx)
-    A.eq(count(text, "unsupported XML <Font> ignored"), 1)
-    A.eq(count(text, "Ui%.xml: include cycle ignored"), 1)
+    A.eq(count(reportText(ctx), "unsupported XML <Font> ignored"), 1)
+  end)
+end
+
+local function test_a_file_that_includes_itself_stops_at_the_cycle()
+  H.withXml({ ["Ui.xml"] = '<Ui><Include file="Ui.xml"/></Ui>' }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.eq(count(reportText(ctx), "Ui%.xml: include cycle ignored"), 1)
   end)
 end
 
@@ -131,7 +136,8 @@ return function()
   test_inline_script_that_does_not_compile_is_reported_not_raised()
   test_missing_files_are_reported_and_loading_continues()
   test_malformed_xml_is_one_error_and_returns_false()
-  test_unknown_element_is_reported_once_per_file_and_include_cycles_stop_assumed()
+  test_unknown_element_is_reported_once_per_file_assumed()
+  test_a_file_that_includes_itself_stops_at_the_cycle()
   test_include_cycle_through_a_parent_folder_path_stops()
   test_a_file_without_frames_loads_into_a_world_without_widgets()
 end

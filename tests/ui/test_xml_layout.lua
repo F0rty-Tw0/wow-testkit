@@ -53,6 +53,22 @@ local function test_parent_forms_and_set_all_points()
   end)
 end
 
+-- source: wiki XML/Anchor, relativeTo "Another widget to align against (in `_G`)"; row X8 (`$parentKid` forms)
+local function test_relative_to_substitutes_a_parent_name_that_holds_a_percent_sign()
+  local xml = [[
+<Ui><Frame name="Pct%Bar"><Size x="200" y="100"/><Anchors><Anchor point="TOPLEFT" relativeTo="UIParent" x="10" y="-20"/></Anchors>
+  <Frames>
+    <Frame name="$parentKid"><Size x="20" y="20"/><Anchors><Anchor point="TOPLEFT"/></Anchors></Frame>
+    <Frame name="$parentOther"><Size x="20" y="20"/>
+      <Anchors><Anchor point="TOPLEFT" relativeTo="$parentKid" relativePoint="BOTTOMLEFT"/></Anchors></Frame>
+  </Frames></Frame></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    -- Kid sits at Pct%Bar's top left (10, 780); Other hangs below it: top 760, bottom 740.
+    A.same(rect("Pct%BarOther"), { 10, 740, 20, 20 })
+  end)
+end
+
 local function test_anchor_without_a_target_on_a_nested_frame_uses_the_parent_assumed()
   local xml = [[
 <Ui><Frame name="Par"><Size x="200" y="100"/><Anchors><Anchor point="TOPLEFT" relativeTo="UIParent" x="10" y="-20"/></Anchors>
@@ -259,6 +275,7 @@ return function()
   test_anchor_without_a_target_on_a_parentless_frame_uses_the_screen_assumed()
   test_parent_forms_and_set_all_points()
   test_anchor_without_a_target_on_a_nested_frame_uses_the_parent_assumed()
+  test_relative_to_substitutes_a_parent_name_that_holds_a_percent_sign()
   test_layer_region_anchors_to_a_frame_declared_after_it()
   test_relative_key_may_name_a_sibling_frame_built_later_assumed()
   test_relative_key_walks_two_levels_assumed()

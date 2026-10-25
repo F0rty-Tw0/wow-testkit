@@ -7,11 +7,12 @@ local M = {}
 local BehaviourRegions = require("ui.behaviour_regions")
 local TemplateApply = require("ui.template_apply")
 
-local IDENTITY = { name = true, parentkey = true, parentarray = true }
+-- Identity attributes: built by ui/xml_build.lua (XmlBuild.attach), so no setter here.
+M.IDENTITY = { name = true, parentkey = true, parentarray = true }
 -- Applied before every other attribute, in this order; the rest follow by name.
 local EARLY = { inherits = 1, mixin = 2, securemixin = 3 }
 
-local function send(obj, method, ...)
+local function callIfPresent(obj, method, ...)
   if obj[method] then
     obj[method](obj, ...)
     return true
@@ -19,28 +20,29 @@ local function send(obj, method, ...)
   return false
 end
 
-local function flag(method)
+local function boolSetter(method)
   return function(_, obj, _, value)
-    return send(obj, method, value == "true")
+    return callIfPresent(obj, method, value == "true")
   end
 end
 
-local function number(method)
+local function numberSetter(method)
   return function(_, obj, _, value)
     local n = tonumber(value)
-    return n == nil or send(obj, method, n)
+    return n == nil or callIfPresent(obj, method, n)
   end
 end
 
-local function text(method)
+local function stringSetter(method)
   return function(_, obj, _, value)
-    return send(obj, method, value)
+    return callIfPresent(obj, method, value)
   end
 end
 
 local function skip() end
 
--- Created shown; no OnHide runs (row X7, the no-OnHide part assumed).
+-- source: wiki XML/LayoutFrame, hidden "Controls the frame's initial visibility" (row X7). Writes the state, not Hide,
+-- so no OnHide runs (assumed).
 local function hidden(_, _, st, value)
   if value == "true" then
     st.shown = false
@@ -48,7 +50,7 @@ local function hidden(_, _, st, value)
 end
 
 local function setAllPoints(_, obj, _, value)
-  return value ~= "true" or send(obj, "SetAllPoints")
+  return value ~= "true" or callIfPresent(obj, "SetAllPoints")
 end
 
 -- source: wiki XML/LayoutFrame, `mixin` / `secureMixin` "Inherits a comma-separated list of Lua mixins". secureMixin is
@@ -69,14 +71,14 @@ end
 M.frame = {
   hidden = hidden,
   setallpoints = setAllPoints,
-  framestrata = text("SetFrameStrata"),
-  framelevel = number("SetFrameLevel"),
-  enablemouse = flag("EnableMouse"),
-  movable = flag("SetMovable"),
-  toplevel = flag("SetToplevel"),
-  id = number("SetID"),
-  alpha = number("SetAlpha"),
-  scale = number("SetScale"),
+  framestrata = stringSetter("SetFrameStrata"),
+  framelevel = numberSetter("SetFrameLevel"),
+  enablemouse = boolSetter("EnableMouse"),
+  movable = boolSetter("SetMovable"),
+  toplevel = boolSetter("SetToplevel"),
+  id = numberSetter("SetID"),
+  alpha = numberSetter("SetAlpha"),
+  scale = numberSetter("SetScale"),
   mixin = mixin,
   securemixin = mixin,
   inherits = function(w, frame, _, value)
@@ -89,29 +91,29 @@ M.frame = {
 M.region = {
   hidden = hidden,
   setallpoints = setAllPoints,
-  alpha = number("SetAlpha"),
+  alpha = numberSetter("SetAlpha"),
   virtual = skip, -- XmlBuild.region registers a virtual element as a template; its body carries the attribute
   -- source: wiki XML/Texture, "Lua Equivalent": file is SetTexture, atlas and useAtlasSize are SetAtlas
-  file = text("SetTexture"),
+  file = stringSetter("SetTexture"),
   atlas = function(_, region, _, value, node)
-    return send(region, "SetAtlas", value, node.attrs.useatlassize == "true")
+    return callIfPresent(region, "SetAtlas", value, node.attrs.useatlassize == "true")
   end,
   useatlassize = skip, -- read by atlas
-  alphamode = text("SetBlendMode"), -- row X17, assumed
+  alphamode = stringSetter("SetBlendMode"), -- row X17, assumed
   -- row X19, assumed: a global string's name gives that string, anything else is the text itself
   text = function(_, region, _, value)
     local global = rawget(_G, value)
-    return send(region, "SetText", type(global) == "string" and global or value)
+    return callIfPresent(region, "SetText", type(global) == "string" and global or value)
   end,
-  justifyh = text("SetJustifyH"),
-  justifyv = text("SetJustifyV"),
+  justifyh = stringSetter("SetJustifyH"),
+  justifyv = stringSetter("SetJustifyV"),
   -- row X19, assumed: a font object's name
   inherits = function(w, region, _, value)
     BehaviourRegions.applyFontTemplates(w, region, value)
   end,
 }
 
-local function before(a, b)
+local function appliedBefore(a, b)
   local rankA, rankB = EARLY[a] or math.huge, EARLY[b] or math.huge
   if rankA ~= rankB then
     return rankA < rankB
@@ -125,11 +127,11 @@ function M.apply(w, obj, node, session, set)
   local st = w.ui.state[obj]
   local names = {}
   for name in pairs(node.attrs) do
-    if not IDENTITY[name] then
+    if not M.IDENTITY[name] then
       names[#names + 1] = name
     end
   end
-  table.sort(names, before)
+  table.sort(names, appliedBefore)
   for _, name in ipairs(names) do
     local setter = set[name]
     if not setter or setter(w, obj, st, node.attrs[name], node, session) == false then

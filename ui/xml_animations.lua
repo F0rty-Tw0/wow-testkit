@@ -1,8 +1,10 @@
 -- XML <Animations>: animation groups and their animations, built with the frame; nothing plays until Play (row X20,
--- the build timing and not playing assumed). The element and attribute set is the schema's, Blizzard_SharedXML/UI.xsd:
--- 1561-1646 (animations) and 1719-1738 (AnimationGroup).
+-- the build timing and not playing assumed).
+-- source: Blizzard_SharedXML/UI.xsd:1561-1646 (animations) and 1719-1738 (AnimationGroup) give the element and
+-- attribute set.
 local M = {}
 
+local XmlAttrs = require("ui.xml_attrs")
 local XmlBuild = require("ui.xml_build")
 
 local handlers = XmlBuild.handlers
@@ -32,8 +34,12 @@ local PAIRS = {
   { "SetOffset", "offsetx", "offsety", 0 },
   { "SetScale", "scalex", "scaley", 1 },
 }
--- Handled elsewhere: identity attributes (XmlBuild.attach) and the pair axes.
-local HANDLED = { name = true, parentkey = true, parentarray = true, offsetx = true, offsety = true, scalex = true, scaley = true }
+-- The attributes the pair setters read, handled apart from SETTERS.
+local PAIR_AXES = {}
+for _, pair in ipairs(PAIRS) do
+  PAIR_AXES[pair[2]] = true
+  PAIR_AXES[pair[3]] = true
+end
 
 local function setPair(animation, attrs, pair)
   local method, xName, yName, identity = unpack(pair)
@@ -52,7 +58,7 @@ local function applyAttributes(animation, node, session)
     local setter = SETTERS[name]
     if setter and animation[setter[1]] then
       animation[setter[1]](animation, setter[2](value))
-    elseif not (setter == nil and HANDLED[name]) then
+    elseif not (setter == nil and (XmlAttrs.IDENTITY[name] or PAIR_AXES[name])) then
       session.reportAt(node.line, "<" .. node.rawTag .. "> attribute '" .. name .. "' ignored")
     end
   end

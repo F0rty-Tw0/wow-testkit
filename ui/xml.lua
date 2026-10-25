@@ -36,7 +36,7 @@ M.registerVirtual = XmlBuild.registerVirtual
 
 -- Builds one element of the root <Ui>: a frame, or a virtual region template. Every other element is reported and
 -- skipped.
-function M.element(w, node, _, session)
+function M.element(w, node, session)
   if XmlBuild.isRegion(node) and node.attrs.virtual == "true" then
     XmlBuild.region(w, node, nil, session)
   else
@@ -67,7 +67,7 @@ local function walk(w, root, ctx, file, loading, session)
     elseif node.tag == "script" then
       ctx.runSource(node.text, "addon:" .. ctx.name .. "/" .. file.path, node.textLine)
     else
-      M.element(w, node, ctx, session)
+      M.element(w, node, session)
     end
   end
 end
@@ -90,7 +90,7 @@ loadInto = function(w, path, ctx, loading)
   if root.tag == "ui" then
     walk(w, root, ctx, file, loading, session)
   else
-    M.element(w, root, ctx, session)
+    M.element(w, root, session)
   end
   XmlBuild.finish(w, session)
   loading[path] = nil

@@ -6,7 +6,8 @@ local XmlBuild = require("ui.xml_build")
 
 local handlers = XmlBuild.handlers
 
-local function childNamed(node, tag)
+-- The first child element of node with this (lowercased) tag, or nil.
+function M.childNamed(node, tag)
   for _, child in ipairs(node.children) do
     if child.tag == tag then
       return child
@@ -20,14 +21,14 @@ end
 function M.dimension(node)
   local source = node
   if node.attrs.x == nil and node.attrs.y == nil then
-    source = childNamed(node, "absdimension") or node
+    source = M.childNamed(node, "absdimension") or node
   end
   return tonumber(source.attrs.x), tonumber(source.attrs.y)
 end
 
 -- The number of a <TileSize>, <EdgeSize> or <FontHeight>: its val attribute, else that of its <AbsValue> child.
 function M.absValue(node)
-  local source = childNamed(node, "absvalue") or node
+  local source = M.childNamed(node, "absvalue") or node
   return tonumber(source.attrs.val)
 end
 
@@ -42,7 +43,7 @@ end
 
 -- Only the axes the element names change (row X9; that a second <Size> merges per axis with the first is X4, assumed).
 function handlers.size(_, obj, _, node, session)
-  local rel = childNamed(node, "reldimension")
+  local rel = M.childNamed(node, "reldimension")
   if rel then
     session.reportAt(rel.line, "<RelDimension> is not modelled; ignored")
   end
@@ -76,8 +77,7 @@ local function nameTarget(parent, name)
   if name == "$parent" then
     return parent ~= nil, parent
   end
-  local parentName = parent and parent:GetName() or ""
-  local target = rawget(_G, (name:gsub("%$parent", parentName)))
+  local target = rawget(_G, XmlBuild.substituteParent(name, parent))
   return type(target) == "table", target
 end
 
@@ -95,7 +95,7 @@ end
 
 -- The offset of an <Anchor>: its <Offset> child, else its x and y attributes (row X9).
 local function offsetOf(node)
-  local offset = childNamed(node, "offset")
+  local offset = M.childNamed(node, "offset")
   local x, y
   if offset then
     x, y = M.dimension(offset)

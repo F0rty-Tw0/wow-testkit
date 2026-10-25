@@ -13,6 +13,7 @@ M.handlers = {}
 -- finishers[i] = fn(w, frame, st, node, session), run in order once the frame's children exist.
 M.finishers = {}
 
+-- source: wiki XML/Layer: `level` defaults to ARTWORK, `textureSubLevel` to 0 (row X10)
 local DEFAULT_LAYER = "ARTWORK"
 local DEFAULT_SUBLEVEL = 0
 -- Region tags (lowercased by the parser) to the Ketho type, when the flavor lists it.
@@ -41,17 +42,21 @@ local function unsupportedTag(session, node)
   session.report("tag:" .. node.tag, "unsupported XML <" .. node.rawTag .. "> ignored")
 end
 
--- source: wiki XML/LayoutFrame, name: "substituting `$parent` with a parent's name". An anonymous or missing parent
--- gives "" (row X2, assumed).
-function M.fullName(node, parent)
-  local name = node.attrs.name
-  if not name then
-    return nil
-  end
+-- `name` with each `$parent` replaced by the parent's name; an anonymous or missing parent gives "". A function
+-- replacement keeps a "%" in the parent's name literal.
+-- source: wiki XML/LayoutFrame, name: "substituting `$parent` with a parent's name"; row X2 (the "" is assumed).
+function M.substituteParent(name, parent)
   local parentName = parent and parent:GetName() or ""
   return (name:gsub("%$parent", function()
     return parentName
   end))
+end
+local substituteParent = M.substituteParent
+
+-- The full name of the frame or region `node` builds under parent; nil when the node has no name.
+function M.fullName(node, parent)
+  local name = node.attrs.name
+  return name and substituteParent(name, parent)
 end
 local fullName = M.fullName
 
@@ -119,7 +124,7 @@ function M.body(w, obj, node, session)
 end
 
 -- Anchors that named a target built after them are retried here; those that still have none stay queued.
-function M.settle(_, session)
+function M.settle(session)
   local waiting = {}
   for _, entry in ipairs(session.anchors) do
     if not entry.try() then
@@ -132,7 +137,7 @@ end
 -- Ends a session once its file is built: a last settle, a report line for each anchor still without a target, and a
 -- layout invalidation as a guard for any state the build wrote without a method (a world without widgets has none).
 function M.finish(w, session)
-  M.settle(w, session)
+  M.settle(session)
   for _, entry in ipairs(session.anchors) do
     session.reportAt(entry.line, "anchor target '" .. entry.name .. "' not found; anchor skipped")
   end
@@ -195,7 +200,7 @@ function M.frame(w, node, parent, session)
   for _, finish in ipairs(M.finishers) do
     finish(w, frame, st, node, session)
   end
-  M.settle(w, session)
+  M.settle(session)
   return frame
 end
 

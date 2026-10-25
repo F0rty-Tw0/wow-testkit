@@ -55,7 +55,8 @@ local function padded(source, line)
 end
 
 -- The per-addon load context: { name, root, ns, env, report, readFile(relative) -> text | nil, runFile(relative),
--- runSource(source, chunkName, line), compile(source, chunkName, line) -> chunk | nil (the chunk is not run) }. report is the list of what the kit ignored; M.load replaces it with the TOC's.
+-- runSource(source, chunkName, line), compile(source, chunkName, line) -> chunk | nil (the chunk is not run) }. report
+-- is the list of what the kit ignored; M.load replaces it with the TOC's.
 function M.context(w, name, root)
   local ctx = { name = name, root = root, ns = {}, env = AddonEnv.newEnv(w), report = {} }
   function ctx.readFile(relative)

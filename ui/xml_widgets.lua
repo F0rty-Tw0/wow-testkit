@@ -59,22 +59,18 @@ function handlers.shadow(_, text, _, node)
 end
 
 local function insets(node)
-  for _, child in ipairs(node.children) do
-    if child.tag == "backgroundinsets" and child.children[1] then
-      local attrs = child.children[1].attrs
-      return { left = tonumber(attrs.left), right = tonumber(attrs.right), top = tonumber(attrs.top), bottom = tonumber(attrs.bottom) }
-    end
+  local container = XmlLayout.childNamed(node, "backgroundinsets")
+  local inset = container and container.children[1]
+  if not inset then
+    return nil
   end
-  return nil
+  local attrs = inset.attrs
+  return { left = tonumber(attrs.left), right = tonumber(attrs.right), top = tonumber(attrs.top), bottom = tonumber(attrs.bottom) }
 end
 
 local function sizeOf(node, tag)
-  for _, child in ipairs(node.children) do
-    if child.tag == tag then
-      return XmlLayout.absValue(child)
-    end
-  end
-  return nil
+  local child = XmlLayout.childNamed(node, tag)
+  return child and XmlLayout.absValue(child)
 end
 
 -- The legacy <Backdrop> as the info table SetBackdrop takes; only a frame with BackdropTemplate has SetBackdrop.

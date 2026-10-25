@@ -27,6 +27,13 @@ local ARGS = {
   OnKeyUp = "key",
 }
 local DEFAULT_ARGS = "..."
+-- The same by the parser's lowercased tag, so an element in any case finds its arguments.
+local ARGS_BY_TAG = {}
+for name, args in pairs(ARGS) do
+  ARGS_BY_TAG[name:lower()] = args
+end
+
+local handlers = XmlBuild.handlers
 
 -- source: wiki XML/Scripts, `function` "Name of a function instead of Lua code between the XML tags". The global is
 -- looked up now, in the addon's environment (row X12, when assumed).
@@ -41,11 +48,17 @@ local function namedFunction(node, session)
 end
 
 -- source: wiki XML/Scripts, `method` "Name of a widget method instead of Lua code between the XML tags". The handler's
--- arguments are passed on (row X12, assumed).
-local function namedMethod(node)
+-- arguments are passed on (row X12, assumed). A frame without the method when the handler fires (a mixin that failed to
+-- load, say) raises an error that names the method and the XML line, so it lands in w.errors like any handler error.
+local function namedMethod(node, session)
   local name = node.attrs.method
+  local where = "addon:" .. session.ctx.name .. "/" .. session.file.path .. ":" .. node.line
   return function(self, ...)
-    return self[name](self, ...)
+    local method = self[name]
+    if type(method) ~= "function" then
+      error(where .. ": <" .. node.rawTag .. "> method '" .. name .. "' not found on " .. (self:GetName() or self:GetObjectType()), 0)
+    end
+    return method(self, ...)
   end
 end
 
@@ -53,7 +66,7 @@ end
 -- header shares the body's first line, so an error names the XML line the body starts on.
 local function inlineBody(node, session)
   local ctx = session.ctx
-  local source = "return function(self, " .. (ARGS[node.rawTag] or DEFAULT_ARGS) .. ") " .. node.text .. "\nend"
+  local source = "return function(self, " .. (ARGS_BY_TAG[node.tag] or DEFAULT_ARGS) .. ") " .. node.text .. "\nend"
   local chunk = ctx.compile(source, "addon:" .. ctx.name .. "/" .. session.file.path, node.textLine)
   return chunk and chunk()
 end
@@ -78,13 +91,12 @@ end
 -- The function for one handler element `node` (<OnLoad>, <OnClick>, ...): function= the named global, method= a call of
 -- that widget method, else the element's text as a body. `inherited` is the handler already on the frame; inherit=
 -- "prepend" or "append" runs both, otherwise the new one replaces it. Nil when there is nothing to set (reported).
--- The parser lowercases tags, so the canonical OnXxx name is the node's rawTag.
-function M.handlerFunction(_, _, node, session, inherited)
+function M.handlerFunction(node, session, inherited)
   local fn
   if node.attrs["function"] then
     fn = namedFunction(node, session)
   elseif node.attrs.method then
-    fn = namedMethod(node)
+    fn = namedMethod(node, session)
   else
     fn = inlineBody(node, session)
   end
@@ -94,13 +106,15 @@ function M.handlerFunction(_, _, node, session, inherited)
   return fn
 end
 
-function XmlBuild.handlers.scripts(w, frame, st, node, session)
+-- source: row X16 (assumed): element tags match ignoring case, so the canonical OnXxx name comes from the frame type's
+-- handler list.
+function handlers.scripts(w, frame, st, node, session)
   for _, child in ipairs(node.children) do
-    local name = child.rawTag
-    if not Scripts.supports(st.plan.type, name, w.flavor) then
-      session.reportAt(child.line, st.plan.type .. " has no script handler '" .. name .. "'; ignored")
+    local name = Scripts.canonical(st.plan.type, child.tag, w.flavor)
+    if not name then
+      session.reportAt(child.line, st.plan.type .. " has no script handler '" .. child.rawTag .. "'; ignored")
     else
-      local fn = M.handlerFunction(w, frame, child, session, w:getScript(frame, name))
+      local fn = M.handlerFunction(child, session, w:getScript(frame, name))
       if fn then
         frame:SetScript(name, fn)
       end

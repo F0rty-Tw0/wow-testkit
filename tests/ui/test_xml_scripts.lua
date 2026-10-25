@@ -90,6 +90,27 @@ local function test_method_attribute_passes_the_handler_arguments_assumed()
   end)
 end
 
+local function test_method_that_the_frame_lacks_names_the_method_and_the_xml_line()
+  local xml = '<Ui>\n<Frame name="Mm"><Scripts>\n<OnLoad method="Nope"/></Scripts></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.eq(#w.errors, 1)
+    A.eq(w.errors[1].message, "addon:XmlT/Ui.xml:3: <OnLoad> method 'Nope' not found on Mm")
+  end)
+end
+
+local function test_handler_tags_match_ignoring_case_assumed() -- (X16)
+  local xml = '<Ui><Frame name="Lc"><Scripts><onload>Mark("loaded")</onload><onevent>self.got = event</onevent></Scripts></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    local log = logTo(w)
+    H.load(w, ctx, "Ui.xml")
+    w:callScript(_G.Lc, "OnEvent", "PING")
+    A.same(log, { "loaded" })
+    A.eq(_G.Lc.got, "PING")
+    A.eq(reportText(ctx), "")
+  end)
+end
+
 local function test_on_load_runs_after_children_exist()
   local xml = [[
 <Ui><Frame name="Pr"><Scripts><OnLoad>Mark(self.Kid and "has kid" or "no kid")</OnLoad></Scripts>
@@ -257,6 +278,8 @@ return function()
   test_function_attribute_is_looked_up_at_build_time_assumed()
   test_method_attribute_calls_the_mixin_method_on_load()
   test_method_attribute_passes_the_handler_arguments_assumed()
+  test_method_that_the_frame_lacks_names_the_method_and_the_xml_line()
+  test_handler_tags_match_ignoring_case_assumed()
   test_on_load_runs_after_children_exist()
   test_on_load_runs_after_layers_and_key_values()
   test_a_child_on_load_runs_before_its_parents_assumed()

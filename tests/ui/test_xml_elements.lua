@@ -105,13 +105,6 @@ local function test_tag_matches_the_frame_type_ignoring_case_assumed()
   end)
 end
 
-local function test_virtual_frame_builds_nothing()
-  H.withXml({ ["Ui.xml"] = '<Ui><Frame name="Tpl" virtual="true"/></Ui>' }, function(w, ctx)
-    H.load(w, ctx, "Ui.xml")
-    A.eq(_G.Tpl, nil)
-  end)
-end
-
 local function test_mixin_copies_the_global_table_and_records_its_name()
   H.withXml({ ["Ui.xml"] = '<Ui><Frame name="Mx" mixin="BoxMixin, OtherMixin"/></Ui>' }, function(w, ctx)
     local hello = function() end
@@ -222,7 +215,6 @@ return function()
   test_unknown_child_element_is_reported_once_per_file_assumed()
   test_unsupported_attribute_is_reported_once_per_file()
   test_tag_matches_the_frame_type_ignoring_case_assumed()
-  test_virtual_frame_builds_nothing()
   test_mixin_copies_the_global_table_and_records_its_name()
   test_inherits_applies_before_the_elements_own_mixin_assumed()
   test_missing_mixin_is_reported_assumed()

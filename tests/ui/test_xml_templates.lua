@@ -89,7 +89,7 @@ local CHAIN = [[
 </Ui>]]
 
 -- source: wiki XML/LayoutFrame, `inherits` "Inherits a comma-separated list of XML virtual templates" (row X4)
-local function test_inherits_apply_left_to_right_and_own_size_is_per_axis_assumed()
+local function test_inherited_template_chain_and_own_size_merge_per_axis_assumed()
   H.withXml({ ["Ui.xml"] = CHAIN }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
     -- T1 gives 10x10, T2 overrides the width (20), Own overrides the height (30).
@@ -97,7 +97,7 @@ local function test_inherits_apply_left_to_right_and_own_size_is_per_axis_assume
   end)
 end
 
-local function test_inherits_list_applies_in_order_and_the_last_template_wins()
+local function test_inherits_list_applies_in_order_and_the_last_template_wins_assumed()
   local xml = '<Ui><Frame name="Ta" virtual="true"><Size x="1" y="1"/></Frame><Frame name="Tb" virtual="true"><Size x="2"/></Frame>'
     .. '<Frame name="Ab" inherits="Ta, Tb"/><Frame name="Ba" inherits="Tb,Ta"/></Ui>'
   H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
@@ -220,8 +220,8 @@ return function()
   test_script_error_of_a_virtual_names_the_xml_file_and_line()
   test_nested_virtual_frame_registers_too()
   test_virtual_without_a_name_is_reported_and_skipped()
-  test_inherits_apply_left_to_right_and_own_size_is_per_axis_assumed()
-  test_inherits_list_applies_in_order_and_the_last_template_wins()
+  test_inherited_template_chain_and_own_size_merge_per_axis_assumed()
+  test_inherits_list_applies_in_order_and_the_last_template_wins_assumed()
   test_script_without_inherit_replaces_the_template_one_assumed()
   test_script_inherit_hooks_the_template_script()
   test_script_inherit_prepend_and_append_order_assumed()
