@@ -1,6 +1,7 @@
 // The one seam between the viewer and a session. TK.api(method, req) forwards to the current backend; server events
 // arrive through TK.on(name, fn). A backend is { call(method, req) -> Promise, start(emit) }; the http backend talks to
-// tools/session.py (POST /call/<method>, SSE /stream). Classic script, no DOM access.
+// tools/session.py (POST /call/<method>, SSE /stream), the worker backend to the browser host's worker. Classic script,
+// no DOM access.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -63,4 +64,11 @@ window.TK = window.TK || {};
       },
     };
   };
+
+  // The browser host's backend (host/host_page.js): target.postCall(method, req) resolves the reply's JSON text, and
+  // target.onEvent(fn) hands each worker event to fn(name, data).
+  transport.worker = (target) => ({
+    call: (method, req) => target.postCall(method, req || {}).then(JSON.parse),
+    start: (emit) => target.onEvent(emit),
+  });
 })(window.TK);

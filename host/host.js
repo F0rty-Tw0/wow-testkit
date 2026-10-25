@@ -21,10 +21,13 @@ window.TK = window.TK || {};
     return worker;
   }
 
+  const byPath = (entries) => new Map(entries.map((entry) => [entry.path, entry.file]));
+
   // The messages of the controller to its worker, and what comes back, run through the table. deps = { addon, extract?,
   // wtf?, character?, account, timers?, poll?, spawn? } with handles already granted. timers hold setTimeout and
   // clearTimeout and the watchdog's callMs and openMs; poll the addon poll interval and quiet window in ms; spawn makes the
-  // worker (the checks pass a scripted one).
+  // worker (the checks pass a scripted one). A call of the method reimport lists the WTF files again and posts reimport.
+  // files() is the last walk of the addon and the extract, as Maps of path -> File, for the page's asset urls.
   function start(deps) {
     const dep = Object.assign({ timers: {}, poll: {}, win: window, spawn: spawnWorker }, deps);
     const clock = Object.assign({}, realTimers, dep.timers);
@@ -42,6 +45,7 @@ window.TK = window.TK || {};
     let queue = [];
     let nextId = 1;
     let shutDown = false;
+    let files = { addon: new Map(), extract: new Map() };
 
     const show = (text) => {
       const el = document.getElementById('host-state');
@@ -79,6 +83,7 @@ window.TK = window.TK || {};
       const msg = { addonFolder: folder, addon: await walk(dep.addon), account: dep.account, character: dep.character };
       if (dep.extract) msg.extract = await walk(dep.extract);
       if (dep.wtf) msg.wtf = await wtfEntries(dep.wtf, folder, dep.character);
+      files = { addon: byPath(msg.addon), extract: byPath(msg.extract || []) };
 
       return msg;
     }
@@ -139,14 +144,24 @@ window.TK = window.TK || {};
         return;
       }
       if (mine !== worker) return;
+      files = { addon: byPath(addon), extract: files.extract };
       post('remount', { addon }).then((reply) => {
         remounts--;
         if (remounts === 0 && !edited) dispatch(JSON.parse(reply).ok ? 'reloadReply' : 'luaError');
       }, () => {});
     }
 
+    async function reimportMessage() {
+      const mine = worker;
+      const wtf = dep.wtf ? await wtfEntries(dep.wtf, dep.addon.name, dep.character) : [];
+      if (mine !== worker) throw new Error('runtime stopped');
+
+      return post('reimport', { wtf });
+    }
+
     function send(call) {
-      post('call', { method: call.method, req: call.req }, call.method).then(call.resolve, call.reject);
+      const sent = call.method === 'reimport' ? reimportMessage() : post('call', { method: call.method, req: call.req }, call.method);
+      sent.then(call.resolve, call.reject);
     }
 
     const actions = {
@@ -199,6 +214,7 @@ window.TK = window.TK || {};
 
     return {
       state: () => state,
+      files: () => files,
       postCall,
       api: (method, req) => postCall(method, req).then(JSON.parse),
       restart: () => dispatch('restart'),

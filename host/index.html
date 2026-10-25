@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Addon session</title>
+    <link rel="stylesheet" href="../viewer/viewer.css" />
+    <link rel="stylesheet" href="../viewer/panels.css" />
+    <link rel="stylesheet" href="../viewer/dev.css" />
+    <link rel="stylesheet" href="../viewer/inspector.css" />
+    <link rel="stylesheet" href="host.css" />
+    <script>
+      // The viewer's panels mount in live mode only (?live=1), so the host page is always live, unless the browser lacks
+      // the folder picker and the page shows nothing but the Chromium-only message (host_page.js).
+      (function () {
+        const query = new URLSearchParams(location.search);
+        const live = query.get('live') === '1';
+        if (typeof window.showDirectoryPicker !== 'function' || live) return;
+        query.set('live', '1');
+        history.replaceState(null, '', '?' + query + location.hash);
+      })();
+    </script>
+  </head>
+  <body data-host-page>
+    <header id="host">
+      <div id="picker">
+        <button id="pick-addon" type="button">Addon folder</button>
+        <button id="pick-extract" type="button">Client extract (optional)</button>
+        <button id="pick-wtf" type="button">WTF account (optional)</button>
+        <select id="character" aria-label="Character" hidden></select>
+        <button id="start" type="button" disabled>Start</button>
+      </div>
+      <div id="host-status">
+        <span id="host-state" role="status"></span>
+        <button id="restart" type="button" hidden>Restart</button>
+        <button id="repick" type="button" hidden>Re-pick folder</button>
+        <button id="reimport" type="button" hidden>Re-import from WTF</button>
+        <span id="missing-art" title="Textures shown as stand-ins: no file, or a .blp or .tga the browser cannot decode" hidden></span>
+      </div>
+    </header>
+    <div id="banner" role="note" hidden></div>
+    <div id="toolbar">
+      <button id="zoom-out" type="button" aria-label="Zoom out">&minus;</button>
+      <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+      <button id="zoom-fit" type="button">Fit</button>
+      <span id="zoom-label"></span>
+    </div>
+    <div id="status" role="alert" hidden></div>
+    <div id="skipped" role="alert" hidden></div>
+    <div id="errors" hidden></div>
+    <div id="workspace">
+      <div id="viewport">
+        <div id="background"></div>
+        <div id="stage"></div>
+        <div id="hover" hidden></div>
+        <div id="selection" hidden></div>
+      </div>
+      <aside id="panels" hidden></aside>
+    </div>
+    <script src="worker_bundle.js"></script>
+    <script src="../viewer/transport.js"></script>
+    <script src="../viewer/viewer_text.js"></script>
+    <script src="../viewer/viewer_font.js"></script>
+    <script src="../viewer/viewer_items.js"></script>
+    <script src="../viewer/viewer.js"></script>
+    <script src="../viewer/keys.js"></script>
+    <script src="../viewer/pointer.js"></script>
+    <script src="../viewer/live.js"></script>
+    <script src="../viewer/inspector_model.js"></script>
+    <script src="../viewer/inspector.js"></script>
+    <script src="../viewer/console.js"></script>
+    <script src="../viewer/cmdline.js"></script>
+    <script src="../viewer/events.js"></script>
+    <script src="../viewer/state.js"></script>
+    <script src="../viewer/toolbar.js"></script>
+    <script src="../viewer/dev.js"></script>
+    <script src="host_fs.js"></script>
+    <script src="host_state.js"></script>
+    <script src="host.js"></script>
+    <script src="host_assets.js"></script>
+    <script src="host_page.js"></script>
+  </body>
+</html>

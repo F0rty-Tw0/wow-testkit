@@ -97,6 +97,29 @@
   });
 
   T.push({
+    name: 'transport_worker_backend',
+    fn: async () => {
+      const posted = [];
+      let listener = null;
+      const target = {
+        postCall: (method, req) => {
+          posted.push([method, req]);
+
+          return Promise.resolve('{"ok":true}');
+        },
+        onEvent: (fn) => (listener = fn),
+      };
+      const backend = TK.transport.worker(target);
+      A.same(await backend.call('info'), { ok: true });
+      A.same(posted, [['info', {}]], 'a missing request is sent as an empty object');
+      const seen = [];
+      backend.start((name, data) => seen.push([name, data]));
+      listener('snapshot', { seq: 2 });
+      A.same(seen, [['snapshot', { seq: 2 }]]);
+    },
+  });
+
+  T.push({
     name: 'transport_api_uses_the_current_backend',
     fn: async () => {
       A.eq(await rejection(TK.api('x')), 'no transport');

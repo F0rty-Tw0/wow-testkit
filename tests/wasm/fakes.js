@@ -1,6 +1,6 @@
 // Fakes for the host checks: fakeDir(tree, name) stands in for a FileSystemDirectoryHandle (kind, name, entries(),
 // requestPermission(); a file has kind, name, getFile()) and fakeTimers() for setTimeout, so the checks drive time by hand.
-// treeOf(flat) nests { "a/b.lua": text } into the { name: text | subtree } shape fakeDir takes.
+// treeOf(flat) nests { "a/b.lua": text } into the { name: text | Blob | subtree } shape fakeDir takes.
 (function () {
   'use strict';
 
@@ -12,9 +12,12 @@
 
   const fileNode = (text) => ({ text, mtime: bump(), fail: false });
 
+  // A file's content is a string or a Blob (an image a check drew); any other value is a subtree.
+  const isContent = (value) => typeof value === 'string' || value instanceof Blob;
+
   function dirNode(tree) {
     const kids = new Map();
-    Object.keys(tree).forEach((name) => kids.set(name, typeof tree[name] === 'string' ? fileNode(tree[name]) : dirNode(tree[name])));
+    Object.keys(tree).forEach((name) => kids.set(name, isContent(tree[name]) ? fileNode(tree[name]) : dirNode(tree[name])));
 
     return { kids, fail: false };
   }
