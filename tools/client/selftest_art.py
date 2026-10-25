@@ -76,6 +76,14 @@ def test_two_writers_of_one_png_each_leave_a_complete_file(tmp):
     assert target.read_bytes() == b"first" and [p.name for p in target.parent.iterdir()] == ["a.png"]
 
 
+def test_png_held_open_by_another_reader_is_kept_not_an_error(tmp):
+    target = tmp / "art/a.png"
+    art.write_png(target, b"first")
+    with open(target, "rb"):  # on Windows a reader's open handle makes os.replace onto it fail
+        art.write_png(target, b"second")
+    assert target.read_bytes() in (b"first", b"second") and [p.name for p in target.parent.iterdir()] == ["a.png"]
+
+
 def test_lookup_extract_uses_lazy_art(tmp):
     sys.path.insert(0, TOOLS)
     import preview_assets
@@ -98,5 +106,6 @@ TESTS = [
     test_decode_blp_tga_png_to_png,
     test_prewarm_decodes_only_the_common_prefixes,
     test_two_writers_of_one_png_each_leave_a_complete_file,
+    test_png_held_open_by_another_reader_is_kept_not_an_error,
     test_lookup_extract_uses_lazy_art,
 ]

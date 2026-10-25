@@ -97,6 +97,11 @@ def write_png(target, data):
         with os.fdopen(fd, "wb") as out:
             out.write(data)
         os.replace(part, target)
+    except PermissionError:
+        with contextlib.suppress(OSError):
+            os.unlink(part)
+        if not target.is_file():  # Windows refuses to replace a PNG another reader holds open; that PNG is complete
+            raise
     except BaseException:
         with contextlib.suppress(OSError):
             os.unlink(part)
