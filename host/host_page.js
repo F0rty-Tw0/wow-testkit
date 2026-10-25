@@ -9,7 +9,7 @@ window.TK = window.TK || {};
 (function (TK) {
   'use strict';
 
-  const { start, store, characters } = TK.host;
+  const { start, store, characters, characterOf } = TK.host;
   const { resolve: resolveAssets, dropAddon } = TK.hostAssets;
   const KINDS = ['addon', 'extract', 'wtf'];
   const LABELS = { addon: 'Addon folder', extract: 'Client extract (optional)', wtf: 'WTF account (optional)' };
@@ -75,7 +75,7 @@ window.TK = window.TK || {};
       say(state);
       reveal('restart', state === 'Stopped');
       reveal('repick', state === 'NeedsRepick');
-      if (state === 'NeedsRepick') page.repick = 'addon';
+      if (state === 'NeedsRepick') page.repick = ctl.failedKind();
     });
     ctl.onEvent((name, data) => ctl === page.ctl && emit(name, data));
   }
@@ -109,20 +109,23 @@ window.TK = window.TK || {};
   }
 
   // The character select: "account only" plus the Realm/Character folders of the WTF folder. Before the folder is granted
-  // again on a revisit it cannot be listed, so the stored choice is the only one shown.
+  // again on a revisit it cannot be listed, so the stored choice is the only one shown, and kept unchecked: Start lists
+  // the folder again and launches only a listed character (characterOf). Returns the listed names, or null.
   async function listCharacters() {
     const select = byId('character');
-    let names = picked.character ? [picked.character] : [];
+    let names = null;
     try {
       names = await characters(picked.wtf);
     } catch (err) {
       // not granted yet
     }
-    const listed = names.includes(picked.character);
-    if (!listed) picked.character = undefined;
-    const options = [['account only', '']].concat(names.map((name) => [name, name]));
+    if (names) picked.character = characterOf(names, picked.character);
+    const shown = names || (picked.character ? [picked.character] : []);
+    const options = [['account only', '']].concat(shown.map((name) => [name, name]));
     select.replaceChildren(...options.map(([text, value]) => new Option(text, value)));
     select.value = picked.character || '';
+
+    return names;
   }
 
   function showPicks() {
@@ -163,9 +166,10 @@ window.TK = window.TK || {};
 
       return;
     }
-    if (picked.wtf) await listCharacters();
+    const names = picked.wtf ? await listCharacters() : null;
     const wtf = picked.wtf || undefined;
-    launch({ addon: picked.addon, extract: picked.extract || undefined, wtf, character: wtf && picked.character, account: wtf && wtf.name });
+    const character = wtf && characterOf(names, picked.character);
+    launch({ addon: picked.addon, extract: picked.extract || undefined, wtf, character, account: wtf && wtf.name });
   }
 
   async function repick() {
@@ -197,13 +201,13 @@ window.TK = window.TK || {};
       store.put('character', picked.character).catch(() => {});
     });
     onClick('start', startPicked);
-    onClick('repick', repick);
     showPicks();
     restore();
   }
 
   TK.transport.use(backend);
   onClick('restart', () => page.ctl && page.ctl.restart());
+  onClick('repick', repick);
   onClick('reimport', reimport);
   TK.hostPage = { launch };
   if ('hostPage' in document.body.dataset) boot();

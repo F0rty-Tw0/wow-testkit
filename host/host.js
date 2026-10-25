@@ -6,7 +6,7 @@ window.TK = window.TK || {};
 (function (TK) {
   'use strict';
 
-  const { walk, wtfEntries, watch, next, watchdog, realTimers } = TK.host;
+  const { walk, wtfEntries, stampsOf, watch, next, watchdog, realTimers } = TK.host;
 
   // A worker over the bundled source (TK_WORKER_SRC); file:// pages cannot start one from a URL, so it runs from a Blob.
   function spawnWorker() {
@@ -23,14 +23,18 @@ window.TK = window.TK || {};
 
   const byPath = (entries) => new Map(entries.map((entry) => [entry.path, entry.file]));
 
+  // What list() gives; a failure rejects with { kind, cause }, kind naming the picked folder it came from.
+  const listed = (kind, list) => list().catch((cause) => Promise.reject({ kind, cause }));
+
   // The messages of the controller to its worker, and what comes back, run through the table. deps = { addon, extract?,
   // wtf?, character?, account, timers?, poll?, spawn? } with handles already granted. timers hold setTimeout and
-  // clearTimeout and the watchdog's callMs and openMs; poll the addon poll interval and quiet window in ms; spawn makes the
-  // worker (the checks pass a scripted one). A call of the method reimport lists the WTF files again and posts reimport.
-  // files() is the last walk of the addon and the extract, as Maps of path -> File, for the page's asset urls.
+  // clearTimeout, the watchdog's callMs and openMs, and hideMs, how long a restore waits for the shutdown sync; poll the
+  // addon poll interval and quiet window in ms; spawn makes the worker (the checks pass a scripted one). A call of the
+  // method reimport lists the WTF files again and posts reimport. files() is the last walk of the addon and the extract,
+  // as Maps of path -> File, for the page's asset urls; failedKind() the folder whose failure moved to NeedsRepick.
   function start(deps) {
     const dep = Object.assign({ timers: {}, poll: {}, win: window, spawn: spawnWorker }, deps);
-    const clock = Object.assign({}, realTimers, dep.timers);
+    const clock = Object.assign({ hideMs: 3000 }, realTimers, dep.timers);
     const poll = Object.assign({ interval: 500, quiet: 300 }, dep.poll);
     const stateFns = [];
     const eventFns = [];
@@ -45,6 +49,10 @@ window.TK = window.TK || {};
     let queue = [];
     let nextId = 1;
     let shutDown = false;
+    let hiding = null;
+    let ended = false;
+    let failedKind = 'addon';
+    let outgoing = Promise.resolve();
     let files = { addon: new Map(), extract: new Map() };
 
     const show = (text) => {
@@ -59,6 +67,33 @@ window.TK = window.TK || {};
       worker.postMessage(Object.assign({ id, type }, fields));
 
       return sent;
+    }
+
+    // Posts in the order asked: make() gives [type, fields, method?], and a reimport's make lists the WTF folder first,
+    // so what was asked after it waits. Resolves to the reply; the chain itself waits only for each post.
+    function postInOrder(make) {
+      const mine = worker;
+      const posted = outgoing.then(async () => {
+        const [type, fields, method] = await make();
+        if (mine !== worker) throw new Error('runtime stopped');
+
+        return { reply: post(type, fields, method) };
+      });
+      outgoing = posted.catch(() => {});
+
+      return posted.then((out) => out.reply);
+    }
+
+    // Resolves when promise settles or ms pass, whichever is first.
+    function within(promise, ms) {
+      return new Promise((resolve) => {
+        const timer = clock.setTimeout(resolve, ms);
+        const done = () => {
+          clock.clearTimeout(timer);
+          resolve();
+        };
+        promise.then(done, done);
+      });
     }
 
     // Ends the worker and fails everything it still owed an answer to.
@@ -76,19 +111,34 @@ window.TK = window.TK || {};
       queue = [];
     }
 
-    const handleFailed = (err) => dispatch('handleFail', 're-pick folder: ' + ((err && err.message) || err));
+    function handleFailed(err, kind) {
+      failedKind = kind;
+      dispatch('handleFail', 're-pick folder: ' + ((err && err.message) || err));
+    }
 
     async function openMessage() {
       const folder = dep.addon.name;
-      const msg = { addonFolder: folder, addon: await walk(dep.addon), account: dep.account, character: dep.character };
-      if (dep.extract) msg.extract = await walk(dep.extract);
-      if (dep.wtf) msg.wtf = await wtfEntries(dep.wtf, folder, dep.character);
+      const addon = await listed('addon', () => walk(dep.addon));
+      const msg = { addonFolder: folder, addon, account: dep.account, character: dep.character };
+      if (dep.extract) msg.extract = await listed('extract', () => walk(dep.extract));
+      if (dep.wtf) msg.wtf = await listed('wtf', () => wtfEntries(dep.wtf, folder, dep.character));
       files = { addon: byPath(msg.addon), extract: byPath(msg.extract || []) };
 
       return msg;
     }
 
+    // Polls the addon folder from the stamps of the open walk, so an edit made while the session loaded still reloads.
+    function watchAddon(since) {
+      const options = Object.assign({}, clock, { interval: poll.interval, since });
+      watcher = watch(dep.addon, () => dispatch('fileChange'), (err) => handleFailed(err, 'addon'), options);
+    }
+
+    // A restore after a pagehide first waits (at most hideMs) for that worker's shutdown sync, which a terminate would cut.
     async function openSession() {
+      const shutting = hiding;
+      hiding = null;
+      if (shutting) await within(shutting, clock.hideMs);
+      if (ended) return;
       closeWorker('restarted');
       shutDown = false;
       const mine = (worker = dep.spawn());
@@ -96,18 +146,19 @@ window.TK = window.TK || {};
       mine.onmessage = ({ data }) => mine === worker && onMessage(data);
       mine.onerror = (ev) => mine === worker && dispatch('fatal', 'runtime stopped: ' + ev.message);
       if (watcher) watcher.stop();
-      watcher = watch(dep.addon, () => dispatch('fileChange'), handleFailed, Object.assign({}, clock, { interval: poll.interval }));
+      watcher = null;
       let msg;
       try {
         msg = await openMessage();
-      } catch (err) {
-        if (mine === worker) handleFailed(err);
+      } catch (failure) {
+        if (mine === worker) handleFailed(failure.cause, failure.kind);
 
         return;
       }
       if (mine !== worker) return;
       post('open', msg).then((reply) => {
         const info = JSON.parse(reply);
+        if (info.ok) watchAddon(stampsOf(msg.addon));
         dispatch(info.ok ? 'openOk' : 'luaError', info.error);
       }, () => {});
     }
@@ -131,6 +182,7 @@ window.TK = window.TK || {};
     // The addon folder is quiet: list it again and have the worker remount it and reload. An edit can land while an earlier
     // remount is out, so the state leaves Reloading only when no remount is out and no edit waits for its quiet window.
     async function remount() {
+      if (state !== 'Reloading') return;
       const mine = worker;
       edited = false;
       remounts++;
@@ -139,7 +191,7 @@ window.TK = window.TK || {};
         addon = await walk(dep.addon);
       } catch (err) {
         remounts--;
-        if (mine === worker) handleFailed(err);
+        if (mine === worker) handleFailed(err, 'addon');
 
         return;
       }
@@ -152,16 +204,14 @@ window.TK = window.TK || {};
     }
 
     async function reimportMessage() {
-      const mine = worker;
       const wtf = dep.wtf ? await wtfEntries(dep.wtf, dep.addon.name, dep.character) : [];
-      if (mine !== worker) throw new Error('runtime stopped');
 
-      return post('reimport', { wtf });
+      return ['reimport', { wtf }];
     }
 
     function send(call) {
-      const sent = call.method === 'reimport' ? reimportMessage() : post('call', { method: call.method, req: call.req }, call.method);
-      sent.then(call.resolve, call.reject);
+      const make = call.method === 'reimport' ? reimportMessage : () => ['call', { method: call.method, req: call.req }, call.method];
+      postInOrder(make).then(call.resolve, call.reject);
     }
 
     const actions = {
@@ -188,7 +238,8 @@ window.TK = window.TK || {};
       },
       shutdown() {
         shutDown = true;
-        post('pagehide', {}).catch(() => {});
+        clock.clearTimeout(quietTimer);
+        hiding = postInOrder(() => ['pagehide', {}]).catch(() => {});
       },
     };
 
@@ -215,12 +266,14 @@ window.TK = window.TK || {};
     return {
       state: () => state,
       files: () => files,
+      failedKind: () => failedKind,
       postCall,
       api: (method, req) => postCall(method, req).then(JSON.parse),
       restart: () => dispatch('restart'),
       onState: (fn) => stateFns.push(fn),
       onEvent: (fn) => eventFns.push(fn),
       stop() {
+        ended = true;
         if (watcher) watcher.stop();
         closeWorker('stopped');
         dep.win.removeEventListener('pagehide', onHide);

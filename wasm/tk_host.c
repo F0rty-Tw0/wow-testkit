@@ -82,7 +82,14 @@ static int fs_isdir(lua_State *state) {
 /* os.makedirs(path, exist_ok=True): every missing level, nothing raised when the folder is already there. */
 static int fs_mkdirp(lua_State *state) {
   const char *path = luaL_checkstring(state, 1);
+  if (*path == '\0') {
+    errno = ENOENT;
+    return fail_path(state, path);
+  }
   char *copy = strdup(path);
+  if (!copy) {
+    return luaL_error(state, "%s: out of memory", path);
+  }
   for (char *at = copy + 1; *at; at++) {
     if (*at == '/') {
       *at = '\0';

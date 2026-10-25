@@ -1,18 +1,47 @@
 // The browser host's worker: wasm/bundle.py appends this file to the kit files (TK_KIT_FILES) and the Emscripten module
 // (Module), and the page starts a Blob worker from the whole. It owns the Lua runtime: writes the kit to /kit, mounts
 // the picked folders, runs the messages one at a time in arrival order and answers each with one reply, then the
-// events SessionHost queued. A reply never arrives before the IndexedDB sync of the state it reports. File names under
+// events SessionHost queued. A reply never arrives before the IndexedDB sync of the state it reports (a failed sync
+// adds syncError to it). Each session folder is its own IDBFS mount, held by one worker at a time. File names under
 // the picked folders match case-insensitively, like Windows and the game client (caseInsensitive).
 (function () {
   const post = (msg) => self.postMessage(msg);
+  const message = (err) => String((err && err.message) || err);
   const READ_AHEAD = 1 << 20;
+  const LOCK_WAIT_MS = 2000;
   const PICKED_ROOTS = ['/addon', '/extract', '/wtf'];
 
   const TKW = (self.TKW = { mod: null, sessionDir, caseInsensitive });
 
-  // The session folder of one addon for one account and character: SavedVariables live per combination.
+  const unsafePart = (part) => typeof part !== 'string' || part === '' || part === '.' || part === '..' || part.includes('/');
+
+  // The session folder of one addon for one account and character: SavedVariables live per combination. The names come
+  // from the page's stored choices, so a character that is not "Realm/Character" or a part that is empty, "." or ".."
+  // or holds a slash throws.
   function sessionDir(account, character, addonFolder) {
-    return '/session/' + (account || '_none') + '/' + (character || '_account') + '/' + addonFolder;
+    const where = character ? character.split('/') : ['_account'];
+    const parts = [account || '_none', ...where, addonFolder];
+    const shaped = !character || where.length === 2;
+    if (!shaped || parts.some(unsafePart)) throw new Error('bad session folder: ' + JSON.stringify([account, character, addonFolder]));
+
+    return '/session/' + parts.join('/');
+  }
+
+  // Holds the Web Lock named dir for the life of the worker, so a second tab on the same session is refused. The lock of
+  // this tab's previous worker goes a moment after its terminate, so the wait lasts up to LOCK_WAIT_MS.
+  function lockSession(dir) {
+    return new Promise((resolve, reject) => {
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), LOCK_WAIT_MS);
+      const held = () => {
+        clearTimeout(timer);
+        resolve();
+
+        return new Promise(() => {});
+      };
+      const refused = (err) => reject(err.name === 'AbortError' ? new Error('this session is open in another tab: ' + dir) : err);
+      navigator.locks.request(dir, { signal: abort.signal }, held).catch(refused);
+    });
   }
 
   // WORKERFS reads one BUFSIZ piece of a Blob per synchronous slice read, about 0.72 ms per KB, so a 20 MB SavedVariables
@@ -118,7 +147,7 @@
     caseInsensitive(mod.FS, PICKED_ROOTS);
     if (mod.ccall('tk_init', 'number', [], []) !== 0) throw new Error('tk_init failed: ' + lastError);
   });
-  ready.catch((err) => post({ type: 'fatal', error: String((err && err.message) || err) }));
+  ready.catch((err) => post({ type: 'fatal', error: message(err) }));
 
   const ccall = (name, args) => TKW.mod.ccall(name, 'string', args.map(() => 'string'), args);
   const body = (req) => (typeof req === 'string' ? req : JSON.stringify(req || {}));
@@ -130,35 +159,51 @@
     return Array.isArray(queued) ? queued.map((e) => ({ type: 'event', name: e.event, data: e.data })) : [];
   }
 
-  // The reply of a call that may have reloaded the session: the events SessionHost queued, and the sync of the saved
-  // variables a reload wrote before the reply goes out.
-  async function settled(json) {
-    const events = drained();
-    if (events.some((e) => e.name === 'reload')) await syncfs(false);
+  // The reply and events after the IndexedDB sync of what the message wrote. A failed sync still answers with the
+  // message's reply, plus syncError, and its events.
+  async function synced(json, events) {
+    try {
+      await syncfs(false);
+    } catch (err) {
+      const reply = JSON.parse(json);
+      reply.syncError = message(err);
+
+      return { json: JSON.stringify(reply), events };
+    }
 
     return { json, events };
+  }
+
+  // The reply of a call that may have reloaded the session: the events SessionHost queued, and the sync of the saved
+  // variables a reload wrote before the reply goes out.
+  function settled(json) {
+    const events = drained();
+    const reloaded = events.some((e) => e.name === 'reload');
+
+    return reloaded ? synced(json, events) : { json, events };
   }
 
   const handlers = {
     async open(msg) {
       const FS = TKW.mod.FS;
+      const dir = sessionDir(msg.account, msg.character, msg.addonFolder);
+      await lockSession(dir);
       addonFolder = msg.addonFolder;
       mountFiles('/addon/' + addonFolder, msg.addon);
       if (msg.extract) mountFiles('/extract', msg.extract);
       if (msg.wtf) mountFiles('/wtf', msg.wtf);
-      FS.mkdirTree('/session');
-      FS.mount(TKW.mod.IDBFS, {}, '/session');
-      await syncfs(true);
-      const dir = sessionDir(msg.account, msg.character, msg.addonFolder);
+      // IDBFS names its database after the mount point, so each session folder has its own: a sync writes and deletes
+      // only this session's files, and a tab on another session keeps its own.
       FS.mkdirTree(dir);
+      FS.mount(TKW.mod.IDBFS, {}, dir);
+      await syncfs(true);
       const opts = { addonDir: '/addon/' + msg.addonFolder, sessionDir: dir, flavor: 'auto' };
       if (msg.extract) opts.extract = '/extract';
       if (msg.wtf) opts.wtf = wtfPaths(msg.wtf, addonFolder);
       const json = ccall('tk_open', [JSON.stringify(opts)]);
       const events = drained();
-      if (msg.wtf) await syncfs(false); // the import wrote saved.lua
 
-      return { json, events };
+      return msg.wtf ? synced(json, events) : { json, events }; // the import wrote saved.lua
     },
 
     call(msg) {
@@ -172,18 +217,19 @@
       return settled(ccall('tk_call', ['reload', '{}']));
     },
 
-    // The WTF folder was picked again: mount its new files; SessionHost re-reads them and reloads.
+    // The WTF folder was listed again: mount its new files; SessionHost re-reads the paths found in them and reloads.
     reimport(msg) {
-      if (addonFolder) mountFiles('/wtf', msg.wtf);
+      if (!addonFolder) return settled(ccall('tk_call', ['reimport', '{}']));
+      mountFiles('/wtf', msg.wtf);
+      const req = { wtf: wtfPaths(msg.wtf, addonFolder) };
 
-      return settled(ccall('tk_call', ['reimport', '{}']));
+      return settled(ccall('tk_call', ['reimport', JSON.stringify(req)]));
     },
 
-    async pagehide() {
+    pagehide() {
       TKW.mod.ccall('tk_shutdown', null, [], []);
-      await syncfs(false);
 
-      return { json: '{"ok":true}' };
+      return synced('{"ok":true}', []);
     },
   };
 
@@ -193,7 +239,7 @@
     try {
       result = handler ? await handler(msg) : { json: JSON.stringify({ ok: false, error: 'unknown message ' + msg.type }) };
     } catch (err) {
-      result = { json: JSON.stringify({ ok: false, error: String((err && err.message) || err) }) };
+      result = { json: JSON.stringify({ ok: false, error: message(err) }) };
     }
     post({ type: 'reply', id: msg.id, json: result.json });
     (result.events || []).forEach(post);

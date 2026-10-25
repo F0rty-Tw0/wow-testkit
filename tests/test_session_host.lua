@@ -3,7 +3,6 @@
 local A = require("assert")
 local H = require("tests.helpers.session")
 local Json = require("json")
-local Saved = require("session_saved")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
@@ -241,80 +240,11 @@ local function test_a_lost_session_reloads_once_a_world_can_be_built_again()
   end)
 end
 
--- A WtfDemo account file holding `WtfDemoDB = { n = <n> }`; returns its path.
-local function accountFile(n)
-  local path = Tmp.dir("wtfhost") .. "/acc.lua"
-  fs.writeFile(path, "WtfDemoDB = { n = " .. n .. " }")
-  return path
-end
-
--- The names of the events in the outbox, console lines left out.
-local function eventNames(host)
-  local names = {}
-  for _, entry in ipairs(drained(host)) do
-    if entry.event ~= "console" then
-      names[#names + 1] = entry.event
-    end
-  end
-  return names
-end
-
-local function test_wtf_import_copies_once()
-  local dir, acc = Tmp.dir("wtfsession"), accountFile(1)
-  H.withHost({ addonDir = H.WTF, sessionDir = dir, wtf = { account = acc } }, function(host)
-    A.eq(host.wtf.account, acc)
-    A.same(Saved.read(dir), { WtfDemoDB = { n = 1 } })
-    A.eq(_G.WtfDemoDB.n, 1)
-  end)
-  fs.writeFile(acc, "WtfDemoDB = { n = 5 }")
-  H.withHost({ addonDir = H.WTF, sessionDir = dir, wtf = { account = acc } }, function()
-    A.eq(_G.WtfDemoDB.n, 1)
-  end)
-end
-
-local function test_reimport_overwrites_and_discards_live_changes()
-  local dir, acc = Tmp.dir("wtfsession"), accountFile(1)
-  H.withHost({ addonDir = H.WTF, sessionDir = dir, wtf = { account = acc } }, function(host)
-    host:handleJson("slash", '{"text":"/run WtfDemoDB.n = 99"}')
-    A.eq(_G.WtfDemoDB.n, 99)
-    fs.writeFile(acc, "WtfDemoDB = { n = 7 }")
-    host:drain()
-    local reply = Json.decode(host:handleJson("reimport", "{}"))
-    A.same({ reply.ok, reply.loads, reply.warnings }, { true, 2, 0 })
-    A.eq(_G.WtfDemoDB.n, 7)
-    A.same(Saved.read(dir), { WtfDemoDB = { n = 7 } })
-    A.same(eventNames(host), { "reload", "snapshot" })
-  end)
-end
-
-local function test_reimport_without_wtf_replies_an_error()
-  H.withHost(nil, function(host)
-    A.same(Json.decode(host:handleJson("reimport", "{}")), { ok = false, error = "no WTF folder picked" })
-  end)
-end
-
-local function test_reimport_needs_a_session_folder()
-  local SessionHost = require("session_host")
-  local host = SessionHost.new({ addonDir = H.WTF, flavor = "retail", wtf = { account = accountFile(1) } })
-  local reply = Json.decode(host:handleJson("reimport", "{}"))
-  host:shutdown()
-  A.same(reply, { ok = false, error = "no session folder" })
-end
-
-local function test_wtf_warnings_reach_the_console()
-  local acc = accountFile(1)
-  fs.writeFile(acc, "WtfDemoDB = {")
-  H.withHost({ addonDir = H.WTF, wtf = { account = acc } }, function(host)
-    local first
-    for _, entry in ipairs(drained(host)) do
-      first = first or (entry.event == "console" and entry.data.text:sub(1, 4) == "wtf:" and entry.data.text)
-    end
-    A.truthy(first, "no wtf: console line")
-  end)
-end
-
+-- The WTF import and reimport tests live in test_session_host_wtf.lua; this one needs withFailingWorlds.
 local function test_a_lost_session_accepts_reimport()
-  H.withHost({ addonDir = H.WTF, wtf = { account = accountFile(3) } }, function(host)
+  local acc = Tmp.dir("wtfhost") .. "/acc.lua"
+  fs.writeFile(acc, "WtfDemoDB = { n = 3 }")
+  H.withHost({ addonDir = H.WTF, wtf = { account = acc } }, function(host)
     withFailingWorlds(2, function()
       host:handleJson("reload", "{}")
     end)
@@ -340,10 +270,5 @@ return function()
   test_malformed_json_replies_an_error()
   test_snapshot_assets_carry_located()
   test_a_bad_reload_flavor_replies_an_error_and_keeps_the_session()
-  test_wtf_import_copies_once()
-  test_reimport_overwrites_and_discards_live_changes()
-  test_reimport_without_wtf_replies_an_error()
-  test_reimport_needs_a_session_folder()
-  test_wtf_warnings_reach_the_console()
   test_a_lost_session_accepts_reimport()
 end

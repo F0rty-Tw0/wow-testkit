@@ -61,6 +61,10 @@ window.TK = window.TK || {};
     return found.sort();
   }
 
+  // The character a launch may use: the stored choice only when names, the folders characters() listed (null when the
+  // listing failed), hold it. The choice comes from IndexedDB, so it is never trusted on its own.
+  const characterOf = (names, stored) => (names && names.includes(stored) ? stored : undefined);
+
   // The addon's SavedVariables file under dir, as a list of zero or one { path, file }; path keeps the on-disk spelling.
   async function savedFile(dir, prefix, addonFolder) {
     const folder = await child(dir, 'SavedVariables');
@@ -87,11 +91,18 @@ window.TK = window.TK || {};
     return out.sort(byPath);
   }
 
-  // path -> "lastModified:size" of every .lua .xml .toc file under dir. A File is a snapshot, so each entry gets a fresh one.
+  // path -> "lastModified:size" of the .lua .xml .toc files among files ([{ path, file }], a walk's list).
+  function stampsOf(files) {
+    const sources = files.filter(({ path }) => SOURCES.test(path));
+
+    return new Map(sources.sort(byPath).map(({ path, file }) => [path, file.lastModified + ':' + file.size]));
+  }
+
+  // stampsOf every .lua .xml .toc file under dir. A File is a snapshot, so each entry gets a fresh one.
   async function stamp(dir) {
     const files = await collect(dir, (name) => SOURCES.test(name));
 
-    return new Map(files.sort(byPath).map(({ path, file }) => [path, file.lastModified + ':' + file.size]));
+    return stampsOf(files);
   }
 
   // Whether a path was added, removed or has another stamp.
@@ -100,10 +111,11 @@ window.TK = window.TK || {};
   }
 
   // Stamps dir at once and then every interval (the next wait starts when a stamp ends), calling onChange() when
-  // the stamp changed. A throwing entries() or getFile() calls onFail(err) once and ends the polling.
+  // the stamp changed. deps.since is the stamp to compare the first one with (stampsOf a walk); without it the first
+  // stamp is the baseline. A throwing entries() or getFile() calls onFail(err) once and ends the polling.
   function watch(dir, onChange, onFail, deps) {
-    const dep = Object.assign({ interval: 500 }, realTimers, deps);
-    let last = null;
+    const dep = Object.assign({ interval: 500, since: null }, realTimers, deps);
+    let last = dep.since;
     let timer = null;
     let stopped = false;
 
@@ -134,5 +146,5 @@ window.TK = window.TK || {};
     };
   }
 
-  TK.host = Object.assign(TK.host || {}, { walk, characters, wtfEntries, stamp, changed, watch, realTimers });
+  TK.host = Object.assign(TK.host || {}, { walk, characters, characterOf, wtfEntries, stamp, stampsOf, changed, watch, realTimers });
 })(window.TK);

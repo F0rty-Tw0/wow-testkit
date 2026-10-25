@@ -24,7 +24,7 @@ if [[ $GOT != "$WANT" ]]; then
 fi
 
 # emcc's launcher needs the python emsdk bundles; Git Bash only has the Windows Store stub as python3.
-EMSDK="${EMSDK:-C:/Users/artio/emsdk}"
+EMSDK="${EMSDK:-$HOME/emsdk}"
 if [[ -z ${EMSDK_PYTHON:-} ]]; then
   for candidate in "$EMSDK"/python/*/python.exe; do
     [[ -x $candidate ]] && export EMSDK_PYTHON="$candidate"

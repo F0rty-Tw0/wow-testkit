@@ -92,6 +92,15 @@
   });
 
   T.push({
+    name: 'character_of_keeps_only_a_listed_choice',
+    fn: () => {
+      A.eq(H.characterOf(['Realm/Char'], 'Realm/Char'), 'Realm/Char');
+      A.eq(H.characterOf(['Realm/Char'], '../../x'), undefined, 'a stored choice the folder does not hold');
+      A.eq(H.characterOf(null, 'Realm/Char'), undefined, 'a folder that could not be listed');
+    },
+  });
+
+  T.push({
     name: 'watch_reports_edits_new_and_deleted_files',
     fn: async () => {
       await fixtures;

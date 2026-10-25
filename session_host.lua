@@ -52,15 +52,38 @@ local function decode(reqJson)
   return req
 end
 
+local KEPT = "wtf: kept the session's saved.lua; use Re-import to replace it"
+
 -- Imports opts.wtf into opts.sessionDir's saved.lua when it holds none yet (copy-once: a file the session wrote wins).
--- Returns the import's warnings.
+-- Returns the import's warnings, or the one line saying the import was skipped.
 local function importWtf(opts)
   local dir = opts.sessionDir
-  if opts.wtf and dir and not fs.exists(dir .. "/" .. SessionSaved.FILE) then
-    return Wtf.seed(opts, opts.wtf)
+  if not (opts.wtf and dir) then
+    return {}
+  end
+  local kept = fs.exists(dir .. "/" .. SessionSaved.FILE)
+  if kept then
+    return { KEPT }
   end
 
-  return {}
+  return Wtf.seed(opts, opts.wtf)
+end
+
+-- Whether wtf is a reimport's req.wtf: absent, or { account?, character? } path strings.
+local function validWtf(wtf)
+  if wtf == nil then
+    return true
+  elseif type(wtf) ~= "table" then
+    return false
+  end
+  for key, path in pairs(wtf) do
+    local known = key == "account" or key == "character"
+    if not known or type(path) ~= "string" then
+      return false
+    end
+  end
+
+  return true
 end
 
 -- opts: Session.new's, plus wtf = { account?, character? } paths of WTF SavedVariables files (Wtf.read). Starts the
@@ -137,15 +160,19 @@ function Host:reload(req)
 end
 
 -- Replaces the session folder's saved.lua with a fresh read of the WTF files, then reloads without writing the live
--- variables, so the import is a strict copy: what the addon changed since is discarded. Replies as reload does, plus
--- warnings (a count); the files' own warnings go to the console.
-function Host:reimport()
+-- variables, so the import is a strict copy: what the addon changed since is discarded. req.wtf, when given, replaces
+-- the paths the host opened with (the browser host lists the WTF folder again first); a host opened without WTF refuses
+-- it too. Replies as reload does, plus warnings (a count); the files' own warnings go to the console.
+function Host:reimport(req)
   local opts = self.sess.opts
   if not self.wtf then
     return { ok = false, error = "no WTF folder picked" }
   elseif not opts.sessionDir then
     return { ok = false, error = "no session folder" }
+  elseif not validWtf(req.wtf) then
+    return { ok = false, error = "malformed request: wtf must be { account?, character? } paths" }
   end
+  self.wtf = req.wtf or self.wtf
   local warnings = Wtf.seed(opts, self.wtf)
   for _, warning in ipairs(warnings) do
     Console.push(self.sess.w, "system", warning)
@@ -180,7 +207,7 @@ local function dispatch(self, method, reqJson)
   if method == "reload" then
     return Json.encode(self:reload(req))
   elseif method == "reimport" then
-    return Json.encode(self:reimport())
+    return Json.encode(self:reimport(req))
   end
   local text = relay(self, method, req)
   local pending = self.sess.pendingReload

@@ -158,13 +158,59 @@
         window.dispatchEvent(new Event('pagehide'));
         A.eq(ctl.state(), 'Stopped');
         await rejects(ctl.api('snapshot'), '^runtime stopped$');
-        await sleep(700); // the worker's shutdown and IndexedDB sync
-        window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+        window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); // at once: the sync is still out
         A.eq(ctl.state(), 'Loading');
         await until(() => ctl.state() === 'Running', 'Running after the restore');
         A.eq(textOf(await ctl.api('snapshot')), 'idle');
         await ctl.api('slash', { text: '/dump SessionDemoDB.tag' });
         await until(() => seen.console.includes('live'), 'the shutdown to have saved the variable, saw ' + JSON.stringify(seen.console));
+      });
+    },
+  });
+
+  // Counts the real Worker terminate calls and the revoked object URLs while fn runs; fn(count) gets { ended, revoked,
+  // created }.
+  async function watchingWorkers(fn) {
+    const count = { ended: 0, revoked: [], created: [] };
+    const terminate = Worker.prototype.terminate;
+    const { createObjectURL, revokeObjectURL } = URL;
+    Worker.prototype.terminate = function () {
+      count.ended++;
+
+      return terminate.call(this);
+    };
+    URL.createObjectURL = (blob) => {
+      const url = createObjectURL.call(URL, blob);
+      count.created.push(url);
+
+      return url;
+    };
+    URL.revokeObjectURL = (url) => {
+      count.revoked.push(url);
+      revokeObjectURL.call(URL, url);
+    };
+    try {
+      return await fn(count);
+    } finally {
+      Object.assign(URL, { createObjectURL, revokeObjectURL });
+      Worker.prototype.terminate = terminate;
+    }
+  }
+
+  T.push({
+    name: 'host_restore_and_stop_end_the_worker',
+    fn: async () => {
+      await fixtures;
+      await watchingWorkers(async (count) => {
+        await using(fakeDir(demoTree()), {}, async (ctl) => {
+          window.dispatchEvent(new Event('pagehide'));
+          A.eq(count.ended, 0, 'a shut-down worker stays until the page comes back');
+          window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+          await until(() => ctl.state() === 'Running', 'Running after the restore');
+          A.eq(count.ended, 1, 'the restore ended the old worker');
+          A.eq(count.revoked.includes(count.created[0]), true, 'and freed its source');
+        });
+        A.eq(count.ended, 2, 'stop ends the new one');
       });
     },
   });
