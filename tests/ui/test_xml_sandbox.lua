@@ -1,6 +1,7 @@
 -- A global an XML attribute or a widget method resolves by name is answered the way addon code sees it: the host's
 -- io, debug, require and _G never reach a frame, an anchor or an addon's hands, while real globals still resolve.
 local A = require("assert")
+local Addon = require("addon")
 local Framexml = require("tests.helpers.framexml")
 local H = require("tests.helpers.xml")
 local TemplateApply = require("ui.template_apply")
@@ -90,6 +91,33 @@ local function test_widget_methods_resolving_a_name_do_not_reach_host_tables()
   end)
 end
 
+-- source: wiki API_hooksecurefunc and API_securecall take a global's name; the name resolves as the addon's _G does.
+local function test_securecall_and_hooksecurefunc_by_name_do_not_reach_host_globals()
+  local xml = [[<Ui><Script>
+local ok, err = pcall(hooksecurefunc, "require", function() end)
+SbHookRefused = not ok and err:find("is not a function", 1, true) ~= nil
+SbHookedRequire = _G.require
+SbCallRequire = securecall("require", "io")
+SbCallUpper = securecall("strupper", "a")
+</Script></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ rawget(_G, "SbHookRefused"), rawget(_G, "SbHookedRequire"), rawget(_G, "SbCallRequire") }, { true })
+    A.eq(rawget(_G, "SbCallUpper"), "A")
+  end)
+end
+
+-- The client has one _G, so a second addon's _G and the one a KeyValue hands out are the same table.
+local function test_a_key_value_global_g_is_the_addons_own_g_in_every_addon()
+  local xml = [[<Ui><Frame name="SbKvG"><KeyValues><KeyValue key="g" value="_G" type="global"/></KeyValues></Frame>
+<Script>SbKvSame = SbKvG.g == _G</Script></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    local second = Addon.context(w, "XmlT2", ctx.root)
+    H.load(w, second, "Ui.xml")
+    A.eq(rawget(_G, "SbKvSame"), true)
+  end)
+end
+
 return function()
   test_a_key_value_global_does_not_hand_out_host_tables()
   test_a_mixin_attribute_does_not_copy_host_tables_onto_the_frame()
@@ -97,4 +125,6 @@ return function()
   test_a_parent_attribute_does_not_parent_to_host_tables()
   test_a_template_mixin_name_does_not_copy_host_tables()
   test_widget_methods_resolving_a_name_do_not_reach_host_tables()
+  test_securecall_and_hooksecurefunc_by_name_do_not_reach_host_globals()
+  test_a_key_value_global_g_is_the_addons_own_g_in_every_addon()
 end

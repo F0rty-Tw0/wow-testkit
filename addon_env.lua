@@ -286,32 +286,32 @@ local function newView(w)
   return view, overrides
 end
 
--- The overrides every global-by-name lookup shares: the first view's, or those of a view made now when no addon has
--- loaded. They differ between views only in the functions that answer the view itself.
-local function worldOverrides(w, view, overrides)
-  w.addonEnvs = w.addonEnvs or {}
-  if not w.addonOverrides then
-    w.addonEnvs[view] = true
-    w.addonOverrides = overrides
+-- The world's one view (the client has one _G), made on first use: by the first addon, or by a global-by-name lookup
+-- that runs before any addon loads.
+local function worldView(w)
+  if not w.addonView then
+    w.addonView, w.addonOverrides = newView(w)
+    w.addonEnvs = w.addonEnvs or {}
+    w.addonEnvs[w.addonView] = true
   end
-  return w.addonOverrides
+  return w.addonView
 end
 
 -- The global `name` as addon code sees it: a host-only name (io, debug, require, ...) is nil and _G is the view, so a
 -- name an XML attribute or a widget method resolves never hands addon code the host's own tables. raw reads _G without
 -- its metatable (which lazily makes global frames); a global the addon assigned under a host-only name stays visible.
 function M.global(w, name, raw)
-  return answer(w.addonOverrides or worldOverrides(w, newView(w)), name, raw)
+  worldView(w)
+  return answer(w.addonOverrides, name, raw)
 end
 
--- The per-addon environment: the view plus the require sentinel, raw in the environment so it shadows any host
--- require. Both are registered in w.addonEnvs, so getfenv in any addon answers that addon's _G for them.
+-- The per-addon environment: the world's view plus the require sentinel, raw in the environment so it shadows any host
+-- require. Both are registered in w.addonEnvs, so getfenv in any addon answers the view for them.
 function M.newEnv(w)
-  local view, overrides = newView(w)
-  worldOverrides(w, view, overrides)
+  local view = worldView(w)
   local env = setmetatable({}, { __index = view, __newindex = view })
   hostRawset(env, "require", requireSentinel(w.flavor))
-  w.addonEnvs[env], w.addonEnvs[view] = true, true
+  w.addonEnvs[env] = true
   return env
 end
 

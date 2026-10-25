@@ -1,6 +1,8 @@
 -- WoW's Lua extensions: the global string/table/math aliases, wipe/strsplit/strjoin/strtrim/tContains,
 -- hooksecurefunc, securecall, issecurevariable, the error handler, debugprofilestop, GetTime and C_Timer.
 -- Installed into every world by world.lua (gate "none"; C_Timer through gate "api").
+local AddonEnv = require("addon_env")
+
 local M = {}
 
 local unpack = unpack
@@ -96,12 +98,16 @@ function M.tContains(tbl, item)
 end
 
 -- hooksecurefunc([tbl,] name, hook): tbl[name] becomes original-then-hook; the hook runs in "addon" context and
--- its errors go to the error handler, so the original's results still return.
+-- its errors go to the error handler, so the original's results still return. A global name resolves as addon code
+-- sees it (AddonEnv.global), so a host-only global (require, io, ...) is refused and never rewritten.
 local function hooksecurefunc(w, tbl, name, hook)
-  if type(tbl) ~= "table" then
+  local original
+  if type(tbl) == "table" then
+    original = tbl[name]
+  else
     tbl, name, hook = _G, tbl, name
+    original = AddonEnv.global(w, name)
   end
-  local original = tbl[name]
   if type(original) ~= "function" then
     error("hooksecurefunc(): " .. tostring(name) .. " is not a function", 3)
   end
@@ -113,10 +119,11 @@ local function hooksecurefunc(w, tbl, name, hook)
 end
 
 -- securecall(fn | globalName, ...): fn's results; on error, reports it to the error handler and returns nothing.
--- The error behaviour is inferred from the game (securecall never propagates), not from documentation.
+-- The error behaviour is inferred from the game (securecall never propagates), not from documentation. A global name
+-- resolves as addon code sees it, so a host-only one (require, io, ...) is not found.
 local function securecall(w, fn, ...)
   if type(fn) == "string" then
-    fn = _G[fn]
+    fn = AddonEnv.global(w, fn)
   end
   local results = w:try(fn, ...)
   if results[1] then
