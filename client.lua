@@ -82,25 +82,35 @@ function M.load(dir, flavor)
   return extract
 end
 
-local function newestBuild(root)
-  local newest, newestNumber = nil, nil
+local function buildsNewestFirst(root)
+  local builds = {}
   for _, name in ipairs(fs.list(root)) do
-    local number = tonumber(name)
-    if number and (not newestNumber or number > newestNumber) then
-      newest, newestNumber = name, number
+    if tonumber(name) then
+      builds[#builds + 1] = name
     end
   end
-  return newest
+  table.sort(builds, function(a, b)
+    return tonumber(a) > tonumber(b)
+  end)
+  return builds
 end
 
 local function scan(flavor, getenv)
   local root = Home.dir(getenv) .. "/client/" .. flavor
-  local build = fs.isdir(root) and newestBuild(root)
-  return build and M.load(root .. "/" .. build, flavor)
+  if not fs.isdir(root) then
+    return nil
+  end
+  for _, build in ipairs(buildsNewestFirst(root)) do
+    local extract = M.load(root .. "/" .. build, flavor)
+    if extract then
+      return extract
+    end
+  end
+  return nil
 end
 
--- The extract with the highest build number under the testkit home, or nil when there is no home, no folder for the
--- flavor or that build's manifest does not load. Never raises.
+-- The extract with the highest build number whose manifest loads under the testkit home (an interrupted extract of a
+-- newer build is skipped), or nil when there is no home, no folder for the flavor or no manifest loads. Never raises.
 function M.find(flavor, getenv)
   local ok, extract = pcall(scan, flavor, getenv)
   return ok and extract or nil

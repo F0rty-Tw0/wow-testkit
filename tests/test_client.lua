@@ -17,6 +17,13 @@ local function test_find_picks_the_highest_numeric_build()
   A.eq(Client.find("retail", H.getenv(root)).build, "70575") -- 70575 > 9000 numerically, not by string
 end
 
+local function test_find_skips_a_newer_build_without_a_manifest()
+  local root = Tmp.dir("findpartial")
+  H.extract(root, "retail", "70575", {})
+  fs.mkdirp(root .. "/client/retail/70600") -- an interrupted extract of a newer build
+  A.eq(Client.find("retail", H.getenv(root)).build, "70575")
+end
+
 local function test_find_reports_the_directory_and_flavor()
   local root = Tmp.dir("finddir")
   H.extract(root, "retail", "1", {})
@@ -100,6 +107,7 @@ end
 return function()
   test_find_returns_nil_without_an_extract()
   test_find_picks_the_highest_numeric_build()
+  test_find_skips_a_newer_build_without_a_manifest()
   test_find_reports_the_directory_and_flavor()
   test_find_ignores_other_flavors_and_stray_names()
   test_find_returns_nil_for_a_manifest_that_does_not_load()
