@@ -220,3 +220,16 @@ body.outlined .frame {
   font: 10px system-ui, sans-serif;
   pointer-events: none;
 }
+
+/* Live mode: the outline of the frame under the mouse, in #viewport over the scaled stage. */
+#hover {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #ffd100;
+  pointer-events: none;
+}
+
+#hover[hidden],
+#panels[hidden] {
+  display: none;
+}

@@ -138,6 +138,14 @@ def test_input_fire_slash_state_round_trip(tmp):
             assert (status, reply["ok"]) == (200, True), (path, reply)
 
 
+def test_point_click_over_http(tmp):
+    with running(tmp, CLICKY) as live:
+        status, reply = post_json(live, "/input", {"kind": "click", "target": {"x": 960, "y": 540}})
+        assert (status, reply["ok"], reply["target"]["name"]) == (200, True, "ClickyCheck"), reply
+        status, reply = post_json(live, "/input", {"kind": "enter", "target": {"x": 1500, "y": 900}})
+        assert (status, reply) == (200, {"ok": True}), reply
+
+
 def test_foreign_host_header_is_refused(tmp):
     with running(tmp) as live:
         for host, expected in (("evil.example", 403), (f"127.0.0.1:{live.port}", 200), (f"localhost:{live.port}", 200)):
@@ -246,6 +254,7 @@ def test_located_outside_its_root_is_not_served(tmp):
 TESTS = [
     test_snapshot_over_http,
     test_input_fire_slash_state_round_trip,
+    test_point_click_over_http,
     test_foreign_host_header_is_refused,
     test_cross_origin_and_wrong_content_type_are_refused,
     test_non_loopback_bind_is_refused,

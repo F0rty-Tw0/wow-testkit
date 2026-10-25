@@ -41,7 +41,8 @@ local function test_click_at_a_point_hits_the_topmost_frame()
     local reply = sess:call("input", { kind = "click", target = { x = 960, y = 540 } })
     A.eq(reply.ok, true)
     A.eq(reply.target.name, "ClickyCheck")
-    A.eq(sess:call("input", { kind = "click", target = { x = 1500, y = 900 } }).reason, "nothing at 1500, 900")
+    A.same(sess:call("input", { kind = "click", target = { x = 1500, y = 900 } }), { ok = true })
+    A.eq(sess:call("input", { kind = "type", target = { x = 1500, y = 900 }, text = "x" }).reason, "nothing at 1500, 900")
   end)
 end
 
