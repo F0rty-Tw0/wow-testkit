@@ -1,0 +1,16 @@
+[
+  { "method": "snapshot", "req": {} },
+  { "method": "input", "req": { "kind": "click", "target": "SessionDemoButton" } },
+  { "method": "input", "req": { "kind": "enter", "target": { "x": 960, "y": 600 } } },
+  { "method": "input", "req": { "kind": "click", "target": "SessionDemoBox" } },
+  { "method": "input", "req": { "kind": "type", "text": "hi" } },
+  { "method": "input", "req": { "kind": "press", "key": "ENTER" } },
+  { "method": "fire", "req": { "event": "PLAYER_REGEN_DISABLED", "args": [null, null] } },
+  { "method": "slash", "req": { "text": "/sdemo hi" } },
+  { "method": "slash", "req": { "text": "/sdemo boom" } },
+  { "method": "state", "req": { "modifiers": { "shift": true } } },
+  { "method": "reload", "req": {} },
+  { "method": "console", "req": { "since": 0 } },
+  { "method": "dev", "req": {} },
+  { "method": "snapshot", "req": {} }
+]
