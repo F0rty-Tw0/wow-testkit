@@ -12,7 +12,7 @@ local VERBS = { extract = true, status = true }
 -- Every kit module loads from the same package.path root as this file.
 local KIT_ROOT = debug.getinfo(1, "S").source:match("^@(.*)[/\\]client_cli%.lua$") or "."
 
-M.USAGE = "usage: tk client extract|status [--flavor F] [extract: --what KINDS] [--install DIR] [--listfile FILE]\n"
+M.USAGE = "usage: tk client extract|status [--flavor F] [extract: --what KINDS] [--install DIR] [--listfile FILE] [--from-export]\n"
 
 -- Runs argv, logging its output to logPath; returns its exit code. Tests replace this field.
 M.exec = Proc.run
@@ -36,7 +36,7 @@ local function logPath()
 end
 
 -- Runs the verb; its output goes through write. log: where the run logs (default: inside the testkit home). Returns
--- the exit code of the python run, 2 on a usage error.
+-- the exit code of the python run, 2 on a usage error, 1 when the run cannot start (no testkit home, no python).
 function M.run(args, write, log)
   local argv, usage = M.argv(args)
   if not argv then
@@ -48,7 +48,7 @@ function M.run(args, write, log)
   end)
   if not ok then
     write("tk client: " .. tostring(path) .. "\n")
-    return EXIT_USAGE
+    return 1
   end
   log = path
   fs.writeFile(log, "")
