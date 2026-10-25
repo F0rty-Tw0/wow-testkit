@@ -1,0 +1,6 @@
+## Interface: 120100
+## Title: WtfDemo
+## SavedVariables: WtfDemoDB
+## SavedVariablesPerCharacter: WtfDemoCharDB
+
+Main.lua

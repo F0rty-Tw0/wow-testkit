@@ -7,6 +7,9 @@ local Assets = require("session_assets")
 local Console = require("session_console")
 local Json = require("json")
 local Session = require("session")
+local SessionSaved = require("session_saved")
+local Wtf = require("session_wtf")
+local fs = require("fs")
 
 local Host = {}
 Host.__index = Host
@@ -49,11 +52,27 @@ local function decode(reqJson)
   return req
 end
 
--- opts: Session.new's. Starts the session; the outbox starts with the console lines the login printed.
+-- Imports opts.wtf into opts.sessionDir's saved.lua when it holds none yet (copy-once: a file the session wrote wins).
+-- Returns the import's warnings.
+local function importWtf(opts)
+  local dir = opts.sessionDir
+  if opts.wtf and dir and not fs.exists(dir .. "/" .. SessionSaved.FILE) then
+    return Wtf.seed(opts, opts.wtf)
+  end
+
+  return {}
+end
+
+-- opts: Session.new's, plus wtf = { account?, character? } paths of WTF SavedVariables files (Wtf.read). Starts the
+-- session; the outbox starts with the console lines the login printed and the warnings of the WTF import.
 function M.new(opts)
+  local warnings = importWtf(opts)
   local sess = Session.new(opts)
+  for _, warning in ipairs(warnings) do
+    Console.push(sess.w, "system", warning)
+  end
   local root = opts.addonDir:gsub("\\", "/"):gsub("/+$", "")
-  local host = { sess = sess, outbox = {}, located = {}, consoleSeq = 0, addonRoots = { [sess.folder:lower()] = root } }
+  local host = { sess = sess, outbox = {}, located = {}, consoleSeq = 0, wtf = opts.wtf, addonRoots = { [sess.folder:lower()] = root } }
   setmetatable(host, Host)
   host:collectConsole()
   return host
@@ -117,6 +136,26 @@ function Host:reload(req)
   return reply
 end
 
+-- Replaces the session folder's saved.lua with a fresh read of the WTF files, then reloads without writing the live
+-- variables, so the import is a strict copy: what the addon changed since is discarded. Replies as reload does, plus
+-- warnings (a count); the files' own warnings go to the console.
+function Host:reimport()
+  local opts = self.sess.opts
+  if not self.wtf then
+    return { ok = false, error = "no WTF folder picked" }
+  elseif not opts.sessionDir then
+    return { ok = false, error = "no session folder" }
+  end
+  local warnings = Wtf.seed(opts, self.wtf)
+  for _, warning in ipairs(warnings) do
+    Console.push(self.sess.w, "system", warning)
+  end
+  local reply = self:reload({ keepSaved = true })
+  reply.warnings = #warnings
+
+  return reply
+end
+
 local function relay(self, method, req)
   local before = self.sess.seq
   local decorate = method == "snapshot" and function(reply)
@@ -130,7 +169,7 @@ local function relay(self, method, req)
 end
 
 local function dispatch(self, method, reqJson)
-  if self.lost and method ~= "reload" then
+  if self.lost and method ~= "reload" and method ~= "reimport" then
     return Json.encode({ ok = false, error = self.lost })
   end
   local req, err = decode(reqJson)
@@ -140,6 +179,8 @@ local function dispatch(self, method, reqJson)
   prepare(method, req)
   if method == "reload" then
     return Json.encode(self:reload(req))
+  elseif method == "reimport" then
+    return Json.encode(self:reimport())
   end
   local text = relay(self, method, req)
   local pending = self.sess.pendingReload
@@ -151,7 +192,7 @@ local function dispatch(self, method, reqJson)
 end
 
 -- The JSON reply to a request; never raises. A /reload the call left pending runs right after it (dispatch). A lost
--- session (Host:reload) answers every request but a reload with its error.
+-- session (Host:reload) answers every request but a reload or a reimport (which reloads) with its error.
 function Host:handleJson(method, reqJson)
   local ok, text = pcall(dispatch, self, method, reqJson)
   self:collectConsole()

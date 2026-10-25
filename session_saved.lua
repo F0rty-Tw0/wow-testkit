@@ -11,6 +11,7 @@ local fs = require("fs")
 local concat, loadstring, pcall, select, setfenv, tostring, type = table.concat, loadstring, pcall, select, setfenv, tostring, type
 
 local FILE = "saved.lua"
+M.FILE = FILE
 local TEMP_SUFFIX = ".tmp"
 local PRECOMPILED = "\27"
 local MAX_NAMED = 10 -- paths one console line names
