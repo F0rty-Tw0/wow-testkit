@@ -1,6 +1,11 @@
-"""Tests for the DB2 export, the DBD cache and the encrypted-section handling."""
+"""Tests for the DB2 export, the encrypted-section handling and GlobalStrings read from DB2."""
 
-from tools.client import db2, db2_export, dbd, paths
+import io
+import struct
+
+from PIL import Image
+
+from tools.client import art, db2, db2_export, dbd, paths
 from tools.client.extract import Ctx
 from tools.client.fakes import FakeCasc, FakeSource, lua_value, make_wdc5
 from tools.client.source import CascSource
@@ -121,6 +126,15 @@ def test_read_id_needs_no_listfile_name_and_the_dbd_cache_lives_under_home(tmp):
     assert db2_export.dbd_dir(Ctx(**CTX_ARGS)) == paths.testkit_home() / "dbd"
 
 
+def test_raw_bgra_blp_decodes(tmp):
+    pixels = bytes([0, 0, 255, 255, 255, 0, 0, 128] * 2)  # BGRA: red, then half-transparent blue; 2x2 over two rows
+    head = b"BLP2" + struct.pack("<I4B", 1, 3, 8, 0, 0) + struct.pack("<2I", 2, 2)
+    data = head + struct.pack("<16I", 148, *[0] * 15) + struct.pack("<16I", len(pixels), *[0] * 15) + bytes(1024)
+    data = data[:148] + pixels
+    image = Image.open(io.BytesIO(art.decode_to_png(data))).convert("RGBA")
+    assert image.size == (2, 2) and image.getpixel((0, 0)) == (255, 0, 0, 255) and image.getpixel((1, 0)) == (0, 0, 255, 128)
+
+
 def test_bitpacked_unaligned_signed_and_float_fields(tmp):
     text = "COLUMNS\nint ID\nint P\nint Q\nfloat F\nint Arr\n\nLAYOUT 1\n$id$ID<32>\nP<5>\nQ<11>\nF\nArr<16>[3]\n"
     fields = dbd.parse(text)[0].fields
@@ -135,5 +149,6 @@ TESTS = [
     test_dbd_fetch_caches_and_sends_no_personal_headers,
     test_db2_export_writes_tables_and_atlas_lua,
     test_read_id_needs_no_listfile_name_and_the_dbd_cache_lives_under_home,
+    test_raw_bgra_blp_decodes,
     test_bitpacked_unaligned_signed_and_float_fields,
 ]

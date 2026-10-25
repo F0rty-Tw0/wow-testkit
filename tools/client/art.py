@@ -6,6 +6,7 @@ Cache layout: art/<path without extension>.png and art/by-id/<fileID>.png.
 import atexit
 import io
 import os
+import struct
 from pathlib import Path
 
 from PIL import Image
@@ -32,9 +33,20 @@ def to_png_bytes(image):
     return out.getvalue()
 
 
+def raw_bgra_blp(data):
+    """The first mip of a BLP2 stored as raw BGRA (encoding 3), which Pillow cannot read; None for other files."""
+    if data[:4] != b"BLP2" or len(data) < 28 or data[8] != 3:
+        return None
+    width, height, offset = struct.unpack_from("<3I", data, 12)  # width, height, first mip offset
+    return Image.frombuffer("RGBA", (width, height), data[offset : offset + width * height * 4], "raw", "BGRA", 0, 1)
+
+
 def decode_to_png(data):
     """PNG bytes of a BLP, TGA or PNG image. Raises ValueError("unsupported image") for anything else."""
     try:
+        image = raw_bgra_blp(data)
+        if image is not None:
+            return to_png_bytes(image)
         with Image.open(io.BytesIO(data), formats=FORMATS) as image:
             return to_png_bytes(image.convert("RGBA"))
     except Exception as err:  # Pillow raises many types for a bad file; they all mean the same here
