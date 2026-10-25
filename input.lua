@@ -7,6 +7,7 @@ local LayoutHit = require("ui.layout_hit")
 
 local DEFAULT_BUTTON = "LeftButton"
 local KEY_SCRIPTS = { ENTER = "OnEnterPressed", ESCAPE = "OnEscapePressed", TAB = "OnTabPressed" }
+M.KEY_SCRIPTS = KEY_SCRIPTS
 -- One UTF-8 character: a lead byte (%z is NUL in Lua 5.1 patterns) plus its continuation bytes.
 local UTF8_CHAR = "[%z\1-\127\194-\244][\128-\191]*"
 
@@ -87,13 +88,17 @@ end
 -- Actions ---------------------------------------------------------------------------------------------------
 
 -- source: confirmed (row I7) OnMouseDown(button), [click handlers when registered Down], OnMouseUp(button, true),
--- [click handlers when registered Up]. A frame that is not a Button gets only the mouse scripts.
-function M.click(w, frame, button)
+-- [click handlers when registered Up]. A frame that is not a Button gets only the mouse scripts. beforeUp, when given,
+-- runs while the button is held (a drag moves the cursor there).
+function M.click(w, frame, button, beforeUp)
   button = button or DEFAULT_BUTTON
   local isButton = isA(w, frame, "button")
   w:callScript(frame, "OnMouseDown", button)
   if isButton and BehaviourInput.isRegistered(w, frame, button, "Down") then
     BehaviourInput.runClick(w, frame, button, true)
+  end
+  if beforeUp then
+    beforeUp()
   end
   w:callScript(frame, "OnMouseUp", button, true)
   if isButton and BehaviourInput.isRegistered(w, frame, button, "Up") then
@@ -144,26 +149,6 @@ end
 
 -- Hit testing ------------------------------------------------------------------------------------------------
 
--- Frame strata, lowest first (wiki Frame_Strata, row LY12). An unknown strata ranks below all of them.
-local STRATA_RANK = {}
-for rank, name in ipairs({ "WORLD", "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" }) do
-  STRATA_RANK[name] = rank
-end
-
--- source: row LY12: higher strata first, then higher frame level; the creation tie-break (later frame, st.seq) is
--- assumed, so equal frames never depend on pairs order.
-local function outranks(w, frame, best)
-  local a, b = STRATA_RANK[frame:GetFrameStrata()] or 0, STRATA_RANK[best:GetFrameStrata()] or 0
-  if a ~= b then
-    return a > b
-  end
-  a, b = frame:GetFrameLevel(), best:GetFrameLevel()
-  if a ~= b then
-    return a > b
-  end
-  return w.ui.state[frame].seq > w.ui.state[best].seq
-end
-
 -- The topmost visible, mouse-enabled frame whose hit rect holds the physical pixel x, y (origin top-left), or nil.
 function M.frameAt(w, x, y)
   local best
@@ -173,7 +158,7 @@ function M.frameAt(w, x, y)
       and frame:IsVisible()
       and frame:IsMouseEnabled()
       and LayoutHit.contains(w, frame, x, y)
-      and (not best or outranks(w, frame, best))
+      and (not best or LayoutHit.above(w, frame, best))
     then
       best = frame
     end

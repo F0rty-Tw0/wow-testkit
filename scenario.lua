@@ -18,8 +18,6 @@ local debugTraceback = debug.traceback
 local MOUSEOVER = "mouseover"
 local ENGINE = "blizzard"
 local LOGIN_EVENTS = { "VARIABLES_LOADED", "PLAYER_LOGIN" }
--- PLAYER_ENTERING_WORLD payload: isInitialLogin, isReloadingUi.
-local INITIAL_LOGIN, RELOADING_UI = true, false
 -- ADDON_LOADED payload: addOnName, containsBindings (the manifest lists both as required).
 local CONTAINS_BINDINGS = false
 
@@ -90,9 +88,11 @@ function Scenario:fireIfKnown(event, ...)
   w:run(ENGINE, w.fire, w, event, ...)
 end
 
--- Loads the addon, applies saved variables and fires the login events. opts.saved overrides s.saved. When the
--- addon is skipped on the flavor (not declared), raises SKIPPED so the rest of the run does not execute.
+-- Loads the addon, applies saved variables and fires the login events. opts.saved overrides s.saved; opts.reloading
+-- fires PLAYER_ENTERING_WORLD(isInitialLogin = false, isReloadingUi = true) instead of (true, false). When the addon
+-- is skipped on the flavor (not declared), raises SKIPPED so the rest of the run does not execute.
 function Scenario:login(opts)
+  local reloading = opts ~= nil and opts.reloading == true
   if opts and opts.saved ~= nil then
     self.saved = opts.saved
   end
@@ -106,7 +106,7 @@ function Scenario:login(opts)
   for _, event in ipairs(LOGIN_EVENTS) do
     self:fireIfKnown(event)
   end
-  self:fireIfKnown("PLAYER_ENTERING_WORLD", INITIAL_LOGIN, RELOADING_UI)
+  self:fireIfKnown("PLAYER_ENTERING_WORLD", not reloading, reloading)
 end
 
 function Scenario:unit(token, data)

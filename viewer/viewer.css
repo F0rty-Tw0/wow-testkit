@@ -7,6 +7,10 @@
   --banner-ink: #8c1d18;
   --canvas: #0b0c10;
   --placeholder: #ff00ff;
+  --panel: #ffffff;
+  --line: #d3d7de;
+  --muted: #5d6573;
+  --accent: #cfe3ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +19,10 @@
     --ink: #e6e8ec;
     --banner: #3b1d1b;
     --banner-ink: #ffb4ab;
+    --panel: #1d2027;
+    --line: #333844;
+    --muted: #9aa3b2;
+    --accent: #23395c;
   }
 }
 
@@ -46,7 +54,27 @@ body.bare #errors {
   font: inherit;
 }
 
+/* Live mode (toolbar.js): the flavour and size pickers, Custom's two inputs and the session status line. */
+#toolbar select,
+#toolbar input {
+  font: inherit;
+}
+
+#toolbar input[type='number'] {
+  width: 6em;
+}
+
+#toolbar input[hidden] {
+  display: none;
+}
+
+#session-status {
+  margin-left: auto;
+  color: var(--muted);
+}
+
 #status,
+#skipped,
 #errors {
   margin-bottom: 8px;
   padding: 6px 10px;
@@ -56,12 +84,19 @@ body.bare #errors {
 }
 
 #status[hidden],
+#skipped[hidden],
 #errors[hidden] {
   display: none;
 }
 
+#workspace {
+  display: flex;
+  align-items: flex-start;
+}
+
 #viewport {
   position: relative;
+  flex: none;
   overflow: hidden;
 }
 

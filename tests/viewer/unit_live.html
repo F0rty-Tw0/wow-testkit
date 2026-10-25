@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Viewer live-mode checks</title>
+  </head>
+  <body>
+    <div id="toolbar">
+      <button id="zoom-out" type="button">-</button>
+      <button id="zoom-in" type="button">+</button>
+      <button id="zoom-fit" type="button">Fit</button>
+      <span id="zoom-label"></span>
+    </div>
+    <div id="status" role="alert" hidden></div>
+    <div id="skipped" role="alert" hidden></div>
+    <div id="errors" hidden></div>
+    <div id="workspace">
+      <div id="viewport"><div id="stage"></div><div id="hover" hidden></div><div id="selection" hidden></div></div>
+      <aside id="panels" hidden></aside>
+    </div>
+    <pre id="out"></pre>
+    <script src="../../viewer/transport.js"></script>
+    <script src="../../viewer/viewer_text.js"></script>
+    <script src="../../viewer/viewer_font.js"></script>
+    <script src="../../viewer/viewer_items.js"></script>
+    <script src="../../viewer/viewer.js"></script>
+    <script src="../../viewer/keys.js"></script>
+    <script src="../../viewer/pointer.js"></script>
+    <script src="unit_live.js"></script>
+    <script src="../../viewer/live.js"></script>
+    <script src="../../viewer/inspector_model.js"></script>
+    <script src="../../viewer/inspector.js"></script>
+    <script src="../../viewer/console.js"></script>
+    <script src="../../viewer/toolbar.js"></script>
+  </body>
+</html>

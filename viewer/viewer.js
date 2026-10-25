@@ -1,6 +1,7 @@
 // Static render-snapshot viewer. index.html?snapshot=<url>[&zoom=1|fit|<n>][&bare=1][&outline=1]. loadSnapshot(url)
-// fetches a snapshot; render(snapshot, baseUrl) draws its items into #stage in snapshot order (already draw order) and
-// resolves relative asset urls against baseUrl. <html data-ready="1"> is set once drawing is done or has failed.
+// fetches a snapshot; render(snapshot, baseUrl) replaces the content of #stage with its items in snapshot order
+// (already draw order) and resolves relative asset urls against baseUrl. <html data-ready="1"> is set once drawing is
+// done or has failed. With live=1 the snapshot comes from the session instead and live.js sets data-ready.
 (function (V) {
   'use strict';
 
@@ -80,10 +81,18 @@
     box.hidden = lines.length === 0;
   }
 
+  // The width the side panels (live mode) take beside the stage, 0 while they are hidden.
+  function panelsWidth() {
+    const panels = document.getElementById('panels');
+    if (panels.hidden) return 0;
+
+    return panels.offsetWidth + parseFloat(getComputedStyle(panels).marginLeft);
+  }
+
   function fitScale() {
     const viewport = document.getElementById('viewport');
     const top = viewport.getBoundingClientRect().top;
-    const width = document.documentElement.clientWidth - 2 * viewport.offsetLeft;
+    const width = document.documentElement.clientWidth - 2 * viewport.offsetLeft - panelsWidth();
     const height = window.innerHeight - top - viewport.offsetLeft;
 
     return Math.max(0.05, Math.min(width / view.screen.width, height / view.screen.height));
@@ -141,6 +150,7 @@
     document.body.classList.toggle('bare', params.get('bare') === '1');
     document.body.classList.toggle('outlined', view.outline);
     wireToolbar();
+    if (params.get('live') === '1') return;
     try {
       if (!source) throw new Error('no snapshot given: open index.html?snapshot=<url>');
       const url = new URL(source, location.href).href;
@@ -151,6 +161,7 @@
     document.documentElement.dataset.ready = '1';
   }
 
+  V.showMessages = showMessages;
   Object.assign(window, { loadSnapshot, render, parseEscapes: V.parseEscapes, refPath: V.refPath, refId: V.refId, refAtlas: V.refAtlas });
   main();
 })((window.Viewer = window.Viewer || {}));

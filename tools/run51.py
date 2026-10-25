@@ -37,8 +37,28 @@ def install_fs(lua):
             "isdir": os.path.isdir,
             "mkdirp": lambda path: os.makedirs(path, exist_ok=True),
             "mkdir": mkdir_new,
+            "replace": os.replace,
         }
     )
+
+
+def refuse_private(obj, name, is_setting):
+    """lupa's attribute_filter: Lua reads or writes no _-prefixed attribute of a Python object (fn.__globals__ is os)."""
+    if not isinstance(name, str) or name.startswith("_"):
+        raise AttributeError(f"{name!r} is not reachable from Lua")
+
+    return name
+
+
+def new_runtime(**options):
+    """A LuaRuntime with the __tk_fs bridge, no `python` module (global or package.loaded) and no _-prefixed attribute
+    reachable from Lua. Client fidelity, not a security boundary: the WoW client has no such names, and addon code is
+    trusted."""
+    lua = lua51.LuaRuntime(attribute_filter=refuse_private, **options)
+    install_fs(lua)
+    lua.execute("python = nil; package.loaded.python = nil")
+
+    return lua
 
 
 def run_lua_init(lua):
@@ -50,8 +70,7 @@ def run_lua_init(lua):
 
 
 def main(argv):
-    lua = lua51.LuaRuntime()
-    install_fs(lua)
+    lua = new_runtime()
     try:
         run_lua_init(lua)
         lua.globals().arg = lua.table_from({i: a for i, a in enumerate([RUNNER] + argv)})

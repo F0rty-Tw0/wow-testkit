@@ -17,6 +17,58 @@ local function test_mkdirp_creates_nested_dirs_and_write_then_list_finds_file()
   A.eq(fs.readFile(dir .. "/x.txt"), "hi")
 end
 
+-- Windows' rename refuses an existing target; fs.rename still replaces it.
+local function test_rename_replaces_an_existing_file()
+  local dir = tempDir()
+  fs.mkdirp(dir)
+  fs.writeFile(dir .. "/new.txt", "new")
+  fs.writeFile(dir .. "/old.txt", "old")
+  fs.rename(dir .. "/new.txt", dir .. "/old.txt")
+  A.eq(fs.readFile(dir .. "/old.txt"), "new")
+  A.eq(fs.exists(dir .. "/new.txt"), false)
+end
+
+-- With the bridge, the rename is its replace (Python's os.replace, atomic on Windows too); os.rename is never tried.
+local function test_rename_goes_through_the_bridge_replace()
+  local bridge, rename = rawget(_G, "__tk_fs"), os.rename
+  local calls = {}
+  rawset(_G, "__tk_fs", {
+    replace = function(from, to)
+      calls[#calls + 1] = from .. ">" .. to
+    end,
+  })
+  rawset(os, "rename", function()
+    calls[#calls + 1] = "os.rename"
+  end)
+  local ok, err = pcall(fs.rename, "a", "b")
+  rawset(os, "rename", rename)
+  rawset(_G, "__tk_fs", bridge)
+  A.same({ ok, err, calls }, { true, nil, { "a>b" } })
+end
+
+-- Without the bridge, only Windows (whose rename refuses an existing target) removes the target and retries.
+local function test_rename_without_the_bridge_removes_the_target_only_on_windows()
+  local dir = tempDir()
+  fs.writeFile(dir .. "/old.txt", "old")
+  local bridge, rename, remove = rawget(_G, "__tk_fs"), os.rename, os.remove
+  local calls = {}
+  rawset(_G, "__tk_fs", nil)
+  rawset(os, "rename", function()
+    calls[#calls + 1] = "rename"
+    return #calls > 2 or nil, "File exists"
+  end)
+  rawset(os, "remove", function()
+    calls[#calls + 1] = "remove"
+    return true
+  end)
+  pcall(fs.rename, dir .. "/new.txt", dir .. "/old.txt")
+  rawset(os, "remove", remove)
+  rawset(os, "rename", rename)
+  rawset(_G, "__tk_fs", bridge)
+  local windows = package.config:sub(1, 1) == "\\"
+  A.same(calls, windows and { "rename", "remove", "rename" } or { "rename" })
+end
+
 local function test_mkdirp_tolerates_existing_dir()
   local dir = tempDir()
   fs.mkdirp(dir)
@@ -159,6 +211,9 @@ return function()
   test_mkdir_creates_once_then_reports_an_existing_dir()
   test_mkdir_raises_when_the_dir_cannot_be_created()
   test_mkdirp_tolerates_existing_dir()
+  test_rename_replaces_an_existing_file()
+  test_rename_goes_through_the_bridge_replace()
+  test_rename_without_the_bridge_removes_the_target_only_on_windows()
   test_exists_is_false_for_missing_path()
   test_dir_calls_work_while_the_global_os_is_cleared()
 end

@@ -4,6 +4,7 @@ local Tmp = require("tests.helpers.tmp")
 local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local H = require("tests.helpers.world")
+local Xml = require("ui.xml")
 local fs = require("fs")
 
 local withWorld = H.withWorld
@@ -118,6 +119,94 @@ local function test_missing_toc_file_is_an_error_and_later_files_load()
   end)
 end
 
+-- Runs fn with Addon.gc recording its "stop" and "restart" calls (the real collectgarbage still runs); returns them.
+local function gcCalls(fn)
+  local gc, calls = Addon.gc, {}
+  Addon.gc = function(opt)
+    if opt ~= "count" then
+      calls[#calls + 1] = opt
+    end
+    return gc(opt)
+  end
+  local ok, err = pcall(fn)
+  Addon.gc = gc
+  if not ok then
+    error(err, 0)
+  end
+  return calls
+end
+
+local function test_the_gc_pauses_for_the_file_loop_only()
+  local calls = gcCalls(function()
+    withWorld("retail", function(w)
+      load(w, "Mini")
+    end)
+  end)
+  A.same(calls, { "stop", "restart" })
+end
+
+local function test_a_raising_file_still_restarts_the_gc()
+  local root = Tmp.dir("addon")
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Raise.toc", "## Interface: 120100\n\nRaise.xml\n")
+  local loadFile = Xml.loadFile
+  Xml.loadFile = function()
+    error("kit raised", 0)
+  end
+  local ok, err
+  local calls = gcCalls(function()
+    withWorld("retail", function(w)
+      ok, err = pcall(Addon.load, w, { name = "Raise", root = root })
+      A.eq(w.dev.loading, nil)
+      A.same(w.dev.loads, {})
+    end)
+  end)
+  Xml.loadFile = loadFile
+  A.eq(ok, false)
+  A.eq(err, "kit raised")
+  A.same(calls, { "stop", "restart" })
+end
+
+local function test_a_nested_load_leaves_the_gc_stopped_until_the_outer_one_ends()
+  local root = Tmp.dir("addon")
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Outer.toc", "## Interface: 120100\n\nOuter.xml\n")
+  local loadFile = Xml.loadFile
+  local calls = gcCalls(function()
+    withWorld("retail", function(w)
+      Xml.loadFile = function()
+        Xml.loadFile = loadFile
+        load(w, "Mini")
+      end
+      Addon.load(w, { name = "Outer", root = root })
+    end)
+  end)
+  Xml.loadFile = loadFile
+  A.same(calls, { "stop", "stop", "restart" })
+end
+
+-- Leaves 100000 unreachable tables for the next collection.
+local function leaveGarbage()
+  local junk = {}
+  for i = 1, 100000 do
+    junk[i] = { i }
+  end
+  return #junk
+end
+
+local function test_memory_never_goes_negative_when_the_addon_collects_garbage()
+  local root = Tmp.dir("addon")
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Collect.toc", "## Interface: 120100\n\nCollect.lua\n")
+  fs.writeFile(root .. "/Collect.lua", 'collectgarbage("collect")\n')
+  leaveGarbage()
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "Collect", root = root })
+    A.same(w.errors, {})
+    A.truthy(w.dev.loads[1].memoryKb >= 0, "memoryKb " .. w.dev.loads[1].memoryKb)
+  end)
+end
+
 local function test_missing_xml_and_xml_script_are_errors()
   withWorld("retail", function(w)
     load(w, "Missing")
@@ -155,6 +244,17 @@ local function test_apply_saved_sets_a_dotted_name_as_one_global_assumed()
   A.same({ saved, nested, rawget(_G, "Dotted.DB") }, { 5, nil, nil })
 end
 
+local function test_collect_saved_reads_the_declared_globals()
+  withWorld("retail", function(w)
+    local info = { savedVariables = { "AccountDB", "UnsetDB" }, savedVariablesPerCharacter = { "CharDB" } }
+    w:setGlobal("AccountDB", { a = 1 })
+    w:setGlobal("CharDB", 5)
+    w:setGlobal("OtherDB", 9)
+    A.same(Addon.collectSaved(w, info), { AccountDB = { a = 1 }, CharDB = 5 })
+    A.same(Addon.collectSaved(w, { status = "skipped" }), {})
+  end)
+end
+
 local function test_no_toc_for_flavor_is_skipped()
   withWorld("vanilla", function(w)
     local _, info = Addon.load(w, { name = "MainlineToc", root = SMOKE_DIR .. "/MainlineToc" })
@@ -184,8 +284,13 @@ return function()
   test_outdated_interface_loads_with_a_report_line()
   test_ahead_interface_loads_with_a_report_line()
   test_missing_toc_file_is_an_error_and_later_files_load()
+  test_the_gc_pauses_for_the_file_loop_only()
+  test_a_raising_file_still_restarts_the_gc()
+  test_a_nested_load_leaves_the_gc_stopped_until_the_outer_one_ends()
+  test_memory_never_goes_negative_when_the_addon_collects_garbage()
   test_missing_xml_and_xml_script_are_errors()
   test_long_chunk_name_error_keeps_full_source()
   test_apply_saved_sets_saved_variable_globals()
   test_apply_saved_sets_a_dotted_name_as_one_global_assumed()
+  test_collect_saved_reads_the_declared_globals()
 end

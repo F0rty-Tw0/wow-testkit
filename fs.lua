@@ -66,6 +66,26 @@ local function renameProbe(path)
   return ok ~= nil or code == EACCES
 end
 
+-- Moves the file from onto to, replacing a file already there: atomically through the bridge (Python's os.replace).
+-- Without it, Windows' rename refuses an existing target, so there that target is removed first and the rename
+-- retried: a crash between the two leaves the data only in from. Elsewhere os.rename already replaces.
+function M.rename(from, to)
+  local bridge = host()
+  if bridge then
+    bridge.replace(from, to)
+
+    return
+  end
+  local ok, err = os.rename(from, to)
+  local refused = not ok and IS_WINDOWS
+  local stale = refused and M.exists(to)
+  if stale then
+    assert(os.remove(to))
+    ok, err = os.rename(from, to)
+  end
+  assert(ok, err)
+end
+
 -- A file that opens exists; the rename probe covers directories, which io.open cannot open on Windows. Opening first
 -- keeps a read-only mount working, where the rename fails with EROFS. Accepted without the bridge: a file that exists
 -- but cannot be read on a read-only mount reads as missing (the open fails, the rename fails with EROFS).

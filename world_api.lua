@@ -2,6 +2,7 @@
 -- then a w:stub override, then the kit implementation, then signature-derived defaults.
 local M = {}
 
+local Callsite = require("ui.callsite")
 local Validate = require("validate")
 
 local unpack = unpack
@@ -63,9 +64,11 @@ local function countCall(w, name, signature, args)
   return Validate.check(signature, args, w.realType, { name = name, flavor = w.flavor })
 end
 
--- Records that a call to name was answered with defaults: w.unscripted lists what a scenario forgot to fake.
+-- Records that a call to name was answered with defaults: w.unscripted lists what a scenario forgot to fake, and
+-- w.dev.unscripted the same per addon for calls made in addon context.
 function M.markUnscripted(w, name)
   w.unscripted[name] = (w.unscripted[name] or 0) + 1
+  Callsite.credit(w, "unscripted", name)
 end
 
 local function unscripted(w, name, signature)

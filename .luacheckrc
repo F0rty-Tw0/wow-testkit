@@ -51,6 +51,18 @@ files["tests/fixtures/addons/Clicky/*.lua"] = {
   },
 }
 
+-- Session fixture addon: a slash command and a SavedVariables table, written like a real addon.
+files["tests/fixtures/addons/SessionDemo/*.lua"] = {
+  globals = { "SLASH_SDEMO1", "SlashCmdList", "SessionDemoDB", "SessionDemoToggle" },
+  read_globals = { "CreateFrame", "UIParent" },
+}
+
+-- Developer panel fixture: widgets, an unknown template, two nil globals and a heap-heavy file.
+files["tests/fixtures/addons/DevDemo/*.lua"] = {
+  globals = { "DevDemoHeavy" },
+  read_globals = { "CreateFrame", "UIParent", "DevDemoNoSuchApi", "C_DevDemoNoSuch" },
+}
+
 -- Preview fixture: builds a frame, then errors at load.
 files["tests/fixtures/addons/PreviewBroken/*.lua"] = {
   read_globals = { "CreateFrame", "UIParent" },

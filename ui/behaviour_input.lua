@@ -221,6 +221,8 @@ local function clearFocus(w, obj)
   w:callScript(obj, "OnEditFocusLost")
 end
 
+M.clearFocus = clearFocus
+
 local function hasFocus(w, obj)
   return w.input.editFocus == obj
 end

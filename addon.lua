@@ -11,6 +11,12 @@ local fs = require("fs")
 
 local NOT_DECLARED = "not-declared"
 
+-- collectgarbage, held here so addon code assigning the global cannot reach it; a field so tests can watch the pause.
+M.gc = collectgarbage
+
+-- The load-time clock: os.clock, the one debugprofilestop reads (luaext.lua); a field so tests can fake it.
+M.clock = os.clock
+
 -- Reads a TOC- or XML-listed file. A missing one is a packaging bug in the addon, so it is an error.
 local function readListed(w, ctx, relative)
   local text = fs.readFile(ctx.root .. "/" .. relative)
@@ -89,6 +95,36 @@ local function loadListed(w, ctx, relative)
   end
 end
 
+local function loadEach(w, ctx, files)
+  for _, relative in ipairs(files) do
+    loadListed(w, ctx, relative)
+  end
+end
+
+-- Loads the TOC's files in order with w.dev.loading naming the addon, then appends { name, loadMs, memoryKb } to
+-- w.dev.loads: kit CPU time (M.clock) and heap growth, an estimate (no forced collection, which would shift GC timing),
+-- floored at 0 because an addon's own collectgarbage("collect") frees garbage older than its load. The outermost load
+-- restarts the GC, also when a file raises.
+local function loadFiles(w, ctx, files)
+  local dev = w.dev
+  local outer = dev.loading
+  -- GC paused: a cycle ending mid-load frees older garbage and would hide this load's growth.
+  M.gc("stop")
+  local startClock, startKb = M.clock(), M.gc("count")
+  dev.loading = ctx.name
+  local ok, err = pcall(loadEach, w, ctx, files)
+  local loadMs = (M.clock() - startClock) * 1000
+  local memoryKb = math.max(0, M.gc("count") - startKb)
+  dev.loading = outer
+  if outer == nil then
+    M.gc("restart")
+  end
+  if not ok then
+    error(err, 0)
+  end
+  dev.loads[#dev.loads + 1] = { name = ctx.name, loadMs = loadMs, memoryKb = memoryKb }
+end
+
 local function versionNote(declared, flavor)
   local row = Flavors.get(flavor)
   return string.format("TOC interface is %s for %s (client %d); loaded anyway", declared, flavor, row.tocVersion)
@@ -132,9 +168,7 @@ function M.load(w, opts)
   if info.declared ~= "load" then
     table.insert(report, 1, versionNote(info.declared, w.flavor))
   end
-  for _, relative in ipairs(files) do
-    loadListed(w, ctx, relative)
-  end
+  loadFiles(w, ctx, files)
   return ctx.ns, info
 end
 
@@ -146,6 +180,18 @@ function M.applySaved(w, info, saved)
       w:setGlobal(name, saved[name])
     end
   end
+end
+
+-- { [name] = value } of the SavedVariables / SavedVariablesPerCharacter globals the TOC names (nil values omitted). The
+-- world is the active one, so its globals are _G (applySaved's counterpart; _w only keeps the two signatures alike).
+function M.collectSaved(_w, info)
+  local saved = {}
+  for _, names in ipairs({ info.savedVariables or {}, info.savedVariablesPerCharacter or {} }) do
+    for _, name in ipairs(names) do
+      saved[name] = rawget(_G, name)
+    end
+  end
+  return saved
 end
 
 return M

@@ -152,6 +152,7 @@ function M.new(opts)
     calls = {},
     unscripted = {},
     errors = {},
+    dev = { loads = {}, widgets = {}, unscripted = {} },
     warnings = {},
     realType = type,
     stubs = {},

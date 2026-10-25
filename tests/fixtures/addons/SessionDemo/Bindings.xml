@@ -1,0 +1,3 @@
+<Bindings>
+  <Binding name="SESSIONDEMO_TOGGLE" header="SESSIONDEMO">SessionDemoToggle(keystate)</Binding>
+</Bindings>

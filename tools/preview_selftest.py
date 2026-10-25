@@ -215,6 +215,24 @@ def test_resolve_twice_gives_the_same_snapshot(tmp):
     assert first == second, (first, second)
 
 
+def test_locate_agrees_with_the_shared_cases(tmp, monkeypatch):
+    cases = json.loads((Path(__file__).resolve().parent.parent / "tests/fixtures/session_assets/cases.json").read_text(encoding="utf-8"))
+    addons, extract = tmp / "addons", tmp / "extract"
+    for root, names in ((addons, cases["addonFiles"]), (extract, cases["extractFiles"])):
+        for name in names:
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_bytes(b"")
+    monkeypatch(pa, "_lazy_extract", lambda *_: None)
+    roots = {"locdemo": addons / "LocDemo", "extract": extract}
+    for case in cases["cases"]:
+        if case.get("luaOnly"):
+            continue
+        source, hit = pa.locate("ref", case["asset"], {"locdemo": str(roots["locdemo"])}, str(extract))
+        base = roots["locdemo"] if source == "addon" else extract
+        got = {"source": source, "path": Path(hit).relative_to(os.path.realpath(base)).as_posix()} if source in ("addon", "extract") else None
+        assert got == case["expect"], (case["name"], got, case["expect"])
+
+
 TESTS = [
     test_addon_png_found_case_insensitively_without_extension,
     test_tga_and_blp_convert_to_png,
@@ -228,6 +246,7 @@ TESTS = [
     test_font_assets_copy_addon_fonts_only,
     test_font_assets_copy_only_ttf_and_otf,
     test_resolve_twice_gives_the_same_snapshot,
+    test_locate_agrees_with_the_shared_cases,
 ]
 
 

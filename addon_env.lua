@@ -13,9 +13,9 @@ local function requireSentinel(flavor)
   end
 end
 
--- Host-only names WoW's client does not have; addon code never sees their host values, whatever path it reads _G
--- through. A global the addon itself assigns under one of these names stays visible.
-local HOST_ONLY = { "require", "io", "package", "loadfile", "dofile", "debug", "module", "load" }
+-- Host-only names WoW's client does not have (python and __tk_fs: the lupa hosts' bridges to Python), hidden so addon
+-- code reads _G as the client's. Fidelity, not a security boundary: addon code is trusted. An assigned one stays visible.
+local HOST_ONLY = { "require", "io", "package", "loadfile", "dofile", "debug", "module", "load", "python", "__tk_fs" }
 local HOST_VALUES = {}
 for _, name in ipairs(HOST_ONLY) do
   HOST_VALUES[name] = rawget(_G, name)

@@ -1,9 +1,9 @@
--- Hand-written widget semantics: visibility, hierarchy, identity, mouse and movement.
+-- Hand-written widget semantics: visibility, hierarchy and identity.
 -- Each method is fn(w, obj, st, ...) where st is obj's state in w.ui.state. M.methods also carries the anchor and
--- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), SetAtlas (ui/behaviour_atlas.lua), alpha/scale/level/strata (ui/behaviour_render.lua),
--- region creation (ui/behaviour_regions.lua), script/event (ui/behaviour_scripts.lua), animation
--- (ui/behaviour_animation.lua), attribute (ui/behaviour_attributes.lua) and GetDebugName
--- (ui/behaviour_debug_name.lua) methods.
+-- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), SetAtlas (ui/behaviour_atlas.lua), alpha/scale/level/strata
+-- (ui/behaviour_render.lua), region creation (ui/behaviour_regions.lua), script/event (ui/behaviour_scripts.lua),
+-- keyboard, wheel, drag, moving and sizing (ui/behaviour_drag.lua), animation (ui/behaviour_animation.lua), attribute
+-- (ui/behaviour_attributes.lua) and GetDebugName (ui/behaviour_debug_name.lua) methods.
 local M = {}
 
 local AddonEnv = require("addon_env")
@@ -15,6 +15,7 @@ local BehaviourRender = require("ui.behaviour_render")
 local BehaviourRegions = require("ui.behaviour_regions")
 local BehaviourScripts = require("ui.behaviour_scripts")
 local BehaviourInput = require("ui.behaviour_input")
+local BehaviourDrag = require("ui.behaviour_drag")
 local BehaviourAnimation = require("ui.behaviour_animation")
 local BehaviourAttributes = require("ui.behaviour_attributes")
 local BehaviourDebugName = require("ui.behaviour_debug_name")
@@ -48,6 +49,15 @@ local function fireVisibility(w, obj, script)
   end
 end
 
+-- source: assumed (K1) hiding the focused EditBox or one of its ancestors clears the focus (OnEditFocusLost), after
+-- the OnHide scripts, so an OnHide that calls ClearFocus itself fires it once.
+local function dropHiddenFocus(w)
+  local box = w.input.editFocus
+  if box and not isVisible(w, w.ui.state[box]) then
+    BehaviourInput.clearFocus(w, box)
+  end
+end
+
 local function setShown(w, obj, st, shown)
   shown = shown and true or false
   if st.shown == shown then
@@ -55,8 +65,12 @@ local function setShown(w, obj, st, shown)
   end
   local wasVisible = isVisible(w, st)
   st.shown = shown
-  if isVisible(w, st) ~= wasVisible then
-    fireVisibility(w, obj, shown and "OnShow" or "OnHide")
+  if isVisible(w, st) == wasVisible then
+    return
+  end
+  fireVisibility(w, obj, shown and "OnShow" or "OnHide")
+  if not shown then
+    dropHiddenFocus(w)
   end
 end
 
@@ -163,29 +177,6 @@ function methods.IsObjectType(_, _, st, typeName)
   return type(typeName) == "string" and st.plan.isA[typeName:lower()] == true
 end
 
--- Mouse and movement ------------------------------------------------------------------------------------------
-
-function methods.EnableMouseWheel(_, _, st, enable)
-  st.mouseWheel = enable and true or false
-end
-
-function methods.IsMouseWheelEnabled(_, _, st)
-  return st.mouseWheel == true
-end
-
-function methods.SetMovable(_, _, st, movable)
-  st.movable = movable and true or false
-end
-
-function methods.IsMovable(_, _, st)
-  return st.movable == true
-end
-
--- No cursor offline: moving is a no-op, but a scripted one (not counted as unscripted).
-function methods.StartMoving() end
-
-function methods.StopMovingOrSizing() end
-
 -- BehaviourInput goes last: its SetScript wraps BehaviourScripts's.
 local MODULES = {
   BehaviourLayout,
@@ -194,6 +185,7 @@ local MODULES = {
   BehaviourRender,
   BehaviourRegions,
   BehaviourScripts,
+  BehaviourDrag,
   BehaviourAnimation,
   BehaviourAttributes,
   BehaviourDebugName,
