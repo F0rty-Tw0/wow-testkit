@@ -78,6 +78,16 @@ local function addSetfenv(overrides, w)
   end
 end
 
+-- Lua 5.1's loadstring takes a precompiled (binary) chunk when its first byte is ESC, and runs it unchecked.
+local BINARY_REFUSAL = "the chunk is precompiled bytecode, which is never run"
+
+-- The refusal message when source is a binary chunk, else nil.
+function M.binaryRefusal(source)
+  if hostType(source) == "string" and hostSub(source, 1, 1) == "\27" then
+    return BINARY_REFUSAL
+  end
+end
+
 -- Values the view answers instead of _G's: host-only names map to false (see hidden); functions that would hand
 -- out the real _G, or an addon's environment (w.addonEnvs), hand out the view instead: the client has one _G.
 local function overridesFor(view, w)
@@ -96,6 +106,10 @@ local function overridesFor(view, w)
     return (env == _G or w.addonEnvs[env]) and view or env
   end
   overrides.loadstring = function(src, chunkName)
+    local refusal = M.binaryRefusal(src)
+    if refusal then
+      return nil, refusal
+    end
     local fn, err = hostLoadstring(src, chunkName)
     return fn and hostSetfenv(fn, w.addonThreadEnv or view), err
   end
@@ -247,7 +261,7 @@ local function newView(w)
   local overrides = overridesFor(view, w)
   addRawAccess(overrides, view)
   addGlobalsMetatable(overrides, view, w)
-  return hostSetmetatable(view, {
+  hostSetmetatable(view, {
     __index = function(_, key)
       local value = answer(overrides, key, false)
       local handler = value == nil and globalsHandler(w, "__index")
@@ -269,15 +283,34 @@ local function newView(w)
       end
     end,
   })
+  return view, overrides
+end
+
+-- The overrides every global-by-name lookup shares: the first view's, or those of a view made now when no addon has
+-- loaded. They differ between views only in the functions that answer the view itself.
+local function worldOverrides(w, view, overrides)
+  w.addonEnvs = w.addonEnvs or {}
+  if not w.addonOverrides then
+    w.addonEnvs[view] = true
+    w.addonOverrides = overrides
+  end
+  return w.addonOverrides
+end
+
+-- The global `name` as addon code sees it: a host-only name (io, debug, require, ...) is nil and _G is the view, so a
+-- name an XML attribute or a widget method resolves never hands addon code the host's own tables. raw reads _G without
+-- its metatable (which lazily makes global frames); a global the addon assigned under a host-only name stays visible.
+function M.global(w, name, raw)
+  return answer(w.addonOverrides or worldOverrides(w, newView(w)), name, raw)
 end
 
 -- The per-addon environment: the view plus the require sentinel, raw in the environment so it shadows any host
 -- require. Both are registered in w.addonEnvs, so getfenv in any addon answers that addon's _G for them.
 function M.newEnv(w)
-  local view = newView(w)
+  local view, overrides = newView(w)
+  worldOverrides(w, view, overrides)
   local env = setmetatable({}, { __index = view, __newindex = view })
   hostRawset(env, "require", requireSentinel(w.flavor))
-  w.addonEnvs = w.addonEnvs or {}
   w.addonEnvs[env], w.addonEnvs[view] = true, true
   return env
 end

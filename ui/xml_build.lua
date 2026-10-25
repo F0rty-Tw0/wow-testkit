@@ -4,6 +4,8 @@
 -- where anchors ({ obj, line, name, try() }) wait for a target that is not built yet.
 local M = {}
 
+local unpack = unpack
+local AddonEnv = require("addon_env")
 local Layout = require("ui.layout")
 local Widgets = require("ui.widgets")
 local XmlAttrs = require("ui.xml_attrs")
@@ -36,6 +38,18 @@ function M.session(ctx, file)
     ctx.report[#ctx.report + 1] = file.path .. ":" .. line .. ": " .. what
   end
   return session
+end
+
+-- Calls fn(...) so an error it raises is reported (w.errors, named by the XML file and `line`) instead of aborting the
+-- addon's load. True when fn did not raise.
+function M.guard(w, session, line, fn, ...)
+  local args = { n = select("#", ...), ... }
+  local where = "addon:" .. session.ctx.name .. "/" .. session.file.path .. ":" .. line .. ": "
+  return (xpcall(function()
+    return fn(unpack(args, 1, args.n))
+  end, function(err)
+    w:reportError(where .. tostring(err))
+  end))
 end
 
 local function unsupportedTag(session, node)
@@ -78,12 +92,12 @@ local attach = M.attach
 
 -- source: wiki XML, example `<Frame parent="UIParent">`: parent names a global frame. With no parent attribute a
 -- top-level frame is parentless, not UIParent's child (row X1, assumed); a nested one keeps its enclosing frame.
-local function parentOf(node, enclosing, session)
+local function parentOf(w, node, enclosing, session)
   local named = node.attrs.parent
   if not named then
     return enclosing
   end
-  local parent = rawget(_G, named)
+  local parent = AddonEnv.global(w, named, true)
   if not parent then
     session.report("parent:" .. named, "parent '" .. named .. "' not found")
   end
@@ -160,10 +174,19 @@ end
 -- definition replaces the earlier: assumed).
 function M.registerVirtual(w, name, node, origin)
   local typeName = REGION_TYPES[node.tag] or Widgets.resolveType(w, node.rawTag)
+  local applying = false
   w.ui.virtuals[name] = {
     type = typeName,
     apply = function(_, obj)
-      M.applyTemplate(w, obj, node, origin)
+      if applying then
+        error("template '" .. name .. "' inherits itself, directly or through another template", 0)
+      end
+      applying = true
+      local ok, err = pcall(M.applyTemplate, w, obj, node, origin)
+      applying = false
+      if not ok then
+        error(err, 0)
+      end
     end,
   }
 end
@@ -192,7 +215,7 @@ function M.frame(w, node, parent, session)
     declareVirtual(w, node, session)
     return nil
   end
-  parent = parentOf(node, parent, session)
+  parent = parentOf(w, node, parent, session)
   local frame = Widgets.newFrame(w, node.rawTag, fullName(node, parent), parent)
   attach(parent, frame, node.attrs)
   M.body(w, frame, node, session)

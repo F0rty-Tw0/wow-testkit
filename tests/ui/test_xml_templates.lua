@@ -213,7 +213,29 @@ local function test_virtual_font_string_applies_to_a_region_that_inherits_it()
   end)
 end
 
+-- source: wiki XML/LayoutFrame, hidden "Controls the frame's initial visibility" (row X7)
+local function test_hidden_false_shows_what_a_template_hid()
+  local xml =
+    '<Ui><Frame name="HT" virtual="true" hidden="true"/><Frame name="H1" inherits="HT" hidden="false"/><Frame name="H2" inherits="HT"/></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ _G.H1:IsShown(), _G.H2:IsShown() }, { true, false })
+  end)
+end
+
+local function test_create_texture_applies_its_xml_template_and_counts_an_unknown_one()
+  H.withXml({ ["Ui.xml"] = '<Ui><Texture name="XmlTexVirtual" virtual="true" alpha="0.5"/></Ui>' }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local frame = _G.CreateFrame("Frame", nil, _G.UIParent)
+    A.eq(frame:CreateTexture(nil, "ARTWORK", "XmlTexVirtual"):GetAlpha(), 0.5)
+    A.eq(frame:CreateTexture(nil, "ARTWORK", "NoTexTemplate", 2):GetDrawLayer(), "ARTWORK")
+    A.eq(w.unscripted["template:NoTexTemplate"], 1)
+  end)
+end
+
 return function()
+  test_hidden_false_shows_what_a_template_hid()
+  test_create_texture_applies_its_xml_template_and_counts_an_unknown_one()
   test_virtual_template_builds_through_createframe()
   test_virtual_element_builds_no_frame_and_no_global()
   test_on_load_runs_once_when_an_xml_element_inherits_a_virtual()

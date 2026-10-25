@@ -2,6 +2,7 @@
 -- KeyValues, Color and TexCoords. The helpers at the top are shared with ui/xml_widgets.lua.
 local M = {}
 
+local AddonEnv = require("addon_env")
 local XmlBuild = require("ui.xml_build")
 
 local handlers = XmlBuild.handlers
@@ -73,22 +74,22 @@ end
 
 -- The global named by relativeTo, `$parent` standing for the parent's name (the parent itself when alone).
 -- source: wiki XML/Anchor, relativeTo "Another widget to align against (in `_G`)"; row X8 (`$parentLeft` forms)
-local function nameTarget(parent, name)
+local function nameTarget(w, parent, name)
   if name == "$parent" then
     return parent ~= nil, parent
   end
-  local target = rawget(_G, XmlBuild.substituteParent(name, parent))
+  local target = AddonEnv.global(w, XmlBuild.substituteParent(name, parent), true)
   return type(target) == "table", target
 end
 
 -- Whether the anchor's target exists yet, and it. An anchor with no target anchors to the parent, the screen when
 -- there is none (rows X8 and LY1, the XML half assumed).
-local function resolve(obj, parent, attrs)
+local function resolve(w, obj, parent, attrs)
   if attrs.relativekey then
     return keyTarget(obj, attrs.relativekey)
   end
   if attrs.relativeto then
-    return nameTarget(parent, attrs.relativeto)
+    return nameTarget(w, parent, attrs.relativeto)
   end
   return true, parent
 end
@@ -105,16 +106,17 @@ local function offsetOf(node)
   return x or 0, y or 0
 end
 
--- An entry for session.anchors: try() applies the anchor once its target exists and answers whether it did.
-local function anchorEntry(obj, node)
+-- An entry for session.anchors: try() applies the anchor once its target exists and answers whether it did. SetPoint
+-- refusing the anchor (a self-anchor, a loop) is reported and the anchor dropped.
+local function anchorEntry(w, session, obj, node)
   local attrs = node.attrs
   local x, y = offsetOf(node)
   local entry = { obj = obj, line = node.line, name = attrs.relativekey or attrs.relativeto }
   -- source: wiki XML/Anchor, relativePoint "Point on the other widget to align against (defaults to the same as point)"
   function entry.try()
-    local found, target = resolve(obj, obj:GetParent(), attrs)
+    local found, target = resolve(w, obj, obj:GetParent(), attrs)
     if found then
-      obj:SetPoint(attrs.point, target, attrs.relativepoint or attrs.point, x, y)
+      XmlBuild.guard(w, session, node.line, obj.SetPoint, obj, attrs.point, target, attrs.relativepoint or attrs.point, x, y)
     end
     return found
   end
@@ -133,14 +135,14 @@ end
 
 -- The element's own <Anchors> replace the points already set, queued ones included (row X4, assumed). An anchor whose
 -- target is built later waits in session.anchors for XmlBuild.settle.
-function handlers.anchors(_, obj, _, node, session)
+function handlers.anchors(w, obj, _, node, session)
   obj:ClearAllPoints()
   forget(session, obj)
   for _, anchor in ipairs(node.children) do
     if anchor.tag ~= "anchor" or not anchor.attrs.point then
       session.reportAt(anchor.line, "<" .. anchor.rawTag .. "> in <Anchors> needs a point; ignored")
     else
-      local entry = anchorEntry(obj, anchor)
+      local entry = anchorEntry(w, session, obj, anchor)
       if not entry.try() then
         session.anchors[#session.anchors + 1] = entry
       end
@@ -176,17 +178,17 @@ local KEY_TYPES = {
     return value ~= "false" and value ~= "0"
   end,
   ["nil"] = function() end,
-  global = function(value)
-    return rawget(_G, value)
+  global = function(value, w)
+    return AddonEnv.global(w, value, true)
   end,
 }
 
-function handlers.keyvalues(_, obj, _, node, session)
+function handlers.keyvalues(w, obj, _, node, session)
   for _, keyValue in ipairs(node.children) do
     local typeName = keyValue.attrs.type or "string"
     local convert = KEY_TYPES[typeName]
     if convert and keyValue.attrs.key then
-      obj[keyValue.attrs.key] = convert(keyValue.attrs.value)
+      obj[keyValue.attrs.key] = convert(keyValue.attrs.value, w)
     elseif not convert then
       session.report("keyvalue:" .. typeName, "KeyValue type '" .. typeName .. "' ignored")
     end

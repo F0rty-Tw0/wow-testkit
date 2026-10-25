@@ -2,6 +2,7 @@
 -- and scripts. Widget creation goes through w.ui.create (ui/widgets.lua).
 local M = {}
 
+local AddonEnv = require("addon_env")
 local Layout = require("ui.layout")
 local Templates = require("ui.templates")
 local WorldApi = require("world_api")
@@ -28,7 +29,7 @@ function M.apply(w, frame, st, entry)
   st.protected = st.protected or entry.protected
   for _, name in ipairs(entry.mixins) do
     st.mixins[#st.mixins + 1] = name
-    local mixin = rawget(_G, name)
+    local mixin = AddonEnv.global(w, name, true)
     if type(mixin) == "table" then
       M.copyMixin(frame, mixin)
     end

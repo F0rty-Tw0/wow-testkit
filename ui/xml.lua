@@ -35,7 +35,7 @@ end
 M.registerVirtual = XmlBuild.registerVirtual
 
 -- Builds one element of the root <Ui>: a frame, or a virtual region template. Every other element is reported and
--- skipped.
+-- skipped. An error in one element is reported (XmlBuild.guard) and the next element still builds.
 function M.element(w, node, session)
   if XmlBuild.isRegion(node) and node.attrs.virtual == "true" then
     XmlBuild.region(w, node, nil, session)
@@ -50,7 +50,7 @@ local function include(w, node, ctx, file, loading)
   local target = join(file.path, node.attrs.file)
   if target:lower():match("%.lua$") then
     ctx.runFile(target)
-  elseif loading[target] then
+  elseif loading[target:lower()] then
     ctx.report[#ctx.report + 1] = target .. ": include cycle ignored"
   else
     loadInto(w, target, ctx, loading)
@@ -67,7 +67,7 @@ local function walk(w, root, ctx, file, loading, session)
     elseif node.tag == "script" then
       ctx.runSource(node.text, "addon:" .. ctx.name .. "/" .. file.path, node.textLine)
     else
-      M.element(w, node, session)
+      XmlBuild.guard(w, session, node.line, M.element, w, node, session)
     end
   end
 end
@@ -86,14 +86,14 @@ loadInto = function(w, path, ctx, loading)
   local file = { path = path, seen = {} }
   -- One session per file, so an anchor may name a frame of a later root element; XmlBuild.finish reports what is left.
   local session = XmlBuild.session(ctx, file)
-  loading[path] = true
+  loading[path:lower()] = true
   if root.tag == "ui" then
     walk(w, root, ctx, file, loading, session)
   else
-    M.element(w, root, session)
+    XmlBuild.guard(w, session, root.line, M.element, w, root, session)
   end
   XmlBuild.finish(w, session)
-  loading[path] = nil
+  loading[path:lower()] = nil
   return true
 end
 

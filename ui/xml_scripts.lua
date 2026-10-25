@@ -63,12 +63,19 @@ local function namedMethod(node, session)
 end
 
 -- source: Blizzard_FrameXML/SecureTemplates.xml:16, `<OnClick>` uses `self`, `button`, `down` as locals (row X12). The
--- header shares the body's first line, so an error names the XML line the body starts on.
-local function inlineBody(node, session)
+-- header shares the body's first line, so an error names the XML line the body starts on. The body must compile alone as
+-- a block first: text such as `end, boom(), function(self)` would otherwise close the wrapper and run at load. The
+-- wrapper chunk then runs protected, so whatever it does reaches w.errors and the load goes on.
+local function inlineBody(w, node, session)
   local ctx = session.ctx
+  local chunkName = "addon:" .. ctx.name .. "/" .. session.file.path
+  if not ctx.compile(node.text, chunkName, node.textLine) then
+    return nil
+  end
   local source = "return function(self, " .. (ARGS_BY_TAG[node.tag] or DEFAULT_ARGS) .. ") " .. node.text .. "\nend"
-  local chunk = ctx.compile(source, "addon:" .. ctx.name .. "/" .. session.file.path, node.textLine)
-  return chunk and chunk()
+  local chunk = ctx.compile(source, chunkName, node.textLine)
+  local results = chunk and w:callAsAddon(chunk)
+  return results and results[1] and results[2] or nil
 end
 
 -- source: wiki XML/Scripts, `inherit` "Hooks (prepend, append) other scripts inherited through an XML virtual
@@ -91,14 +98,14 @@ end
 -- The function for one handler element `node` (<OnLoad>, <OnClick>, ...): function= the named global, method= a call of
 -- that widget method, else the element's text as a body. `inherited` is the handler already on the frame; inherit=
 -- "prepend" or "append" runs both, otherwise the new one replaces it. Nil when there is nothing to set (reported).
-function M.handlerFunction(node, session, inherited)
+function M.handlerFunction(w, node, session, inherited)
   local fn
   if node.attrs["function"] then
     fn = namedFunction(node, session)
   elseif node.attrs.method then
     fn = namedMethod(node, session)
   else
-    fn = inlineBody(node, session)
+    fn = inlineBody(w, node, session)
   end
   if fn and inherited then
     return combine(fn, inherited, node.attrs.inherit)
@@ -114,7 +121,7 @@ function handlers.scripts(w, frame, st, node, session)
     if not name then
       session.reportAt(child.line, st.plan.type .. " has no script handler '" .. child.rawTag .. "'; ignored")
     else
-      local fn = M.handlerFunction(child, session, w:getScript(frame, name))
+      local fn = M.handlerFunction(w, child, session, w:getScript(frame, name))
       if fn then
         frame:SetScript(name, fn)
       end

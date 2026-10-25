@@ -20,9 +20,15 @@ local function readListed(w, ctx, relative)
   return text
 end
 
--- Compiles source as chunkName in the addon's environment. A syntax error goes to the error handler (nil returned).
+-- Compiles source as chunkName in the addon's environment. A syntax error, or a precompiled chunk, goes to the error
+-- handler (nil returned).
 local function compile(w, ctx, source, chunkName)
   w:registerChunk(chunkName)
+  local refusal = AddonEnv.binaryRefusal(source)
+  if refusal then
+    w:reportError(chunkName .. ": " .. refusal)
+    return nil
+  end
   local chunk, loadErr = loadstring(source, "@" .. chunkName)
   if not chunk then
     w:reportError(loadErr)

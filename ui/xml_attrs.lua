@@ -4,6 +4,7 @@
 -- parentKey, parentArray) belong to ui/xml_build.lua.
 local M = {}
 
+local AddonEnv = require("addon_env")
 local BehaviourRegions = require("ui.behaviour_regions")
 local TemplateApply = require("ui.template_apply")
 
@@ -42,11 +43,9 @@ end
 local function skip() end
 
 -- source: wiki XML/LayoutFrame, hidden "Controls the frame's initial visibility" (row X7). Writes the state, not Hide,
--- so no OnHide runs (assumed).
+-- so no OnHide runs (assumed). `false` shows again what a template hid.
 local function hidden(_, _, st, value)
-  if value == "true" then
-    st.shown = false
-  end
+  st.shown = value ~= "true"
 end
 
 local function setAllPoints(_, obj, _, value)
@@ -55,11 +54,11 @@ end
 
 -- source: wiki XML/LayoutFrame, `mixin` / `secureMixin` "Inherits a comma-separated list of Lua mixins". secureMixin is
 -- copied the same way (its secure wrapping is not modelled); a name is recorded as templates record theirs, found or not.
-local function mixin(_, frame, st, value, _, session)
+local function mixin(w, frame, st, value, _, session)
   st.mixins = st.mixins or {}
   for name in value:gmatch("[^,%s]+") do
     st.mixins[#st.mixins + 1] = name
-    local source = rawget(_G, name)
+    local source = AddonEnv.global(w, name, true)
     if type(source) == "table" then
       TemplateApply.copyMixin(frame, source)
     else
@@ -109,7 +108,7 @@ M.region = {
   justifyv = stringSetter("SetJustifyV"),
   -- row X19, assumed: a font object's name
   inherits = function(w, region, _, value)
-    BehaviourRegions.applyFontTemplates(w, region, value)
+    BehaviourRegions.applyTemplates(w, region, value)
   end,
 }
 

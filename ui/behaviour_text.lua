@@ -2,6 +2,7 @@
 -- A FontString or Font without its own font or text color reads it through its font object chain.
 local M = {}
 
+local AddonEnv = require("addon_env")
 local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
 
@@ -15,9 +16,9 @@ local WHITE = { 1, 1, 1, DEFAULT_ALPHA }
 local COLOR_FIELDS = 4
 local DEFAULT_VALUE = 0
 
-local function resolveObject(value)
+local function resolveObject(w, value)
   if type(value) == "string" then
-    return _G[value]
+    return AddonEnv.global(w, value)
   end
   return value
 end
@@ -51,8 +52,8 @@ function methods.GetFont(w, _, st)
   end
 end
 
-function methods.SetFontObject(_, _, st, font)
-  st.fontObject = resolveObject(font)
+function methods.SetFontObject(w, _, st, font)
+  st.fontObject = resolveObject(w, font)
 end
 
 function methods.GetFontObject(_, _, st)
@@ -61,7 +62,7 @@ end
 
 -- Copies the source's effective font, text color and generic settings (shadow, justify, ...).
 function methods.CopyFontObject(w, _, st, source)
-  local sourceState = w.ui.state[resolveObject(source)]
+  local sourceState = w.ui.state[resolveObject(w, source)]
   if not sourceState then
     return
   end

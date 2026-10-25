@@ -116,6 +116,17 @@ local function test_include_cycle_through_a_parent_folder_path_stops()
   end)
 end
 
+-- On Windows a.xml and A.xml are one file, so the cycle guard keys on the lowercased path.
+local function test_include_cycle_through_a_different_case_stops_at_the_first_repeat()
+  H.withXml({
+    ["a.xml"] = '<Ui><Script>local _, ns = ...; ns.count = (ns.count or 0) + 1</Script><Include file="A.xml"/></Ui>',
+  }, function(w, ctx)
+    H.load(w, ctx, "a.xml")
+    A.eq(ctx.ns.count, 1)
+    A.eq(count(reportText(ctx), "A%.xml: include cycle ignored"), 1)
+  end)
+end
+
 -- A world with no widgets installed (the kit's own addon-loading tests) has no layout state to invalidate.
 local function test_a_file_without_frames_loads_into_a_world_without_widgets()
   local root = Tmp.dir("xml") .. "/XmlT"
@@ -139,5 +150,6 @@ return function()
   test_unknown_element_is_reported_once_per_file_assumed()
   test_a_file_that_includes_itself_stops_at_the_cycle()
   test_include_cycle_through_a_parent_folder_path_stops()
+  test_include_cycle_through_a_different_case_stops_at_the_first_repeat()
   test_a_file_without_frames_loads_into_a_world_without_widgets()
 end

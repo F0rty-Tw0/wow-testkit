@@ -270,7 +270,24 @@ local function test_inherit_none_replaces_the_existing_handler_assumed()
   A.same(clickAfter(""), { "new" })
 end
 
+local function test_a_body_that_closes_its_handler_early_is_reported_and_the_load_goes_on()
+  local xml = [[<Ui>
+<Frame name="BrkA"><Scripts><OnShow>end, (function() BrkRan = true; error("boom") end)(), function(self)</OnShow></Scripts></Frame>
+<Frame name="BrkB"/>
+<Script>local _, ns = ...; ns.after = true</Script></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    A.eq(H.load(w, ctx, "Ui.xml"), true)
+    A.eq(#w.errors, 1)
+    A.contains(w.errors[1].message, "addon:XmlT/Ui.xml:2:")
+    A.eq(rawget(_G, "BrkRan"), nil)
+    A.eq(w:getScript(_G.BrkA, "OnShow"), nil)
+    A.eq(_G.BrkB ~= nil, true)
+    A.eq(ctx.ns.after, true)
+  end)
+end
+
 return function()
+  test_a_body_that_closes_its_handler_early_is_reported_and_the_load_goes_on()
   test_inline_body_gets_self_and_the_handler_argument_names_assumed()
   test_on_click_body_gets_button_and_down()
   test_on_value_changed_body_gets_value()
