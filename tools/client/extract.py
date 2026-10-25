@@ -5,14 +5,15 @@ Writes only under <home>/client/<flavor>/<build> and the listfile cache; the ins
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
-from tools.client import buildinfo, code, listfile, manifest, paths, strings
+from tools.client import art, buildinfo, code, db2_export, listfile, manifest, paths, strings
 from tools.client.casc import CascError
 from tools.client.casc_index import CascIndexError
 from tools.client.source import CascSource
 
-# kind -> writer(source, out_dir, ctx) -> file count; Tasks 3.4-3.5 add `art fonts db2`
-WRITERS = {"code": code.write, "strings": strings.write}
+# kind -> writer(source, out_dir, ctx) -> file count; Task 3.5 adds `fonts`
+WRITERS = {"code": code.write, "strings": strings.write, "art": art.write, "db2": db2_export.write}
 
 
 class ExtractError(Exception):
@@ -27,6 +28,7 @@ class Ctx:
     version: str
     locales: list
     notes: list = field(default_factory=list)  # writers append what the user should know; kept in the manifest
+    home: Optional[Path] = None  # the kit home; writers cache what they download under it
 
 
 def check_kinds(what, writers):
@@ -71,7 +73,7 @@ def run(flavor, what, *, install, home, open_store, listfile_path=None, fetch=li
         out = paths.extract_dir(home, flavor, row.build)
         out.mkdir(parents=True, exist_ok=True)
         source = CascSource(store, names, row.locales)
-        ctx = Ctx(flavor, row.product, row.build, row.version, row.locales)
+        ctx = Ctx(flavor, row.product, row.build, row.version, row.locales, home=Path(home))
         counts = dict(manifest.read(out).get("extracted", {}))
         for kind in what:
             counts[kind] = writers[kind](source, out, ctx)
