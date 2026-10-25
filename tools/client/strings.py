@@ -1,5 +1,7 @@
 """GlobalStrings: runs Blizzard's globalstrings.lua in a bare Lua 5.1 and writes the string globals per locale."""
 
+import re
+
 from tools.client import db2_export, paths
 from tools.client.manifest import IDENT, KEYWORDS
 
@@ -9,6 +11,8 @@ RUNNER = (
     "function(text) local chunk, err = loadstring(text, '=globalstrings'); if not chunk then error(err, 0) end; "
     "local env = {}; setfenv(chunk, env); chunk(); return env end"
 )
+LUA_ESCAPE = re.compile(r"\\(\d{1,3}|[abfnrtv\\\"'])")
+LUA_CHARS = {"a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
 ESCAPES = {'"': '\\"', "\\": "\\\\", "\n": "\\n", "\r": "\\r"}
 
 
@@ -35,6 +39,21 @@ def parse_global_strings(text):
             except UnicodeDecodeError as exc:
                 raise StringsError(f"{key!r} is not UTF-8") from exc
     return result
+
+
+def unescape(text):
+    """DB2 TagText with its Lua escapes decoded. Retail 70575 mixes forms: `Abandon \\"%s\\"?` and `says:\\32` are
+    escaped, `Message of the Day: "%s"` and KEY_BACKSLASH `\\` are not. So only Lua 5.1's escapes (\\n, \\", \\\\,
+    \\ddd and the rest) are decoded, and any other backslash stays as written. That the client reads them the same
+    way is assumed: it would otherwise show a literal \\n in 382 strings."""
+
+    def decode(match):
+        code = match.group(1)
+        if code.isdigit():
+            return chr(int(code)) if int(code) < 256 else match.group(0)
+        return LUA_CHARS.get(code, code)
+
+    return LUA_ESCAPE.sub(decode, text)
 
 
 def escape(char):
@@ -66,7 +85,7 @@ def from_db2(source, out, ctx):
     if rows is None:
         return 0
     usable = [r for r in rows if IDENT.match(r["BaseTag"]) and r["BaseTag"] not in KEYWORDS]  # globals need Lua names
-    values = {r["BaseTag"]: r["TagText_lang"] for r in usable}
+    values = {r["BaseTag"]: unescape(r["TagText_lang"]) for r in usable}
     if len(usable) < len(rows):
         ctx.notes.append(f"strings: {len(rows) - len(usable)} GlobalStrings tags are not Lua names and were skipped")
     target = out / "strings" / f"{ctx.locales[0]}.lua"

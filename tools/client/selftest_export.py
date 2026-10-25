@@ -48,10 +48,22 @@ def row(n, tag, text):
 def test_strings_come_from_the_db2_when_there_is_no_lua(tmp):
     seed(GlobalStrings=GLOBAL_STRINGS)
     ctx = Ctx(**CTX_ARGS)
-    src = global_strings([row(1, "TOOLTIP_UNIT_LEVEL", "Level %s"), row(2, "QUOTE", 'say "hi"\n')], locked_rows=3)
+    src = global_strings([row(1, "TOOLTIP_UNIT_LEVEL", "Level %s"), row(2, "QUOTE", 'say \\"hi\\"\\n')], locked_rows=3)
     assert strings.write(src, tmp / "out", ctx) == 1
     assert lua_value(tmp / "out/strings/enUS.lua") == {"TOOLTIP_UNIT_LEVEL": "Level %s", "QUOTE": 'say "hi"\n'}
     assert ctx.notes == ["db2: GlobalStrings: 3 rows lost to 1 encrypted sections"], ctx.notes
+
+
+def test_db2_text_escapes_are_decoded_and_other_text_kept(tmp):
+    # retail 70575 TagText mixes forms: `Abandon \"%s\"?` and `%s says:\32` are escaped, `Day: "%s"` and `\` are not
+    seed(GlobalStrings=GLOBAL_STRINGS)
+    ctx = Ctx(**CTX_ARGS)
+    src = global_strings([row(1, "Q", 'Abandon \\"%s\\"?'), row(2, "S", "%s says:\\32"), row(3, "N", "a\\nb\\\\c"),
+                          row(4, "BARE", 'Day: "%s"'), row(5, "KEY", "\\"), row(6, "ODD", "C:\\Path \\999")])
+    strings.write(src, tmp / "out", ctx)
+    assert lua_value(tmp / "out/strings/enUS.lua") == {
+        "Q": 'Abandon "%s"?', "S": "%s says: ", "N": "a\nb\\c", "BARE": 'Day: "%s"', "KEY": "\\", "ODD": "C:\\Path \\999"}
+    assert ctx.notes == [], ctx.notes
 
 
 def test_a_globalstrings_lua_wins_over_the_db2(tmp):
@@ -181,6 +193,7 @@ def test_bitpacked_unaligned_signed_and_float_fields(tmp):
 TESTS = [
     test_strings_come_from_the_db2_when_there_is_no_lua,
     test_a_globalstrings_lua_wins_over_the_db2,
+    test_db2_text_escapes_are_decoded_and_other_text_kept,
     test_missing_db2_or_dbd_is_a_note_not_an_error,
     test_locked_sections_yield_no_rows_and_are_counted,
     test_stale_dbd_cache_is_refreshed_once,
