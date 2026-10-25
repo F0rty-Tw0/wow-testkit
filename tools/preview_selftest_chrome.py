@@ -212,6 +212,19 @@ def test_png_refuses_a_file_that_is_not_a_png_and_keeps_it(tmp, monkeypatch):
     assert quiet_png(tmp, tmp / "SHOT.PNG", chrome=sys.executable) == 3, "a capital .PNG is accepted"
 
 
+def test_png_naming_a_directory_exits_2_with_a_message_and_keeps_it(tmp, monkeypatch):
+    write_snapshot(tmp)
+    folder = tmp / "shots.png"
+    (folder / "inside").mkdir(parents=True)
+    seen = []
+    monkeypatch(pc, "run_chrome", lambda command: seen.append(command) or "")
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err):
+        code = pc.png(tmp, folder, chrome=sys.executable)
+    assert code == 2 and "directory" in err.getvalue() and "Traceback" not in err.getvalue(), (code, err.getvalue())
+    assert (folder / "inside").is_dir() and seen == [], seen
+
+
 def test_png_usage_errors_exit_2(tmp):
     for argv in (
         ["png"],
@@ -257,6 +270,7 @@ TESTS = [
     test_taskkill_path_is_absolute_when_systemroot_is_empty,
     test_png_without_a_snapshot_exits_2,
     test_png_refuses_a_file_that_is_not_a_png_and_keeps_it,
+    test_png_naming_a_directory_exits_2_with_a_message_and_keeps_it,
     test_png_usage_errors_exit_2,
     test_png_matches_hand_known_pixels,
 ]
