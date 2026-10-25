@@ -132,8 +132,29 @@ function M.strings(extract, locale)
   return cache[locale] or nil
 end
 
--- The DB2 table name (any case) exported to the extract, { [id] = { Field = value } }, or nil when the extract is nil or
--- has no such table. Loaded on the first lookup; the table is shared data, so callers read it and never write to it.
+local CHUNK = 10000 -- ids per file of a chunked table; tools/client/db2_export.py writes the same number
+
+-- A table that answers t[id] from db2/<name>/<id // CHUNK>.lua, loading each chunk on the first lookup in it. A chunk
+-- that is missing or does not load answers nil for its ids. Only t[id] works on it: no pairs, no length.
+local function chunkedTable(dir)
+  local chunks = {}
+  return setmetatable({}, {
+    __index = function(_, id)
+      if type(id) ~= "number" then
+        return nil
+      end
+      local number = math.floor(id / CHUNK)
+      if chunks[number] == nil then
+        chunks[number] = readTable(dir .. "/" .. number .. ".lua") or false
+      end
+      return chunks[number] and chunks[number][id] or nil
+    end,
+  })
+end
+
+-- The DB2 table name (any case) exported to the extract, { [id] = { Field = value } }, or nil when the extract is nil
+-- or has no such table. The spell and item tables are chunked on disk, so they come back as a table that loads a chunk
+-- on its first lookup (see chunkedTable); the others load whole on the first lookup. Callers read it, never write.
 function M.db2(extract, name)
   if not extract then
     return nil
@@ -141,8 +162,9 @@ function M.db2(extract, name)
   local cache = cacheOf(extract).db2
   local key = lowerSlashed(name)
   if cache[key] == nil then
+    local dir = extract.dir .. "/db2/" .. key
     local path = M.path(extract, "db2", key)
-    cache[key] = path and readTable(path) or false
+    cache[key] = (fs.isdir(dir) and chunkedTable(dir)) or (path and readTable(path)) or false
   end
   return cache[key] or nil
 end
