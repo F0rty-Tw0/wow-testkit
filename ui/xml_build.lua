@@ -130,14 +130,16 @@ function M.settle(_, session)
 end
 
 -- Ends a session once its file is built: a last settle, a report line for each anchor still without a target, and a
--- layout invalidation as a guard for any state the build wrote without a method.
+-- layout invalidation as a guard for any state the build wrote without a method (a world without widgets has none).
 function M.finish(w, session)
   M.settle(w, session)
   for _, entry in ipairs(session.anchors) do
     session.reportAt(entry.line, "anchor target '" .. entry.name .. "' not found; anchor skipped")
   end
   session.anchors = {}
-  Layout.invalidate(w)
+  if w.layout then
+    Layout.invalidate(w)
+  end
 end
 
 -- Builds `node`'s content on obj in a fresh session of the file that registered the template, the way a template is

@@ -1,6 +1,11 @@
 -- XML file loader: Include and Script walking in document order, missing and malformed files, unknown elements.
 local A = require("assert")
+local Addon = require("addon")
 local H = require("tests.helpers.xml")
+local Tmp = require("tests.helpers.tmp")
+local World = require("tests.helpers.world")
+local Xml = require("ui.xml")
+local fs = require("fs")
 
 local function reportText(ctx)
   return table.concat(ctx.report, "\n")
@@ -34,6 +39,18 @@ local function test_a_backslash_path_to_the_xml_loads()
   }, function(w, ctx)
     A.eq(H.load(w, ctx, "UI\\Main.xml"), true)
     A.eq(ctx.ns.ran, true)
+  end)
+end
+
+-- assumed: no doc names it, but Auctionator, Plumber, Prat and RareScanner ship `<Include file="X.lua"/>` and work in the client.
+local function test_an_include_of_a_lua_file_runs_it_like_a_script_assumed()
+  H.withXml({
+    ["Ui.xml"] = '<Ui><Include file="Sub\\Inc.LUA"/><Script>local _, ns = ...; ns.log = ns.log .. "S"</Script></Ui>',
+    ["Sub/Inc.LUA"] = 'local _, ns = ...; ns.log = "I"',
+  }, function(w, ctx)
+    A.eq(H.load(w, ctx, "Ui.xml"), true)
+    A.eq(ctx.ns.log, "IS")
+    A.same(w.errors, {})
   end)
 end
 
@@ -94,13 +111,27 @@ local function test_include_cycle_through_a_parent_folder_path_stops()
   end)
 end
 
+-- A world with no widgets installed (the kit's own addon-loading tests) has no layout state to invalidate.
+local function test_a_file_without_frames_loads_into_a_world_without_widgets()
+  local root = Tmp.dir("xml") .. "/XmlT"
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Ui.xml", "<Ui><Script>local _, ns = ...; ns.ran = true</Script></Ui>")
+  World.withWorld("retail", function(w)
+    local ctx = Addon.context(w, "XmlT", root)
+    A.eq(Xml.loadFile(w, "Ui.xml", ctx), true)
+    A.eq(ctx.ns.ran, true)
+  end)
+end
+
 return function()
   test_script_files_run_in_document_order_relative_to_the_xml_assumed()
   test_a_backslash_path_to_the_xml_loads()
+  test_an_include_of_a_lua_file_runs_it_like_a_script_assumed()
   test_inline_script_runs_and_errors_name_the_xml_line()
   test_inline_script_that_does_not_compile_is_reported_not_raised()
   test_missing_files_are_reported_and_loading_continues()
   test_malformed_xml_is_one_error_and_returns_false()
   test_unknown_element_is_reported_once_per_file_and_include_cycles_stop_assumed()
   test_include_cycle_through_a_parent_folder_path_stops()
+  test_a_file_without_frames_loads_into_a_world_without_widgets()
 end

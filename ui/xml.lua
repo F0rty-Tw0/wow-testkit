@@ -1,5 +1,5 @@
--- XML file loader: parses an addon's XML file and walks its root <Ui> in document order. Include recurses, Script runs
--- a Lua file or inline source, every other element goes to Xml.element.
+-- XML file loader: parses an addon's XML file and walks its root <Ui> in document order. Include recurses (an included
+-- .lua file runs like a Script), Script runs a Lua file or inline source, every other element goes to Xml.element.
 local M = {}
 
 local XmlBuild = require("ui.xml_build")
@@ -48,7 +48,9 @@ local loadInto
 
 local function include(w, node, ctx, file, loading)
   local target = join(file.path, node.attrs.file)
-  if loading[target] then
+  if target:lower():match("%.lua$") then
+    ctx.runFile(target)
+  elseif loading[target] then
     ctx.report[#ctx.report + 1] = target .. ": include cycle ignored"
   else
     loadInto(w, target, ctx, loading)
