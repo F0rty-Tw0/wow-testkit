@@ -44,6 +44,15 @@ GETHE_COMMIT=<sha> bash tools/fetch.sh live             # one exact Gethe commit
 python tools/run51.py --script tools/generate.lua vanilla
 ```
 
+## Client extract
+
+`python -m tools.client extract` reads the installed client and writes a per-build extract under
+`$TESTKIT_HOME/client/<flavor>/<build>`; extracts are local and never committed (no Blizzard bytes in the repo). If
+the CASC store cannot be read, run `exportInterfaceFiles code` and `exportInterfaceFiles art` at the login screen
+(game started with `-console`), then `extract --from-export` (code, strings and art only).
+`python -m tools.client.selftest [area]` runs the client-tool self-tests (needs Pillow, fontTools and lupa; not part
+of `scripts/test.sh`).
+
 ## Linting
 
 `stylua --check .` (formatting, `stylua.toml`) and `luacheck .` (semantics, `.luacheckrc`). CI runs both.
