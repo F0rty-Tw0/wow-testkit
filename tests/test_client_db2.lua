@@ -44,6 +44,7 @@ local function test_db2_missing_chunk_or_odd_key_is_nil()
   A.eq(items[1.5], nil)
   A.eq(items.name, nil)
   A.eq(items[-3], nil)
+  A.eq(items[0 / 0], nil) -- NaN: nil, not "table index is NaN"
 end
 
 local function test_db2_is_nil_for_an_absent_table_or_extract()

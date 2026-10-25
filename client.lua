@@ -150,7 +150,7 @@ local function chunkedTable(dir)
   local chunks = {}
   return setmetatable({}, {
     __index = function(_, id)
-      if type(id) ~= "number" then
+      if type(id) ~= "number" or id ~= id then -- id ~= id: NaN, which no table can hold as a key
         return nil
       end
       local number = math.floor(id / CHUNK)
