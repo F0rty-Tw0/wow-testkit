@@ -7,13 +7,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from tools.client import art, buildinfo, code, db2_export, listfile, manifest, paths, strings
+from tools.client import art, buildinfo, code, db2_export, fonts, listfile, manifest, paths, strings
 from tools.client.casc import CascError
 from tools.client.casc_index import CascIndexError
 from tools.client.source import CascSource
 
-# kind -> writer(source, out_dir, ctx) -> file count; Task 3.5 adds `fonts`
-WRITERS = {"code": code.write, "strings": strings.write, "art": art.write, "db2": db2_export.write}
+# kind -> writer(source, out_dir, ctx) -> file count
+WRITERS = {
+    "code": code.write,
+    "strings": strings.write,
+    "art": art.write,
+    "db2": db2_export.write,
+    "fonts": fonts.write,
+}
 
 
 class ExtractError(Exception):

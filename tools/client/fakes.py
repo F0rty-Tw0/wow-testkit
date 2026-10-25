@@ -6,6 +6,12 @@ import struct
 import zlib
 from pathlib import Path
 
+from fontTools.agl import toUnicode
+from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
+from fontTools.fontBuilder import FontBuilder
+from fontTools.pens.ttGlyphPen import TTGlyphPen
+from fontTools.ttLib import newTable
+from fontTools.ttLib.tables._k_e_r_n import KernTable_format_0
 from PIL import Image
 
 from tools.client.fakes_db2 import make_wdc5  # noqa: F401  (re-exported for the tests)
@@ -62,6 +68,32 @@ def make_blp(color=(255, 0, 0), size=(4, 4)):
     """BLP bytes of a flat-colour image, as Pillow writes them."""
     out = io.BytesIO()
     Image.new("RGB", size, color).convert("P").save(out, format="BLP")
+    return out.getvalue()
+
+
+def make_ttf(advances, kern=None, fea=None):
+    """TrueType bytes of an upm-1000 font with empty outlines: .notdef is 500 wide, `advances` maps glyph names
+    (AGL names, so "A" and "space" get their codepoints) to widths. `kern` {(left, right): units} fills the legacy
+    kern table, `fea` is feature-file text compiled into GPOS."""
+    advances = {".notdef": 500, **advances}
+    builder = FontBuilder(1000, isTTF=True)
+    builder.setupGlyphOrder(list(advances))
+    builder.setupCharacterMap({ord(toUnicode(name)): name for name in advances if name != ".notdef"})
+    builder.setupGlyf({name: TTGlyphPen(None).glyph() for name in advances})
+    builder.setupHorizontalMetrics({name: (width, 0) for name, width in advances.items()})
+    builder.setupHorizontalHeader(ascent=800, descent=-200)
+    builder.setupNameTable({"familyName": "Fake", "styleName": "Regular"})
+    builder.setupOS2()
+    builder.setupPost()
+    if kern:
+        pairs = KernTable_format_0()
+        pairs.version, pairs.coverage, pairs.format, pairs.kernTable = 0, 1, 0, dict(kern)
+        builder.font["kern"] = table = newTable("kern")
+        table.version, table.kernTables = 0, [pairs]
+    if fea:
+        addOpenTypeFeaturesFromString(builder.font, fea)
+    out = io.BytesIO()
+    builder.save(out)
     return out.getvalue()
 
 

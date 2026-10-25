@@ -123,7 +123,8 @@ def _lazy_extract(extract_dir, asset):
 def lookup_extract(extract_dir, ref, asset):
     """File in the client extract for an asset, or None. Layout: <extract>/art/<path with /> and
     <extract>/art/by-id/<id>.png, PNG, as the extractor caches them (any image extension is found);
-    atlases are cut from their sheet into <extract>/art/atlas/. A file not decoded yet is decoded on demand."""
+    atlases are cut from their sheet into <extract>/art/atlas/. A file not decoded yet is decoded on demand.
+    A font is <extract>/fonts/<name>, found only for a path that starts with Fonts/."""
     art = os.path.join(extract_dir, "art")
     kind = asset.get("kind")
     hit = None
@@ -132,11 +133,14 @@ def lookup_extract(extract_dir, ref, asset):
             hit = find_addon_file(art, ["by-id", "%d" % asset["fileID"]])
         except (KeyError, TypeError, ValueError, OverflowError):
             return None
-    elif kind in ("path", "font"):
+    elif kind == "path":
         parts = safe_parts(asset.get("path"))
         if parts is None:
             return None
-        hit = find_addon_file(art, _strip_image_ext(parts) if kind == "path" else parts)
+        hit = find_addon_file(art, _strip_image_ext(parts))
+    elif kind == "font":
+        parts = safe_parts(asset.get("path"))
+        return find_addon_file(extract_dir, parts) if parts and parts[0].casefold() == "fonts" else None
     if hit is None and kind in ("path", "fileID", "atlas"):
         return _lazy_extract(extract_dir, asset)
     return hit
