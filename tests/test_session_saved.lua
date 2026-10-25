@@ -183,6 +183,20 @@ local function test_keep_saved_reload_discards_live_changes()
   end)
 end
 
+local function test_a_write_that_fails_midway_keeps_the_earlier_file()
+  local dir = Tmp.dir("saved")
+  Saved.write(dir, { DemoDB = { runs = 1 } })
+  local writeFile = fs.writeFile
+  fs.writeFile = function(path, text)
+    writeFile(path, text:sub(1, 5))
+    error("disk full", 0)
+  end
+  local ok, err = pcall(Saved.write, dir, { DemoDB = { runs = 2 } })
+  fs.writeFile = writeFile
+  A.same({ ok, err }, { false, "disk full" })
+  A.same(Saved.read(dir), { DemoDB = { runs = 1 } })
+end
+
 return function()
   test_reload_keeps_saved_variables()
   test_new_session_reads_the_file_a_restart()
@@ -195,4 +209,5 @@ return function()
   test_reload_carries_console_lines_and_the_host_does_not_republish_them()
   test_slash_reload_reloads()
   test_keep_saved_reload_discards_live_changes()
+  test_a_write_that_fails_midway_keeps_the_earlier_file()
 end

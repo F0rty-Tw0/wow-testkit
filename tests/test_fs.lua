@@ -17,6 +17,17 @@ local function test_mkdirp_creates_nested_dirs_and_write_then_list_finds_file()
   A.eq(fs.readFile(dir .. "/x.txt"), "hi")
 end
 
+-- Windows' rename refuses an existing target; fs.rename still replaces it.
+local function test_rename_replaces_an_existing_file()
+  local dir = tempDir()
+  fs.mkdirp(dir)
+  fs.writeFile(dir .. "/new.txt", "new")
+  fs.writeFile(dir .. "/old.txt", "old")
+  fs.rename(dir .. "/new.txt", dir .. "/old.txt")
+  A.eq(fs.readFile(dir .. "/old.txt"), "new")
+  A.eq(fs.exists(dir .. "/new.txt"), false)
+end
+
 local function test_mkdirp_tolerates_existing_dir()
   local dir = tempDir()
   fs.mkdirp(dir)
@@ -159,6 +170,7 @@ return function()
   test_mkdir_creates_once_then_reports_an_existing_dir()
   test_mkdir_raises_when_the_dir_cannot_be_created()
   test_mkdirp_tolerates_existing_dir()
+  test_rename_replaces_an_existing_file()
   test_exists_is_false_for_missing_path()
   test_dir_calls_work_while_the_global_os_is_cleared()
 end

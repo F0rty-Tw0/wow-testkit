@@ -88,10 +88,11 @@ end
 
 -- A key press, down then up. key is the client's key name ("A", "1", "ENTER", "F1"); mods = { shift?, ctrl?, alt? }.
 -- Returns { consumedBy? = the EditBox or the frame that stopped it, binding? = the command that ran }.
+-- source: assumed (K1) only a visible focused EditBox takes the key.
 function M.press(w, key, mods)
   key = key:upper()
   local box = w.input.editFocus
-  if box then
+  if box and box:IsVisible() then
     editKey(w, box, key)
 
     return { consumedBy = box }

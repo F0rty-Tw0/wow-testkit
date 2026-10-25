@@ -88,13 +88,17 @@ end
 -- Actions ---------------------------------------------------------------------------------------------------
 
 -- source: confirmed (row I7) OnMouseDown(button), [click handlers when registered Down], OnMouseUp(button, true),
--- [click handlers when registered Up]. A frame that is not a Button gets only the mouse scripts.
-function M.click(w, frame, button)
+-- [click handlers when registered Up]. A frame that is not a Button gets only the mouse scripts. beforeUp, when given,
+-- runs while the button is held (a drag moves the cursor there).
+function M.click(w, frame, button, beforeUp)
   button = button or DEFAULT_BUTTON
   local isButton = isA(w, frame, "button")
   w:callScript(frame, "OnMouseDown", button)
   if isButton and BehaviourInput.isRegistered(w, frame, button, "Down") then
     BehaviourInput.runClick(w, frame, button, true)
+  end
+  if beforeUp then
+    beforeUp()
   end
   w:callScript(frame, "OnMouseUp", button, true)
   if isButton and BehaviourInput.isRegistered(w, frame, button, "Up") then

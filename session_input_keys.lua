@@ -16,6 +16,21 @@ local function checkPoint(name, point)
   end
 end
 
+-- source: assumed (K3) the modifiers a press names are the ones held while it runs: IsShiftKeyDown and the others read
+-- them in OnKeyDown, OnKeyUp and the binding; the held state from a state request comes back afterwards.
+local function pressHolding(w, req)
+  local mods = req.mods or {}
+  local held = w.mock.modifiers
+  w.mock.modifiers = { shift = mods.shift == true, ctrl = mods.ctrl == true, alt = mods.alt == true }
+  local ok, result = pcall(w.run, w, ENGINE, Keys.press, w, req.key, mods)
+  w.mock.modifiers = held
+  if not ok then
+    error(result, 0)
+  end
+
+  return result
+end
+
 local function press(sess, req)
   if type(req.key) ~= "string" then
     error("input: key must be a string for press", 0)
@@ -24,7 +39,7 @@ local function press(sess, req)
     error("input: mods must be { shift?, ctrl?, alt? }", 0)
   end
   local w = sess.w
-  local result = w:run(ENGINE, Keys.press, w, req.key, req.mods)
+  local result = pressHolding(w, req)
 
   return { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }, true
 end

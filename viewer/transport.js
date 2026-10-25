@@ -16,7 +16,7 @@ window.TK = window.TK || {};
     (handlers[name] || []).slice().forEach((fn) => fn(data));
   };
 
-  const transport = (TK.transport = { current: null, EVENTS: ['snapshot', 'console', 'reload'] });
+  const transport = (TK.transport = { current: null, EVENTS: ['hello', 'snapshot', 'console', 'reload'] });
 
   transport.use = (backend) => {
     transport.current = backend;

@@ -124,7 +124,7 @@ local function perform(w, kind, frame, req, reason)
   if frame then
     reason = kind.reason(w, frame, req)
   end
-  local target = frame and Ids.target(w, frame)
+  local target = Ids.target(w, frame)
   if reason then
     return { ok = false, reason = reason, target = target }, false
   end
@@ -160,7 +160,7 @@ end
 local POINTS = {
   enter = function(w, req)
     local frame, reason, moved = hover(w, req.target)
-    local reply = { ok = not reason, reason = reason, target = frame and Ids.target(w, frame) }
+    local reply = { ok = not reason, reason = reason, target = Ids.target(w, frame) }
 
     return reply, moved
   end,

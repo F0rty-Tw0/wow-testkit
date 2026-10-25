@@ -95,6 +95,30 @@ local function test_edit_box_focus_swallows_everything_assumed()
   end)
 end
 
+-- source: assumed (K1) a focused box that is hidden takes no key; the frames below get it.
+local function test_a_hidden_focused_box_takes_no_key_assumed()
+  H.withSession(nil, function(sess)
+    local box = _G.CreateFrame("EditBox", "KeysHiddenBox", _G.UIParent)
+    box:Hide()
+    box:SetFocus()
+    local reply = Keys.press(sess.w, "A", {})
+    A.eq(reply.consumedBy, nil)
+    A.eq(text(), "key:A")
+  end)
+end
+
+-- source: assumed (K1) hiding the focused box hands the keys back to the frames.
+local function test_hiding_the_focused_box_hands_keys_back_assumed()
+  H.withSession(nil, function(sess)
+    local box = _G.CreateFrame("EditBox", "KeysShownBox", _G.UIParent)
+    box:SetFocus()
+    box:Hide()
+    A.eq(box:HasFocus(), false)
+    Keys.press(sess.w, "A", {})
+    A.eq(text(), "key:A")
+  end)
+end
+
 -- source: assumed (K1) test_backspace_removes_the_last_character
 local function test_backspace_removes_the_last_character_assumed()
   H.withSession({ addonDir = H.CLICKY }, function(sess)
@@ -159,6 +183,8 @@ return function()
   test_a_non_propagating_frame_swallows_the_key_assumed()
   test_a_handler_can_stop_propagation_assumed()
   test_edit_box_focus_swallows_everything_assumed()
+  test_a_hidden_focused_box_takes_no_key_assumed()
+  test_hiding_the_focused_box_hands_keys_back_assumed()
   test_backspace_removes_the_last_character_assumed()
   test_backspace_removes_a_multibyte_character_whole_assumed()
   test_hidden_or_keyboard_disabled_frames_get_nothing_assumed()

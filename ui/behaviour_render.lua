@@ -9,6 +9,10 @@ M.methods = methods
 local DEFAULT_STRATA = "MEDIUM"
 local ROOT_LEVEL = 0
 
+-- source: row V1, wiki Frame_Strata, "from back to front": BACKGROUND, LOW, MEDIUM, HIGH, DIALOG, FULLSCREEN,
+-- FULLSCREEN_DIALOG, TOOLTIP. WORLD is reserved for the world frame and cannot be assigned, so it stays out.
+local STRATA = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6, FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+
 local function parentState(w, st)
   return st.parent and w.ui.state[st.parent]
 end
@@ -79,6 +83,15 @@ function methods.GetFrameStrata(w, _, st)
     st = parentState(w, st)
   end
   return DEFAULT_STRATA
+end
+
+-- The draw-order key of a frame, back to front: { strata rank, level, seq }. A strata outside STRATA (WORLD, a
+-- misspelt or lowercase name) ranks as MEDIUM. render_order.lua sorts by it and LayoutHit.above compares it, so the
+-- frame drawn on top is the one hit.
+function M.frameKey(w, obj, st)
+  local strata = methods.GetFrameStrata(w, obj, st)
+
+  return { STRATA[strata] or STRATA[DEFAULT_STRATA], methods.GetFrameLevel(w, obj, st), st.seq }
 end
 
 return M

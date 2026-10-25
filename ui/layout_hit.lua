@@ -6,12 +6,6 @@ local M = {}
 local BehaviourRender = require("ui.behaviour_render")
 local Layout = require("ui.layout")
 
--- Frame strata, lowest first (wiki Frame_Strata, row LY12). An unknown strata ranks below all of them.
-local STRATA_RANK = {}
-for rank, name in ipairs({ "WORLD", "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" }) do
-  STRATA_RANK[name] = rank
-end
-
 -- source: row LY11 (wiki API_Frame_SetHitRectInsets): positive insets shrink the hit rect on that side, negative ones
 -- grow it. The insets are the generic SetHitRectInsets store { n, left, right, top, bottom }.
 -- source: row LY11 (wiki API_ScriptRegion_IsMouseOver): positive offsetTop and offsetRight grow the rect up and
@@ -42,17 +36,18 @@ function M.contains(w, region, x, y, top, bottom, left, right)
 end
 
 -- source: row LY12: higher strata first, then higher frame level; the creation tie-break (later frame, st.seq) is
--- assumed, so equal frames never depend on pairs order. True when frame a draws above frame b.
+-- assumed, so equal frames never depend on pairs order. True when frame a draws above frame b: the comparison runs on
+-- BehaviourRender.frameKey, the key render_order.lua draws by.
 function M.above(w, a, b)
-  local rankA, rankB = STRATA_RANK[a:GetFrameStrata()] or 0, STRATA_RANK[b:GetFrameStrata()] or 0
-  if rankA ~= rankB then
-    return rankA > rankB
+  local keyA = BehaviourRender.frameKey(w, a, w.ui.state[a])
+  local keyB = BehaviourRender.frameKey(w, b, w.ui.state[b])
+  for i = 1, #keyA do
+    if keyA[i] ~= keyB[i] then
+      return keyA[i] > keyB[i]
+    end
   end
-  local levelA, levelB = a:GetFrameLevel(), b:GetFrameLevel()
-  if levelA ~= levelB then
-    return levelA > levelB
-  end
-  return w.ui.state[a].seq > w.ui.state[b].seq
+
+  return false
 end
 
 return M

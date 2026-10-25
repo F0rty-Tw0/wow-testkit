@@ -5,14 +5,9 @@ local Behaviour = require("ui.behaviour")
 local BehaviourRender = require("ui.behaviour_render")
 local Read = require("render_read")
 
--- source: row V1, wiki Frame_Strata, "from back to front": BACKGROUND, LOW, MEDIUM, HIGH, DIALOG, FULLSCREEN,
--- FULLSCREEN_DIALOG, TOOLTIP. WORLD is reserved for the world frame and cannot be assigned, so it stays out.
-local STRATA = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6, FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
-
 -- source: row V5, wiki Layer, "the five named layers, in the order they are drawn (back to front)".
 local LAYERS = { BACKGROUND = 1, BORDER = 2, ARTWORK = 3, OVERLAY = 4, HIGHLIGHT = 5 }
 
-local DEFAULT_STRATA = STRATA.MEDIUM
 local DEFAULT_LAYER = LAYERS.ARTWORK
 local DEFAULT_SUBLEVEL = 0
 
@@ -32,12 +27,6 @@ local function mouseIsOver(w, frame)
     cursor = st and st.parent
   end
   return false
-end
-
--- The sort keys of a frame: { strata, level, seq } of a frame, read from kit state.
-local function frameKey(w, obj, st)
-  local strata = BehaviourRender.methods.GetFrameStrata(w, obj, st)
-  return { STRATA[strata] or DEFAULT_STRATA, BehaviourRender.methods.GetFrameLevel(w, obj, st), st.seq }
 end
 
 -- The layer index and sublevel of a region from its stored DrawLayer pack.
@@ -74,7 +63,7 @@ local function visibleObjects(w)
   for obj, st in pairs(w.ui.state) do
     if Behaviour.methods.IsVisible(w, obj, st) then
       if st.plan.isFrame then
-        frames[obj] = frameKey(w, obj, st)
+        frames[obj] = BehaviourRender.frameKey(w, obj, st)
       elseif REGION_KINDS[st.plan.type] then
         regions[#regions + 1] = { obj = obj, st = st, kind = REGION_KINDS[st.plan.type] }
       end

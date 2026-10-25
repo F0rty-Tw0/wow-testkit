@@ -102,8 +102,9 @@ local function loadEach(w, ctx, files)
 end
 
 -- Loads the TOC's files in order with w.dev.loading naming the addon, then appends { name, loadMs, memoryKb } to
--- w.dev.loads: kit CPU time (M.clock) and heap growth, an estimate (no forced collection, which would shift GC timing).
--- The outermost load restarts the GC, also when a file raises.
+-- w.dev.loads: kit CPU time (M.clock) and heap growth, an estimate (no forced collection, which would shift GC timing),
+-- floored at 0 because an addon's own collectgarbage("collect") frees garbage older than its load. The outermost load
+-- restarts the GC, also when a file raises.
 local function loadFiles(w, ctx, files)
   local dev = w.dev
   local outer = dev.loading
@@ -113,7 +114,7 @@ local function loadFiles(w, ctx, files)
   dev.loading = ctx.name
   local ok, err = pcall(loadEach, w, ctx, files)
   local loadMs = (M.clock() - startClock) * 1000
-  local memoryKb = M.gc("count") - startKb
+  local memoryKb = math.max(0, M.gc("count") - startKb)
   dev.loading = outer
   if outer == nil then
     M.gc("restart")

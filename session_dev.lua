@@ -90,7 +90,10 @@ function M.report(w)
       missing = list,
     }
   end
-  local notes = { NOTES[1], NOTES[2] }
+  local notes = {}
+  for i, note in ipairs(NOTES) do
+    notes[i] = note
+  end
   return { addons = addons, notes = notes }
 end
 

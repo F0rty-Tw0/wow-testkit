@@ -1,4 +1,4 @@
-// TK.inspector (viewer/inspector.js): the widget tree built from the session's flat node list, the name filter,
+// TK.inspector (viewer/inspector_model.js): the widget tree built from the session's flat node list, the name filter,
 // the topmost drawn item under a screen point, the selection outline box and the property rows.
 (function () {
   'use strict';

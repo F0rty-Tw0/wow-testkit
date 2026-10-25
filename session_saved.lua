@@ -11,6 +11,7 @@ local fs = require("fs")
 local concat, loadstring, pcall, select, setfenv, tostring, type = table.concat, loadstring, pcall, select, setfenv, tostring, type
 
 local FILE = "saved.lua"
+local TEMP_SUFFIX = ".tmp"
 local PRECOMPILED = "\27"
 local MAX_NAMED = 10 -- paths one console line names
 
@@ -68,8 +69,8 @@ local function prune(value, path, stack, skipped)
 end
 
 -- Writes saved to dir/saved.lua. What Serialize cannot write is left out (see prune); the paths left out come back
--- sorted, such as "MyDB.callback". grug: written in place, no temp-and-rename (fs.lua has no rename); a crash
--- mid-write loses this one file.
+-- sorted, such as "MyDB.callback". The text goes to a temp file first and is renamed over saved.lua, so a write that
+-- fails midway leaves the earlier file whole.
 function M.write(dir, saved)
   local keep, skipped = {}, {}
   for name, value in pairs(saved) do
@@ -82,7 +83,9 @@ function M.write(dir, saved)
   end
   table.sort(skipped)
   fs.mkdirp(dir)
-  fs.writeFile(dir .. "/" .. FILE, Serialize.dump(keep))
+  local path = dir .. "/" .. FILE
+  fs.writeFile(path .. TEMP_SUFFIX, Serialize.dump(keep))
+  fs.rename(path .. TEMP_SUFFIX, path)
   return skipped
 end
 

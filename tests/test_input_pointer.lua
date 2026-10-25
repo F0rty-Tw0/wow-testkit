@@ -107,6 +107,20 @@ local function test_drag_inside_an_unregistered_frame_is_a_click_assumed()
   end)
 end
 
+-- source: assumed (D4) a frame that StartMoving's in OnMouseDown follows the cursor without RegisterForDrag.
+local function test_start_moving_on_mouse_down_follows_the_cursor_assumed()
+  H.withSession(nil, function(sess)
+    local frame = _G.SessionDemoDrag
+    frame:RegisterForDrag()
+    frame:SetScript("OnMouseDown", frame.StartMoving)
+    frame:SetScript("OnMouseUp", frame.StopMovingOrSizing)
+    drag(sess, { from = DRAG_CENTRE, to = { x = 960, y = 540 } })
+    A.eq(frame:GetLeft(), 910, "released outside the old rect")
+    drag(sess, { from = { x = 960, y = 540 }, to = { x = 980, y = 540 } })
+    A.eq(frame:GetLeft(), 930, "released inside it")
+  end)
+end
+
 local function test_a_drag_from_empty_space_does_nothing_assumed()
   H.withSession(nil, function(sess)
     local reply = drag(sess, { from = { x = 100, y = 100 }, to = { x = 300, y = 300 } })
@@ -262,6 +276,7 @@ return function()
   test_drag_below_the_threshold_is_a_click_assumed()
   test_drag_without_registration_does_not_click_when_released_elsewhere_assumed()
   test_drag_inside_an_unregistered_frame_is_a_click_assumed()
+  test_start_moving_on_mouse_down_follows_the_cursor_assumed()
   test_a_drag_from_empty_space_does_nothing_assumed()
   test_a_blocked_drag_replies_with_the_reason_assumed()
   test_not_movable_frames_do_not_move_assumed()

@@ -128,6 +128,39 @@ local function test_click_on_an_edit_box_focuses_it_assumed()
   end)
 end
 
+-- source: assumed (K3) test_a_press_holds_its_modifiers_while_it_runs
+local function test_a_press_holds_its_modifiers_while_it_runs_assumed()
+  H.withSession({ addonDir = H.CLICKY }, function(sess)
+    local seen = {}
+    local frame = _G.CreateFrame("Frame", "ModsFrame", _G.UIParent)
+    frame:EnableKeyboard(true)
+    frame:SetScript("OnKeyDown", function()
+      seen[#seen + 1] = tostring(_G.IsShiftKeyDown()) .. "/" .. tostring(_G.IsControlKeyDown())
+    end)
+    input(sess, { kind = "press", key = "A", mods = { shift = true } })
+    A.same(seen, { "true/false" })
+    A.eq(_G.IsShiftKeyDown(), false, "the press's shift is released afterwards")
+    sess:call("state", { modifiers = { ctrl = true } })
+    input(sess, { kind = "press", key = "A", mods = {} })
+    A.same(seen, { "true/false", "false/false" })
+    A.eq(_G.IsControlKeyDown(), true, "the state's ctrl comes back")
+  end)
+end
+
+-- source: assumed (K3) a SHIFT binding's action sees shift held
+local function test_a_shift_binding_sees_shift_held_assumed()
+  H.withSession({ addonDir = H.CLICKY }, function(sess)
+    local shift
+    _G.ClickyCheck:SetScript("PostClick", function()
+      shift = _G.IsShiftKeyDown()
+    end)
+    _G.SetBindingClick("SHIFT-K", "ClickyCheck")
+    local reply = input(sess, { kind = "press", key = "K", mods = { shift = true } })
+    A.eq(reply.binding, "CLICK ClickyCheck:LeftButton")
+    A.eq(shift, true)
+  end)
+end
+
 local function test_a_point_target_without_numbers_is_malformed()
   H.withSession({ addonDir = H.CLICKY }, function(sess)
     A.contains(input(sess, { kind = "click", target = { x = "1" } }).error, "x and y")
@@ -146,5 +179,7 @@ return function()
   test_click_point_on_a_disabled_button_replies_the_reason()
   test_click_point_on_the_panel_alone_hits_nothing()
   test_click_on_an_edit_box_focuses_it_assumed()
+  test_a_press_holds_its_modifiers_while_it_runs_assumed()
+  test_a_shift_binding_sees_shift_held_assumed()
   test_a_point_target_without_numbers_is_malformed()
 end

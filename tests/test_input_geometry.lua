@@ -3,6 +3,7 @@ local A = require("assert")
 local HF = require("tests.helpers.framexml")
 local Input = require("input")
 local LayoutHit = require("ui.layout_hit")
+local RenderOrder = require("render_order")
 
 -- Screen 1920x1080, UIParent at scale 1.
 local function inWorld(fn)
@@ -81,6 +82,36 @@ local function test_strata_rank_follows_the_wiki_order() -- (LY12)
     for i = #order, 1, -1 do
       A.eq(Input.frameAt(w, 150, 900), frames[i], order[i])
       frames[i]:Hide()
+    end
+  end)
+end
+
+-- The frame drawn last of the given ones (render_order.lua's draw order).
+local function drawnOnTop(w, frames)
+  local wanted, top = {}, nil
+  for _, frame in ipairs(frames) do
+    wanted[frame] = true
+  end
+  for _, entry in ipairs(RenderOrder.collect(w)) do
+    top = wanted[entry.obj] and entry.obj or top
+  end
+
+  return top
+end
+
+-- WORLD (unassignable), a lowercase name and an unknown one draw as MEDIUM; the hit follows the draw.
+local function test_the_hit_follows_the_draw_order_for_odd_strata_assumed() -- (LY12)
+  inWorld(function(w)
+    for _, odd in ipairs({ "WORLD", "high", "NOPE" }) do
+      local low = box(100, 100, 200, 200)
+      low:SetFrameStrata("LOW")
+      local oddFrame = box(100, 100, 200, 200)
+      oddFrame:SetFrameStrata(odd)
+      oddFrame:SetFrameLevel(low:GetFrameLevel())
+      A.eq(drawnOnTop(w, { low, oddFrame }), oddFrame, odd)
+      A.eq(Input.frameAt(w, 150, 900), oddFrame, odd)
+      low:Hide()
+      oddFrame:Hide()
     end
   end)
 end
@@ -240,6 +271,7 @@ return function()
   test_the_later_frame_wins_whatever_the_iteration_order_assumed()
   test_strata_beats_level_assumed()
   test_strata_rank_follows_the_wiki_order()
+  test_the_hit_follows_the_draw_order_for_odd_strata_assumed()
   test_hidden_and_mouse_disabled_frames_are_skipped()
   test_a_child_of_a_hidden_parent_is_skipped()
   test_a_texture_is_never_a_target()

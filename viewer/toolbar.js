@@ -52,6 +52,7 @@ window.TK = window.TK || {};
   // DOM ------------------------------------------------------------------------------------------------------------
 
   const dom = {};
+  const ui = { flavorsFilled: false };
 
   function el(tag, props) {
     return Object.assign(document.createElement(tag), props);
@@ -90,9 +91,18 @@ window.TK = window.TK || {};
     dom.skipped.hidden = !info.skipped;
   }
 
+  // The flavor list fills from the first info that answers, so a session that was down at start fills it later.
+  function fillFlavors(info) {
+    if (ui.flavorsFilled || !info.flavors) return;
+    ui.flavorsFilled = true;
+    dom.flavor.append(...info.flavors.map((name) => option(name, name)));
+    dom.flavor.value = info.flavor;
+  }
+
   async function update() {
     try {
       const info = await TK.api('info', {});
+      fillFlavors(info);
       if (info.ok) show(info);
     } catch (err) {
       dom.status.textContent = 'Session: ' + err.message;
@@ -155,17 +165,11 @@ window.TK = window.TK || {};
     button.addEventListener('click', reloadBoth);
   }
 
-  async function start() {
-    try {
-      const info = await TK.api('info', {});
-      dom.flavor.append(...(info.flavors || []).map((name) => option(name, name)));
-      dom.flavor.value = info.flavor;
-      if (info.ok) show(info);
-    } catch (err) {
-      dom.status.textContent = 'Session: ' + err.message;
-    }
+  function start() {
+    TK.on('hello', update);
     TK.on('snapshot', update);
     TK.on('reload', update);
+    update();
   }
 
   const isLive = new URLSearchParams(location.search).get('live') === '1';

@@ -1,0 +1,47 @@
+/* Live mode: the developer panel (dev.js). Loaded after panels.css. */
+
+#dev table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+#dev th,
+#dev td {
+  padding: 2px 3px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+#dev td {
+  white-space: nowrap;
+}
+
+#dev th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+#dev tbody tr {
+  cursor: pointer;
+}
+
+#dev tbody tr.selected {
+  background: var(--accent);
+}
+
+#dev .detail {
+  max-height: 25vh;
+  overflow: auto;
+}
+
+#dev h3 {
+  margin: 4px 0 2px;
+  font-size: 12px;
+}
+
+#dev ul {
+  margin: 0;
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}

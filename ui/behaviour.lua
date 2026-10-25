@@ -49,6 +49,15 @@ local function fireVisibility(w, obj, script)
   end
 end
 
+-- source: assumed (K1) hiding the focused EditBox or one of its ancestors clears the focus (OnEditFocusLost), after
+-- the OnHide scripts, so an OnHide that calls ClearFocus itself fires it once.
+local function dropHiddenFocus(w)
+  local box = w.input.editFocus
+  if box and not isVisible(w, w.ui.state[box]) then
+    BehaviourInput.clearFocus(w, box)
+  end
+end
+
 local function setShown(w, obj, st, shown)
   shown = shown and true or false
   if st.shown == shown then
@@ -56,8 +65,12 @@ local function setShown(w, obj, st, shown)
   end
   local wasVisible = isVisible(w, st)
   st.shown = shown
-  if isVisible(w, st) ~= wasVisible then
-    fireVisibility(w, obj, shown and "OnShow" or "OnHide")
+  if isVisible(w, st) == wasVisible then
+    return
+  end
+  fireVisibility(w, obj, shown and "OnShow" or "OnHide")
+  if not shown then
+    dropHiddenFocus(w)
   end
 end
 

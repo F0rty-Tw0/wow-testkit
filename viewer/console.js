@@ -1,7 +1,8 @@
 // Console panel (live mode): the session's console lines (print, chat, error-frame, send, error, system), coloured by
 // kind or by the line's own r, g, b, kept scrolled to the newest unless the reader scrolled up, and a Clear button that
-// empties the view. It loads the lines so far, then appends each console event; a reload starts the count again, since
-// the fresh session numbers its lines from 1. Classic script; colorOf is pure for tests/viewer/unit_panels.js.
+// empties the view. It loads the lines so far, then appends each console event. A reload keeps the lines and their
+// seq (session_console.lua copies the ring); a restarted server (live.js's 'restart') numbers them from 1 again, so
+// the last seq resets and its lines load afresh. Classic script; colorOf is pure for tests/viewer/unit_panels.js.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -60,17 +61,22 @@ window.TK = window.TK || {};
     clear.addEventListener('click', () => dom.lines.replaceChildren());
   }
 
-  async function start() {
-    TK.on('console', append);
-    TK.on('reload', () => {
-      ui.seq = 0;
-    });
+  async function loadLines() {
     try {
       const reply = await TK.api('console', { since: 0 });
       (reply.lines || []).forEach(append);
     } catch (err) {
       addRow('system', 'Console: ' + err.message, null);
     }
+  }
+
+  function start() {
+    TK.on('console', append);
+    TK.on('restart', () => {
+      ui.seq = 0;
+      loadLines();
+    });
+    loadLines();
   }
 
   const isLive = new URLSearchParams(location.search).get('live') === '1';

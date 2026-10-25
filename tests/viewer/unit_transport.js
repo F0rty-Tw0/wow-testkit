@@ -88,8 +88,8 @@
       A.eq(es.made[0].url, 'http://h/stream');
       es.made[0].fire('console', '{"text":"hi"}');
       A.same(seen, [['console', { text: 'hi' }]]);
-      A.same(TK.transport.EVENTS, ['snapshot', 'console', 'reload']);
-      A.same(Object.keys(es.made[0].listeners).sort(), ['console', 'reload', 'snapshot']);
+      A.same(TK.transport.EVENTS, ['hello', 'snapshot', 'console', 'reload']);
+      A.same(Object.keys(es.made[0].listeners).sort(), ['console', 'hello', 'reload', 'snapshot']);
       const quiet = fakeEventSource();
       TK.transport.http('http://h', { fetch, EventSource: quiet.EventSource, stream: false }).start(() => {});
       A.eq(quiet.made.length, 0);
@@ -110,6 +110,26 @@
       TK.on('snapshot', (data) => got.push(data));
       TK.emit('snapshot', { seq: 3 });
       A.same(got, [{ seq: 3 }]);
+    },
+  });
+
+  T.push({
+    name: 'live_hello_with_a_new_boot_resets_the_seq_and_emits_restart',
+    fn: () => {
+      let emit = null;
+      TK.transport.use({ call: () => Promise.reject(new Error('unused')), start: (fn) => (emit = fn) });
+      const restarts = [];
+      TK.on('restart', (data) => restarts.push(data));
+      TK.state.boot = null;
+      emit('hello', { boot: 'a' });
+      TK.state.seq = 9;
+      emit('hello', { boot: 'a' });
+      A.eq(TK.state.seq, 9, 'a stream reopen on the same server keeps the seq');
+      A.same(restarts, []);
+      emit('hello', { boot: 'b' });
+      A.eq(TK.state.seq, -1);
+      A.eq(TK.state.boot, 'b');
+      A.same(restarts, [{ boot: 'b' }]);
     },
   });
 })();

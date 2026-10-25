@@ -51,14 +51,19 @@ local function dragFrame(w, frame, spec, button)
 end
 
 -- source: assumed (D4) a press and release without a drag: a click when `to` lies inside the same frame, else OnMouseDown
--- then OnMouseUp(button, false) only.
+-- then OnMouseUp(button, false) only. The cursor moves to `to` while the button is held either way, so a frame that
+-- StartMoving'd in OnMouseDown follows it.
 local function releaseFrame(w, frame, spec, button)
+  local function move()
+    moveCursor(w, spec.to)
+  end
   if LayoutHit.contains(w, frame, spec.to.x, spec.to.y) then
-    Input.click(w, frame, button)
+    Input.click(w, frame, button, move)
 
     return
   end
   w:callScript(frame, "OnMouseDown", button)
+  move()
   w:callScript(frame, "OnMouseUp", button, false)
 end
 
@@ -93,7 +98,6 @@ function M.drag(w, spec)
     dragFrame(w, frame, spec, button)
   else
     releaseFrame(w, frame, spec, button)
-    Input.setCursor(w, spec.to.x, spec.to.y)
   end
   if receiver then
     w:callScript(receiver, "OnReceiveDrag")

@@ -167,6 +167,46 @@ local function test_a_raising_file_still_restarts_the_gc()
   A.same(calls, { "stop", "restart" })
 end
 
+local function test_a_nested_load_leaves_the_gc_stopped_until_the_outer_one_ends()
+  local root = Tmp.dir("addon")
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Outer.toc", "## Interface: 120100\n\nOuter.xml\n")
+  local loadFile = Xml.loadFile
+  local calls = gcCalls(function()
+    withWorld("retail", function(w)
+      Xml.loadFile = function()
+        Xml.loadFile = loadFile
+        load(w, "Mini")
+      end
+      Addon.load(w, { name = "Outer", root = root })
+    end)
+  end)
+  Xml.loadFile = loadFile
+  A.same(calls, { "stop", "stop", "restart" })
+end
+
+-- Leaves 100000 unreachable tables for the next collection.
+local function leaveGarbage()
+  local junk = {}
+  for i = 1, 100000 do
+    junk[i] = { i }
+  end
+  return #junk
+end
+
+local function test_memory_never_goes_negative_when_the_addon_collects_garbage()
+  local root = Tmp.dir("addon")
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/Collect.toc", "## Interface: 120100\n\nCollect.lua\n")
+  fs.writeFile(root .. "/Collect.lua", 'collectgarbage("collect")\n')
+  leaveGarbage()
+  withWorld("retail", function(w)
+    Addon.load(w, { name = "Collect", root = root })
+    A.same(w.errors, {})
+    A.truthy(w.dev.loads[1].memoryKb >= 0, "memoryKb " .. w.dev.loads[1].memoryKb)
+  end)
+end
+
 local function test_missing_xml_and_xml_script_are_errors()
   withWorld("retail", function(w)
     load(w, "Missing")
@@ -246,6 +286,8 @@ return function()
   test_missing_toc_file_is_an_error_and_later_files_load()
   test_the_gc_pauses_for_the_file_loop_only()
   test_a_raising_file_still_restarts_the_gc()
+  test_a_nested_load_leaves_the_gc_stopped_until_the_outer_one_ends()
+  test_memory_never_goes_negative_when_the_addon_collects_garbage()
   test_missing_xml_and_xml_script_are_errors()
   test_long_chunk_name_error_keeps_full_source()
   test_apply_saved_sets_saved_variable_globals()

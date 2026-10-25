@@ -1,0 +1,84 @@
+/* Live mode: the frame inspector panel (inspector.js). Loaded after panels.css. */
+
+#inspector .pick[aria-pressed="true"] {
+  background: var(--accent);
+}
+
+#inspector .tree {
+  flex: 1 1 auto;
+  min-height: 120px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+}
+
+#inspector .tree ul {
+  margin: 0;
+  padding-left: 14px;
+}
+
+#inspector .tree li {
+  list-style: none;
+}
+
+#inspector .tree ul[hidden] {
+  display: none;
+}
+
+#inspector .row {
+  display: flex;
+  align-items: center;
+}
+
+#inspector .row button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#inspector .twisty {
+  width: 16px;
+  padding: 0;
+}
+
+#inspector .label {
+  display: flex;
+  gap: 6px;
+  padding: 1px 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+#inspector .node-meta {
+  color: var(--muted);
+}
+
+#inspector li.dim > .row {
+  opacity: 0.5;
+}
+
+#inspector li.selected > .row .label {
+  background: var(--accent);
+}
+
+#inspector .props {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 8px;
+  max-height: 45vh;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  overflow: auto;
+}
+
+#inspector .props dt {
+  color: var(--muted);
+}
+
+#inspector .props dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
