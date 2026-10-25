@@ -3,6 +3,7 @@
 -- offsetX, offsetY } in st.points, one per point name in set order, and relativeTo == nil means the screen.
 local M = {}
 
+local AddonEnv = require("addon_env")
 local Layout = require("ui.layout")
 
 local unpack = unpack
@@ -21,9 +22,9 @@ end
 -- source: wiki API_Region_SetPoint, relativeTo: "If omitted, anchors to the parent region if applicable, otherwise
 -- to the screen dimensions." and "If explicitly passed `nil`, anchors relative to the screen dimensions."
 -- source: wiki API_Region_SetPoint, relativeTo is `ScriptRegion,string?`: "For example `UIParent` or `"UIParent"`."
-local function relativeOf(st, relativeTo, explicit)
+local function relativeOf(w, st, relativeTo, explicit)
   if type(relativeTo) == "string" then
-    return _G[relativeTo]
+    return AddonEnv.global(w, relativeTo)
   end
   if relativeTo ~= nil then
     return relativeTo
@@ -37,16 +38,16 @@ end
 -- The client's SetPoint forms: (point), (point, x, y), (point, relativeTo, x, y),
 -- (point, relativeTo, relativePoint [, x, y]). Missing offsets are 0; a missing relativePoint is point.
 -- n is the argument count including point; n >= 2 with a nil `a` is an explicit nil relativeTo.
-local function parsePoint(st, n, point, a, b, c, d)
+local function parsePoint(w, st, n, point, a, b, c, d)
   point = upper(point)
   if type(a) == "number" then
-    return { point, relativeOf(st, nil), point, a, b or 0 }
+    return { point, relativeOf(w, st, nil), point, a, b or 0 }
   end
   local explicit = n >= 2
   if type(b) == "number" then
-    return { point, relativeOf(st, a, explicit), point, b, c or 0 }
+    return { point, relativeOf(w, st, a, explicit), point, b, c or 0 }
   end
-  return { point, relativeOf(st, a, explicit), upper(b) or point, c or 0, d or 0 }
+  return { point, relativeOf(w, st, a, explicit), upper(b) or point, c or 0, d or 0 }
 end
 
 local function addAnchor(st, anchor)
@@ -60,7 +61,7 @@ local function addAnchor(st, anchor)
 end
 
 function methods.SetPoint(w, obj, st, ...)
-  local anchor = parsePoint(st, select("#", ...), ...)
+  local anchor = parsePoint(w, st, select("#", ...), ...)
   Layout.checkAnchor(w, obj, anchor)
   addAnchor(st, anchor)
 end
@@ -100,7 +101,7 @@ function methods.GetNumPoints(_, _, st)
 end
 
 function methods.SetAllPoints(w, obj, st, relativeTo)
-  local target = relativeOf(st, relativeTo)
+  local target = relativeOf(w, st, relativeTo)
   Layout.checkAnchor(w, obj, { "TOPLEFT", target })
   st.points = {
     { "TOPLEFT", target, "TOPLEFT", 0, 0 },

@@ -89,6 +89,27 @@ local function tempAddon(name, source)
   return root
 end
 
+-- Lua 5.1's loadstring runs a chunk that starts with ESC as unverified bytecode.
+local function test_a_precompiled_toc_file_is_reported_and_not_run()
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "BinToc", root = tempAddon("BinToc", "\27Lua\0\0\0\0") })
+    A.contains(errorMessages(w), "addon:BinToc/Core.lua: the chunk is precompiled bytecode, which is never run")
+    A.eq(#w.errors, 1)
+    A.same(ns, {})
+  end)
+end
+
+local function test_addon_loadstring_refuses_precompiled_chunks()
+  withWorld("retail", function(w)
+    local source = 'local _, ns = ...; ns.fn, ns.err = loadstring("\\27Lua"); ns.ok = loadstring("return 1")'
+    local ns = Addon.load(w, { name = "BinLoad", root = tempAddon("BinLoad", source) })
+    A.same(w.errors, {})
+    A.eq(ns.fn, nil)
+    A.eq(ns.err, "the chunk is precompiled bytecode, which is never run")
+    A.eq(ns.ok(), 1)
+  end)
+end
+
 local function test_addon_errors_are_still_recorded_after_an_addon_sets_debug()
   withWorld("retail", function(w)
     Addon.load(w, { name = "DebugSet", root = tempAddon("DebugSet", "debug = true\n") })
@@ -235,6 +256,8 @@ local function test_a_host_only_name_an_addon_assigns_is_seen_by_other_addons()
 end
 
 return function()
+  test_a_precompiled_toc_file_is_reported_and_not_run()
+  test_addon_loadstring_refuses_precompiled_chunks()
   test_addon_os_holds_exactly_the_time_functions()
   test_a_host_only_name_an_addon_assigns_is_seen_by_other_addons()
   test_addon_getfenv_returns_the_addons_g()

@@ -1,0 +1,5 @@
+<Ui>
+  <Frame name="XmlFrame"><Size x="200" y="100"/><Anchors><Anchor point="CENTER"/></Anchors>
+    <Scripts><OnLoad>XmlUiLog("onload")</OnLoad></Scripts></Frame>
+  <Script>local _, ns = ...; ns.order[#ns.order + 1] = "inline"</Script>
+</Ui>

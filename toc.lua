@@ -1,5 +1,5 @@
 -- Addon TOC files: names the addon, picks a flavor's TOC, parses its metadata and file lines, checks the declared
--- interface version, and lists the Lua files a flavor loads (game-type directives applied, XML Script/Include expanded).
+-- interface version, and lists the Lua and XML files a flavor loads (game-type directives applied).
 local M = {}
 
 local Flavors = require("tools.flavors")
@@ -202,66 +202,23 @@ local function allowedOn(file, row, report)
   return true
 end
 
-local function join(dir, relative)
-  relative = relative:gsub("\\", "/")
-  return dir and (dir .. "/" .. relative) or relative
-end
-
-local function fileAttribute(attributes)
-  return attributes:match('file%s*=%s*"([^"]*)"') or attributes:match("file%s*=%s*'([^']*)'")
-end
-
-local expandXml
-
--- One opening tag of an XML file: Script adds its file, Include recurses, Ui is a container; others are reported.
-local function addTag(ctx, tag, attributes)
-  local kind = tag:lower()
-  local file = fileAttribute(attributes)
-  if kind == "script" and file then
-    ctx.files[#ctx.files + 1] = join(ctx.dir, file)
-  elseif kind == "include" and file then
-    expandXml(join(ctx.dir, file), ctx.readFile, ctx.files, ctx.report)
-  elseif kind ~= "ui" and not ctx.seen[tag] then
-    ctx.seen[tag] = true
-    local what = (kind == "script" or kind == "include") and ("inline <" .. tag .. ">") or ("unsupported XML <" .. tag .. ">")
-    ctx.report[#ctx.report + 1] = ctx.path .. ": " .. what .. " ignored"
-  end
-end
-
-expandXml = function(path, readFile, files, report)
-  local text = readFile(path)
-  if not text then
-    report[#report + 1] = path .. ": cannot read XML file"
-    return
-  end
-  local ctx = { path = path, dir = path:match("^(.*)/[^/]*$"), readFile = readFile, files = files, report = report, seen = {} }
-  for closing, tag, attributes in (text:gsub("<!%-%-.-%-%->", "")):gmatch("<(/?)([%w_:]+)(.-)/?>") do
-    if closing == "" then
-      addTag(ctx, tag, attributes)
-    end
-  end
-end
-
-local function addFile(path, readFile, files, report)
+local function addFile(path, files, report)
   local extension = (path:match("%.(%w+)$") or ""):lower()
-  if extension == "lua" then
+  if extension == "lua" or extension == "xml" then
     files[#files + 1] = path
-  elseif extension == "xml" then
-    expandXml(path, readFile, files, report)
   else
     report[#report + 1] = path .. ": unsupported file type ignored"
   end
 end
 
--- Ordered Lua paths (relative to the addon root) the flavor loads, and a report of what the kit ignored.
--- readFile(path) returns an XML file's text, or nil when it cannot be read.
-function M.filesFor(parsed, flavor, readFile)
+-- Ordered Lua and XML paths (relative to the addon root) the flavor loads, and a report of what the kit ignored.
+function M.filesFor(parsed, flavor)
   local row = Flavors.get(flavor)
   local files, report = {}, {}
   for _, file in ipairs(parsed.files) do
     reportIgnoredDirectives(file, report)
     if allowedOn(file, row, report) then
-      addFile(file.path, readFile, files, report)
+      addFile(file.path, files, report)
     end
   end
   return files, report

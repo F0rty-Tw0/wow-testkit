@@ -13,14 +13,8 @@ local function parseFixture(name)
   return Toc.parse(assert(fs.readFile(ADDONS_DIR .. "/" .. name .. "/" .. name .. ".toc")))
 end
 
-local function readerFor(name)
-  return function(path)
-    return fs.readFile(ADDONS_DIR .. "/" .. name .. "/" .. path)
-  end
-end
-
 local function filesOn(name, flavor)
-  return Toc.filesFor(parseFixture(name), flavor, readerFor(name))
+  return Toc.filesFor(parseFixture(name), flavor)
 end
 
 local function test_parse_reads_meta_keys_as_written()
@@ -184,41 +178,16 @@ local function test_camelot_suffixed_toc_wins_over_forever_assumed()
   A.eq(Toc.select(root, "Cm", "forever"), root .. "/Cm_Camelot.toc")
 end
 
-local function test_xml_expands_to_its_scripts_in_place()
-  A.same((filesOn("Multi", "retail")), { "A.lua", "Only.lua", "Any.lua", "X.lua" })
+local function test_xml_file_is_listed_in_place()
+  A.same((filesOn("Multi", "retail")), { "A.lua", "Only.lua", "Any.lua", "Ui.xml" })
 end
 
-local function test_xml_include_expands_relative_to_its_directory()
-  local xml = {
-    ["UI/Main.xml"] = '<Ui><Include file="Sub\\Inner.xml"/><Script file="Main.lua"/></Ui>',
-    ["UI/Sub/Inner.xml"] = '<?xml version="1.0"?><!-- note --><Ui><Script file="Inner.lua"/></Ui>',
-  }
-  local files, report = Toc.filesFor(Toc.parse("UI/Main.xml\n"), "retail", function(path)
-    return xml[path]
-  end)
-  A.same(files, { "UI/Sub/Inner.lua", "UI/Main.lua" })
-  A.same(report, {})
-end
-
-local function test_unsupported_xml_content_and_directives_are_reported()
-  local xml = '<Ui><Frame name="F"><Scripts/></Frame><Script>print(1)</Script></Ui>'
-  local parsed = Toc.parse("A.lua [AllowLoad Game]\nUi.xml\n")
-  local files, report = Toc.filesFor(parsed, "retail", function()
-    return xml
-  end)
-  A.same(files, { "A.lua" })
+local function test_ignored_directives_are_reported()
+  local files, report = Toc.filesFor(Toc.parse("A.lua [AllowLoad Game]\nUi.xml\n"), "retail")
+  A.same(files, { "A.lua", "Ui.xml" })
   local text = table.concat(report, "\n")
   A.contains(text, "AllowLoad")
-  A.contains(text, "<Frame>")
-  A.contains(text, "inline <Script>")
-end
-
-local function test_unreadable_xml_is_reported()
-  local files, report = Toc.filesFor(Toc.parse("Missing.xml\n"), "retail", function()
-    return nil
-  end)
-  A.same(files, {})
-  A.contains(report[1], "Missing.xml")
+  A.eq(text:find("<Frame>", 1, true), nil)
 end
 
 local function test_addon_name_from_folder()
@@ -267,10 +236,8 @@ return function()
   test_forever_game_type_file_loads_on_forever_only()
   test_forever_suffixed_toc_wins_over_mainline_on_forever()
   test_camelot_suffixed_toc_wins_over_forever_assumed()
-  test_xml_expands_to_its_scripts_in_place()
-  test_xml_include_expands_relative_to_its_directory()
-  test_unsupported_xml_content_and_directives_are_reported()
-  test_unreadable_xml_is_reported()
+  test_xml_file_is_listed_in_place()
+  test_ignored_directives_are_reported()
   test_addon_name_from_folder()
   test_addon_name_ambiguous()
   test_addon_name_of_dot_works_while_the_global_os_is_cleared()

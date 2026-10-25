@@ -26,6 +26,11 @@ files["tests/fixtures/addons/Mini/C.lua"] = {
   globals = { "MiniGlobal" },
 }
 
+-- XML fixture addon: reads the frame its Ui.xml builds.
+files["tests/fixtures/addons/XmlUi/*.lua"] = {
+  read_globals = { "XmlFrame" },
+}
+
 -- Scenario fixture addon: written like a real addon against the WoW globals the world installs.
 files["tests/fixtures/addons/Hover/*.lua"] = {
   read_globals = { "CreateFrame", "Enum", "GameTooltip", "HoverDB", "TooltipDataProcessor", "UnitName" },

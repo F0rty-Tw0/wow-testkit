@@ -6,6 +6,7 @@
 -- (ui/behaviour_debug_name.lua) methods.
 local M = {}
 
+local AddonEnv = require("addon_env")
 local Callsite = require("ui.callsite")
 local BehaviourLayout = require("ui.behaviour_layout")
 local BehaviourText = require("ui.behaviour_text")
@@ -118,7 +119,7 @@ end
 -- list nothing.
 function M.setParent(w, obj, st, parent)
   if type(parent) == "string" then
-    parent = _G[parent]
+    parent = AddonEnv.global(w, parent)
   end
   checkNoLoop(w, obj, st, parent)
   local oldState = st.parent and w.ui.state[st.parent]
