@@ -10,9 +10,9 @@ local Flavors = require("tools.flavors")
 local Json = require("json")
 local Render = require("render")
 local Scenario = require("scenario")
-local Screen = require("ui.screen")
 local SessionConsole = require("session_console")
 local SessionInput = require("session_input")
+local SessionOptions = require("session_options")
 local SessionSaved = require("session_saved")
 local SessionSlash = require("session_slash")
 local SessionState = require("session_state")
@@ -23,9 +23,8 @@ local unpack = unpack
 -- Localized: addon code may assign a global named debug.
 local debugTraceback = debug.traceback
 
-local DEFAULT_FLAVOR = "retail" -- "auto" means this until the flavor is detected from the TOC (Task 5.7)
--- The options a reload may change; the rest (addon folder, extract, session folder) belong to the process that started it.
-local REOPENABLE = { flavor = true, screen = true }
+M.autoFlavor = SessionOptions.autoFlavor
+M.PRESETS = SessionOptions.PRESETS
 
 local Session = {}
 Session.__index = Session
@@ -83,6 +82,7 @@ local function infoOf(sess)
     screen = { width = w.screen.width, height = w.screen.height },
     seq = sess.seq,
     loads = sess.loads,
+    errors = #w.errors,
     skipped = sess.skipped,
   }
 end
@@ -108,10 +108,7 @@ end
 -- Builds the world and logs the addon in, with the saved variables sessionDir holds. A session that follows `prior` (a
 -- reload) continues its console and logs in as a reloading UI.
 local function open(opts, prior)
-  local flavor = opts.flavor
-  if flavor == nil or flavor == "auto" then
-    flavor = DEFAULT_FLAVOR
-  end
+  local flavor = SessionOptions.flavorOf(opts)
   local root = opts.addonDir
   local name, nameErr = Toc.addonName(root)
   local extract = opts.extract and Client.load(opts.extract, flavor)
@@ -145,35 +142,20 @@ local function open(opts, prior)
   return sess
 end
 
--- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state? } (extract is a directory of
--- tools/client's output; sessionDir holds saved.lua). Raises only when no world can be built (an unknown flavor,
--- another world still active).
+-- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state? } (flavor "auto" is
+-- Session.autoFlavor's pick from the TOC; extract is a directory of tools/client's output; sessionDir holds
+-- saved.lua). Raises only when no world can be built (an unknown flavor, another world still active).
 function M.new(opts)
   return open(opts, nil)
 end
 
--- A new session over the same options (plus over's flavor and screen) and the same mock state, counting one more load.
--- The old one logs out first and, unless over.keepSaved, writes its saved variables; keepSaved loads what saved.lua
--- already holds. An option the world would refuse raises before sess is shut down, so the old session stays whole. seq
--- keeps counting, so a viewer never sees it go back.
+-- A new session over the same options (plus over's flavor and size or screen, SessionOptions.reopen) and the same mock
+-- state, counting one more load. The old one logs out first and, unless over.keepSaved, writes its saved variables;
+-- keepSaved loads what saved.lua already holds. An option the world would refuse raises before sess is shut down, so
+-- the old session stays whole. seq keeps counting, so a viewer never sees it go back.
 function M.reload(sess, over)
   over = over or {}
-  if over.keepSaved ~= nil and type(over.keepSaved) ~= "boolean" then
-    error("reload: keepSaved must be true or false", 0)
-  end
-  local opts = {}
-  for key, value in pairs(sess.opts) do
-    opts[key] = value
-  end
-  for key, value in pairs(over) do
-    if REOPENABLE[key] then
-      opts[key] = value
-    end
-  end
-  if opts.flavor ~= nil and opts.flavor ~= "auto" then
-    Flavors.get(opts.flavor)
-  end
-  Screen.normalize(opts.screen)
+  local opts = SessionOptions.reopen(sess.opts, over)
   opts.state = sess.state
   sess:close(over.keepSaved)
   local fresh = open(opts, sess)

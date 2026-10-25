@@ -87,6 +87,26 @@ def check_input_frames(root):
         one(root, lambda n, name=name: n.attrs.get("data-name") == name, "[data-name=%s]" % name)
 
 
+def option_values(root, name):
+    select = one(element(root, "toolbar"), lambda n: n.tag == "select" and n.attrs.get("id") == name, "#toolbar #" + name)
+    return [n.attrs.get("value") for n in find(select, lambda n: n.tag == "option")]
+
+
+def check_flavor_picker(root):
+    values = option_values(root, "flavor")
+    if values != ["auto", "retail", "mists", "vanilla", "tbc", "forever"]:
+        raise AssertionError("#flavor options %r" % values)
+
+
+def check_size_picker(root):
+    values = option_values(root, "size")
+    if values != ["1080p", "1440p", "4k", "custom"]:
+        raise AssertionError("#size options %r" % values)
+    text = element(root, "session-status").text()
+    if "SessionDemo" not in text:
+        raise AssertionError("status line %r" % text)
+
+
 # (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
     ("ready flag, live snapshot drawn", check_ready, 0),
@@ -96,6 +116,8 @@ CHECKS = [
     ("console, events, state and command line panels", check_panels, 0),
     ("events datalist names PLAYER_REGEN_DISABLED", check_event_names, 0),
     ("the keys, drag and wheel frames are drawn", check_input_frames, 0),
+    ("toolbar #flavor lists auto then the five flavors", check_flavor_picker, 0),
+    ("toolbar #size lists the presets and custom; the status line names the addon", check_size_picker, 0),
 ]
 
 

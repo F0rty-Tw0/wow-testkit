@@ -202,6 +202,17 @@ def test_static_serving_is_confined(tmp):
             assert request(live, "GET", path)[0] == 404, path
 
 
+def test_root_opens_the_live_viewer_fitted(tmp):
+    with running(tmp) as live:
+        conn = http.client.HTTPConnection("127.0.0.1", live.port, timeout=10)
+        try:
+            conn.request("GET", "/")
+            reply = conn.getresponse()
+            assert (reply.status, reply.getheader("Location")) == (302, "/viewer/index.html?live=1&zoom=fit"), reply.status
+        finally:
+            conn.close()
+
+
 def test_stream_announces_changes(tmp):
     old = session_http.KEEPALIVE_SECONDS
     session_http.KEEPALIVE_SECONDS = 0.2
@@ -231,6 +242,19 @@ def test_reload_keeps_the_server_up(tmp):
         snapshot = get_json(live, "/snapshot")
         assert item(snapshot, "SessionDemoFrame")
         assert snapshot["session"]["loads"] == 2
+
+
+def test_reload_flavor_and_size_over_http(tmp):
+    with running(tmp) as live:
+        status, reply = post_json(live, "/reload", {"flavor": "vanilla", "size": "1440p"})
+        assert (status, reply["ok"], reply["flavor"], reply["screen"]) == (200, True, "vanilla", {"width": 2560, "height": 1440}), reply
+        before = get_json(live, "/snapshot")
+        assert before["session"]["flavor"] == "vanilla" and before["screen"]["width"] == 2560, before["session"]
+        status, reply = post_json(live, "/reload", {"flavor": "x"})
+        assert (status, reply["ok"]) == (400, False) and "flavor" in reply["error"], (status, reply)
+        after = get_json(live, "/snapshot")
+        assert after["session"] == before["session"] and after["screen"] == before["screen"], after["session"]
+        assert post_json(live, "/slash", {"text": "/sdemo alive"}) == (200, {"ok": True, "handled": True})
 
 
 def test_assets_resolve_and_are_served(tmp):
@@ -395,9 +419,11 @@ TESTS = [
     test_cross_origin_and_wrong_content_type_are_refused,
     test_non_loopback_bind_is_refused,
     test_static_serving_is_confined,
+    test_root_opens_the_live_viewer_fitted,
     test_stream_announces_changes,
     test_bad_requests,
     test_reload_keeps_the_server_up,
+    test_reload_flavor_and_size_over_http,
     test_assets_resolve_and_are_served,
     test_call_relays_handle_json,
     test_located_outside_its_root_is_not_served,

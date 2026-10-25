@@ -54,7 +54,27 @@ body.bare #errors {
   font: inherit;
 }
 
+/* Live mode (toolbar.js): the flavour and size pickers, Custom's two inputs and the session status line. */
+#toolbar select,
+#toolbar input {
+  font: inherit;
+}
+
+#toolbar input[type='number'] {
+  width: 6em;
+}
+
+#toolbar input[hidden] {
+  display: none;
+}
+
+#session-status {
+  margin-left: auto;
+  color: var(--muted);
+}
+
 #status,
+#skipped,
 #errors {
   margin-bottom: 8px;
   padding: 6px 10px;
@@ -64,6 +84,7 @@ body.bare #errors {
 }
 
 #status[hidden],
+#skipped[hidden],
 #errors[hidden] {
   display: none;
 }

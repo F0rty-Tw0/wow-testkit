@@ -7,8 +7,9 @@
     GET  /state              the mock state: { ok, state }
     POST /call/<method>      any method, through SessionHost:handleJson; the reply is always status 200
     POST /input /fire /slash /state /reload   the same calls for curl and the selftests (400 when the request is malformed)
+                             (/reload takes { flavor?, size?, keepSaved? }; session_options.lua checks it, 400 if bad)
     GET  /stream             server-sent events: snapshot, console, reload (a keepalive comment every 15 s)
-    GET  /                   redirects to the viewer; /viewer/* and /assets/* are static files
+    GET  /                   redirects to the live viewer, fitted to the window; /viewer/* and /assets/* are static files
 
 Every request is checked before it is routed: the Host header must name this server, a request with an Origin must come
 from this server's own page, and a POST must carry Content-Type: application/json.
@@ -171,7 +172,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urlsplit(self.path)
         path = url.path
         if path == "/":
-            self._send(302, b"", "text/plain", [("Location", "/viewer/index.html?live=1")])
+            self._send(302, b"", "text/plain", [("Location", "/viewer/index.html?live=1&zoom=fit")])
         elif path == "/snapshot":
             self._send_json(200, self.server.host.snapshot_json())
         elif path in ("/tree", "/events", "/state"):
