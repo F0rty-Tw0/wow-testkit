@@ -107,6 +107,19 @@ SbCallUpper = securecall("strupper", "a")
   end)
 end
 
+-- Hooking a global the view answers itself (setfenv, loadstring) wraps the host function, so the kit's own compile of
+-- the next script still works.
+local function test_hooking_setfenv_or_loadstring_keeps_later_scripts_loading()
+  for _, name in ipairs({ "setfenv", "loadstring" }) do
+    local xml = '<Ui><Script>hooksecurefunc("' .. name .. '", function() end)</Script><Script>SbSecondRan = true</Script></Ui>'
+    H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+      H.load(w, ctx, "Ui.xml")
+      A.eq(rawget(_G, "SbSecondRan"), true)
+      A.same(w.errors, {})
+    end)
+  end
+end
+
 -- The client has one _G, so a second addon's _G and the one a KeyValue hands out are the same table.
 local function test_a_key_value_global_g_is_the_addons_own_g_in_every_addon()
   local xml = [[<Ui><Frame name="SbKvG"><KeyValues><KeyValue key="g" value="_G" type="global"/></KeyValues></Frame>
@@ -126,5 +139,6 @@ return function()
   test_a_template_mixin_name_does_not_copy_host_tables()
   test_widget_methods_resolving_a_name_do_not_reach_host_tables()
   test_securecall_and_hooksecurefunc_by_name_do_not_reach_host_globals()
+  test_hooking_setfenv_or_loadstring_keeps_later_scripts_loading()
   test_a_key_value_global_g_is_the_addons_own_g_in_every_addon()
 end

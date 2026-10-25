@@ -98,15 +98,16 @@ function M.tContains(tbl, item)
 end
 
 -- hooksecurefunc([tbl,] name, hook): tbl[name] becomes original-then-hook; the hook runs in "addon" context and
--- its errors go to the error handler, so the original's results still return. A global name resolves as addon code
--- sees it (AddonEnv.global), so a host-only global (require, io, ...) is refused and never rewritten.
+-- its errors go to the error handler, so the original's results still return. A global name must exist as addon code
+-- sees it (AddonEnv.global), so a host-only global (require, io, ...) is refused and never rewritten; the host value is
+-- what gets wrapped, so kit code reading a hooked global (setfenv, loadstring, ...) keeps the host function's behaviour.
 local function hooksecurefunc(w, tbl, name, hook)
   local original
   if type(tbl) == "table" then
     original = tbl[name]
   else
     tbl, name, hook = _G, tbl, name
-    original = AddonEnv.global(w, name)
+    original = AddonEnv.global(w, name) ~= nil and _G[name] or nil
   end
   if type(original) ~= "function" then
     error("hooksecurefunc(): " .. tostring(name) .. " is not a function", 3)
