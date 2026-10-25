@@ -1,7 +1,7 @@
 -- Session: one addon logged into one flavor's world and kept alive, driven by wire requests (input, fire, slash, state)
--- and read as render snapshots and inspector views (tree, frame). call() answers with a table, handle() with JSON;
--- neither raises, so a bad request never ends the session. Only the holder swaps sessions (Session.reload);
--- session_host.lua is that holder.
+-- and read as render snapshots, inspector views (tree, frame), console lines and the event list. call() answers with a
+-- table, handle() with JSON; neither raises, so a bad request never ends the session. Only the holder swaps sessions
+-- (Session.reload, or a /reload the slash method leaves in sess.pendingReload); session_host.lua is that holder.
 local M = {}
 
 local Client = require("client")
@@ -10,7 +10,10 @@ local Json = require("json")
 local Render = require("render")
 local Scenario = require("scenario")
 local Screen = require("ui.screen")
+local SessionConsole = require("session_console")
 local SessionInput = require("session_input")
+local SessionSlash = require("session_slash")
+local SessionState = require("session_state")
 local SessionView = require("session_view")
 local Toc = require("toc")
 
@@ -81,22 +84,13 @@ local function infoOf(sess)
   }
 end
 
--- State: units = { [token] = fixture } and mouseover = token, the way a scenario's s:unit and w:mouseover set them.
-local function applyState(w, req)
-  if req.units ~= nil then
-    if type(req.units) ~= "table" then
-      error("state: units must be an object of unit fixtures", 0)
-    end
-    for _, token in ipairs(sortedKeys(req.units)) do
-      w:unit(token, req.units[token])
-    end
+-- { name, type, nilable } per payload parameter of a manifest event; type is the parameter's Lua type.
+local function payloadOf(event)
+  local out = {}
+  for i, param in ipairs(event.payload or {}) do
+    out[i] = { name = param.name, type = param.lua, nilable = param.nilable }
   end
-  if req.mouseover ~= nil then
-    if type(req.mouseover) ~= "string" then
-      error("state: mouseover must be a unit token", 0)
-    end
-    w:mouseover(req.mouseover)
-  end
+  return out
 end
 
 -- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state? } (extract is a directory of
@@ -113,8 +107,10 @@ function M.new(opts)
   local s = Scenario.new({ addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract })
   local folder = folderName(root)
   local sess = setmetatable({ opts = opts, s = s, w = s.w, folder = folder, addon = name or folder, seq = 0, loads = 1 }, Session)
+  SessionConsole.install(sess.w, sess)
+  SessionState.install(sess.w, sess)
   if opts.state then
-    applyState(sess.w, opts.state)
+    SessionState.apply(sess, opts.state)
   end
   if name then
     login(sess)
@@ -179,11 +175,24 @@ local METHODS = {
     if type(req.text) ~= "string" then
       error("slash: text must be a string", 0)
     end
-    return { ok = true, handled = sess.s:slash(req.text) }, true
+    local handled = sess.s:slash(req.text) or SessionSlash.run(sess, req.text)
+    return { ok = true, handled = handled }, true
   end,
+  -- An empty patch only reads the state, so it changes nothing.
   state = function(sess, req)
-    applyState(sess.w, req)
-    return { ok = true }, true
+    return { ok = true, state = SessionState.apply(sess, req) }, next(req) ~= nil
+  end,
+  console = function(sess, req)
+    return { ok = true, lines = SessionConsole.since(sess.w, tonumber(req.since) or 0) }, false
+  end,
+  -- Every event of the flavor's API docs with its payload parameters (type is the Lua type), sorted by name.
+  events = function(sess)
+    local events = sess.w.manifest.events
+    local list = {}
+    for i, name in ipairs(sortedKeys(events)) do
+      list[i] = { name = name, payload = payloadOf(events[name]) }
+    end
+    return { ok = true, events = list }, false
   end,
   tree = function(sess)
     local tree = SessionView.tree(sess.w)

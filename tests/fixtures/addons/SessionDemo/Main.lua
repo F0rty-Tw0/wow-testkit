@@ -18,6 +18,7 @@ SlashCmdList.SDEMO = function(msg)
   if msg == "boom" then
     error("boom")
   end
+  print("slash", msg)
   text:SetText("slash:" .. msg)
 end
 SessionDemoDB = SessionDemoDB or { runs = 0 }

@@ -262,6 +262,39 @@ def test_tree_and_frame_endpoints(tmp):
         assert status == 404 and json.loads(body)["ok"] is False, (status, body)
 
 
+def test_console_events_stream(tmp):
+    with running(tmp) as live:
+        stream = open_stream(live)
+        status, reply = post_json(live, "/slash", {"text": "/sdemo hi"})
+        assert (status, reply) == (200, {"ok": True, "handled": True}), reply
+        _, data = read_until(stream, "event: console")
+        line = json.loads(data[len("data: ") :])
+        assert (line["kind"], line["text"]) == ("print", "slash hi"), line
+
+
+def test_state_and_events_endpoints(tmp):
+    with running(tmp) as live:
+        status, reply = post_json(live, "/state", {"modifiers": {"shift": True}})
+        assert (status, reply["ok"]) == (200, True), reply
+        state = get_json(live, "/state")
+        assert state["state"]["modifiers"] == {"shift": True, "ctrl": False, "alt": False}, state
+        names = [event["name"] for event in get_json(live, "/events")["events"]]
+        assert "PLAYER_REGEN_DISABLED" in names, len(names)
+        status, reply = post_json(live, "/state", {"modifiers": {"bogus": True}})
+        assert status == 400 and "bogus" in reply["error"], (status, reply)
+
+
+def test_slash_reload_serves_changed_assets(tmp):
+    root = temp_addon(tmp)
+    with running(tmp, root) as live:
+        url = get_json(live, "/snapshot")["assets"]["path:interface/addons/t/pic"]["url"]
+        Image.new("RGBA", (2, 2), (0, 0, 255, 255)).save(root / "pic.png")
+        assert post_json(live, "/slash", {"text": "/reload"}) == (200, {"ok": True, "handled": True})
+        assert get_json(live, "/snapshot")["session"]["loads"] == 2
+        _, _, body = request(live, "GET", "/" + url)
+        assert Image.open(io.BytesIO(body)).getpixel((0, 0)) == (0, 0, 255, 255)
+
+
 TESTS = [
     test_snapshot_over_http,
     test_input_fire_slash_state_round_trip,
@@ -277,6 +310,9 @@ TESTS = [
     test_call_relays_handle_json,
     test_located_outside_its_root_is_not_served,
     test_tree_and_frame_endpoints,
+    test_console_events_stream,
+    test_state_and_events_endpoints,
+    test_slash_reload_serves_changed_assets,
 ]
 
 

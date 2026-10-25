@@ -265,16 +265,19 @@ body.outlined .frame {
   display: none;
 }
 
-/* Side panels (live mode), right of the stage; viewer.js fitScale leaves room for them. */
+/* Side panels (live mode), right of the stage; viewer.js fitScale leaves room for them. The inspector fills the first
+   column; console, command line, events and mock state stack in the second. */
 #panels {
-  display: flex;
-  flex: 0 0 340px;
-  flex-direction: column;
-  max-height: calc(100vh - 80px);
+  display: grid;
+  flex: none;
+  grid-template-columns: 320px 320px;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  gap: 8px;
+  height: calc(100vh - 80px);
   margin-left: 12px;
 }
 
-#inspector {
+#panels > section {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -284,23 +287,106 @@ body.outlined .frame {
   background: var(--panel);
 }
 
-#inspector header {
+#panels header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-#inspector h2 {
+#panels h2 {
   margin: 0;
   font-size: 13px;
 }
 
-#inspector .pick[aria-pressed="true"] {
-  background: var(--accent);
+#panels input,
+#panels select,
+#panels textarea,
+#panels button {
+  font: inherit;
 }
 
-#inspector .filter {
-  font: inherit;
+#panels .hint {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+#panels .hint:empty {
+  display: none;
+}
+
+#inspector {
+  grid-column: 1;
+  grid-row: 1 / -1;
+}
+
+#console,
+#cmdline,
+#events,
+#state {
+  grid-column: 2;
+}
+
+#console .lines {
+  flex: 1 1 auto;
+  min-height: 80px;
+  margin: 0;
+  padding: 4px 6px;
+  overflow: auto;
+  list-style: none;
+  background: var(--canvas);
+  font: 12px/1.35 Consolas, "Cascadia Mono", monospace;
+}
+
+/* Kind colours on the dark log, after the client's chat: system yellow, errors red, sent lines light blue. */
+#console .line {
+  color: #e6e8ec;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#console .line.system {
+  color: #ffd24a;
+}
+
+#console .line.error,
+#console .line.error-frame {
+  color: #ff6f61;
+}
+
+#console .line.send {
+  color: #8fc9ff;
+}
+
+#cmdline input,
+#state textarea {
+  font-family: Consolas, "Cascadia Mono", monospace;
+}
+
+#events .params {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#events button {
+  align-self: flex-start;
+}
+
+#state .units,
+#state .flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+#state textarea {
+  resize: vertical;
+}
+
+#inspector .pick[aria-pressed="true"] {
+  background: var(--accent);
 }
 
 #inspector .tree {

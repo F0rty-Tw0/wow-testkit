@@ -65,12 +65,31 @@ def check_selected(root):
     one(inspector(root), by_class("selected"), "selected tree row")
 
 
+def element(root, name):
+    return one(root, lambda n: n.attrs.get("id") == name, "#" + name)
+
+
+def check_panels(root):
+    for name in ("console", "events", "state"):
+        element(root, name)
+    one(element(root, "cmdline"), lambda n: n.tag == "input", "#cmdline input")
+
+
+def check_event_names(root):
+    datalist = one(element(root, "events"), lambda n: n.tag == "datalist", "#events datalist")
+    names = {n.attrs.get("value") for n in find(datalist, lambda n: n.tag == "option")}
+    if "PLAYER_REGEN_DISABLED" not in names:
+        raise AssertionError("PLAYER_REGEN_DISABLED not among %d event names" % len(names))
+
+
 # (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
     ("ready flag, live snapshot drawn", check_ready, 0),
     ("hover outline hidden", check_hover, 0),
     ("inspector tree lists the frame and dims the hidden one", check_tree, 0),
     ("select= shows the frame's properties and outline", check_selected, 1),
+    ("console, events, state and command line panels", check_panels, 0),
+    ("events datalist names PLAYER_REGEN_DISABLED", check_event_names, 0),
 ]
 
 

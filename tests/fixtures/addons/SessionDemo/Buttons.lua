@@ -19,6 +19,7 @@ label:SetText("Click")
 local clicks = 0
 button:SetScript("OnClick", function()
   clicks = clicks + 1
+  print("button clicked", clicks)
   text:SetText("clicked " .. clicks)
 end)
 button:SetScript("OnEnter", function()

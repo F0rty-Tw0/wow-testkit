@@ -24,7 +24,7 @@ end
 local function test_mutations_queue_a_snapshot_event()
   H.withHost(nil, function(host)
     host:drain()
-    host:handleJson("slash", '{"text":"/sdemo hi"}')
+    host:handleJson("fire", '{"event":"PLAYER_REGEN_DISABLED"}')
     A.same(drained(host), { { event = "snapshot", data = { seq = 1 } } })
     host:handleJson("snapshot", "{}")
     A.eq(#drained(host), 0)
@@ -45,7 +45,7 @@ local function test_outbox_survives_a_reload_swap()
   H.withHost(nil, function(host)
     local before = host.sess
     host:drain()
-    host:handleJson("slash", '{"text":"/sdemo hi"}')
+    host:handleJson("fire", '{"event":"PLAYER_REGEN_DISABLED"}')
     local reply = Json.decode(host:handleJson("reload", "{}"))
     A.same(reply, { ok = true, loads = 2 })
     A.truthy(host.sess ~= before)
@@ -120,7 +120,65 @@ local function test_a_bad_reload_flavor_replies_an_error_and_keeps_the_session()
   end)
 end
 
+local function test_console_lines_reach_the_outbox()
+  H.withHost(nil, function(host)
+    host:drain()
+    host:handleJson("slash", '{"text":"/sdemo hi"}')
+    local events = drained(host)
+    A.eq(#events, 2)
+    A.same(events[1], { event = "snapshot", data = { seq = 1 } })
+    A.eq(events[2].event, "console")
+    A.same({ events[2].data.kind, events[2].data.text }, { "print", "slash hi" })
+    A.eq(type(events[2].data.seq), "number")
+    host:handleJson("snapshot", "{}")
+    A.eq(#drained(host), 0)
+  end)
+end
+
+local function test_slash_reload_is_honoured_by_the_host()
+  H.withHost(nil, function(host)
+    host:handleJson("slash", '{"text":"/sdemo hi"}')
+    host:drain()
+    local reply = Json.decode(host:handleJson("slash", '{"text":"/reload"}'))
+    A.same(reply, { ok = true, handled = true })
+    A.eq(host.sess.loads, 2)
+    A.eq(host.sess.pendingReload, nil)
+    local names = {}
+    for i, entry in ipairs(drained(host)) do
+      names[i] = entry.event
+    end
+    A.contains(names, "reload")
+    host:handleJson("slash", '{"text":"/sdemo again"}')
+    local events = drained(host)
+    A.eq(events[#events].data.text, "slash again")
+  end)
+end
+
+local function test_a_failed_slash_reload_keeps_the_session_and_says_why()
+  local Session = require("session")
+  local real = Session.reload
+  H.withHost(nil, function(host)
+    local before = host.sess
+    host:drain()
+    Session.reload = function()
+      error("cannot reload", 0)
+    end
+    local ok, text = pcall(host.handleJson, host, "slash", '{"text":"/reload"}')
+    Session.reload = real
+    A.truthy(ok, text)
+    A.eq(host.sess, before)
+    A.eq(host.sess.pendingReload, nil)
+    local events = drained(host)
+    A.same({ events[#events].event, events[#events].data.kind }, { "console", "system" })
+    A.eq(events[#events].data.text, "Reload failed: cannot reload")
+  end)
+  Session.reload = real
+end
+
 return function()
+  test_console_lines_reach_the_outbox()
+  test_slash_reload_is_honoured_by_the_host()
+  test_a_failed_slash_reload_keeps_the_session_and_says_why()
   test_mutations_queue_a_snapshot_event()
   test_drain_clears_the_outbox()
   test_outbox_survives_a_reload_swap()

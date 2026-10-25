@@ -3,6 +3,8 @@
     GET  /snapshot           the render snapshot with assets resolved
     GET  /tree               the inspector's widget tree: { ok, nodes }
     GET  /frame?id=<id>      one widget's properties: { ok, props }, or 404 { ok: false } for an unknown id
+    GET  /events             the flavor's events with their payload parameters: { ok, events }
+    GET  /state              the mock state: { ok, state }
     POST /call/<method>      any method, through SessionHost:handleJson; the reply is always status 200
     POST /input /fire /slash /state /reload   the same calls for curl and the selftests (400 when the request is malformed)
     GET  /stream             server-sent events: snapshot, console, reload (a keepalive comment every 15 s)
@@ -172,8 +174,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(302, b"", "text/plain", [("Location", "/viewer/index.html?live=1")])
         elif path == "/snapshot":
             self._send_json(200, self.server.host.snapshot_json())
-        elif path == "/tree":
-            self._send_json(200, self.server.host.call_json("tree", "{}"))
+        elif path in ("/tree", "/events", "/state"):
+            self._send_json(200, self.server.host.call_json(path[1:], "{}"))
         elif path == "/frame":
             self._frame(parse_qs(url.query).get("id", [""])[0])
         elif path == "/stream":

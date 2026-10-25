@@ -4,6 +4,7 @@
 local M = {}
 
 local Assets = require("session_assets")
+local Console = require("session_console")
 local Json = require("json")
 local Session = require("session")
 
@@ -48,11 +49,14 @@ local function decode(reqJson)
   return req
 end
 
--- opts: Session.new's. Starts the session; the outbox starts empty.
+-- opts: Session.new's. Starts the session; the outbox starts with the console lines the login printed.
 function M.new(opts)
   local sess = Session.new(opts)
   local root = opts.addonDir:gsub("\\", "/"):gsub("/+$", "")
-  return setmetatable({ sess = sess, outbox = {}, located = {}, addonRoots = { [sess.folder:lower()] = root } }, Host)
+  local host = { sess = sess, outbox = {}, located = {}, consoleSeq = 0, addonRoots = { [sess.folder:lower()] = root } }
+  setmetatable(host, Host)
+  host:collectConsole()
+  return host
 end
 
 function Host:push(event, data)
@@ -73,13 +77,22 @@ function Host:locate(reply)
   end
 end
 
+-- Queues a console event per line newer than the last one queued.
+function Host:collectConsole()
+  for _, line in ipairs(self.sess:call("console", { since = self.consoleSeq }).lines) do
+    self:push("console", line)
+    self.consoleSeq = line.seq
+  end
+end
+
 -- The one place a session is swapped. Replies { ok = true, loads }, or { ok = false, error } with the session kept.
 function Host:reload(req)
   local ok, fresh = pcall(Session.reload, self.sess, req)
   if not ok then
     return { ok = false, error = tostring(fresh) }
   end
-  self.sess, self.located = fresh, {}
+  self:collectConsole()
+  self.sess, self.located, self.consoleSeq = fresh, {}, 0
   self:push("reload", { loads = fresh.loads })
   self:push("snapshot", { seq = fresh.seq })
   return { ok = true, loads = fresh.loads }
@@ -106,12 +119,22 @@ local function dispatch(self, method, reqJson)
   if method == "reload" then
     return Json.encode(self:reload(req))
   end
-  return relay(self, method, req)
+  local text = relay(self, method, req)
+  local pending = self.sess.pendingReload
+  if pending then
+    self.sess.pendingReload = nil
+    local reply = self:reload(pending)
+    if not reply.ok then
+      Console.push(self.sess.w, "system", "Reload failed: " .. reply.error)
+    end
+  end
+  return text
 end
 
--- The JSON reply to a request; never raises.
+-- The JSON reply to a request; never raises. A /reload the call left pending runs right after it (dispatch).
 function Host:handleJson(method, reqJson)
   local ok, text = pcall(dispatch, self, method, reqJson)
+  self:collectConsole()
   return ok and text or Json.encode({ ok = false, error = tostring(text) })
 end
 

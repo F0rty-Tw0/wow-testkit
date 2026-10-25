@@ -170,15 +170,16 @@ class LuaHost:
             self._publish()
 
     def _publish(self):
+        """Publishes the queued events; a reload among them (a reload call or a /reload) drops the asset cache."""
         for entry in json.loads(self.host.drain(self.host)):
+            if entry["event"] == "reload":
+                self.cache.clear()
             self.bus.publish(entry["event"], entry["data"])
 
     def call_json(self, method, text):
         """host:handleJson(method, text) as it replies, then the queued events published."""
         with self.lock:
             reply = self.host.handleJson(self.host, method, text)
-            if method == "reload":
-                self.cache.clear()
             self._publish()
             return reply
 
