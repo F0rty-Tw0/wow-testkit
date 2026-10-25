@@ -11,25 +11,32 @@ RUNNER = (
     "function(text) local chunk, err = loadstring(text, '=globalstrings'); if not chunk then error(err, 0) end; "
     "local env = {}; setfenv(chunk, env); chunk(); return env end"
 )
-BYTE_ESCAPE = r"\\(?:\d{1,2}(?!\d)|[01]\d\d|2[0-4]\d|25[0-5])"  # Lua 5.1 \ddd: up to 3 digits, greedy, at most 255
+MAX_MEMORY = 256 * 1024 * 1024  # GlobalStrings is a few MB; the cap only stops a runaway chunk
+BYTE_ESCAPE =r"\\(?:\d{1,2}(?!\d)|[01]\d\d|2[0-4]\d|25[0-5])"  # Lua 5.1 \ddd: up to 3 digits, greedy, at most 255
 LUA_ESCAPE = re.compile(rf"((?:{BYTE_ESCAPE})+)|\\([abfnrtv\\\"'])")
 LUA_CHARS = {"a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
 ESCAPES = {'"': '\\"', "\\": "\\\\", "\n": "\\n", "\r": "\\r"}
 
 
 class StringsError(Exception):
-    """The chunk would not load or run, or a value is not UTF-8."""
+    """The chunk would not load or run, is bytecode, or a value is not UTF-8."""
 
 
 def parse_global_strings(text):
     """The string-valued globals `text` sets. The chunk runs under an empty environment, so it has no os, io or
-    require; anything it needs beyond plain assignments raises StringsError."""
+    require; anything it needs beyond plain assignments raises StringsError. So do precompiled bytecode, which
+    loadstring would run unchecked, and a chunk that allocates more than MAX_MEMORY."""
     from lupa import lua51
 
-    lua = lua51.LuaRuntime(encoding=None, register_eval=False, register_builtins=False)
+    data = text.encode("utf-8") if isinstance(text, str) else text
+    if data[:1] == b"\x1b":  # Lua 5.1's loadstring takes a binary chunk when the first byte is ESC
+        raise StringsError("the chunk is precompiled bytecode, which is never run")
+    lua = lua51.LuaRuntime(encoding=None, register_eval=False, register_builtins=False, max_memory=MAX_MEMORY)
     run = lua.eval(RUNNER)
     try:
-        env = run(text.encode("utf-8") if isinstance(text, str) else text)
+        env = run(data)
+    except lua51.LuaMemoryError as exc:
+        raise StringsError(f"the chunk needs more than {MAX_MEMORY >> 20} MB of memory") from exc
     except lua51.LuaError as exc:
         raise StringsError(str(exc)) from exc
     result = {}
