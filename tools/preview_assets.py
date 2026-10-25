@@ -14,9 +14,12 @@ import json
 import os
 import re
 import shutil
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw
+
+KIT_ROOT = Path(__file__).resolve().parent.parent
 
 IMAGE_EXTS = (".png", ".jpg", ".tga", ".blp")  # probe order when a path has no extension
 COPIED_EXTS = (".png", ".jpg", ".jpeg")  # everything else Pillow reads is converted to PNG
@@ -98,20 +101,45 @@ def _strip_image_ext(parts):
     return parts[:-1] + [base] if ext.lower() in IMAGE_EXTS else parts
 
 
+def _lazy_extract(extract_dir, asset):
+    """Art the extract has not decoded yet: decoded from the client store on demand (tools.client.art/atlas).
+    None when tools.client or its dependencies are missing, or the install cannot be read."""
+    kind = asset.get("kind")
+    try:
+        if str(KIT_ROOT) not in sys.path:
+            sys.path.insert(0, str(KIT_ROOT))
+        from tools.client import art, atlas
+
+        if kind == "atlas":
+            return atlas.crop(extract_dir, str(asset["atlas"]))
+        if kind == "fileID":
+            return art.art_png(extract_dir, int(asset["fileID"]))
+        parts = safe_parts(asset.get("path")) if kind == "path" else None
+        return art.art_png(extract_dir, "/".join(_strip_image_ext(parts)).lower()) if parts else None
+    except Exception:  # an unreadable extract or store is a miss, not a reason to abort the resolve
+        return None
+
+
 def lookup_extract(extract_dir, ref, asset):
-    """File in the client extract for an asset, or None. Interim layout: <extract>/art/<path with /> and
-    <extract>/art/by-id/<id>.png, PNG. The one seam Tasks 3.4/3.6 replace; atlases have no layout yet."""
+    """File in the client extract for an asset, or None. Layout: <extract>/art/<path with /> and
+    <extract>/art/by-id/<id>.png, PNG, as the extractor caches them (any image extension is found);
+    atlases are cut from their sheet into <extract>/art/atlas/. A file not decoded yet is decoded on demand."""
     art = os.path.join(extract_dir, "art")
     kind = asset.get("kind")
+    hit = None
     if kind == "fileID":
         try:
-            return find_addon_file(art, ["by-id", "%d" % asset["fileID"]])
+            hit = find_addon_file(art, ["by-id", "%d" % asset["fileID"]])
         except (KeyError, TypeError, ValueError, OverflowError):
             return None
-    parts = safe_parts(asset.get("path")) if kind in ("path", "font") else None
-    if parts is None:
-        return None
-    return find_addon_file(art, _strip_image_ext(parts) if kind == "path" else parts)
+    elif kind in ("path", "font"):
+        parts = safe_parts(asset.get("path"))
+        if parts is None:
+            return None
+        hit = find_addon_file(art, _strip_image_ext(parts) if kind == "path" else parts)
+    if hit is None and kind in ("path", "fileID", "atlas"):
+        return _lazy_extract(extract_dir, asset)
+    return hit
 
 
 def _addon_lookup(parts, addons):

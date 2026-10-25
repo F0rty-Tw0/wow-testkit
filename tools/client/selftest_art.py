@@ -1,12 +1,16 @@
-"""Tests for the art decoder and its lazy cache."""
+"""Tests for the art decoder, its lazy cache and the preview-side lookup."""
 
 import io
+import sys
+from pathlib import Path
 
 from PIL import Image
 
 from tools.client import art
 from tools.client.extract import Ctx
 from tools.client.fakes import FakeSource, make_blp
+
+TOOLS = str(Path(__file__).resolve().parent.parent)
 
 
 def encoded(fmt, color):
@@ -54,9 +58,26 @@ def test_prewarm_decodes_only_the_common_prefixes(tmp):
     assert (tmp / "out/art/interface/buttons/a.png").is_file() and not (tmp / "out/art/interface/icons").exists()
 
 
+def test_lookup_extract_uses_lazy_art(tmp):
+    sys.path.insert(0, TOOLS)
+    import preview_assets
+
+    ex = tmp / "ex"
+    ex.mkdir()
+    src = FakeSource({"interface/buttons/red.blp": make_blp((255, 0, 0))})
+    real, art.lazy_source = art.lazy_source, lambda extract_dir: src
+    try:
+        asset = {"kind": "path", "path": "Interface/Buttons/Red"}
+        hit = preview_assets.lookup_extract(str(ex), "path:interface/buttons/red", asset)
+    finally:
+        art.lazy_source = real
+    assert hit == ex / "art/interface/buttons/red.png" and rgba(hit).getpixel((0, 0)) == (255, 0, 0, 255)
+
+
 TESTS = [
     test_art_decodes_lazily_and_caches,
     test_art_by_id_and_missing_is_none,
     test_decode_blp_tga_png_to_png,
     test_prewarm_decodes_only_the_common_prefixes,
+    test_lookup_extract_uses_lazy_art,
 ]
