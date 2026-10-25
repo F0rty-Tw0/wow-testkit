@@ -1,7 +1,9 @@
-"""Tests for the DBD parser and the WDC5 reader."""
+"""Tests for the DBD parser, the WDC5 reader and the atlas tables built from them."""
 
-from tools.client import db2, dbd
-from tools.client.fakes import make_wdc5
+from PIL import Image
+
+from tools.client import atlas, db2, dbd
+from tools.client.fakes import FakeSource, make_blp, make_wdc5
 
 FIELDS = dbd.parse(
     "COLUMNS\nint ID\nint A\nint B\nstring Name_lang\n\nLAYOUT DEADBEEF\nBUILD 12.0.0.0-12.9.9.99999\n"
@@ -51,10 +53,47 @@ def test_dbd_block_picked_by_layout_hash(tmp):
     assert [f.name for f in dbd.pick(blocks, 0x99999999, "12.0.5.1")] == ["ID", "B"]
 
 
+def test_atlas_names_join_member_to_sheet_coords(tmp):
+    sheets = {5: {"ID": 5, "FileDataID": 900, "AtlasWidth": 256, "AtlasHeight": 128}}
+    members = {1: {"ID": 1, "UiTextureAtlasID": 5, "UiTextureAtlasElementID": 40, "CommittedName": "lower",
+                   "CommittedLeft": 0, "CommittedRight": 64, "CommittedTop": 0, "CommittedBottom": 32,
+                   "OverrideWidth": 0, "OverrideHeight": 0}}  # fmt: skip
+    elements = {40: {"ID": 40, "Name": "Tooltip-Frame"}}
+    assert atlas.build(sheets, members, elements) == {
+        "tooltip-frame": {"name": "Tooltip-Frame", "file": 900, "width": 64, "height": 32,
+                          "left": 0, "right": 0.25, "top": 0, "bottom": 0.25}  # fmt: skip
+    }
+    elements.clear()  # no Element row: the member's own name is used
+    assert list(atlas.build(sheets, members, elements)) == ["lower"]
+
+
+def test_atlas_crop_writes_the_member_rect_png(tmp):
+    ex = tmp / "ex"
+    ex.mkdir()
+    sheet = Image.new("RGBA", (256, 128), (0, 0, 255, 255))
+    sheet.paste((255, 0, 0, 255), (0, 0, 64, 32))
+    import io
+
+    out = io.BytesIO()
+    sheet.save(out, format="PNG")
+    src = FakeSource({"interface/sheet.png": out.getvalue()}, ids={"interface/sheet.png": 900})
+    (ex / "atlas.lua").write_text(
+        'return { ["tooltip-frame"] = { name = "Tooltip-Frame", file = 900, width = 64, height = 32,'
+        " left = 0, right = 0.25, top = 0, bottom = 0.25 } }\n"
+    )
+    path = atlas.crop(ex, "Tooltip-Frame", source=src)
+    assert path == ex / "art/atlas/tooltip-frame.png"
+    image = Image.open(path).convert("RGBA")
+    assert image.size == (64, 32) and image.getpixel((0, 0)) == (255, 0, 0, 255)
+    assert atlas.crop(ex, "no-such-atlas", source=src) is None
+
+
 TESTS = [
     test_wdc5_inline_and_bitpacked_fields,
     test_pallet_and_common_fields,
     test_string_table_strings,
     test_id_list_and_copy_table,
     test_dbd_block_picked_by_layout_hash,
+    test_atlas_names_join_member_to_sheet_coords,
+    test_atlas_crop_writes_the_member_rect_png,
 ]
