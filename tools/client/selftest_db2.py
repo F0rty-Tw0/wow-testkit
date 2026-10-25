@@ -2,7 +2,7 @@
 
 from PIL import Image
 
-from tools.client import atlas, db2, dbd
+from tools.client import art, atlas, db2, dbd
 from tools.client.fakes import FakeSource, make_blp, make_wdc5
 
 FIELDS = dbd.parse(
@@ -88,6 +88,22 @@ def test_atlas_crop_writes_the_member_rect_png(tmp):
     assert atlas.crop(ex, "no-such-atlas", source=src) is None
 
 
+def test_atlas_crop_scales_each_side_by_its_own_axis(tmp):
+    ex = tmp / "ex"
+    ex.mkdir()
+    sheet = Image.new("RGBA", (256, 128), (0, 0, 255, 255))  # wide sheet, so a side scaled by the other axis is off
+    sheet.paste((255, 0, 0, 255), (64, 32, 128, 96))
+    sheet.paste((0, 255, 0, 255), (64, 32, 65, 33))  # marks the rect's top-left pixel
+    src = FakeSource({"interface/sheet.png": art.to_png_bytes(sheet)}, ids={"interface/sheet.png": 900})
+    (ex / "atlas.lua").write_text(
+        'return { ["offset"] = { name = "Offset", file = 900, width = 64, height = 64,'
+        " left = 0.25, right = 0.5, top = 0.25, bottom = 0.75 } }\n"
+    )
+    image = Image.open(atlas.crop(ex, "Offset", source=src)).convert("RGBA")
+    assert image.size == (64, 64), image.size
+    assert image.getpixel((0, 0)) == (0, 255, 0, 255) and image.getpixel((63, 63)) == (255, 0, 0, 255)
+
+
 TESTS = [
     test_wdc5_inline_and_bitpacked_fields,
     test_pallet_and_common_fields,
@@ -96,4 +112,5 @@ TESTS = [
     test_dbd_block_picked_by_layout_hash,
     test_atlas_names_join_member_to_sheet_coords,
     test_atlas_crop_writes_the_member_rect_png,
+    test_atlas_crop_scales_each_side_by_its_own_axis,
 ]
