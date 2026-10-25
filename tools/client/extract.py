@@ -91,6 +91,14 @@ def casc_source(row, install, home, open_store, listfile_path, fetch):
     return CascSource(store, names, row.locales), store.close, info
 
 
+def check_source(previous, wanted, out):
+    """Refuses to mix sources in one extract: art decoded lazily later opens only the source the manifest names."""
+    had = previous.get("source", "casc") if previous else wanted  # manifests older than --from-export are casc
+    if had != wanted:
+        flag = "with" if had == fallback.SOURCE_NAME else "without"
+        raise ExtractError(f"{out} was extracted from {had}, not {wanted}; rerun {flag} --from-export or delete it")
+
+
 def export_source(flavor, row, install, what):
     try:
         return fallback.open_source(install, flavor, what, row.locales), (lambda: None), None
@@ -115,6 +123,10 @@ def run(
     writers = WRITERS if writers is None else writers
     check_kinds(what, writers)
     row = build_row(flavor, install)
+    out = paths.extract_dir(home, flavor, row.build)
+    previous = manifest.read(out)
+    source_name = fallback.SOURCE_NAME if from_export else "casc"
+    check_source(previous, source_name, out)
     ctx = Ctx(flavor, row.product, row.build, row.version, row.locales, home=Path(home))
     if from_export:
         skipped = [kind for kind in what if kind not in fallback.KINDS]
@@ -124,9 +136,8 @@ def run(
     else:
         source, close, info = casc_source(row, install, home, open_store, listfile_path, fetch)
     try:
-        out = paths.extract_dir(home, flavor, row.build)
         out.mkdir(parents=True, exist_ok=True)
-        counts = dict(manifest.read(out).get("extracted", {}))
+        counts = dict(previous.get("extracted", {}))
         for kind in what:
             counts[kind] = writers[kind](source, out, ctx)
     finally:
@@ -139,8 +150,9 @@ def run(
         "locales": row.locales,
         "install": Path(install).as_posix(),
         "flavor": flavor,
-        "source": fallback.SOURCE_NAME if from_export else "casc",
+        "source": source_name,
     }
+    info = previous.get("listfile") if info is None else info  # a rerun without a listfile keeps the earlier one
     if info is not None:
         data["listfile"] = info
     if ctx.notes:

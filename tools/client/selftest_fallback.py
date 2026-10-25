@@ -6,10 +6,10 @@ import re
 import subprocess
 from pathlib import Path
 
-from tools.client import art, extract, fakes
+from tools.client import art, extract, fakes, manifest
 from tools.client.__main__ import main
 from tools.client.fakes import make_blp
-from tools.client.selftest_extract import BUILD_INFO, env
+from tools.client.selftest_extract import BUILD_INFO, empty_store, env
 
 REPO = Path(__file__).resolve().parents[2]
 BLIZZARD_BYTES = re.compile(r"\.(blp|ttf|otf|db2)$", re.IGNORECASE)
@@ -84,6 +84,27 @@ def test_build_config_without_encoding_prints_the_fallback_hint(tmp):
     assert lines[1].startswith("fallback: "), lines
 
 
+def test_rerun_from_the_other_source_is_refused_naming_it(tmp):
+    inst, lf = exported(tmp), fakes.write_listfile(tmp, {})
+    casc_run = dict(install=inst, open_store=empty_store, listfile_path=lf)
+    for first, second, had in (({"from_export": True}, casc_run, "exportInterfaceFiles"), (casc_run, {"from_export": True}, "casc")):
+        home = tmp / had
+        extract.run("retail", ["code"], home=home, **{"install": inst, **first})
+        try:
+            extract.run("retail", ["code"], home=home, **{"install": inst, **second})
+        except extract.ExtractError as err:
+            assert f"extracted from {had}" in str(err) and str(home / "client/retail/70575") in str(err), err
+        else:
+            raise AssertionError(f"expected ExtractError after a {had} extract")
+
+
+def test_rerun_without_a_listfile_keeps_the_earlier_listfile_info(tmp):
+    lf = {"source": "local", "sha256": "abc"}
+    manifest.write(tmp / "home/client/retail/70575", {"source": "exportInterfaceFiles", "listfile": lf})
+    m = extract.run("retail", ["code"], install=exported(tmp), home=tmp / "home", from_export=True)
+    assert m["listfile"] == lf, m
+
+
 def test_repo_tracks_no_blp_ttf_otf_db2(tmp):
     tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True).stdout
     assert [name for name in tracked.splitlines() if BLIZZARD_BYTES.search(name)] == []
@@ -96,5 +117,7 @@ TESTS = [
     test_export_without_globalstrings_lua_says_so_not_a_listfile_gap,
     test_failed_casc_open_prints_the_fallback_hint,
     test_build_config_without_encoding_prints_the_fallback_hint,
+    test_rerun_from_the_other_source_is_refused_naming_it,
+    test_rerun_without_a_listfile_keeps_the_earlier_listfile_info,
     test_repo_tracks_no_blp_ttf_otf_db2,
 ]
