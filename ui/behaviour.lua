@@ -1,6 +1,6 @@
 -- Hand-written widget semantics: visibility, hierarchy, identity, mouse and movement.
 -- Each method is fn(w, obj, st, ...) where st is obj's state in w.ui.state. M.methods also carries the anchor and
--- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), alpha/scale/level/strata (ui/behaviour_render.lua),
+-- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), SetAtlas (ui/behaviour_atlas.lua), alpha/scale/level/strata (ui/behaviour_render.lua),
 -- region creation (ui/behaviour_regions.lua), script/event (ui/behaviour_scripts.lua), animation
 -- (ui/behaviour_animation.lua), attribute (ui/behaviour_attributes.lua) and GetDebugName
 -- (ui/behaviour_debug_name.lua) methods.
@@ -9,6 +9,7 @@ local M = {}
 local Callsite = require("ui.callsite")
 local BehaviourLayout = require("ui.behaviour_layout")
 local BehaviourText = require("ui.behaviour_text")
+local BehaviourAtlas = require("ui.behaviour_atlas")
 local BehaviourRender = require("ui.behaviour_render")
 local BehaviourRegions = require("ui.behaviour_regions")
 local BehaviourScripts = require("ui.behaviour_scripts")
@@ -188,6 +189,7 @@ function methods.StopMovingOrSizing() end
 local MODULES = {
   BehaviourLayout,
   BehaviourText,
+  BehaviourAtlas,
   BehaviourRender,
   BehaviourRegions,
   BehaviourScripts,

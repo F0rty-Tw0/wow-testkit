@@ -1,8 +1,10 @@
 -- Preview.run: loads an addon, runs a scenario, writes the render snapshot (even when the addon errors), then runs
 -- the resolve and PNG steps through Preview.exec, which these tests replace with a recorder.
 local A = require("assert")
+local H = require("tests.helpers.client")
 local Home = require("home")
 local Preview = require("preview")
+local Proc = require("proc")
 local ScenarioPreview = require("scenario_preview")
 local Toc = require("toc")
 local Tmp = require("tests.helpers.tmp")
@@ -10,50 +12,12 @@ local fs = require("fs")
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local FIXTURES = TEST_DIR .. "/fixtures/addons"
-local PYTHON = os.getenv("TK_PYTHON") or "python"
+local PYTHON = Proc.python()
 local NO_EXTRACT_NOTE = "note: no client extract; art falls back to stand-ins"
 local ERROR_LINES_SHOWN = 10
 
--- A temp addon whose Main.lua is body; its TOC (so its name) is tocName, default TempAddon.
-local function tempAddon(body, tocName)
-  local root = Tmp.dir("preview") .. "/TempAddon"
-  fs.mkdirp(root)
-  fs.writeFile(root .. "/" .. (tocName or "TempAddon") .. ".toc", "## Interface: 120100\nMain.lua\n")
-  fs.writeFile(root .. "/Main.lua", body)
-  return root
-end
-
-local FRAME_ADDON = 'local f = CreateFrame("Frame", "TFrame", UIParent)\nf:SetSize(100, 50)\nf:SetPoint("CENTER")\n'
-
--- Runs fn(calls) with Preview.exec replaced by a recorder; step(argv, log) -> code decides each call's result
--- (default 0). Restored afterwards, whatever fn does.
-local function withExec(step, fn)
-  local calls, saved = {}, Preview.exec
-  Preview.exec = function(argv, log)
-    calls[#calls + 1] = argv
-    return step and step(argv, log) or 0
-  end
-  local ok, err = pcall(fn, calls)
-  Preview.exec = saved
-  if not ok then
-    error(err, 0)
-  end
-end
-
--- Preview.run(opts); returns the exit code and the collected output.
-local function run(opts)
-  local out = {}
-  local code = Preview.run(opts, function(text)
-    out[#out + 1] = text
-  end)
-  return code, table.concat(out)
-end
-
-local function scenarioFile(body)
-  local path = Tmp.dir("previewscn") .. "/scn.lua"
-  fs.writeFile(path, "return { run = function(s)\n" .. body .. "\nend }\n")
-  return path
-end
+local P = require("tests.helpers.preview")
+local FRAME_ADDON, tempAddon, withExec, run, scenarioFile = P.FRAME_ADDON, P.tempAddon, P.withExec, P.run, P.scenarioFile
 
 local function test_clean_addon_writes_snapshot_and_runs_resolve()
   withExec(nil, function(calls)
@@ -114,6 +78,52 @@ local function test_size_flag_sets_the_screen()
     run({ addonDir = tempAddon(FRAME_ADDON), out = out, size = { width = 1280, height = 720 } })
     A.contains(assert(fs.readFile(out .. "/snapshot.json")), '"width": 1280')
   end)
+end
+
+local function test_client_extract_is_passed_to_every_resolve_and_noted()
+  local ex = H.extract(Tmp.dir("previewclient"), "retail", "70575", {})
+  withExec(nil, function(calls)
+    local out = Tmp.dir("previewout")
+    local path = scenarioFile('s:login(); s:preview("start")')
+    local code, text = run({ addonDir = tempAddon(FRAME_ADDON), out = out, scenario = path, png = out .. "/shot.png" })
+    A.eq(code, 0)
+    A.eq(#calls, 3)
+    for _, resolve in ipairs({ calls[1], calls[2] }) do
+      A.same({ resolve[3], resolve[#resolve - 1], resolve[#resolve] }, { "resolve", "--extract", ex.dir })
+    end
+    A.eq(calls[3][3], "png")
+    A.eq(table.concat(calls[3], " "):find("--extract", 1, true), nil)
+    A.contains(text, "note: client extract build 70575")
+  end, ex)
+end
+
+local function test_no_client_extract_leaves_the_resolve_argv_and_output_alone()
+  withExec(nil, function(calls)
+    local out = Tmp.dir("previewout")
+    local _, text = run({ addonDir = tempAddon(FRAME_ADDON), out = out })
+    A.same(calls[1], { PYTHON, calls[1][2], "resolve", out .. "/snapshot.json", out })
+    A.eq(text:find("client extract build", 1, true), nil)
+  end)
+end
+
+local function test_client_extract_is_looked_up_for_the_run_flavor()
+  local flavors = {}
+  withExec(nil, function()
+    Preview.findClient = function(flavor)
+      flavors[#flavors + 1] = flavor
+    end
+    run({ addonDir = tempAddon(FRAME_ADDON), out = Tmp.dir("previewout"), flavor = "vanilla" })
+  end)
+  A.same(flavors, { "vanilla" })
+end
+
+local function test_world_receives_the_client_extract()
+  local ex = H.extract(Tmp.dir("previewworld"), "retail", "70575", {})
+  withExec(nil, function()
+    local path = scenarioFile('s:login(); s.w:recordError("client build " .. tostring(s.w.client and s.w.client.build))')
+    local _, text = run({ addonDir = tempAddon(FRAME_ADDON), out = Tmp.dir("previewout"), scenario = path })
+    A.contains(text, "error: client build 70575")
+  end, ex)
 end
 
 local function test_png_flag_runs_the_png_step()
@@ -423,6 +433,10 @@ return function()
   test_scenario_error_still_writes_snapshot_and_exits_1()
   test_error_lines_stop_at_ten()
   test_size_flag_sets_the_screen()
+  test_client_extract_is_passed_to_every_resolve_and_noted()
+  test_no_client_extract_leaves_the_resolve_argv_and_output_alone()
+  test_client_extract_is_looked_up_for_the_run_flavor()
+  test_world_receives_the_client_extract()
   test_png_flag_runs_the_png_step()
   test_failed_step_exits_1_with_its_log()
   test_resolve_log_is_echoed()

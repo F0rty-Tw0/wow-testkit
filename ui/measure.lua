@@ -36,19 +36,25 @@ local function textureWidth(params, size)
   return height > 0 and width or width * size
 end
 
+-- Estimated width of a run of visible text: each character at AVERAGE_ADVANCE * size.
+local function estimateRun(text, size)
+  return charCount(text) * M.AVERAGE_ADVANCE * size
+end
+
 -- source: wiki UI_escape_sequences: `|cAARRGGBB` ... `|r` color, `|cncolorname:text|r` named color (the start ends at the
 -- colon, `|r` closes it), `||` "Escapes the "|" character", `|T...|t` texture, `|A:atlas:height:width[:offsetX...]|a`
 -- atlas markup (the page gives no sizing rule for it, so its height and width fields are read like |T's: assumed);
 -- wiki Hyperlinks: `|cffxxxxxx|Htype:payload|h[text]|h|r`, where only `[text]` is shown, so `|H...|h` and the closing `|h`
--- take no room. Width of the visible part of line: characters at AVERAGE_ADVANCE * size, textures at their own width.
--- An unknown `|x` counts as the pipe and the letter.
-local function visibleWidth(line, size)
-  local chars, textures, pos = 0, 0, 1
+-- take no room. Width of the visible part of line: textures at their own width, the text between them (colour and
+-- link escapes removed, "||" folded to one pipe) through runWidth(text, size). An unknown `|x` counts as the pipe and
+-- the letter.
+local function visibleWidth(line, size, runWidth)
+  local run, width, pos = {}, 0, 1
   while true do
     local bar = line:find("|", pos, true)
-    chars = chars + charCount(line:sub(pos, (bar or #line + 1) - 1))
+    run[#run + 1] = line:sub(pos, (bar or #line + 1) - 1)
     if not bar then
-      return chars * M.AVERAGE_ADVANCE * size + textures
+      return width + runWidth(table.concat(run), size)
     end
     local nextPos = line:match("^|c%x%x%x%x%x%x%x%x()", bar) or line:match("^|cn[%w_]+:()", bar)
     nextPos = nextPos or line:match("^|[rh]()", bar) or line:match("^|H[^|]*|h()", bar)
@@ -57,21 +63,25 @@ local function visibleWidth(line, size)
       params, textureEnd = line:match("^|A:([^|]*)|a()", bar)
     end
     if params then
-      textures, nextPos = textures + textureWidth(params, size), textureEnd
+      width = width + runWidth(table.concat(run), size) + textureWidth(params, size)
+      run, nextPos = {}, textureEnd
     elseif not nextPos then
-      chars = chars + 1 -- "||" is one pipe; any other "|" stands for itself
+      run[#run + 1] = "|" -- "||" is one pipe; any other "|" stands for itself
       nextPos = line:sub(bar + 1, bar + 1) == "|" and bar + 2 or bar + 1
     end
     pos = nextPos
   end
 end
 
+-- Width of one line with the text between its textures measured by runWidth(text, size): the glyph tables' hook.
+M.scanLine = visibleWidth
+
 local function lineWidth(w, fontFile, size, flags, line)
   local glyphs = w.measure and fontFile and w.measure.glyphs[fontFile]
   if glyphs then
     return glyphs.width(size, flags, line)
   end
-  return visibleWidth(line, size)
+  return visibleWidth(line, size, estimateRun)
 end
 
 -- "\n" and "|n" both end a paragraph; empty text is one empty paragraph.

@@ -11,6 +11,12 @@ local function test_encodes_scalars_arrays_and_sorted_objects()
   A.eq(Json.encode(nil), "null")
 end
 
+-- Layout maths writes fractions such as 1/3 of a pixel: 14 significant digits survive, not %g's default six.
+local function test_numbers_keep_fourteen_significant_digits()
+  A.eq(Json.encode(1 / 3), "0.33333333333333")
+  A.eq(Json.encode(1234.5678901234), "1234.5678901234")
+end
+
 local function test_escapes_strings()
   A.eq(Json.encode('a"b\\c\n\1'), '"a\\"b\\\\c\\n\\u0001"')
 end
@@ -38,6 +44,7 @@ end
 
 return function()
   test_encodes_scalars_arrays_and_sorted_objects()
+  test_numbers_keep_fourteen_significant_digits()
   test_escapes_strings()
   test_indent_option()
   test_null_encodes_as_json_null_inside_lists_and_objects()

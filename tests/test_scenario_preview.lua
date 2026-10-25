@@ -53,6 +53,37 @@ local function test_preview_rejects_a_name_with_other_characters()
   end)
 end
 
+-- %w matches the bytes of a locale's letters (here \233, e-acute in Latin-1/1252), so the name check must use ASCII
+-- classes; a byte of a UTF-8 letter is rejected whatever the locale. Locales the machine lacks are skipped, and then
+-- this only pins that the byte is rejected.
+local LOCALES = { "", "French_France.1252", "fr_FR.ISO-8859-1", "en_US.ISO-8859-1" }
+
+local function inLatinLocale(fn)
+  local saved = os.setlocale()
+  for _, name in ipairs(LOCALES) do
+    if os.setlocale(name) and ("\233"):match("%w") then
+      break
+    end
+  end
+  local ok, err = pcall(fn)
+  os.setlocale(saved)
+  if not ok then
+    error(err, 0)
+  end
+end
+
+local function test_preview_rejects_a_byte_that_a_locale_calls_a_letter()
+  withScenario(Tmp.dir("scnpreview"), function(s)
+    inLatinLocale(function()
+      for _, name in ipairs({ "caf\233", "caf\195\169", "\178" }) do
+        A.errors(function()
+          s:preview(name)
+        end, "s:preview: name must be letters, digits, '_' or '-'")
+      end
+    end)
+  end)
+end
+
 local function test_preview_without_an_output_directory_raises()
   withScenario(nil, function(s)
     A.errors(function()
@@ -65,5 +96,6 @@ return function()
   test_preview_writes_numbered_dirs_with_the_addons_map()
   test_preview_records_the_dirs_in_order()
   test_preview_rejects_a_name_with_other_characters()
+  test_preview_rejects_a_byte_that_a_locale_calls_a_letter()
   test_preview_without_an_output_directory_raises()
 end
