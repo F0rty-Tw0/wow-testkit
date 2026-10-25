@@ -12,6 +12,7 @@ local MIN_WIDTH, MIN_HEIGHT = 320, 240
 local MAX_WIDTH, MAX_HEIGHT = 7680, 4320
 local FLAVOR_ERROR = 'reload: flavor must be "auto" or one of ' .. table.concat(Flavors.list, ", ")
 local SIZE_ERROR = "reload: size must be 1080p, 1440p, 4k or { width, height } in whole pixels within 320x240 to 7680x4320"
+local SCREEN_ERROR = "reload: screen must be { width, height, ... } in whole pixels within 320x240 to 7680x4320"
 
 M.PRESETS = { ["1080p"] = { 1920, 1080 }, ["1440p"] = { 2560, 1440 }, ["4k"] = { 3840, 2160 } }
 
@@ -67,14 +68,18 @@ local function inRange(value, low, high)
   return type(value) == "number" and value % 1 == 0 and value >= low and value <= high
 end
 
+-- True when t is a table whose width and height are whole pixels within 320x240 to 7680x4320.
+local function fits(t)
+  return type(t) == "table" and inRange(t.width, MIN_WIDTH, MAX_WIDTH) and inRange(t.height, MIN_HEIGHT, MAX_HEIGHT)
+end
+
 -- width, height of a size: a preset name or { width, height } in range.
 local function sizeOf(size)
   local preset = type(size) == "string" and M.PRESETS[size]
   if preset then
     return preset[1], preset[2]
   end
-  local fits = type(size) == "table" and inRange(size.width, MIN_WIDTH, MAX_WIDTH) and inRange(size.height, MIN_HEIGHT, MAX_HEIGHT)
-  if not fits then
+  if not fits(size) then
     error(SIZE_ERROR, 0)
   end
   return size.width, size.height
@@ -110,6 +115,9 @@ function M.reopen(opts, over)
     out.flavor = over.flavor
   end
   if over.screen ~= nil then
+    if not fits(over.screen) then
+      error(SCREEN_ERROR, 0)
+    end
     out.screen = over.screen
   end
   if over.size ~= nil then

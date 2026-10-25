@@ -10,8 +10,14 @@ local Serialize = require("serialize")
 -- Localized: addon code may assign globals with these names.
 local loadstring, setfenv, tonumber, tostring, type = loadstring, setfenv, tonumber, tostring, type
 
--- The chunk for code in a fresh addon environment; nil after pushing its compile error as an error line.
+-- The chunk for code in a fresh addon environment; nil after pushing its compile error (or the refusal of a
+-- precompiled chunk) as an error line.
 local function compile(w, code, name)
+  local refusal = AddonEnv.binaryRefusal(code)
+  if refusal then
+    Console.push(w, "error", refusal)
+    return nil
+  end
   local chunk, err = loadstring(code, name)
   if not chunk then
     Console.push(w, "error", err)

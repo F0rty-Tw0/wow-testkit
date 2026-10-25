@@ -13,12 +13,16 @@ export TESTKIT_HOME="$HOME_DIR"
 python tools/session.py tests/fixtures/addons/SessionDemo --port "$PORT" --no-watch > "$OUT/live-server.log" 2>&1 &
 SERVER=$!
 trap 'kill $SERVER 2>/dev/null || true; wait $SERVER 2>/dev/null || true; rm -rf "$HOME_DIR"' EXIT
+# The server prints `session: http://127.0.0.1:<port>/?token=<token>` once it serves; the data routes need that token.
+TOKEN=""
 for _ in $(seq 50); do
-  curl -sf "http://127.0.0.1:$PORT/snapshot" > /dev/null && break
+  TOKEN="$(sed -n 's/^session: .*[?]token=//p' "$OUT/live-server.log" | tr -d '\r')"
+  [ -n "$TOKEN" ] && curl -sf -H "X-Session-Token: $TOKEN" "http://127.0.0.1:$PORT/snapshot" > /dev/null && break
   sleep 0.2
 done
-curl -sf "http://127.0.0.1:$PORT/snapshot" > /dev/null || { echo "FAIL server: no session on port $PORT"; cat "$OUT/live-server.log"; exit 1; }
-URL="http://127.0.0.1:$PORT/viewer/index.html?live=1&stream=0"
+curl -sf -H "X-Session-Token: $TOKEN" "http://127.0.0.1:$PORT/snapshot" > /dev/null || { echo "FAIL server: no session on port $PORT"; cat "$OUT/live-server.log"; exit 1; }
+# token= on the page's own URL sets the session cookie, so the page's requests carry it.
+URL="http://127.0.0.1:$PORT/viewer/index.html?live=1&stream=0&token=$TOKEN"
 SELECT_URL="$URL&select=SessionDemoFrame&zoom=fit"
 # A private profile keeps headless Chrome away from the user's running browser.
 PROFILE="$OUT/chrome-live-profile"

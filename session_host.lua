@@ -86,17 +86,27 @@ function Host:collectConsole()
 end
 
 -- The one place a session is swapped; req is checked by Session.reload (SessionOptions.reopen). Replies { ok = true,
--- loads, flavor, screen = { width, height } }, or { ok = false, error } with the session kept. The new session carries
--- the console ring, so consoleSeq stays and only lines newer than it are queued.
+-- loads, flavor, screen = { width, height } }, or { ok = false, error } with a console line saying why. A refused req
+-- keeps the session; a new world that cannot be built leaves the session reopened on its old options; when that
+-- fails too the session is lost and every later call answers that error. The new session carries the console ring, so
+-- consoleSeq stays and only lines newer than it are queued.
 function Host:reload(req)
-  local ok, fresh = pcall(Session.reload, self.sess, req)
-  if not ok then
-    return { ok = false, error = tostring(fresh) }
+  local ok, fresh, failure = pcall(Session.reload, self.sess, req)
+  if not (ok and fresh) then
+    local reason = ok and failure or tostring(fresh)
+    self.lost = ok and reason or nil
+    Console.push(self.sess.w, "system", "Reload failed: " .. reason)
+    return { ok = false, error = reason }
   end
   self:collectConsole()
   self.sess, self.located = fresh, {}
   self:push("reload", { loads = fresh.loads })
   self:push("snapshot", { seq = fresh.seq })
+  if failure then
+    local reason = failure .. " (reopened with the previous options)"
+    Console.push(fresh.w, "system", "Reload failed: " .. reason)
+    return { ok = false, error = reason }
+  end
   local screen = { width = fresh.w.screen.width, height = fresh.w.screen.height }
   return { ok = true, loads = fresh.loads, flavor = fresh.w.flavor, screen = screen }
 end
@@ -114,6 +124,9 @@ local function relay(self, method, req)
 end
 
 local function dispatch(self, method, reqJson)
+  if self.lost then
+    return Json.encode({ ok = false, error = self.lost })
+  end
   local req, err = decode(reqJson)
   if not req then
     return Json.encode({ ok = false, error = err })
@@ -126,15 +139,13 @@ local function dispatch(self, method, reqJson)
   local pending = self.sess.pendingReload
   if pending then
     self.sess.pendingReload = nil
-    local reply = self:reload(pending)
-    if not reply.ok then
-      Console.push(self.sess.w, "system", "Reload failed: " .. reply.error)
-    end
+    self:reload(pending)
   end
   return text
 end
 
--- The JSON reply to a request; never raises. A /reload the call left pending runs right after it (dispatch).
+-- The JSON reply to a request; never raises. A /reload the call left pending runs right after it (dispatch). A lost
+-- session (Host:reload) answers every request with its error.
 function Host:handleJson(method, reqJson)
   local ok, text = pcall(dispatch, self, method, reqJson)
   self:collectConsole()

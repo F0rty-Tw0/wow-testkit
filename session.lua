@@ -153,16 +153,27 @@ end
 
 -- A new session over the same options (plus over's flavor and size or screen, SessionOptions.reopen) and the same mock
 -- state, counting one more load. The old one logs out first and, unless over.keepSaved, writes its saved variables;
--- keepSaved loads what saved.lua already holds. An option the world would refuse raises before sess is shut down, so
--- the old session stays whole. seq keeps counting, so a viewer never sees it go back.
+-- keepSaved loads what saved.lua already holds. A refused option raises before sess is shut down, so it stays whole;
+-- after that nothing raises: a new world that cannot be built reopens sess's own options, returned with why the reload
+-- failed, or nil and "session lost: <why>" when that fails too. seq keeps counting, so a viewer never sees it go back.
 function M.reload(sess, over)
   over = over or {}
   local opts = SessionOptions.reopen(sess.opts, over)
   opts.state = sess.state
   sess:close(over.keepSaved)
-  local fresh = open(opts, sess)
+  local ok, fresh = pcall(open, opts, sess)
+  local failure
+  if not ok then
+    failure = tostring(fresh)
+    local previous = SessionOptions.reopen(sess.opts, {})
+    previous.state = sess.state
+    ok, fresh = pcall(open, previous, sess)
+    if not ok then
+      return nil, "session lost: " .. tostring(fresh)
+    end
+  end
   fresh.loads, fresh.seq = sess.loads + 1, sess.seq + 1
-  return fresh
+  return fresh, failure
 end
 
 -- Logs out the way the client does (PLAYER_LOGOUT), writes the saved variables unless keepSaved, and destroys the

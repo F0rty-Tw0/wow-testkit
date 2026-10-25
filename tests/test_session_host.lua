@@ -112,10 +112,13 @@ end
 local function test_a_bad_reload_flavor_replies_an_error_and_keeps_the_session()
   H.withHost(nil, function(host)
     local before = host.sess
+    host:drain()
     local reply = Json.decode(host:handleJson("reload", '{"flavor":"nope"}'))
     A.eq(reply.ok, false)
     A.contains(reply.error, "flavor")
     A.eq(host.sess, before)
+    local events = drained(host)
+    A.same({ #events, events[1].event, events[1].data.text }, { 1, "console", "Reload failed: " .. reply.error })
     A.eq(Json.decode(host:handleJson("slash", '{"text":"/sdemo alive"}')).handled, true)
   end)
 end
@@ -175,7 +178,56 @@ local function test_a_failed_slash_reload_keeps_the_session_and_says_why()
   Session.reload = real
 end
 
+-- Runs fn with Scenario.new raising "no world" for its next `failures` calls; Scenario.new is always restored.
+local function withFailingWorlds(failures, fn)
+  local Scenario = require("scenario")
+  local real = Scenario.new
+  Scenario.new = function(...)
+    failures = failures - 1
+    if failures >= 0 then
+      error("no world", 0)
+    end
+    return real(...)
+  end
+  local ok, err = pcall(fn)
+  Scenario.new = real
+  if not ok then
+    error(err, 0)
+  end
+end
+
+local function test_a_reload_whose_world_fails_reopens_the_previous_options()
+  H.withHost(nil, function(host)
+    local before = host.sess
+    local reply
+    withFailingWorlds(1, function()
+      reply = Json.decode(host:handleJson("reload", '{"flavor":"vanilla"}'))
+    end)
+    A.same(reply, { ok = false, error = "no world (reopened with the previous options)" })
+    A.truthy(host.sess ~= before and not host.sess.closed)
+    A.same({ host.sess.w.flavor, host.sess.loads }, { "retail", 2 })
+    A.eq(Json.decode(host:handleJson("slash", '{"text":"/sdemo alive"}')).handled, true)
+  end)
+end
+
+local function test_a_reload_that_cannot_rebuild_any_world_loses_the_session()
+  H.withHost(nil, function(host)
+    host:drain()
+    local reply
+    withFailingWorlds(2, function()
+      reply = Json.decode(host:handleJson("reload", "{}"))
+    end)
+    A.same(reply, { ok = false, error = "session lost: no world" })
+    A.same(Json.decode(host:handleJson("snapshot", "{}")), { ok = false, error = "session lost: no world" })
+    A.eq(Json.decode(host:handleJson("slash", '{"text":"/sdemo hi"}')).error, "session lost: no world")
+    local events = drained(host)
+    A.same({ events[#events].event, events[#events].data.text }, { "console", "Reload failed: session lost: no world" })
+  end)
+end
+
 return function()
+  test_a_reload_whose_world_fails_reopens_the_previous_options()
+  test_a_reload_that_cannot_rebuild_any_world_loses_the_session()
   test_console_lines_reach_the_outbox()
   test_slash_reload_is_honoured_by_the_host()
   test_a_failed_slash_reload_keeps_the_session_and_says_why()

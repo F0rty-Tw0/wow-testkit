@@ -5,9 +5,10 @@
                             [--extract DIR] [--bindings FILE] [--no-watch]
     python tools/session.py --selftest
 
-Prints `session: http://127.0.0.1:<port>/` and serves until Ctrl-C (exit 0). Exit 2 on a usage error or a --bind
-that is not 127.0.0.1: the session answers only the local machine. A save of a .lua, .xml or .toc file under the addon
-folder reloads the addon (--no-watch turns that off); SavedVariables are written at a reload and at shutdown.
+Prints `session: http://127.0.0.1:<port>/?token=<token>` (the token every request but the viewer's files needs) and
+serves until Ctrl-C (exit 0). Exit 2 on a usage error or a --bind that is not 127.0.0.1: the session answers only the
+local machine. A save of a .lua, .xml or .toc file under the addon folder reloads the addon (--no-watch turns that
+off; a failed reload prints on stderr); SavedVariables are written at a reload and at shutdown.
 """
 
 import argparse
@@ -25,12 +26,12 @@ VIEWER_DIR = Path(__file__).resolve().parent.parent / "viewer"
 
 
 class Running:
-    """A started session: .port, .url and .stop() (safe to call twice)."""
+    """A started session: .port, .token, .url (which carries the token) and .stop() (safe to call twice)."""
 
     def __init__(self, server, host, bus, thread, watcher=None):
         self.server, self.host, self.bus, self.thread, self.watcher = server, host, bus, thread, watcher
-        self.port = server.server_address[1]
-        self.url = f"http://{LOOPBACK}:{self.port}/"
+        self.port, self.token = server.server_address[1], server.token
+        self.url = f"http://{LOOPBACK}:{self.port}/?token={self.token}"
         self.stopped = False
 
     def stop(self):
@@ -49,15 +50,16 @@ class Running:
 def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, extract=None, bindings=None):
     """Loads the addon, starts serving on 127.0.0.1:port (0 picks a free port) and returns the Running session.
 
-    With watch, a save under addon_dir reloads the addon through the host.
+    With watch, a save under addon_dir reloads the addon through the host; a reload that fails is reported on stderr.
     """
     import threading
 
+    import session_bus
     import session_host
     import session_http
     import session_watch
 
-    bus = session_http.Bus()
+    bus = session_bus.Bus()
     host = session_host.LuaHost(bus, os.path.abspath(addon_dir), flavor, size, extract, bindings)
     try:
         server = session_http.Server(port, host, bus, VIEWER_DIR, host.assets_dir)
@@ -66,10 +68,15 @@ def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, ex
         raise
     thread = threading.Thread(target=server.serve_forever, name="session-http", daemon=True)
     thread.start()
-    watcher = session_watch.Watcher(os.path.abspath(addon_dir), lambda: host.call("reload", {})) if watch else None
+    watcher = session_watch.Watcher(os.path.abspath(addon_dir), lambda: _report_reload(host.call("reload", {}))) if watch else None
     if watcher:
         watcher.start()
     return Running(server, host, bus, thread, watcher)
+
+
+def _report_reload(reply):
+    if not reply.get("ok"):
+        print(f"reload failed: {reply.get('error')}", file=sys.stderr, flush=True)
 
 
 def _size(text):

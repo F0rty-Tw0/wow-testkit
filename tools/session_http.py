@@ -9,25 +9,31 @@
     POST /call/<method>      any method, through SessionHost:handleJson; the reply is always status 200
     POST /input /fire /slash /state /reload   the same calls for curl and the selftests (400 when the request is malformed)
                              (/reload takes { flavor?, size?, keepSaved? }; session_options.lua checks it, 400 if bad)
-    GET  /stream             server-sent events: snapshot, console, reload (a keepalive comment every 15 s)
-    GET  /                   redirects to the live viewer, fitted to the window; /viewer/* and /assets/* are static files
+    GET  /stream             server-sent events: hello { boot } first, then snapshot, console, reload (a keepalive
+                             comment every 15 s); boot is random per server, so a viewer can tell a restarted one
+    GET  /?token=<token>     sets the session cookie and redirects to the live viewer, fitted to the window
+    GET  /viewer/*, /assets/*   static files
 
 Every request is checked before it is routed: the Host header must name this server, a request with an Origin must come
-from this server's own page, and a POST must carry Content-Type: application/json.
+from this server's own page, and a POST must carry Content-Type: application/json. Every route but / and /viewer/* also
+needs the session's token, from the cookie or an X-Session-Token header (401 otherwise); a GET whose query carries
+token=<token> sets that cookie (HttpOnly, SameSite=Strict, named per port so two sessions keep their own).
 """
 
+import hmac
 import json
 import os
 import queue
 import re
-import threading
+import secrets
+from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 KEEPALIVE_SECONDS = 15
 MAX_BODY = 1 << 20
-QUEUE_SIZE = 256
+VIEWER_URL = "/viewer/index.html?live=1&zoom=fit"
 CALL_PATH = re.compile(r"^/call/([a-z]+)$")
 READ_ONLY = ("/tree", "/events", "/dev")
 REST_METHODS = {"/input": "input", "/fire": "fire", "/slash": "slash", "/state": "state", "/reload": "reload"}
@@ -42,53 +48,6 @@ CONTENT_TYPES = {
     ".ttf": "font/ttf",
     ".otf": "font/otf",
 }
-
-
-class Subscriber:
-    """One /stream client: a bounded queue; a client that falls 256 events behind is dropped."""
-
-    def __init__(self):
-        self.q = queue.Queue(maxsize=QUEUE_SIZE)
-        self.dead = False
-
-
-class Bus:
-    """Fan-out of (event, data) to every /stream client."""
-
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.subscribers = []
-
-    def subscribe(self):
-        sub = Subscriber()
-        with self.lock:
-            self.subscribers.append(sub)
-        return sub
-
-    def unsubscribe(self, sub):
-        with self.lock:
-            if sub in self.subscribers:
-                self.subscribers.remove(sub)
-
-    def publish(self, event, data):
-        with self.lock:
-            for sub in list(self.subscribers):
-                try:
-                    sub.q.put_nowait((event, data))
-                except queue.Full:
-                    sub.dead = True
-                    self.subscribers.remove(sub)
-
-    def close(self):
-        """Wakes every /stream handler so it ends."""
-        with self.lock:
-            for sub in self.subscribers:
-                sub.dead = True
-                try:
-                    sub.q.put_nowait(None)
-                except queue.Full:
-                    pass
-            self.subscribers.clear()
 
 
 def _static_file(root, relative):
@@ -109,6 +68,8 @@ class Handler(BaseHTTPRequestHandler):
     """server.host is the LuaHost, server.bus the Bus, server.viewer_dir and server.assets_dir the static roots."""
 
     server_version = "wow-testkit-session"
+    timeout = 30  # seconds a socket may stall before its handler gives up, so a silent client cannot hold a thread
+    grant = False  # the request's query carries the token: the reply sets the session cookie
 
     def log_message(self, format, *args):  # noqa: A002  (the base class's name)
         pass
@@ -123,6 +84,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         for name, value in headers:
             self.send_header(name, value)
+        if self.grant:
+            self.send_header("Set-Cookie", f"{self._cookie_name()}={self.server.token}; HttpOnly; SameSite=Strict; Path=/")
         self.end_headers()
         self.wfile.write(body)
 
@@ -135,22 +98,55 @@ class Handler(BaseHTTPRequestHandler):
 
     # Checks ----------------------------------------------------------------------------------------------------
 
-    def _guard(self, post=False):
-        """True when the request may be routed; otherwise the refusal is already sent."""
+    def _cookie_name(self):
+        return f"tk_session_{self.server.server_address[1]}"
+
+    def _is_token(self, offered):
+        return isinstance(offered, str) and hmac.compare_digest(offered.encode("utf-8"), self.server.token.encode("utf-8"))
+
+    def _authorized(self):
+        """True when the cookie or the X-Session-Token header carries the session's token."""
+        try:
+            morsel = SimpleCookie(self.headers.get("Cookie") or "").get(self._cookie_name())
+        except CookieError:
+            morsel = None
+        return self._is_token(self.headers.get("X-Session-Token")) or bool(morsel and self._is_token(morsel.value))
+
+    def _problem(self, post):
+        """(status, message) of the first check the request fails, or None."""
+        url = urlsplit(self.path)
+        self.grant = not post and self._is_token(parse_qs(url.query).get("token", [None])[0])
         port = self.server.server_address[1]
         host = (self.headers.get("Host") or "").lower()
         if host not in (f"127.0.0.1:{port}", f"localhost:{port}"):
-            self._refuse(403, "forbidden host")
-            return False
+            return 403, "forbidden host"
         origin = self.headers.get("Origin")
         if origin is not None and origin.lower() != f"http://{host}":
-            self._refuse(403, "forbidden origin")
-            return False
+            return 403, "forbidden origin"
         content_type = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         if post and content_type != "application/json":
-            self._refuse(415, "content type must be application/json")
-            return False
-        return True
+            return 415, "content type must be application/json"
+        if not (url.path.startswith("/viewer/") or self.grant or self._authorized()):
+            return 401, "no session token: open the URL session.py printed"
+        return None
+
+    def _guard(self, post=False):
+        """True when the request may be routed; otherwise the refusal is already sent.
+
+        A refused request's body is read first: closing a socket with unread data resets the connection, and the
+        client can lose the reply.
+        """
+        problem = self._problem(post)
+        if problem is None:
+            return True
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if 0 < length <= MAX_BODY:
+            self.rfile.read(length)
+        self._refuse(*problem)
+        return False
 
     def _body(self):
         """The request body as text; '{}' when there is none. None after replying 400 or 413."""
@@ -174,7 +170,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urlsplit(self.path)
         path = url.path
         if path == "/":
-            self._send(302, b"", "text/plain", [("Location", "/viewer/index.html?live=1&zoom=fit")])
+            self._send(302, b"", "text/plain", [("Location", VIEWER_URL)])
         elif path == "/snapshot":
             self._send_json(200, self.server.host.snapshot_json())
         elif path in READ_ONLY or path == "/state":
@@ -225,7 +221,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             req = json.loads(text)
-        except ValueError as err:
+        except (ValueError, RecursionError) as err:  # RecursionError: nested deeper than Python's parser goes
             self._refuse(400, f"malformed request: {err}")
             return
         if not isinstance(req, dict):
@@ -253,7 +249,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            self.wfile.write(b": open\n\n")
+            self.wfile.write(f"event: hello\ndata: {json.dumps({'boot': self.server.boot})}\n\n".encode("utf-8"))
             self.wfile.flush()
             while True:
                 try:
@@ -280,3 +276,5 @@ class Server(ThreadingHTTPServer):
     def __init__(self, port, host, bus, viewer_dir, assets_dir):
         super().__init__(("127.0.0.1", port), Handler)
         self.host, self.bus, self.viewer_dir, self.assets_dir = host, bus, viewer_dir, assets_dir
+        self.token = secrets.token_urlsafe(24)
+        self.boot = secrets.token_hex(8)

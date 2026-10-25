@@ -61,6 +61,8 @@ local function test_reload_with_a_custom_size_and_auto()
   H.withHost(nil, function(host)
     local reply = call(host, "reload", { flavor = "auto", size = { width = 2560, height = 1440 } })
     A.same({ reply.ok, reply.flavor, reply.screen.width, reply.screen.height }, { true, "retail", 2560, 1440 })
+    reply = call(host, "reload", { screen = { width = 1280, height = 720 } })
+    A.same({ reply.ok, reply.screen.width, reply.screen.height }, { true, 1280, 720 })
   end)
 end
 
@@ -76,6 +78,10 @@ local function test_bad_reload_requests_leave_the_session_alone()
       { size = { width = 1920.5, height = 1080 } },
       { size = { width = 1920 } },
       { size = 1080 },
+      { screen = { width = 100, height = 100 } },
+      { screen = { width = 1920, height = 4321 } },
+      { screen = { width = 1920.5, height = 1080 } },
+      { screen = "4k" },
     }
     for _, req in ipairs(bad) do
       local reply = call(host, "reload", req)

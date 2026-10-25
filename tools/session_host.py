@@ -11,8 +11,6 @@ import sys
 import threading
 from pathlib import Path
 
-from lupa import lua51
-
 import preview_assets as pa
 import run51
 
@@ -150,8 +148,7 @@ class LuaHost:
         self.extract_dir = extract
         session_dir = Path(session_dir) if session_dir else session_dir_for(addon_dir)
         self.assets_dir = session_dir / "preview" / "assets"
-        lua = lua51.LuaRuntime(register_eval=False, register_builtins=False)
-        run51.install_fs(lua)
+        lua = run51.new_runtime(register_eval=False, register_builtins=False)
         root = KIT_ROOT.as_posix()
         package = lua.globals().package
         package.path = root + "/?.lua;" + root + "/?/init.lua;" + package.path
