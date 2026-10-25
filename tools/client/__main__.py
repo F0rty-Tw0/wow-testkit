@@ -33,6 +33,8 @@ def do_extract(args, open_store):
     print(f"extracted {args.flavor} {data['build']} to {paths.extract_dir(home, args.flavor, data['build'])}")
     for kind in what:
         print(f"  {kind}: {data['extracted'][kind]} files")
+    for text in data.get("notes", []):
+        print(f"note: {text}")
     for old in manifest.stale(home, args.flavor, data["build"]):
         print(f"note: stale extract {old} (installed build is {data['build']})")
 

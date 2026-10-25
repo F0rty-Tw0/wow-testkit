@@ -161,6 +161,15 @@ def test_cli_status_and_usage_exit_codes(tmp):
         assert not (tmp / "home" / "client").exists()  # nothing was created before the kind check
 
 
+def test_cli_prints_the_manifest_notes_after_the_summary(tmp):
+    lf = fakes.write_listfile(tmp, {})
+    with env(TESTKIT_HOME=str(tmp / "home"), TESTKIT_WOW_DIR=str(fakes.make_install(tmp / "wow", BUILD_INFO))):
+        code, out, _ = run_cli("extract", "--what", "strings", "--listfile", str(lf))
+    lines = out.splitlines()
+    note = "note: db2: GlobalStrings has no listfile entry in this client"
+    assert code == 0 and note in lines and lines.index(note) > lines.index("  strings: 0 files"), out
+
+
 TESTS = [
     test_build_info_row_for_product,
     test_extract_writes_manifest_json_and_lua_that_agree,
@@ -171,4 +180,5 @@ TESTS = [
     test_listfile_is_fetched_once_and_cached,
     test_rerun_merges_extracted_kinds,
     test_cli_status_and_usage_exit_codes,
+    test_cli_prints_the_manifest_notes_after_the_summary,
 ]
