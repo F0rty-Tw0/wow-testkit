@@ -50,6 +50,12 @@ def test_missing_export_dir_is_an_error_naming_the_commands(tmp):
     raise AssertionError("expected ExtractError")
 
 
+def test_export_without_globalstrings_lua_says_so_not_a_listfile_gap(tmp):
+    m = extract.run("retail", ["strings"], install=exported(tmp), home=tmp / "home", from_export=True)
+    assert m["extracted"]["strings"] == 0
+    assert m["notes"] == ["strings: the export holds no globalstrings.lua; GlobalStrings.db2 needs the CASC store"]
+
+
 def test_failed_casc_open_prints_the_fallback_hint(tmp):
     def broken(install, product):
         raise OSError("boom")
@@ -74,6 +80,7 @@ TESTS = [
     test_fallback_reads_exported_folders_into_the_same_layout,
     test_fallback_art_has_no_by_id,
     test_missing_export_dir_is_an_error_naming_the_commands,
+    test_export_without_globalstrings_lua_says_so_not_a_listfile_gap,
     test_failed_casc_open_prints_the_fallback_hint,
     test_repo_tracks_no_blp_ttf_otf_db2,
 ]

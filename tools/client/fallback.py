@@ -29,6 +29,8 @@ class FallbackError(Exception):
 class FolderSource:
     """Source over exported folders. Paths are install-relative, lowercase, '/' separated (`interface/...`)."""
 
+    has_db2 = False
+
     def __init__(self, code_root, art_root, locales):
         self.locales = list(locales)
         self.files = {}

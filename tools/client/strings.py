@@ -117,4 +117,9 @@ def write(source, out, ctx):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(to_lua(values), encoding="utf-8", newline="\n")
         written += 1
-    return written or from_db2(source, out, ctx)
+    if written:
+        return written
+    if not getattr(source, "has_db2", True):  # the exportInterfaceFiles folders hold no DB2 tables
+        ctx.notes.append("strings: the export holds no globalstrings.lua; GlobalStrings.db2 needs the CASC store")
+        return 0
+    return from_db2(source, out, ctx)
