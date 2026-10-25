@@ -73,11 +73,13 @@ function M.rename(from, to)
   local bridge = host()
   if bridge then
     bridge.replace(from, to)
+
     return
   end
   local ok, err = os.rename(from, to)
   local refused = not ok and IS_WINDOWS
-  if refused and M.exists(to) then
+  local stale = refused and M.exists(to)
+  if stale then
     assert(os.remove(to))
     ok, err = os.rename(from, to)
   end
