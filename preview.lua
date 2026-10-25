@@ -204,10 +204,16 @@ local function runSteps(steps, out, write)
   return true
 end
 
--- A run that fails must not leave the previous run's snapshot or picture behind to be read as this run's. context
+-- A run that fails must not leave the previous run's snapshots or picture behind to be read as this run's: the final
+-- snapshot, and the snapshot of each numbered s:preview dir (<n>-<name>, as ScenarioPreview names them). context
 -- accepts only a .png path for --png, so a mistyped one naming some other file is refused before this deletes it.
 local function clearStale(ctx)
   os.remove(ctx.out .. SNAPSHOT_FILE)
+  for _, name in ipairs(fs.list(ctx.out)) do
+    if name:find("^%d+%-[A-Za-z0-9_%-]+$") then
+      os.remove(ctx.out .. "/" .. name .. SNAPSHOT_FILE)
+    end
+  end
   if ctx.png then
     os.remove(ctx.png)
   end

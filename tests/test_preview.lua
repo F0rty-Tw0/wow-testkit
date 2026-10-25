@@ -15,51 +15,8 @@ local PYTHON = os.getenv("TK_PYTHON") or "python"
 local NO_EXTRACT_NOTE = "note: no client extract; art falls back to stand-ins"
 local ERROR_LINES_SHOWN = 10
 
--- A temp addon whose Main.lua is body; its TOC (so its name) is tocName, default TempAddon.
-local function tempAddon(body, tocName)
-  local root = Tmp.dir("preview") .. "/TempAddon"
-  fs.mkdirp(root)
-  fs.writeFile(root .. "/" .. (tocName or "TempAddon") .. ".toc", "## Interface: 120100\nMain.lua\n")
-  fs.writeFile(root .. "/Main.lua", body)
-  return root
-end
-
-local FRAME_ADDON = 'local f = CreateFrame("Frame", "TFrame", UIParent)\nf:SetSize(100, 50)\nf:SetPoint("CENTER")\n'
-
--- Runs fn(calls) with Preview.exec replaced by a recorder; step(argv, log) -> code decides each call's result
--- (default 0). Preview.findClient answers client (default none), so a developer's own extract never reaches a test.
--- Both are restored afterwards, whatever fn does.
-local function withExec(step, fn, client)
-  local calls, saved, savedFind = {}, Preview.exec, Preview.findClient
-  Preview.exec = function(argv, log)
-    calls[#calls + 1] = argv
-    return step and step(argv, log) or 0
-  end
-  Preview.findClient = function()
-    return client
-  end
-  local ok, err = pcall(fn, calls)
-  Preview.exec = saved
-  Preview.findClient = savedFind
-  if not ok then
-    error(err, 0)
-  end
-end
-
--- Preview.run(opts); returns the exit code and the collected output.
-local function run(opts)
-  local out = {}
-  local code = Preview.run(opts, function(text)
-    out[#out + 1] = text
-  end)
-  return code, table.concat(out)
-end
-
-local function scenarioFile(body)
-  local path = Tmp.dir("previewscn") .. "/scn.lua"
-  fs.writeFile(path, "return { run = function(s)\n" .. body .. "\nend }\n")
-  return path
-end
+local P = require("tests.helpers.preview")
+local FRAME_ADDON, tempAddon, withExec, run, scenarioFile = P.FRAME_ADDON, P.tempAddon, P.withExec, P.run, P.scenarioFile
 
 local function test_clean_addon_writes_snapshot_and_runs_resolve()
   withExec(nil, function(calls)
