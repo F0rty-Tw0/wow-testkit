@@ -12,11 +12,11 @@ local compile = loadstring or load
 
 local IMAGE_EXTENSIONS = { blp = true, tga = true, png = true }
 
--- Per-extract caches (strings by locale, the atlas table, glyph tables); gone with the extract.
+-- Per-extract caches (strings by locale, the atlas table, glyph tables, DB2 tables); gone with the extract.
 local caches = setmetatable({}, { __mode = "k" })
 
 local function cacheOf(extract)
-  caches[extract] = caches[extract] or { strings = {}, glyphs = {} }
+  caches[extract] = caches[extract] or { strings = {}, glyphs = {}, db2 = {} }
   return caches[extract]
 end
 
@@ -130,6 +130,21 @@ function M.strings(extract, locale)
     cache[locale] = path and readTable(path) or false
   end
   return cache[locale] or nil
+end
+
+-- The DB2 table name (any case) exported to the extract, { [id] = { Field = value } }, or nil when the extract is nil or
+-- has no such table. Loaded on the first lookup; the table is shared data, so callers read it and never write to it.
+function M.db2(extract, name)
+  if not extract then
+    return nil
+  end
+  local cache = cacheOf(extract).db2
+  local key = lowerSlashed(name)
+  if cache[key] == nil then
+    local path = M.path(extract, "db2", key)
+    cache[key] = path and readTable(path) or false
+  end
+  return cache[key] or nil
 end
 
 -- The atlas row { name, file, width, height, left, right, top, bottom } for name (any case), or nil. atlas.lua is
