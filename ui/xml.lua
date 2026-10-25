@@ -5,6 +5,11 @@ local M = {}
 local XmlBuild = require("ui.xml_build")
 local XmlParse = require("ui.xml_parse")
 
+-- Element modules register their handlers and finishers in XmlBuild when required; the order fixes the finishers'.
+require("ui.xml_layout")
+require("ui.xml_widgets")
+require("ui.xml_animations")
+
 -- Path with "\" turned into "/" and "." and ".." segments resolved, so one file never has two spellings.
 local function clean(path)
   local parts = {}
@@ -41,7 +46,7 @@ local function include(w, node, ctx, file, loading)
 end
 
 -- source: wiki XML/Script, "Executed when reached by the XML parser, going from top to bottom."
-local function walk(w, root, ctx, file, loading)
+local function walk(w, root, ctx, file, loading, session)
   for _, node in ipairs(root.children) do
     if node.tag == "include" and node.attrs.file then
       include(w, node, ctx, file, loading)
@@ -50,7 +55,7 @@ local function walk(w, root, ctx, file, loading)
     elseif node.tag == "script" then
       ctx.runSource(node.text, "addon:" .. ctx.name .. "/" .. file.path, node.textLine)
     else
-      M.element(w, node, ctx, XmlBuild.session(ctx, file))
+      M.element(w, node, ctx, session)
     end
   end
 end
@@ -67,12 +72,15 @@ loadInto = function(w, path, ctx, loading)
     return false, message
   end
   local file = { path = path, seen = {} }
+  -- One session per file, so an anchor may name a frame of a later root element; XmlBuild.finish reports what is left.
+  local session = XmlBuild.session(ctx, file)
   loading[path] = true
   if root.tag == "ui" then
-    walk(w, root, ctx, file, loading)
+    walk(w, root, ctx, file, loading, session)
   else
-    M.element(w, root, ctx, XmlBuild.session(ctx, file))
+    M.element(w, root, ctx, session)
   end
+  XmlBuild.finish(w, session)
   loading[path] = nil
   return true
 end

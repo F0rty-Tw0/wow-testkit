@@ -1,9 +1,10 @@
 -- Builds frames and regions from XML nodes. A child element of a frame goes to handlers[tag]; finishers run after a
 -- frame's children are built. Element modules register themselves in both (ui/xml.lua requires them, which fixes the
--- order). A build session is one table per root element: { ctx, file, anchors, report(key, what) }, where anchors wait
--- for a target that is not built yet.
+-- order). A build session is one table per XML file: { ctx, file, anchors, report(key, what), reportAt(line, what) },
+-- where anchors ({ obj, line, name, try() }) wait for a target that is not built yet.
 local M = {}
 
+local Layout = require("ui.layout")
 local Widgets = require("ui.widgets")
 local XmlAttrs = require("ui.xml_attrs")
 
@@ -29,6 +30,10 @@ function M.session(ctx, file)
       ctx.report[#ctx.report + 1] = file.path .. ": " .. what
     end
   end
+  -- Adds "<path>:<line>: <what>" to the addon's report, every time.
+  function session.reportAt(line, what)
+    ctx.report[#ctx.report + 1] = file.path .. ":" .. line .. ": " .. what
+  end
   return session
 end
 
@@ -38,7 +43,7 @@ end
 
 -- source: wiki XML/LayoutFrame, name: "substituting `$parent` with a parent's name". An anonymous or missing parent
 -- gives "" (row X2, assumed).
-local function fullName(node, parent)
+function M.fullName(node, parent)
   local name = node.attrs.name
   if not name then
     return nil
@@ -48,10 +53,11 @@ local function fullName(node, parent)
     return parentName
   end))
 end
+local fullName = M.fullName
 
 -- source: wiki API:Object_SetParentKey "Sets a key on the parent to the child object"; wiki XML/LayoutFrame, parentArray
 -- "Inserts a reference to an array in the widget's parent". The array table is created when absent (row X3, assumed).
-local function attach(parent, child, attrs)
+function M.attach(parent, child, attrs)
   if not parent then
     return
   end
@@ -63,6 +69,7 @@ local function attach(parent, child, attrs)
     table.insert(parent[attrs.parentarray], child)
   end
 end
+local attach = M.attach
 
 -- source: wiki XML, example `<Frame parent="UIParent">`: parent names a global frame. With no parent attribute a
 -- top-level frame is parentless, not UIParent's child (row X1, assumed); a nested one keeps its enclosing frame.
@@ -78,15 +85,27 @@ local function parentOf(node, enclosing, session)
   return parent or enclosing
 end
 
--- Runs each child element of obj through its handler; a tag with none is reported.
+-- Runs one child element of obj through its handler; a tag with none is reported.
+function M.child(w, obj, child, session)
+  local handler = M.handlers[child.tag]
+  if handler then
+    handler(w, obj, w.ui.state[obj], child, session)
+  else
+    unsupportedTag(session, child)
+  end
+end
+
+-- Runs each child element of obj in document order, except that KeyValues come first (row X11: set before OnLoad; the
+-- order against mixins and children is assumed).
 function M.children(w, obj, node, session)
-  local st = w.ui.state[obj]
   for _, child in ipairs(node.children) do
-    local handler = M.handlers[child.tag]
-    if handler then
-      handler(w, obj, st, child, session)
-    else
-      unsupportedTag(session, child)
+    if child.tag == "keyvalues" then
+      M.child(w, obj, child, session)
+    end
+  end
+  for _, child in ipairs(node.children) do
+    if child.tag ~= "keyvalues" then
+      M.child(w, obj, child, session)
     end
   end
 end
@@ -97,8 +116,27 @@ function M.body(w, frame, node, session)
   M.children(w, frame, node, session)
 end
 
--- Anchors that named a target built after them are retried here (filled in with anchors).
-function M.settle() end
+-- Anchors that named a target built after them are retried here; those that still have none stay queued.
+function M.settle(_, session)
+  local waiting = {}
+  for _, entry in ipairs(session.anchors) do
+    if not entry.try() then
+      waiting[#waiting + 1] = entry
+    end
+  end
+  session.anchors = waiting
+end
+
+-- Ends a session once its file is built: a last settle, a report line for each anchor still without a target, and a
+-- layout invalidation as a guard for any state the build wrote without a method.
+function M.finish(w, session)
+  M.settle(w, session)
+  for _, entry in ipairs(session.anchors) do
+    session.reportAt(entry.line, "anchor target '" .. entry.name .. "' not found; anchor skipped")
+  end
+  session.anchors = {}
+  Layout.invalidate(w)
+end
 
 -- Builds the frame `node` describes under parent. Nil when the tag is no frame type on this flavor (reported) or the
 -- element is virtual.
