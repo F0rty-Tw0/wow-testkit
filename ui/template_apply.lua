@@ -3,6 +3,8 @@
 local M = {}
 
 local Layout = require("ui.layout")
+local Templates = require("ui.templates")
+local WorldApi = require("world_api")
 
 -- A template child whose type the flavor's Ketho WidgetAPI lacks is created as a plain frame.
 local FALLBACK_CHILD_TYPE = "Frame"
@@ -36,6 +38,29 @@ function M.apply(w, frame, st, entry)
     w:setScript(frame, scriptName, function(self)
       self[method](self)
     end)
+  end
+end
+
+-- Applies a comma- or space-separated template list in order. A name registered by an XML virtual element
+-- (w.ui.virtuals) wins over the kit's ui/templates.lua entry; an unknown one adds nothing and is counted in
+-- w.unscripted["template:<Name>"].
+-- source: wiki XML/LayoutFrame, `inherits` "Inherits a comma-separated list of XML virtual templates"; row X4 (each
+-- applied before the element's own content: assumed)
+function M.applyList(w, frame, templates)
+  if type(templates) ~= "string" then
+    return
+  end
+  local st = w.ui.state[frame]
+  st.mixins = st.mixins or {}
+  for name in templates:gmatch("[^,%s]+") do
+    local virtual, entry = w.ui.virtuals[name], Templates.TEMPLATES[name]
+    if virtual then
+      virtual.apply(w, frame, st)
+    elseif entry then
+      M.apply(w, frame, st, entry)
+    else
+      WorldApi.markUnscripted(w, "template:" .. name)
+    end
   end
 end
 

@@ -30,9 +30,18 @@ local function join(includer, relative)
   return clean((dir and dir .. "/" or "") .. relative)
 end
 
--- Builds one element of the root <Ui>. Only frames so far; every other element is reported and skipped.
+-- Registers the virtual element `node` as template `name` (a FontString or Texture too): CreateFrame's template list and
+-- `inherits` find it there. origin is the session of the file that holds it.
+M.registerVirtual = XmlBuild.registerVirtual
+
+-- Builds one element of the root <Ui>: a frame, or a virtual region template. Every other element is reported and
+-- skipped.
 function M.element(w, node, _, session)
-  XmlBuild.frame(w, node, nil, session)
+  if XmlBuild.isRegion(node) and node.attrs.virtual == "true" then
+    XmlBuild.region(w, node, nil, session)
+  else
+    XmlBuild.frame(w, node, nil, session)
+  end
 end
 
 local loadInto

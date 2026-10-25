@@ -10,7 +10,6 @@ local Callsite = require("ui.callsite")
 local Inherits = require("ui.inherits")
 local Layout = require("ui.layout")
 local TemplateApply = require("ui.template_apply")
-local Templates = require("ui.templates")
 local Validate = require("validate")
 local WorldApi = require("world_api")
 
@@ -176,27 +175,10 @@ local function create(w, typeName, name, parent)
   return obj
 end
 
--- Applies a comma-separated template list in order (ui/templates.lua); an unknown one adds nothing and is counted in
--- w.unscripted["template:<Name>"].
-function M.applyTemplateList(w, frame, templates)
-  if type(templates) ~= "string" then
-    return
-  end
-  local st = w.ui.state[frame]
-  st.mixins = st.mixins or {}
-  for name in templates:gmatch("[^,%s]+") do
-    local entry = Templates.TEMPLATES[name]
-    if entry then
-      TemplateApply.apply(w, frame, st, entry)
-    else
-      WorldApi.markUnscripted(w, "template:" .. name)
-    end
-  end
-end
-
--- The list, then the template's OnLoad: it runs once the frame is built, before CreateFrame returns.
+-- The template list (ui/template_apply.lua), then the templates' OnLoad: it runs once the frame is built, before
+-- CreateFrame returns.
 function M.applyTemplates(w, frame, templates)
-  M.applyTemplateList(w, frame, templates)
+  TemplateApply.applyList(w, frame, templates)
   if type(templates) == "string" and w:getScript(frame, "OnLoad") then
     w:callScript(frame, "OnLoad")
   end
@@ -282,6 +264,8 @@ function M.install(w)
     state = setmetatable({}, { __mode = "k" }),
     classes = {},
     intrinsics = {},
+    -- name -> { type, apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
+    virtuals = {},
     seq = 0,
     create = function(typeName, name, parent)
       return create(w, typeName, name, parent)

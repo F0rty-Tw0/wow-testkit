@@ -110,10 +110,12 @@ function M.children(w, obj, node, session)
   end
 end
 
--- The content of a frame that a virtual template shares: attributes (inherits and mixins first), then child elements.
-function M.body(w, frame, node, session)
-  XmlAttrs.apply(w, frame, node, session, XmlAttrs.frame)
-  M.children(w, frame, node, session)
+-- The content of a frame or region that a virtual template shares: attributes (inherits and mixins first), then child
+-- elements.
+function M.body(w, obj, node, session)
+  local set = REGION_TYPES[node.tag] and XmlAttrs.region or XmlAttrs.frame
+  XmlAttrs.apply(w, obj, node, session, set)
+  M.children(w, obj, node, session)
 end
 
 -- Anchors that named a target built after them are retried here; those that still have none stay queued.
@@ -138,15 +140,49 @@ function M.finish(w, session)
   Layout.invalidate(w)
 end
 
+-- Builds `node`'s content on obj in a fresh session of the file that registered the template, the way a template is
+-- applied to a frame or region that inherits it. No OnLoad here: the caller fires it once after its whole list.
+function M.applyTemplate(w, obj, node, origin)
+  local session = M.session(origin.ctx, origin.file)
+  M.body(w, obj, node, session)
+  M.finish(w, session)
+end
+
+-- Registers the virtual element `node` as template `name`; origin is the session of the file that holds it.
+-- source: wiki XML/LayoutFrame, virtual: "Creates an XML virtual template instead of a widget"; row X14 (a later
+-- definition replaces the earlier: assumed).
+function M.registerVirtual(w, name, node, origin)
+  local typeName = REGION_TYPES[node.tag] or Widgets.resolveType(w, node.rawTag)
+  w.ui.virtuals[name] = {
+    type = typeName,
+    apply = function(_, obj)
+      M.applyTemplate(w, obj, node, origin)
+    end,
+  }
+end
+
+local function declareVirtual(w, node, session)
+  if node.attrs.name then
+    M.registerVirtual(w, node.attrs.name, node, session)
+  else
+    session.reportAt(node.line, "virtual <" .. node.rawTag .. "> needs a name; ignored")
+  end
+end
+
+-- True when node is a region element (Texture, FontString, ...).
+function M.isRegion(node)
+  return REGION_TYPES[node.tag] ~= nil
+end
+
 -- Builds the frame `node` describes under parent. Nil when the tag is no frame type on this flavor (reported) or the
--- element is virtual.
+-- element is virtual (registered as a template instead).
 function M.frame(w, node, parent, session)
   if not Widgets.resolveType(w, node.rawTag) then
     unsupportedTag(session, node)
     return nil
   end
-  -- source: wiki XML/LayoutFrame, virtual: "Creates an XML virtual template instead of a widget"; row X14.
   if node.attrs.virtual == "true" then
+    declareVirtual(w, node, session)
     return nil
   end
   parent = parentOf(node, parent, session)
@@ -162,18 +198,21 @@ function M.frame(w, node, parent, session)
 end
 
 -- Builds the region `node` describes in frame, in draw layer `layer` (default ARTWORK) at sublevel `sub` (default 0).
--- Nil when the tag is no region type on this flavor (reported).
+-- Nil when the tag is no region type on this flavor (reported) or the element is virtual (registered as a template).
 function M.region(w, node, frame, session, layer, sub)
   local typeName = REGION_TYPES[node.tag]
   if not (typeName and w.globals.widgets[typeName]) then
     unsupportedTag(session, node)
     return nil
   end
+  if node.attrs.virtual == "true" then
+    declareVirtual(w, node, session)
+    return nil
+  end
   local region = w.ui.create(typeName, fullName(node, frame), frame)
   region:SetDrawLayer(layer or DEFAULT_LAYER, sub or DEFAULT_SUBLEVEL)
   attach(frame, region, node.attrs)
-  XmlAttrs.apply(w, region, node, session, XmlAttrs.region)
-  M.children(w, region, node, session)
+  M.body(w, region, node, session)
   return region
 end
 

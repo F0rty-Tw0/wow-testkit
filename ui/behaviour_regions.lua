@@ -23,17 +23,20 @@ function methods.CreateTexture(w, obj, _, name, drawLayer, _, subLevel)
   return createRegion(w, obj, "Texture", name, drawLayer, subLevel)
 end
 
--- A template name is a font object (a global Font): the font string takes its font, size and flags as SetFontObject
--- would. A name that is no font object adds nothing and is counted in w.unscripted["template:<Name>"], as CreateFrame
--- counts an unknown template. Virtual FontString templates written in XML are not modelled.
+-- A template name is an XML virtual template (w.ui.virtuals) or a font object (a global Font): the font string takes the
+-- font's font, size and flags as SetFontObject would. Any other name adds nothing and is counted in
+-- w.unscripted["template:<Name>"], as CreateFrame counts an unknown template.
 function M.applyFontTemplates(w, fontString, templates)
   if type(templates) ~= "string" then
     return
   end
   for name in templates:gmatch("[^,%s]+") do
+    local virtual = w.ui.virtuals[name]
     local font = rawget(_G, name)
     local st = type(font) == "table" and w.ui.state[font]
-    if st and st.plan.isA.font then
+    if virtual then
+      virtual.apply(w, fontString, w.ui.state[fontString])
+    elseif st and st.plan.isA.font then
       fontString:SetFontObject(font)
     else
       WorldApi.markUnscripted(w, "template:" .. name)

@@ -6,7 +6,6 @@ local M = {}
 
 local BehaviourRegions = require("ui.behaviour_regions")
 local TemplateApply = require("ui.template_apply")
-local Widgets = require("ui.widgets")
 
 local IDENTITY = { name = true, parentkey = true, parentarray = true }
 -- Applied before every other attribute, in this order; the rest follow by name.
@@ -81,16 +80,17 @@ M.frame = {
   mixin = mixin,
   securemixin = mixin,
   inherits = function(w, frame, _, value)
-    Widgets.applyTemplateList(w, frame, value)
+    TemplateApply.applyList(w, frame, value)
   end,
   parent = skip, -- built by XmlBuild.frame
-  virtual = skip, -- XmlBuild.frame builds no virtual frame yet
+  virtual = skip, -- XmlBuild.frame registers a virtual element as a template; its body carries the attribute
 }
 
 M.region = {
   hidden = hidden,
   setallpoints = setAllPoints,
   alpha = number("SetAlpha"),
+  virtual = skip, -- XmlBuild.region registers a virtual element as a template; its body carries the attribute
   -- source: wiki XML/Texture, "Lua Equivalent": file is SetTexture, atlas and useAtlasSize are SetAtlas
   file = text("SetTexture"),
   atlas = function(_, region, _, value, node)
