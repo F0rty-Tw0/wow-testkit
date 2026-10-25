@@ -12,6 +12,8 @@ class Source(Protocol):
 
     def file_id(self, path: str) -> Optional[int]: ...
 
+    def read_id(self, file_id: int, partial: bool = False) -> Optional[bytes]: ...
+
 
 class CascSource:
     """Source over a CascStore and {fileID: path}; only names whose file the store holds are visible.
@@ -34,3 +36,7 @@ class CascSource:
     def read(self, path, partial=False):
         file_id = self.file_id(path)
         return None if file_id is None else self.store.read(file_id, partial=partial)
+
+    def read_id(self, file_id, partial=False):
+        """A file by ID, listfile name or not; None when the store does not hold it."""
+        return self.store.read(file_id, partial=partial)
