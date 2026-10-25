@@ -1,12 +1,14 @@
 // The browser host's worker: wasm/bundle.py appends this file to the kit files (TK_KIT_FILES) and the Emscripten module
 // (Module), and the page starts a Blob worker from the whole. It owns the Lua runtime: writes the kit to /kit, mounts
 // the picked folders, runs the messages one at a time in arrival order and answers each with one reply, then the
-// events SessionHost queued. A reply never arrives before the IndexedDB sync of the state it reports.
+// events SessionHost queued. A reply never arrives before the IndexedDB sync of the state it reports. File names under
+// the picked folders match case-insensitively, like Windows and the game client (caseInsensitive).
 (function () {
   const post = (msg) => self.postMessage(msg);
   const READ_AHEAD = 1 << 20;
+  const PICKED_ROOTS = ['/addon', '/extract', '/wtf'];
 
-  const TKW = (self.TKW = { mod: null, sessionDir });
+  const TKW = (self.TKW = { mod: null, sessionDir, caseInsensitive });
 
   // The session folder of one addon for one account and character: SavedVariables live per combination.
   function sessionDir(account, character, addonFolder) {
@@ -37,6 +39,29 @@
     };
   }
 
+  // Emscripten resolves every path component through FS.lookupNode. Under roots, a name with no exact match resolves to the
+  // entry of its parent that matches ignoring case (the first in sorted order when several do); listings keep the real
+  // names, and names elsewhere stay exact.
+  function caseInsensitive(FS, roots) {
+    const exact = FS.lookupNode;
+    FS.lookupNode = function (parent, name) {
+      try {
+        return exact.call(FS, parent, name);
+      } catch (err) {
+        const dir = err && err.errno === 44 ? FS.getPath(parent) : null;
+        if (dir === null || !roots.some((root) => dir === root || dir.startsWith(root + '/'))) throw err;
+        const want = name.toLowerCase();
+        const hit = FS.readdir(dir)
+          .filter((entry) => entry !== '.' && entry !== '..')
+          .sort()
+          .find((entry) => entry.toLowerCase() === want);
+        if (hit === undefined) throw err;
+
+        return exact.call(FS, parent, hit);
+      }
+    };
+  }
+
   function writeKit(FS) {
     for (const path of Object.keys(TK_KIT_FILES)) {
       const full = '/kit/' + path;
@@ -51,11 +76,31 @@
     });
   }
 
-  // A read-only WORKERFS folder at dir holding the picked files ([{ path, file }], path relative to the folder).
+  const mounted = new Set();
+  let addonFolder = null;
+
+  // A read-only WORKERFS folder at dir holding the picked files ([{ path, file }], path relative to the folder); a folder
+  // mounted there before is replaced.
   function mountFiles(dir, entries) {
     const mod = TKW.mod;
+    if (mounted.has(dir)) mod.FS.unmount(dir);
     mod.FS.mkdirTree(dir);
     mod.FS.mount(mod.WORKERFS, { blobs: entries.map((entry) => ({ name: entry.path, data: entry.file })) }, dir);
+    mounted.add(dir);
+  }
+
+  // opts.wtf of an open: the paths under /wtf of the addon's account file and its character file (Realm/Character/...),
+  // each key only when the walk found that file. Names match ignoring case, the paths keep the real ones.
+  function wtfPaths(entries, folder) {
+    const tail = ('SavedVariables/' + folder + '.lua').toLowerCase();
+    const paths = entries.map((entry) => entry.path);
+    const account = paths.find((path) => path.toLowerCase() === tail);
+    const character = paths.find((path) => path.split('/').length === 4 && path.toLowerCase().endsWith('/' + tail));
+    const out = {};
+    if (account) out.account = '/wtf/' + account;
+    if (character) out.character = '/wtf/' + character;
+
+    return out;
   }
 
   let lastError = '';
@@ -70,6 +115,7 @@
     TKW.mod = mod;
     writeKit(mod.FS);
     readAhead(mod.WORKERFS);
+    caseInsensitive(mod.FS, PICKED_ROOTS);
     if (mod.ccall('tk_init', 'number', [], []) !== 0) throw new Error('tk_init failed: ' + lastError);
   });
   ready.catch((err) => post({ type: 'fatal', error: String((err && err.message) || err) }));
@@ -84,11 +130,22 @@
     return Array.isArray(queued) ? queued.map((e) => ({ type: 'event', name: e.event, data: e.data })) : [];
   }
 
+  // The reply of a call that may have reloaded the session: the events SessionHost queued, and the sync of the saved
+  // variables a reload wrote before the reply goes out.
+  async function settled(json) {
+    const events = drained();
+    if (events.some((e) => e.name === 'reload')) await syncfs(false);
+
+    return { json, events };
+  }
+
   const handlers = {
     async open(msg) {
       const FS = TKW.mod.FS;
-      mountFiles('/addon/' + msg.addonFolder, msg.addon);
+      addonFolder = msg.addonFolder;
+      mountFiles('/addon/' + addonFolder, msg.addon);
       if (msg.extract) mountFiles('/extract', msg.extract);
+      if (msg.wtf) mountFiles('/wtf', msg.wtf);
       FS.mkdirTree('/session');
       FS.mount(TKW.mod.IDBFS, {}, '/session');
       await syncfs(true);
@@ -96,16 +153,37 @@
       FS.mkdirTree(dir);
       const opts = { addonDir: '/addon/' + msg.addonFolder, sessionDir: dir, flavor: 'auto' };
       if (msg.extract) opts.extract = '/extract';
-
-      return { json: ccall('tk_open', [JSON.stringify(opts)]), events: drained() };
-    },
-
-    async call(msg) {
-      const json = ccall('tk_call', [msg.method, body(msg.req)]);
+      if (msg.wtf) opts.wtf = wtfPaths(msg.wtf, addonFolder);
+      const json = ccall('tk_open', [JSON.stringify(opts)]);
       const events = drained();
-      if (events.some((e) => e.name === 'reload')) await syncfs(false);
+      if (msg.wtf) await syncfs(false); // the import wrote saved.lua
 
       return { json, events };
+    },
+
+    call(msg) {
+      return settled(ccall('tk_call', [msg.method, body(msg.req)]));
+    },
+
+    // The picked addon folder changed: mount its new files and reload the session over them.
+    remount(msg) {
+      if (addonFolder) mountFiles('/addon/' + addonFolder, msg.addon);
+
+      return settled(ccall('tk_call', ['reload', '{}']));
+    },
+
+    // The WTF folder was picked again: mount its new files; SessionHost re-reads them and reloads.
+    reimport(msg) {
+      if (addonFolder) mountFiles('/wtf', msg.wtf);
+
+      return settled(ccall('tk_call', ['reimport', '{}']));
+    },
+
+    async pagehide() {
+      TKW.mod.ccall('tk_shutdown', null, [], []);
+      await syncfs(false);
+
+      return { json: '{"ok":true}' };
     },
   };
 
