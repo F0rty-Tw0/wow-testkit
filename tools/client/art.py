@@ -4,9 +4,11 @@ Cache layout: art/<path without extension>.png and art/by-id/<fileID>.png.
 """
 
 import atexit
+import contextlib
 import io
 import os
 import struct
+import tempfile
 from pathlib import Path
 
 from PIL import Image
@@ -88,10 +90,17 @@ def cache_path(extract_dir, key):
 
 
 def write_png(target, data):
+    """Writes through a temp file of its own beside target, so two previews writing one PNG both end complete."""
     target.parent.mkdir(parents=True, exist_ok=True)
-    part = target.with_name(target.name + ".part")
-    part.write_bytes(data)
-    os.replace(part, target)
+    fd, part = tempfile.mkstemp(dir=target.parent, prefix=target.name + ".", suffix=".part")
+    try:
+        with os.fdopen(fd, "wb") as out:
+            out.write(data)
+        os.replace(part, target)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(part)
+        raise
 
 
 def art_png(extract_dir, key, *, source=None):

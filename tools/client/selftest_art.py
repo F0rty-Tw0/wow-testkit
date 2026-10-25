@@ -1,6 +1,7 @@
 """Tests for the art decoder, its lazy cache and the preview-side lookup."""
 
 import io
+import os
 import sys
 from pathlib import Path
 
@@ -58,6 +59,23 @@ def test_prewarm_decodes_only_the_common_prefixes(tmp):
     assert (tmp / "out/art/interface/buttons/a.png").is_file() and not (tmp / "out/art/interface/icons").exists()
 
 
+def test_two_writers_of_one_png_each_leave_a_complete_file(tmp):
+    target = tmp / "art/a.png"
+    real = os.replace
+
+    def interleaved(src, dst):  # a second preview writes the same PNG between this writer's write and its rename
+        os.replace = real
+        art.write_png(target, b"second")
+        real(src, dst)
+
+    os.replace = interleaved
+    try:
+        art.write_png(target, b"first")
+    finally:
+        os.replace = real
+    assert target.read_bytes() == b"first" and [p.name for p in target.parent.iterdir()] == ["a.png"]
+
+
 def test_lookup_extract_uses_lazy_art(tmp):
     sys.path.insert(0, TOOLS)
     import preview_assets
@@ -79,5 +97,6 @@ TESTS = [
     test_art_by_id_and_missing_is_none,
     test_decode_blp_tga_png_to_png,
     test_prewarm_decodes_only_the_common_prefixes,
+    test_two_writers_of_one_png_each_leave_a_complete_file,
     test_lookup_extract_uses_lazy_art,
 ]
