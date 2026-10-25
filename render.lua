@@ -57,23 +57,6 @@ local function clipOf(w, entry)
   return clip
 end
 
-local function copyCounts(counts)
-  local copy = {}
-  for key, count in pairs(counts) do
-    copy[key] = count
-  end
-  return copy
-end
-
-local function restoreCounts(counts, saved)
-  for key in pairs(counts) do
-    counts[key] = nil
-  end
-  for key, count in pairs(saved) do
-    counts[key] = count
-  end
-end
-
 local function build(w)
   local assets = Json.object({})
   local items, unplaced = {}, {}
@@ -90,13 +73,11 @@ local function build(w)
   return { ver = SNAPSHOT_VERSION, screen = screen, items = items, unplaced = unplaced, errors = copyErrors(w), assets = assets }
 end
 
--- The render snapshot of w. Reading layout may count answers in w.unscripted; those counts are put back. Json.encode
--- accepts the result whatever numbers the addon stored.
+-- The render snapshot of w. It reads kit state directly, never an addon-facing method, so w.unscripted stays as it
+-- was (tests/test_render.lua and test_render_widgets.lua pin that). Json.encode accepts the result whatever numbers the
+-- addon stored.
 function M.snapshot(w)
-  local saved = copyCounts(w.unscripted)
-  local snapshot = build(w)
-  restoreCounts(w.unscripted, saved)
-  return Finite.scrub(snapshot)
+  return Finite.scrub(build(w))
 end
 
 return M
