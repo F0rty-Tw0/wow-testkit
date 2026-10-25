@@ -1,0 +1,25 @@
+{
+  "addonFiles": ["LocDemo/Art/Icon.PNG", "LocDemo/Art/Glow.blp", "LocDemo/Media/Font.ttf"],
+  "extractFiles": ["art/interface/icons/inv_misc_bag_07.png", "art/interface/addons/locdemo/art/nope.png",
+    "art/by-id/136235.png", "art/by-id/4556093.png", "fonts/frizqt__.ttf", "fonts/arialn.fon"],
+  "atlasLua": "return { [\"lfg-icon\"] = { name = \"LFG-Icon\", file = 4556093, width = 16, height = 16, left = 0.25, right = 0.5, top = 0, bottom = 0.5 }, [\"no-sheet\"] = { name = \"No-Sheet\", file = 999, width = 8, height = 8, left = 0, right = 1, top = 0, bottom = 1 } }",
+  "cases": [
+    { "name": "mixed_case_no_extension", "asset": { "kind": "path", "path": "Interface\\AddOns\\locdemo\\ART\\icon" }, "expect": { "source": "addon", "path": "Art/Icon.PNG" } },
+    { "name": "explicit_blp_in_addon", "asset": { "kind": "path", "path": "Interface/AddOns/LocDemo/Art/Glow.blp" }, "expect": { "source": "addon", "path": "Art/Glow.blp" } },
+    { "name": "unsafe_dot_dot", "asset": { "kind": "path", "path": "Interface/AddOns/LocDemo/../LocDemo/Art/Icon" }, "expect": null },
+    { "name": "unsafe_space_part", "asset": { "kind": "path", "path": "Interface/AddOns/LocDemo/ /Icon" }, "expect": null },
+    { "name": "addon_miss_never_uses_the_extract", "asset": { "kind": "path", "path": "Interface/AddOns/LocDemo/Art/Nope" }, "expect": null },
+    { "name": "unknown_addon", "asset": { "kind": "path", "path": "Interface/AddOns/Other/x" }, "expect": null },
+    { "name": "extract_path_strips_the_extension", "asset": { "kind": "path", "path": "Interface\\Icons\\INV_Misc_Bag_07.blp" }, "expect": { "source": "extract", "path": "art/interface/icons/inv_misc_bag_07.png" } },
+    { "name": "standin_path_is_nil", "asset": { "kind": "path", "path": "Interface/Buttons/WHITE8X8" }, "expect": null },
+    { "name": "missing_path", "asset": { "kind": "path", "path": "Interface/Buttons/NoSuch" }, "expect": null },
+    { "name": "file_id", "asset": { "kind": "fileID", "fileID": 136235 }, "expect": { "source": "extract", "path": "art/by-id/136235.png" } },
+    { "name": "missing_file_id", "asset": { "kind": "fileID", "fileID": 1 }, "expect": null },
+    { "name": "font_ttf", "asset": { "kind": "font", "path": "Fonts\\FRIZQT__.TTF" }, "expect": { "source": "extract", "path": "fonts/frizqt__.ttf" } },
+    { "name": "font_fon_is_not_usable", "asset": { "kind": "font", "path": "Fonts\\ARIALN.FON" }, "expect": null },
+    { "name": "font_outside_fonts", "asset": { "kind": "font", "path": "Interface/x/y.ttf" }, "expect": null },
+    { "name": "addon_font", "asset": { "kind": "font", "path": "Interface/AddOns/LocDemo/Media/Font.ttf" }, "expect": { "source": "addon", "path": "Media/Font.ttf" } },
+    { "name": "atlas", "luaOnly": true, "asset": { "kind": "atlas", "atlas": "LFG-Icon" }, "expect": { "source": "extract", "path": "art/by-id/4556093.png", "crop": { "left": 0.25, "right": 0.5, "top": 0, "bottom": 0.5 } } },
+    { "name": "atlas_sheet_missing", "luaOnly": true, "asset": { "kind": "atlas", "atlas": "no-sheet" }, "expect": null }
+  ]
+}
