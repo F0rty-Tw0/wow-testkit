@@ -22,7 +22,7 @@ function M.argv(args)
   if not VERBS[args[1]] then
     return nil, M.USAGE
   end
-  local argv = { os.getenv("TK_PYTHON") or "python", KIT_ROOT .. "/tools/tk_client.py" }
+  local argv = { Proc.python(), KIT_ROOT .. "/tools/tk_client.py" }
   for _, arg in ipairs(args) do
     argv[#argv + 1] = arg
   end

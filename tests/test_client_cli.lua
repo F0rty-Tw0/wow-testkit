@@ -2,10 +2,11 @@
 local A = require("assert")
 local Cli = require("bin.tk")
 local ClientCli = require("client_cli")
+local Proc = require("proc")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
-local PYTHON = os.getenv("TK_PYTHON") or "python"
+local PYTHON = Proc.python()
 
 local function test_argv_runs_the_python_entry_with_the_verb_and_its_args()
   local argv = assert(ClientCli.argv({ "extract", "--flavor", "forever" }))

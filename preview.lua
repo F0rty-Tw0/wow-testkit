@@ -151,25 +151,26 @@ local function writeErrors(report, write)
   end
 end
 
-local function pythonStep(label, ...)
-  return { label = label, argv = { os.getenv("TK_PYTHON") or "python", KIT_ROOT .. "/tools/preview.py", label, ... } }
+local function pythonStep(python, label, ...)
+  return { label = label, argv = { python, KIT_ROOT .. "/tools/preview.py", label, ... } }
 end
 
 -- resolve for the snapshot in dir; with a client extract the resolver reads art, atlases and fonts from it too.
-local function resolveStep(ctx, dir)
+local function resolveStep(ctx, python, dir)
   local extract = ctx.client and { "--extract", ctx.client.dir } or {}
-  return pythonStep("resolve", dir .. SNAPSHOT_FILE, dir, unpack(extract))
+  return pythonStep(python, "resolve", dir .. SNAPSHOT_FILE, dir, unpack(extract))
 end
 
 -- resolve for the final snapshot and each s:preview dir, then png.
 local function stepsFor(ctx, previews)
-  local steps = { resolveStep(ctx, ctx.out) }
+  local python = Proc.python()
+  local steps = { resolveStep(ctx, python, ctx.out) }
   for _, dir in ipairs(previews or {}) do
-    steps[#steps + 1] = resolveStep(ctx, dir)
+    steps[#steps + 1] = resolveStep(ctx, python, dir)
   end
   if ctx.png then
     local size = ctx.size.width .. "x" .. ctx.size.height
-    steps[#steps + 1] = pythonStep("png", ctx.out, ctx.png, "--size", size)
+    steps[#steps + 1] = pythonStep(python, "png", ctx.out, ctx.png, "--size", size)
     steps[#steps].done = "preview: wrote " .. ctx.png
   end
   return steps

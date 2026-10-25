@@ -67,4 +67,26 @@ function M.run(argv, logPath)
   return exitCode(os.execute(M.command(argv, logPath)))
 end
 
+-- True when the shell finds the program name on PATH. cmd has no `command -v`, so windows answers true. Tests replace
+-- this field.
+function M.hasCommand(name, isWindows)
+  if isWindows == nil then
+    isWindows = IS_WINDOWS
+  end
+  if isWindows then
+    return true
+  end
+  return exitCode(os.execute("command -v " .. quoted(name, false) .. " > /dev/null 2>&1")) == 0
+end
+
+-- The python the kit's tools run on: $TK_PYTHON when set, else `python`, else `python3` (the only name many POSIX
+-- systems have). getenv: a lookup in place of os.getenv.
+function M.python(getenv)
+  local set = (getenv or os.getenv)("TK_PYTHON")
+  if set then
+    return set
+  end
+  return M.hasCommand("python") and "python" or "python3"
+end
+
 return M

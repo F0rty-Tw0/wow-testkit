@@ -4,6 +4,7 @@ local A = require("assert")
 local H = require("tests.helpers.client")
 local Home = require("home")
 local Preview = require("preview")
+local Proc = require("proc")
 local ScenarioPreview = require("scenario_preview")
 local Toc = require("toc")
 local Tmp = require("tests.helpers.tmp")
@@ -11,7 +12,7 @@ local fs = require("fs")
 
 local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/[^/]*$") or "."
 local FIXTURES = TEST_DIR .. "/fixtures/addons"
-local PYTHON = os.getenv("TK_PYTHON") or "python"
+local PYTHON = Proc.python()
 local NO_EXTRACT_NOTE = "note: no client extract; art falls back to stand-ins"
 local ERROR_LINES_SHOWN = 10
 
