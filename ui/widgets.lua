@@ -176,9 +176,9 @@ local function create(w, typeName, name, parent)
   return obj
 end
 
--- Applies a comma-separated template list in order (ui/templates.lua) when CreateFrame gets one. An unknown
--- template adds nothing and is counted in w.unscripted["template:<Name>"].
-function M.applyTemplates(w, frame, templates)
+-- Applies a comma-separated template list in order (ui/templates.lua); an unknown one adds nothing and is counted in
+-- w.unscripted["template:<Name>"].
+function M.applyTemplateList(w, frame, templates)
   if type(templates) ~= "string" then
     return
   end
@@ -192,8 +192,12 @@ function M.applyTemplates(w, frame, templates)
       WorldApi.markUnscripted(w, "template:" .. name)
     end
   end
-  -- A template's OnLoad runs once the frame is built, before CreateFrame returns.
-  if w:getScript(frame, "OnLoad") then
+end
+
+-- The list, then the template's OnLoad: it runs once the frame is built, before CreateFrame returns.
+function M.applyTemplates(w, frame, templates)
+  M.applyTemplateList(w, frame, templates)
+  if type(templates) == "string" and w:getScript(frame, "OnLoad") then
     w:callScript(frame, "OnLoad")
   end
 end
@@ -203,27 +207,31 @@ function M.isProtected(w, frame)
   return w.ui.state[frame].protected == true
 end
 
--- The exact type name for a CreateFrame argument: a registered intrinsic first, else the flavor's catalog.
-local function resolveType(w, frameType)
-  if type(frameType) ~= "string" then
-    return nil
-  end
-  local lower = frameType:lower()
+-- The exact frame type name for a CreateFrame argument: a registered intrinsic first, else the flavor's catalog. nil
+-- for a non-string and for a type that is not a frame.
+function M.resolveType(w, frameType)
+  local lower = type(frameType) == "string" and frameType:lower()
+  local typeName = catalogFor(w).types[lower]
   for name in pairs(w.ui.intrinsics) do
     if name:lower() == lower then
-      return name
+      typeName = name
     end
   end
-  return catalogFor(w).types[lower]
+  return typeName and planFor(w, typeName).isFrame and typeName or nil
+end
+
+-- Creates a frame of frameType (any case) under parent, with no templates.
+function M.newFrame(w, frameType, name, parent)
+  local typeName = M.resolveType(w, frameType)
+  if not typeName then
+    error(string.format("CreateFrame: unknown frame type '%s' on %s", tostring(frameType), w.flavor), Callsite.level())
+  end
+  return create(w, typeName, name, parent)
 end
 
 local function createFrame(w)
   return function(frameType, name, parent, template)
-    local typeName = resolveType(w, frameType)
-    if not typeName or not planFor(w, typeName).isFrame then
-      error(string.format("CreateFrame: unknown frame type '%s' on %s", tostring(frameType), w.flavor), Callsite.level())
-    end
-    local frame = create(w, typeName, name, parent)
+    local frame = M.newFrame(w, frameType, name, parent)
     M.applyTemplates(w, frame, template)
     return frame
   end

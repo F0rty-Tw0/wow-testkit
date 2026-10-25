@@ -26,7 +26,7 @@ end
 -- A template name is a font object (a global Font): the font string takes its font, size and flags as SetFontObject
 -- would. A name that is no font object adds nothing and is counted in w.unscripted["template:<Name>"], as CreateFrame
 -- counts an unknown template. Virtual FontString templates written in XML are not modelled.
-local function applyFontTemplates(w, fontString, templates)
+function M.applyFontTemplates(w, fontString, templates)
   if type(templates) ~= "string" then
     return
   end
@@ -44,7 +44,7 @@ end
 -- A FontString has no sublevel (row V6): the client takes no subLevel argument, so it starts at 0.
 function methods.CreateFontString(w, obj, _, name, drawLayer, template)
   local fontString = createRegion(w, obj, "FontString", name, drawLayer, nil)
-  applyFontTemplates(w, fontString, template)
+  M.applyFontTemplates(w, fontString, template)
   return fontString
 end
 
