@@ -1,0 +1,3 @@
+local _, ns = ...
+ns.order[#ns.order + 1] = "late"
+ns.rect = { XmlFrame:GetRect() }

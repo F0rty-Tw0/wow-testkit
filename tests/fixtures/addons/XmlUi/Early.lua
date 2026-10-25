@@ -1,0 +1,3 @@
+local _, ns = ...
+ns.order = { "early" }
+ns.seeFrame = _G.XmlFrame ~= nil

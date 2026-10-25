@@ -6,6 +6,7 @@ local M = {}
 local AddonEnv = require("addon_env")
 local Flavors = require("tools.flavors")
 local Toc = require("toc")
+local Xml = require("ui.xml")
 local fs = require("fs")
 
 local NOT_DECLARED = "not-declared"
@@ -72,6 +73,15 @@ function M.context(w, name, root)
   return ctx
 end
 
+-- Loads one TOC-listed file at its position: XML builds its frames, Lua runs as a chunk.
+local function loadListed(w, ctx, relative)
+  if relative:lower():match("%.xml$") then
+    Xml.loadFile(w, relative, ctx)
+  else
+    M.runFile(w, ctx, relative)
+  end
+end
+
 local function versionNote(declared, flavor)
   local row = Flavors.get(flavor)
   return string.format("TOC interface is %s for %s (client %d); loaded anyway", declared, flavor, row.tocVersion)
@@ -110,13 +120,13 @@ function M.load(w, opts)
   end
   info.status = "loaded"
   local ctx = M.context(w, name, root)
-  local files, report = Toc.filesFor(parsed, w.flavor, ctx.readFile)
+  local files, report = Toc.filesFor(parsed, w.flavor)
   info.report, ctx.report = report, report
   if info.declared ~= "load" then
     table.insert(report, 1, versionNote(info.declared, w.flavor))
   end
   for _, relative in ipairs(files) do
-    ctx.runFile(relative)
+    loadListed(w, ctx, relative)
   end
   return ctx.ns, info
 end
