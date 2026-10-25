@@ -1,9 +1,14 @@
 """In-memory stand-ins for the client store, and a tiny synthetic CASC install, so self-tests never touch an install."""
 
 import hashlib
+import io
 import struct
 import zlib
 from pathlib import Path
+
+from PIL import Image
+
+from tools.client.fakes_db2 import make_wdc5  # noqa: F401  (re-exported for the tests)
 
 HIGH_RES = 0x1
 ENUS = 0x2
@@ -47,6 +52,17 @@ class FakeSource:
 
     def file_id(self, path):
         return self.ids.get(path.lower())
+
+    def read_id(self, file_id, partial=False):
+        path = next((p for p, n in self.ids.items() if n == file_id), None)
+        return None if path is None else self.files.get(path)
+
+
+def make_blp(color=(255, 0, 0), size=(4, 4)):
+    """BLP bytes of a flat-colour image, as Pillow writes them."""
+    out = io.BytesIO()
+    Image.new("RGB", size, color).convert("P").save(out, format="BLP")
+    return out.getvalue()
 
 
 def make_install(root, build_info):
