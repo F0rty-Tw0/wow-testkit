@@ -10,7 +10,7 @@ LOCALES = {name.lower(): name for name in LOCALE_NAMES.split()}
 MAX_INSTRUCTIONS = 50_000_000  # GlobalStrings runs ~0.1M; the cap only stops a chunk that loops
 RUNNER = (
     "function(text) local chunk, err = loadstring(text, '=globalstrings'); if not chunk then error(err, 0) end; "
-    "local env = {}; setfenv(chunk, env); "
+    "local env = {}; setfenv(chunk, env); debug.setmetatable('', nil); "  # no ("x"):find: C loops dodge the hook
     f"debug.sethook(function() error('the chunk ran too long', 0) end, '', {MAX_INSTRUCTIONS}); "
     "chunk(); return env end"
 )  # the hook stays set: every parse gets a fresh runtime

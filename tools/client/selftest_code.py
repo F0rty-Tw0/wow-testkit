@@ -55,7 +55,12 @@ def test_strings_chunk_cannot_reach_os_and_bad_input_is_a_strings_error(tmp):
 
 def test_strings_refuse_bytecode_and_cap_memory_and_time(tmp):
     dumped = lua51.LuaRuntime(encoding=None).eval('string.dump(function() A = "x" end)')  # loadstring would run it
-    cases = ((dumped, "bytecode"), ('A = ("x"):rep(300 * 1024 * 1024)', "memory"), ("while true do end", "too long"))
+    cases = (
+        (dumped, "bytecode"),
+        ('local s = "x" for i = 1, 30 do s = s .. s end A = s', "memory"),
+        ("while true do end", "too long"),
+        ('A = ("a"):rep(30):find(("a*"):rep(30) .. "b")', "string value"),  # a C-side backtrack the hook can't stop
+    )
     for text, words in cases:
         try:
             strings.parse_global_strings(text)
