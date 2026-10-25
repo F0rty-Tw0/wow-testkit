@@ -81,10 +81,18 @@
     box.hidden = lines.length === 0;
   }
 
+  // The width the side panels (live mode) take beside the stage, 0 while they are hidden.
+  function panelsWidth() {
+    const panels = document.getElementById('panels');
+    if (panels.hidden) return 0;
+
+    return panels.offsetWidth + parseFloat(getComputedStyle(panels).marginLeft);
+  }
+
   function fitScale() {
     const viewport = document.getElementById('viewport');
     const top = viewport.getBoundingClientRect().top;
-    const width = document.documentElement.clientWidth - 2 * viewport.offsetLeft;
+    const width = document.documentElement.clientWidth - 2 * viewport.offsetLeft - panelsWidth();
     const height = window.innerHeight - top - viewport.offsetLeft;
 
     return Math.max(0.05, Math.min(width / view.screen.width, height / view.screen.height));

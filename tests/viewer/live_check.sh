@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Live viewer check: starts tools/session.py on SessionDemo (temp TESTKIT_HOME, random port), dumps the DOM and a
-# screenshot of viewer/index.html?live=1&stream=0 with headless Chrome, checks the DOM, and stops the server.
+# Live viewer check: starts tools/session.py on SessionDemo (temp TESTKIT_HOME, random port), dumps the DOM of
+# viewer/index.html?live=1&stream=0 and the DOM and a screenshot of the same page with SessionDemoFrame preselected in
+# the inspector, with headless Chrome, checks both DOMs, and stops the server.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT="${1:?usage: live_check.sh <scratch-dir>}"
@@ -18,8 +19,10 @@ for _ in $(seq 50); do
 done
 curl -sf "http://127.0.0.1:$PORT/snapshot" > /dev/null || { echo "FAIL server: no session on port $PORT"; cat "$OUT/live-server.log"; exit 1; }
 URL="http://127.0.0.1:$PORT/viewer/index.html?live=1&stream=0"
+SELECT_URL="$URL&select=SessionDemoFrame&zoom=fit"
 # A private profile keeps headless Chrome away from the user's running browser.
 PROFILE="$OUT/chrome-live-profile"
 timeout 60 "$CHROME" --headless=new --disable-gpu --user-data-dir="$PROFILE" --virtual-time-budget=3000 --dump-dom "$URL" > "$OUT/live.html"
-timeout 60 "$CHROME" --headless=new --disable-gpu --user-data-dir="$PROFILE" --hide-scrollbars --window-size=1920,1080 --virtual-time-budget=3000 --screenshot="$OUT/live.png" "$URL"
-python tests/viewer/check_live.py "$OUT/live.html"
+timeout 60 "$CHROME" --headless=new --disable-gpu --user-data-dir="$PROFILE" --window-size=1920,1080 --virtual-time-budget=3000 --dump-dom "$SELECT_URL" > "$OUT/live-select.html"
+timeout 60 "$CHROME" --headless=new --disable-gpu --user-data-dir="$PROFILE" --hide-scrollbars --window-size=1920,1080 --virtual-time-budget=3000 --screenshot="$OUT/live.png" "$SELECT_URL"
+python tests/viewer/check_live.py "$OUT/live.html" "$OUT/live-select.html"

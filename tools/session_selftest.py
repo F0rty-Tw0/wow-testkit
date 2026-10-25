@@ -251,6 +251,17 @@ def test_located_outside_its_root_is_not_served(tmp):
     assert not (tmp / "assets").exists()
 
 
+def test_tree_and_frame_endpoints(tmp):
+    with running(tmp) as live:
+        tree = get_json(live, "/tree")
+        node = next((n for n in tree["nodes"] if n.get("name") == "SessionDemoFrame"), None)
+        assert tree["ok"] is True and node, tree
+        reply = get_json(live, "/frame?id=" + node["id"])
+        assert (reply["ok"], reply["props"]["size"]["width"]) == (True, 200), reply
+        status, _, body = request(live, "GET", "/frame?id=zzz")
+        assert status == 404 and json.loads(body)["ok"] is False, (status, body)
+
+
 TESTS = [
     test_snapshot_over_http,
     test_input_fire_slash_state_round_trip,
@@ -265,6 +276,7 @@ TESTS = [
     test_assets_resolve_and_are_served,
     test_call_relays_handle_json,
     test_located_outside_its_root_is_not_served,
+    test_tree_and_frame_endpoints,
 ]
 
 

@@ -1,6 +1,8 @@
 """HTTP face of a session: a loopback-only server that relays JSON to a LuaHost and streams its events.
 
     GET  /snapshot           the render snapshot with assets resolved
+    GET  /tree               the inspector's widget tree: { ok, nodes }
+    GET  /frame?id=<id>      one widget's properties: { ok, props }, or 404 { ok: false } for an unknown id
     POST /call/<method>      any method, through SessionHost:handleJson; the reply is always status 200
     POST /input /fire /slash /state /reload   the same calls for curl and the selftests (400 when the request is malformed)
     GET  /stream             server-sent events: snapshot, console, reload (a keepalive comment every 15 s)
@@ -17,7 +19,7 @@ import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 KEEPALIVE_SECONDS = 15
 MAX_BODY = 1 << 20
@@ -164,11 +166,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._guard():
             return
-        path = urlsplit(self.path).path
+        url = urlsplit(self.path)
+        path = url.path
         if path == "/":
             self._send(302, b"", "text/plain", [("Location", "/viewer/index.html?live=1")])
         elif path == "/snapshot":
             self._send_json(200, self.server.host.snapshot_json())
+        elif path == "/tree":
+            self._send_json(200, self.server.host.call_json("tree", "{}"))
+        elif path == "/frame":
+            self._frame(parse_qs(url.query).get("id", [""])[0])
         elif path == "/stream":
             self._stream()
         elif path.startswith("/viewer/"):
@@ -219,6 +226,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         reply = self.server.host.call(method, req)
         self._send_json(400 if reply.get("ok") is False and "error" in reply else 200, reply)
+
+    def _frame(self, frame_id):
+        reply = self.server.host.call("frame", {"id": frame_id})
+        self._send_json(200 if reply.get("ok") else 404, reply)
 
     def _static(self, root, relative):
         found = _static_file(root, relative)

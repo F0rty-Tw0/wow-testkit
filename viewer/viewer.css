@@ -7,6 +7,10 @@
   --banner-ink: #8c1d18;
   --canvas: #0b0c10;
   --placeholder: #ff00ff;
+  --panel: #ffffff;
+  --line: #d3d7de;
+  --muted: #5d6573;
+  --accent: #cfe3ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +19,10 @@
     --ink: #e6e8ec;
     --banner: #3b1d1b;
     --banner-ink: #ffb4ab;
+    --panel: #1d2027;
+    --line: #333844;
+    --muted: #9aa3b2;
+    --accent: #23395c;
   }
 }
 
@@ -60,8 +68,14 @@ body.bare #errors {
   display: none;
 }
 
+#workspace {
+  display: flex;
+  align-items: flex-start;
+}
+
 #viewport {
   position: relative;
+  flex: none;
   overflow: hidden;
 }
 
@@ -229,7 +243,141 @@ body.outlined .frame {
   pointer-events: none;
 }
 
+/* Live mode: the inspector's selection, placed in percentages of #viewport (inspector.js outlineBox). */
+#selection {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #00e5ff;
+  pointer-events: none;
+}
+
+#selection.undrawn {
+  border-style: dashed;
+}
+
+#viewport.picking {
+  cursor: crosshair;
+}
+
 #hover[hidden],
+#selection[hidden],
 #panels[hidden] {
   display: none;
+}
+
+/* Side panels (live mode), right of the stage; viewer.js fitScale leaves room for them. */
+#panels {
+  display: flex;
+  flex: 0 0 340px;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+  margin-left: 12px;
+}
+
+#inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+#inspector header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#inspector h2 {
+  margin: 0;
+  font-size: 13px;
+}
+
+#inspector .pick[aria-pressed="true"] {
+  background: var(--accent);
+}
+
+#inspector .filter {
+  font: inherit;
+}
+
+#inspector .tree {
+  flex: 1 1 auto;
+  min-height: 120px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+}
+
+#inspector .tree ul {
+  margin: 0;
+  padding-left: 14px;
+}
+
+#inspector .tree li {
+  list-style: none;
+}
+
+#inspector .tree ul[hidden] {
+  display: none;
+}
+
+#inspector .row {
+  display: flex;
+  align-items: center;
+}
+
+#inspector .row button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+#inspector .twisty {
+  width: 16px;
+  padding: 0;
+}
+
+#inspector .label {
+  display: flex;
+  gap: 6px;
+  padding: 1px 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+#inspector .node-meta {
+  color: var(--muted);
+}
+
+#inspector li.dim > .row {
+  opacity: 0.5;
+}
+
+#inspector li.selected > .row .label {
+  background: var(--accent);
+}
+
+#inspector .props {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 8px;
+  max-height: 45vh;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  overflow: auto;
+}
+
+#inspector .props dt {
+  color: var(--muted);
+}
+
+#inspector .props dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """DOM assertions for the live viewer (tests/viewer/live_check.sh) on the SessionDemo session.
 
-    python tests/viewer/check_live.py <live.html>
+    python tests/viewer/check_live.py <live.html> <live-select.html>
 
-Prints PASS/FAIL per numbered check; exit 1 on any failure. Later tasks append checks.
+live.html is the page at ?live=1&stream=0, live-select.html the same page with &select=SessionDemoFrame. Prints PASS/FAIL
+per numbered check; exit 1 on any failure. Later tasks append checks.
 """
 
 import sys
 
-from dom_tree import TreeParser, one
+from dom_tree import TreeParser, by_class, find, one
 
 
 def check_ready(root):
@@ -24,23 +25,71 @@ def check_hover(root):
         raise AssertionError("#hover is shown")
 
 
+def inspector(root):
+    return one(root, lambda n: n.attrs.get("id") == "inspector", "#inspector")
+
+
+def tree_row(panel, name):
+    """The li[data-id] of the inspector tree whose own label (not a descendant's) names `name`."""
+
+    def labelled(li):
+        own = li.children[0] if li.children else li
+        return any("node-name" in n.classes() and n.text() == name for n in own.walk())
+
+    rows = find(panel, lambda n: n.tag == "li" and "data-id" in n.attrs and labelled(n))
+    if len(rows) != 1:
+        raise AssertionError("expected one tree row for %s, found %d" % (name, len(rows)))
+    return rows[0]
+
+
+def check_tree(root):
+    panel = inspector(root)
+    drawn = one(root, lambda n: n.attrs.get("data-name") == "SessionDemoFrame", "[data-name=SessionDemoFrame]")
+    row = tree_row(panel, "SessionDemoFrame")
+    if row.attrs["data-id"] != drawn.attrs.get("data-id"):
+        raise AssertionError("tree row id %r, stage id %r" % (row.attrs["data-id"], drawn.attrs.get("data-id")))
+    hidden = tree_row(panel, "SessionDemoHidden")
+    if "dim" not in hidden.classes():
+        raise AssertionError("hidden node classes %r" % hidden.classes())
+
+
+def check_selected(root):
+    props = one(inspector(root), lambda n: n.tag == "dl", "inspector dl")
+    text = props.text()
+    for wanted in ("SessionDemoFrame", "MEDIUM", "CENTER"):
+        if wanted not in text:
+            raise AssertionError("%s not in properties %r" % (wanted, text[:300]))
+    selection = one(root, lambda n: n.attrs.get("id") == "selection", "#selection")
+    if "hidden" in selection.attrs:
+        raise AssertionError("#selection is hidden")
+    one(inspector(root), by_class("selected"), "selected tree row")
+
+
+# (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
-    ("ready flag, live snapshot drawn", check_ready),
-    ("hover outline hidden", check_hover),
+    ("ready flag, live snapshot drawn", check_ready, 0),
+    ("hover outline hidden", check_hover, 0),
+    ("inspector tree lists the frame and dims the hidden one", check_tree, 0),
+    ("select= shows the frame's properties and outline", check_selected, 1),
 ]
 
 
-def main(argv):
-    if len(argv) != 2:
-        print("usage: check_live.py <live.html>")
-        return 2
+def parse(path):
     parser = TreeParser()
-    with open(argv[1], encoding="utf-8", errors="replace") as handle:
+    with open(path, encoding="utf-8", errors="replace") as handle:
         parser.feed(handle.read())
+    return parser.root
+
+
+def main(argv):
+    if len(argv) != 3:
+        print("usage: check_live.py <live.html> <live-select.html>")
+        return 2
+    roots = [parse(path) for path in argv[1:]]
     failed = 0
-    for number, (name, check) in enumerate(CHECKS, 1):
+    for number, (name, check, which) in enumerate(CHECKS, 1):
         try:
-            check(parser.root)
+            check(roots[which])
             print("PASS %s (%d)" % (name, number))
         except AssertionError as err:
             failed += 1
