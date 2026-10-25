@@ -26,6 +26,15 @@ class FallbackError(Exception):
     """The export folder a kind needs is not there."""
 
 
+def inside(real_root, path):
+    """Whether `path` resolves to `real_root` or a folder under it (False across drives)."""
+    real = os.path.realpath(path)
+    try:
+        return os.path.commonpath([real_root, real]) == real_root
+    except ValueError:
+        return False
+
+
 class FolderSource:
     """Source over exported folders. Paths are install-relative, lowercase, '/' separated (`interface/...`)."""
 
@@ -38,7 +47,11 @@ class FolderSource:
             self.scan(Path(root))
 
     def scan(self, root):
-        for folder, _, names in os.walk(root):
+        real_root = os.path.realpath(root)
+        for folder, dirs, names in os.walk(root):
+            if not inside(real_root, folder):  # os.walk enters NTFS junctions, which is_symlink() does not report
+                dirs.clear()
+                continue
             for name in names:
                 full = Path(folder) / name
                 rel = paths.safe_rel(full.relative_to(root).as_posix())

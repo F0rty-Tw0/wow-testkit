@@ -2,11 +2,12 @@
 
 import contextlib
 import io
+import os
 import re
 import subprocess
 from pathlib import Path
 
-from tools.client import art, extract, fakes, manifest
+from tools.client import art, extract, fakes, fallback, manifest
 from tools.client.__main__ import main
 from tools.client.fakes import make_blp
 from tools.client.selftest_extract import BUILD_INFO, empty_store, env
@@ -105,6 +106,30 @@ def test_rerun_without_a_listfile_keeps_the_earlier_listfile_info(tmp):
     assert m["listfile"] == lf, m
 
 
+def link_dir(link, target):
+    """A directory link at `link`: an NTFS junction on Windows (no admin needed), else a symlink. False if neither."""
+    if os.name == "nt":
+        made = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True)
+        return made.returncode == 0
+    try:
+        os.symlink(target, link, target_is_directory=True)
+    except OSError:
+        return False
+    return True
+
+
+def test_a_linked_folder_out_of_the_export_is_not_read(tmp):
+    inst = exported(tmp)
+    (tmp / "outside").mkdir()
+    (tmp / "outside/secret.lua").write_bytes(b"s=1")
+    code_root, art_root = fallback.roots(inst, "retail")
+    if not link_dir(code_root / "Interface/AddOns/Blizzard_Evil", tmp / "outside"):
+        print("SKIP test_a_linked_folder_out_of_the_export_is_not_read: cannot create a junction or symlink here")
+        return
+    files = fallback.FolderSource(code_root, art_root, ["enUS"]).paths()
+    assert "interface/addons/blizzard_foo/foo.lua" in files and not any("secret" in path for path in files), files
+
+
 def test_repo_tracks_no_blp_ttf_otf_db2(tmp):
     tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True).stdout
     assert [name for name in tracked.splitlines() if BLIZZARD_BYTES.search(name)] == []
@@ -119,5 +144,6 @@ TESTS = [
     test_build_config_without_encoding_prints_the_fallback_hint,
     test_rerun_from_the_other_source_is_refused_naming_it,
     test_rerun_without_a_listfile_keeps_the_earlier_listfile_info,
+    test_a_linked_folder_out_of_the_export_is_not_read,
     test_repo_tracks_no_blp_ttf_otf_db2,
 ]
