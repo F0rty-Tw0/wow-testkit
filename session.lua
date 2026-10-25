@@ -12,6 +12,7 @@ local Scenario = require("scenario")
 local Screen = require("ui.screen")
 local SessionConsole = require("session_console")
 local SessionInput = require("session_input")
+local SessionSaved = require("session_saved")
 local SessionSlash = require("session_slash")
 local SessionState = require("session_state")
 local SessionView = require("session_view")
@@ -49,12 +50,13 @@ local function sortedKeys(t)
   return keys
 end
 
--- Logs the addon in. A skipped addon (not declared on the flavor, no TOC for it) records why in sess.skipped; any
--- other failure is recorded in the world, so the snapshot lists it. Nothing raises.
-local function login(sess)
+-- Logs the addon in (reloading: the way the client does after /reload). A skipped addon (not declared on the flavor, no
+-- TOC for it) records why in sess.skipped; any other failure is recorded in the world, so the snapshot lists it.
+-- Nothing raises.
+local function login(sess, reloading)
   local traceback
   local ok, err = xpcall(function()
-    sess.s:login()
+    sess.s:login({ reloading = reloading })
   end, function(e)
     traceback = debugTraceback()
     return e
@@ -93,10 +95,9 @@ local function payloadOf(event)
   return out
 end
 
--- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state? } (extract is a directory of
--- tools/client's output). Builds the world and logs the addon in; raises only when no world can be built (an unknown
--- flavor, another world still active).
-function M.new(opts)
+-- Builds the world and logs the addon in, with the saved variables sessionDir holds. A session that follows `prior` (a
+-- reload) continues its console and logs in as a reloading UI.
+local function open(opts, prior)
   local flavor = opts.flavor
   if flavor == nil or flavor == "auto" then
     flavor = DEFAULT_FLAVOR
@@ -104,31 +105,53 @@ function M.new(opts)
   local root = opts.addonDir
   local name, nameErr = Toc.addonName(root)
   local extract = opts.extract and Client.load(opts.extract, flavor)
-  local s = Scenario.new({ addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract })
+  local saved, warning
+  if opts.sessionDir then
+    saved, warning = SessionSaved.read(opts.sessionDir)
+  end
+  local s = Scenario.new({ addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract, saved = saved })
   local folder = folderName(root)
   local sess = setmetatable({ opts = opts, s = s, w = s.w, folder = folder, addon = name or folder, seq = 0, loads = 1 }, Session)
   SessionConsole.install(sess.w, sess)
+  if prior then
+    SessionConsole.carry(sess.w, prior.console)
+  end
+  if warning then
+    SessionConsole.push(sess.w, "system", "saved variables ignored: " .. warning)
+  end
   SessionState.install(sess.w, sess)
   if opts.state then
     SessionState.apply(sess, opts.state)
   end
   if name then
-    login(sess)
+    login(sess, prior ~= nil)
   else
     sess.w:recordError(nameErr)
   end
   return sess
 end
 
--- A new session over the same options (plus over's flavor and screen), counting one more load. A flavor or screen the
--- world would refuse raises before sess is shut down, so the old session stays whole. seq keeps counting, so a viewer
--- never sees it go back.
+-- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state? } (extract is a directory of
+-- tools/client's output; sessionDir holds saved.lua). Raises only when no world can be built (an unknown flavor,
+-- another world still active).
+function M.new(opts)
+  return open(opts, nil)
+end
+
+-- A new session over the same options (plus over's flavor and screen) and the same mock state, counting one more load.
+-- The old one logs out first and, unless over.keepSaved, writes its saved variables; keepSaved loads what saved.lua
+-- already holds. An option the world would refuse raises before sess is shut down, so the old session stays whole. seq
+-- keeps counting, so a viewer never sees it go back.
 function M.reload(sess, over)
+  over = over or {}
+  if over.keepSaved ~= nil and type(over.keepSaved) ~= "boolean" then
+    error("reload: keepSaved must be true or false", 0)
+  end
   local opts = {}
   for key, value in pairs(sess.opts) do
     opts[key] = value
   end
-  for key, value in pairs(over or {}) do
+  for key, value in pairs(over) do
     if REOPENABLE[key] then
       opts[key] = value
     end
@@ -137,14 +160,32 @@ function M.reload(sess, over)
     Flavors.get(opts.flavor)
   end
   Screen.normalize(opts.screen)
-  sess:shutdown()
-  local fresh = M.new(opts)
+  opts.state = sess.state
+  sess:close(over.keepSaved)
+  local fresh = open(opts, sess)
   fresh.loads, fresh.seq = sess.loads + 1, sess.seq + 1
   return fresh
 end
 
-function Session:shutdown()
+-- Logs out the way the client does (PLAYER_LOGOUT), writes the saved variables unless keepSaved, and destroys the
+-- world. A second call does nothing.
+function Session:close(keepSaved)
+  if self.closed then
+    return
+  end
+  self.closed = true
+  local ok, err = pcall(self.s.fireIfKnown, self.s, "PLAYER_LOGOUT")
+  if not ok then
+    SessionConsole.push(self.w, "error", "PLAYER_LOGOUT: " .. tostring(err))
+  end
+  if not keepSaved then
+    SessionSaved.store(self)
+  end
   self.w:destroy()
+end
+
+function Session:shutdown()
+  self:close(false)
 end
 
 -- Each method returns its reply and whether it changed the world (call bumps seq then).

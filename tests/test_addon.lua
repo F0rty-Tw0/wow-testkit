@@ -155,6 +155,17 @@ local function test_apply_saved_sets_a_dotted_name_as_one_global_assumed()
   A.same({ saved, nested, rawget(_G, "Dotted.DB") }, { 5, nil, nil })
 end
 
+local function test_collect_saved_reads_the_declared_globals()
+  withWorld("retail", function(w)
+    local info = { savedVariables = { "AccountDB", "UnsetDB" }, savedVariablesPerCharacter = { "CharDB" } }
+    w:setGlobal("AccountDB", { a = 1 })
+    w:setGlobal("CharDB", 5)
+    w:setGlobal("OtherDB", 9)
+    A.same(Addon.collectSaved(w, info), { AccountDB = { a = 1 }, CharDB = 5 })
+    A.same(Addon.collectSaved(w, { status = "skipped" }), {})
+  end)
+end
+
 local function test_no_toc_for_flavor_is_skipped()
   withWorld("vanilla", function(w)
     local _, info = Addon.load(w, { name = "MainlineToc", root = SMOKE_DIR .. "/MainlineToc" })
@@ -188,4 +199,5 @@ return function()
   test_long_chunk_name_error_keeps_full_source()
   test_apply_saved_sets_saved_variable_globals()
   test_apply_saved_sets_a_dotted_name_as_one_global_assumed()
+  test_collect_saved_reads_the_declared_globals()
 end

@@ -6,12 +6,14 @@
     python tools/session.py --selftest
 
 Prints `session: http://127.0.0.1:<port>/` and serves until Ctrl-C (exit 0). Exit 2 on a usage error or a --bind
-that is not 127.0.0.1: the session answers only the local machine. --no-watch is accepted now; the file watcher that
-reloads on a save arrives with live reload.
+that is not 127.0.0.1: the session answers only the local machine. A save of a .lua, .xml or .toc file under the addon
+folder reloads the addon (--no-watch turns that off); SavedVariables are written at a reload and at shutdown.
 """
 
 import argparse
+import atexit
 import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -23,14 +25,20 @@ VIEWER_DIR = Path(__file__).resolve().parent.parent / "viewer"
 
 
 class Running:
-    """A started session: .port, .url and .stop()."""
+    """A started session: .port, .url and .stop() (safe to call twice)."""
 
-    def __init__(self, server, host, bus, thread):
-        self.server, self.host, self.bus, self.thread = server, host, bus, thread
+    def __init__(self, server, host, bus, thread, watcher=None):
+        self.server, self.host, self.bus, self.thread, self.watcher = server, host, bus, thread, watcher
         self.port = server.server_address[1]
         self.url = f"http://{LOOPBACK}:{self.port}/"
+        self.stopped = False
 
     def stop(self):
+        if self.stopped:
+            return
+        self.stopped = True
+        if self.watcher:
+            self.watcher.stop()
         self.bus.close()
         self.server.shutdown()
         self.server.server_close()
@@ -41,12 +49,13 @@ class Running:
 def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, extract=None, bindings=None):
     """Loads the addon, starts serving on 127.0.0.1:port (0 picks a free port) and returns the Running session.
 
-    watch is accepted for the CLI's --no-watch; nothing watches files yet.
+    With watch, a save under addon_dir reloads the addon through the host.
     """
     import threading
 
     import session_host
     import session_http
+    import session_watch
 
     bus = session_http.Bus()
     host = session_host.LuaHost(bus, os.path.abspath(addon_dir), flavor, size, extract, bindings)
@@ -57,7 +66,10 @@ def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, ex
         raise
     thread = threading.Thread(target=server.serve_forever, name="session-http", daemon=True)
     thread.start()
-    return Running(server, host, bus, thread)
+    watcher = session_watch.Watcher(os.path.abspath(addon_dir), lambda: host.call("reload", {})) if watch else None
+    if watcher:
+        watcher.start()
+    return Running(server, host, bus, thread, watcher)
 
 
 def _size(text):
@@ -102,8 +114,13 @@ def _check(args):
     return None
 
 
+def _terminate(signum, frame):
+    raise KeyboardInterrupt
+
+
 def wait_for_interrupt(running):
-    """Blocks until Ctrl-C."""
+    """Blocks until Ctrl-C or SIGTERM."""
+    signal.signal(signal.SIGTERM, _terminate)
     try:
         while True:
             time.sleep(0.5)
@@ -129,6 +146,7 @@ def main(argv, wait=wait_for_interrupt):
     except OSError as err:
         return _usage_error(f"cannot listen on {LOOPBACK}:{args.port}: {err.strerror or err}")
     print(f"session: {running.url}", flush=True)
+    atexit.register(running.stop)
     try:
         wait(running)
     finally:

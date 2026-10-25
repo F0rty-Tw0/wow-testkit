@@ -57,6 +57,14 @@ local function echoErrors(w)
   end
 end
 
+-- Copies the ring of an earlier session into w's, so a reload keeps the lines and their seq numbers.
+function M.carry(w, from)
+  w.console.seq = from.seq
+  for i, line in ipairs(from.lines) do
+    w.console.lines[i] = line
+  end
+end
+
 -- Sets sess.console = w.console = { seq, lines } and installs the shims through the world, so destroy restores _G.
 function M.install(w, sess)
   w.console = { seq = 0, lines = {} }

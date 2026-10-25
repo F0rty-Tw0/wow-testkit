@@ -148,4 +148,16 @@ function M.applySaved(w, info, saved)
   end
 end
 
+-- { [name] = value } of the SavedVariables / SavedVariablesPerCharacter globals the TOC names (nil values omitted). The
+-- world is the active one, so its globals are _G (applySaved's counterpart; _w only keeps the two signatures alike).
+function M.collectSaved(_w, info)
+  local saved = {}
+  for _, names in ipairs({ info.savedVariables or {}, info.savedVariablesPerCharacter or {} }) do
+    for _, name in ipairs(names) do
+      saved[name] = rawget(_G, name)
+    end
+  end
+  return saved
+end
+
 return M

@@ -5,6 +5,7 @@ import http.client
 import io
 import json
 import os
+import shutil
 import tempfile
 import time
 import traceback
@@ -36,10 +37,10 @@ def testkit_home(tmp):
 
 
 @contextlib.contextmanager
-def running(tmp, addon=DEMO):
+def running(tmp, addon=DEMO, watch=False):
     """A started session on `addon` with a temp testkit home, always stopped."""
     with testkit_home(tmp):
-        live = session.start(str(addon), port=0)
+        live = session.start(str(addon), port=0, watch=watch)
         try:
             yield live
         finally:
@@ -295,6 +296,80 @@ def test_slash_reload_serves_changed_assets(tmp):
         assert Image.open(io.BytesIO(body)).getpixel((0, 0)) == (0, 0, 255, 255)
 
 
+def demo_copy(tmp):
+    """A copy of SessionDemo in tmp, which a test may edit."""
+    root = tmp / "SessionDemo"
+    shutil.copytree(DEMO, root)
+    return root
+
+
+def loads(live):
+    return get_json(live, "/snapshot")["session"]["loads"]
+
+
+def wait_for_loads(live, wanted, seconds=5):
+    """True once the session has loaded `wanted` times, polling /snapshot for up to `seconds`."""
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        if loads(live) == wanted:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def test_file_save_reloads_and_keeps_saved_variables(tmp):
+    root = demo_copy(tmp)
+    with running(tmp, root, watch=True) as live:
+        stream = open_stream(live)
+        main = root / "Main.lua"
+        main.write_text(main.read_text(encoding="utf-8").replace('"idle"', '"edited"'), encoding="utf-8")
+        assert wait_for_loads(live, 2), "no reload after a save"
+        assert item(get_json(live, "/snapshot"), "SessionDemoText")["text"] == "edited"
+        assert post_json(live, "/slash", {"text": "/dump SessionDemoDB.runs"})[1]["ok"] is True
+        deadline = time.time() + STREAM_WAIT
+        while True:
+            _, data = read_until(stream, "event: console")
+            if json.loads(data[len("data: ") :])["text"] == "2":
+                break
+            assert time.time() < deadline, "no console line 2"
+
+
+def test_unwatched_file_changes_do_not_reload(tmp):
+    root = demo_copy(tmp)
+    with running(tmp, root, watch=True) as live:
+        (root / "notes.txt").write_text("x", encoding="utf-8")
+        time.sleep(1.5)
+        assert loads(live) == 1
+
+
+def test_several_quick_saves_reload_once(tmp):
+    root = demo_copy(tmp)
+    with running(tmp, root, watch=True) as live:
+        main = root / "Main.lua"
+        for i in range(3):
+            main.write_text(main.read_text(encoding="utf-8") + f"-- save {i}\n", encoding="utf-8")
+            time.sleep(0.05)
+        assert wait_for_loads(live, 2), "no reload after the saves"
+        time.sleep(1.5)
+        assert loads(live) == 2
+
+
+def test_reload_event_is_streamed(tmp):
+    with running(tmp) as live:
+        stream = open_stream(live)
+        assert post_json(live, "/reload", {})[1]["ok"] is True
+        _, data = read_until(stream, "event: reload")
+        assert json.loads(data[len("data: ") :]) == {"loads": 2}, data
+
+
+def test_shutdown_writes_the_file(tmp):
+    with testkit_home(tmp):
+        live = session.start(str(DEMO), port=0)
+        live.stop()
+        saved = session_host.session_dir_for(DEMO) / "saved.lua"
+        assert saved.is_file() and "runs = 1" in saved.read_text(encoding="utf-8"), saved
+
+
 TESTS = [
     test_snapshot_over_http,
     test_input_fire_slash_state_round_trip,
@@ -313,6 +388,11 @@ TESTS = [
     test_console_events_stream,
     test_state_and_events_endpoints,
     test_slash_reload_serves_changed_assets,
+    test_file_save_reloads_and_keeps_saved_variables,
+    test_unwatched_file_changes_do_not_reload,
+    test_several_quick_saves_reload_once,
+    test_reload_event_is_streamed,
+    test_shutdown_writes_the_file,
 ]
 
 

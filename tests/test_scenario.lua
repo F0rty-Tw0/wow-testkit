@@ -175,6 +175,24 @@ local function test_hover_focuses_the_world_frame_when_its_motion_is_on() -- (I1
   end)
 end
 
+local function enteringWorldArgs(loginOpts)
+  local got
+  withHover("retail", function(s)
+    local frame = _G.CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    frame:SetScript("OnEvent", function(_, _, isInitialLogin, isReloadingUi)
+      got = { isInitialLogin, isReloadingUi }
+    end)
+    s:login(loginOpts)
+  end)
+  return got
+end
+
+local function test_login_reloading_flag_changes_the_entering_world_arguments()
+  A.same(enteringWorldArgs(nil), { true, false })
+  A.same(enteringWorldArgs({ reloading = true }), { false, true })
+end
+
 local function test_report_appends_world_notes()
   withHover("retail", function(s)
     s.w.notes[#s.w.notes + 1] = "from a menu fake"
@@ -193,6 +211,7 @@ return function()
   test_hover_runs_the_unit_post_call_on_retail()
   test_hover_runs_the_tooltip_set_unit_hook_on_vanilla()
   test_login_fires_player_login_once()
+  test_login_reloading_flag_changes_the_entering_world_arguments()
   test_hover_leaves_no_focus_when_world_frame_motion_is_off()
   test_hover_focuses_the_world_frame_when_its_motion_is_on()
   test_report_appends_world_notes()

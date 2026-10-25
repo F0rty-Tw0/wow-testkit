@@ -85,7 +85,7 @@ end
 
 local function test_dump_prints_values()
   H.withSession(nil, function(sess)
-    -- Login applies the (empty) SavedVariables after Main.lua ran, so SessionDemoDB starts nil (addon.lua applySaved).
+    -- Set here so the dump does not depend on what the ADDON_LOADED handler counted.
     slash(sess, "/run SessionDemoDB = { runs = 1 }")
     slash(sess, "/dump SessionDemoDB")
     A.contains(last(sess).text, "runs")

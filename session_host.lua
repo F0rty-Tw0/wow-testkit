@@ -85,14 +85,15 @@ function Host:collectConsole()
   end
 end
 
--- The one place a session is swapped. Replies { ok = true, loads }, or { ok = false, error } with the session kept.
+-- The one place a session is swapped. Replies { ok = true, loads }, or { ok = false, error } with the session kept. The
+-- new session carries the console ring, so consoleSeq stays and only lines newer than it are queued.
 function Host:reload(req)
   local ok, fresh = pcall(Session.reload, self.sess, req)
   if not ok then
     return { ok = false, error = tostring(fresh) }
   end
   self:collectConsole()
-  self.sess, self.located, self.consoleSeq = fresh, {}, 0
+  self.sess, self.located = fresh, {}
   self:push("reload", { loads = fresh.loads })
   self:push("snapshot", { seq = fresh.seq })
   return { ok = true, loads = fresh.loads }
