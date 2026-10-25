@@ -147,6 +147,20 @@ def test_extract_hit_by_path_and_by_id(tmp):
     assert bare["assets"][ri]["label"] == "#136235"
 
 
+def test_missing_addon_path_is_a_placeholder_even_with_an_extract(tmp):
+    """P4: a path under Interface/AddOns names an addon's own file; the client's extract never stands in for it."""
+    for name in ("demo", "other"):
+        png(tmp / "ex" / "art" / "interface" / "addons" / name / "media" / "missing.png")
+    (tmp / "demo").mkdir()
+    in_addon, known = path_asset("Interface/AddOns/Demo/Media/Missing")
+    other_addon, unknown = path_asset("Interface/AddOns/Other/Media/Missing")
+    refs = {in_addon: known, other_addon: unknown}
+    _, snap, _ = resolve(tmp, refs, {"Demo": tmp / "demo"}, extract=str(tmp / "ex"))
+    for ref in refs:
+        assert snap["assets"][ref]["source"] == "placeholder", (ref, snap["assets"][ref])
+        assert snap["assets"][ref]["missing"] is True, snap["assets"][ref]
+
+
 def test_no_extract_prints_the_note_once(tmp):
     ref, asset = path_asset("Interface/Foo/Bar")
     (tmp / "snapshot.json").write_text(json.dumps({"assets": {ref: asset}}), encoding="utf-8")
@@ -208,6 +222,7 @@ TESTS = [
     test_path_outside_the_addon_is_refused,
     test_standins_for_known_paths,
     test_extract_hit_by_path_and_by_id,
+    test_missing_addon_path_is_a_placeholder_even_with_an_extract,
     test_no_extract_prints_the_note_once,
     test_bad_input_exits_2,
     test_font_assets_copy_addon_fonts_only,
