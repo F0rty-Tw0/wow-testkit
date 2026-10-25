@@ -1,13 +1,13 @@
 """WDC4 and WDC5 DB2 reader (wowdev.wiki/DB2): the header, its sections, and the rows the DBD fields name.
 
-Not supported: offset-map (sparse) tables, which raise ValueError. Sections with a non-zero tact_key_hash hold
-bytes this reader cannot decrypt (a partial read zero-fills them); they yield no rows, see `lost_rows`.
+Offset-map (sparse) tables read through db2_sparse. Sections with a non-zero tact_key_hash hold bytes this reader
+cannot decrypt (a partial read zero-fills them); they yield no rows, see `lost_rows`.
 """
 
 import struct
 from typing import NamedTuple
 
-from tools.client import db2_fields
+from tools.client import db2_fields, db2_sparse
 
 HEADER = struct.Struct("<9I2H7I")
 SECTION = struct.Struct("<Q8I")
@@ -104,31 +104,35 @@ def columns(data, head, stored):
     return [db2_fields.Column(f, i, b) for f, i, b in zip(stored, infos, db2_fields.blocks(infos, pallet, common))]
 
 
-def section_rows(data, head, section, base, fields, cols, id_column, strings):
+def dense_rows(data, head, section, base, fields, cols, id_column, ids, strings):
+    """(id, row) for each fixed-size record of `section`."""
     size = head.record_size
-    first = section.offset + section.records * size + section.strings
-    if first + section.id_bytes + COPY.size * section.copies > len(data):
-        raise ValueError("DB2 section runs past the end of the file")
-    ids = struct.unpack_from(f"<{section.id_bytes // 4}I", data, first) if section.id_bytes else ()
-    id_field = next((f for f in fields if "id" in f.flags), None)
-    by_id = {}
     for number in range(section.records):
         rec = data[section.offset + number * size : section.offset + (number + 1) * size]
         at = base + number * size
         record_id = ids[number] if ids else None
         if record_id is None and id_column is not None:
             record_id = id_column.value(rec, None, at, strings)
-        row, stored = {}, iter(cols)
-        for field in fields:
-            if "noninline" in field.flags:
-                if record_id is None:
-                    raise ValueError(f"{field.name}: no id list in the file")
-                row[field.name] = record_id
-            else:
-                row[field.name] = next(stored).value(rec, record_id, at, strings)
+        row = db2_fields.build_row(fields, cols, record_id, lambda col: col.value(rec, record_id, at, strings))
+        yield record_id, row
+
+
+def section_rows(data, head, section, base, fields, cols, id_column, strings):
+    sparse = head.flags & SPARSE
+    first = section.records_end if sparse else section.offset + section.records * head.record_size + section.strings
+    copies = first + section.id_bytes
+    if copies + COPY.size * section.copies > len(data):
+        raise ValueError("DB2 section runs past the end of the file")
+    ids = struct.unpack_from(f"<{section.id_bytes // 4}I", data, first) if section.id_bytes else ()
+    id_field = next((f for f in fields if "id" in f.flags), None)
+    if sparse:
+        found = db2_sparse.rows(data, section, copies + COPY.size * section.copies, ids, fields, cols)
+    else:
+        found = dense_rows(data, head, section, base, fields, cols, id_column, ids, strings)
+    by_id = {}
+    for record_id, row in found:
         by_id[record_id] = row
         yield row
-    copies = first + section.id_bytes
     for n in range(section.copies):
         new, old = COPY.unpack_from(data, copies + COPY.size * n)
         if id_field is not None and old in by_id:
@@ -138,8 +142,6 @@ def section_rows(data, head, section, base, fields, cols, id_column, strings):
 def read(data, fields):
     """Rows (dicts by field name, in DBD order) of every readable section, then each section's copy-table rows."""
     head = header(data)
-    if head.flags & SPARSE:
-        raise ValueError("unsupported DB2: offset-map (sparse) records")
     stored = [f for f in fields if "noninline" not in f.flags]
     cols = columns(data, head, stored)
     id_column = next((c for c in cols if "id" in c.field.flags), None)

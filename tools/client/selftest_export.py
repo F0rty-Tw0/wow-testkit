@@ -157,7 +157,8 @@ def test_db2_export_writes_tables_and_atlas_lua(tmp):
         "dbfilesclient/uitextureatlaselement.db2": make_wdc5(element, [{"ID": 40, "Name": "Tooltip-Frame"}], layout_hash=3),
     })  # fmt: skip
     ctx = Ctx(**CTX_ARGS)
-    assert db2_export.write(src, tmp / "out", ctx) == 4 and ctx.notes == []
+    assert db2_export.write(src, tmp / "out", ctx) == 4  # the R5 tables are absent here: skipped and noted
+    assert ctx.notes == [f"db2: {name} has no listfile entry in this client" for name in db2_export.R5_TABLES], ctx.notes
     assert lua_value(tmp / "out/db2/uitextureatlas.lua") == {5: sheet_row}
     assert lua_value(tmp / "out/db2/uitextureatlaselement.lua") == {40: {"ID": 40, "Name": "Tooltip-Frame"}}
     assert lua_value(tmp / "out/atlas.lua") == {

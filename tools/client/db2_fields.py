@@ -97,3 +97,16 @@ class Column:
             else:
                 out.append(self.convert(value, width))
         return out if self.field.is_array else out[0]
+
+
+def build_row(fields, cols, record_id, read):
+    """{field name: value} in DBD order; `read(column)` yields each stored field, a noninline field takes the id."""
+    row, stored = {}, iter(cols)
+    for field in fields:
+        if "noninline" in field.flags:
+            if record_id is None:
+                raise ValueError(f"{field.name}: no id list in the file")
+            row[field.name] = record_id
+        else:
+            row[field.name] = read(next(stored))
+    return row

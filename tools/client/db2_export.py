@@ -7,6 +7,7 @@ from tools.client import atlas, db2, dbd, paths
 from tools.client.manifest import IDENT, KEYWORDS, lua_string, write_atomic
 
 ATLAS_TABLES = ("UiTextureAtlas", "UiTextureAtlasMember", "UiTextureAtlasElement")
+R5_TABLES = ("SpellName", "Spell", "SpellMisc", "SpellIcon", "Item", "ItemSparse")
 
 
 def dbd_dir(ctx):
@@ -76,20 +77,28 @@ def to_lua(rows):
     return "\n".join(lines) + "\n"
 
 
-def write(source, out, ctx):
-    """Writes db2/<table>.lua for each ATLAS_TABLES entry the client holds, then atlas.lua when all three are
-    there; returns the files written."""
-    written, tables = 0, {}
-    for name in ATLAS_TABLES:
-        rows = read_table(source, name, ctx)
-        if rows is None:
-            continue
-        tables[name] = {row["ID"]: row for row in rows if "ID" in row}
+def write_table(source, out, ctx, name):
+    """Writes db2/<name>.lua; the table's rows, or None when it was skipped (the reason is in ctx.notes)."""
+    rows = read_table(source, name, ctx)
+    if rows is not None:
         target = Path(out) / "db2" / f"{name.lower()}.lua"
         target.parent.mkdir(parents=True, exist_ok=True)
         write_atomic(target, to_lua(rows))
+    return rows
+
+
+def write(source, out, ctx):
+    """Writes db2/<table>.lua for each ATLAS_TABLES and R5_TABLES entry the client holds, then atlas.lua when all
+    three atlas tables are there; returns the files written. A table the client or the DBDs lack is skipped."""
+    written, tables = 0, {}
+    for name in ATLAS_TABLES + R5_TABLES:
+        rows = write_table(source, out, ctx, name)
+        if rows is None:
+            continue
+        if name in ATLAS_TABLES:
+            tables[name] = {row["ID"]: row for row in rows if "ID" in row}
         written += 1
-    if len(tables) == len(ATLAS_TABLES):
+    if all(name in tables for name in ATLAS_TABLES):
         entries = atlas.build(*(tables[name] for name in ATLAS_TABLES))
         write_atomic(Path(out) / "atlas.lua", atlas.to_lua(entries))
         written += 1
