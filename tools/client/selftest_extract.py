@@ -57,6 +57,17 @@ def test_build_info_row_for_product(tmp):
     assert buildinfo.row_for(buildinfo.parse(BUILD_INFO), "wow").locales == ["enUS"]  # listed twice in Tags
 
 
+def test_a_build_that_is_not_digits_is_refused(tmp):  # it becomes the extract folder's name
+    for version in ("1.2/../../evil", "11.0.c:/x", "12.1.5.", "12.1.5.\u00b9"):
+        rows = buildinfo.parse(BUILD_INFO.replace("12.1.5.70575", version))
+        try:
+            buildinfo.row_for(rows, "wow")
+        except buildinfo.ProductNotInstalled as err:
+            assert repr(version) in str(err), err
+        else:
+            raise AssertionError(f"expected ProductNotInstalled for {version!r}")
+
+
 def test_extract_writes_manifest_json_and_lua_that_agree(tmp):
     m = run_empty(tmp, "forever")
     d = tmp / "home" / "client" / "forever" / "70532"
@@ -172,6 +183,7 @@ def test_cli_prints_the_manifest_notes_after_the_summary(tmp):
 
 TESTS = [
     test_build_info_row_for_product,
+    test_a_build_that_is_not_digits_is_refused,
     test_extract_writes_manifest_json_and_lua_that_agree,
     test_nothing_is_written_under_the_install,
     test_home_resolution_order,

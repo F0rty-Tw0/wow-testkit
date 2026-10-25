@@ -4,10 +4,11 @@ import re
 from typing import NamedTuple
 
 LOCALE = re.compile(r"^[a-z]{2}[A-Z]{2}$")
+BUILD = re.compile(r"[0-9]+")
 
 
 class ProductNotInstalled(Exception):
-    """The product has no row in `.build.info`."""
+    """The product has no row in `.build.info`, or its row has a version whose build is not a number."""
 
 
 class BuildRow(NamedTuple):
@@ -35,6 +36,9 @@ def row_for(rows, product):
     if row is None:
         raise ProductNotInstalled(f"product {product!r} is not in .build.info")
     version = row.get("Version", "")
+    build = version.rsplit(".", 1)[-1]
+    if not BUILD.fullmatch(build):  # the build names the extract folder, so it must not be a path
+        raise ProductNotInstalled(f"product {product!r} has version {version!r}, whose build is not a number")
     tokens = row.get("Tags", "").replace(":", " ").split()
     locales = list(dict.fromkeys(token for token in tokens if LOCALE.match(token)))
-    return BuildRow(product, version, version.rsplit(".", 1)[-1], locales)
+    return BuildRow(product, version, build, locales)
