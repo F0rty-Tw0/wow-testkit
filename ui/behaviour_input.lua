@@ -239,6 +239,8 @@ local function setEditText(w, obj, st, text)
   end
 end
 
+M.setEditText = setEditText
+
 M.typed.SetFocus = M.onlyFor("editbox", setFocus)
 M.typed.ClearFocus = M.onlyFor("editbox", clearFocus)
 M.typed.HasFocus = M.onlyFor("editbox", hasFocus)

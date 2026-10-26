@@ -3,10 +3,10 @@
 local M = {}
 
 local Assets = require("render_assets")
+local BehaviourEdit = require("ui.behaviour_edit")
 local BehaviourText = require("ui.behaviour_text")
+local FontChain = require("ui.font_chain")
 local Read = require("render_read")
-
-local DEFAULT_CURSOR = 0
 
 -- source: row V12 (confirmed): a fresh Slider's orientation is VERTICAL (wiki API:Slider_SetOrientation default=VERTICAL,
 -- XML/Slider orientation default VERTICAL) and a fresh StatusBar's is HORIZONTAL (wiki API:StatusBar_SetOrientation
@@ -30,15 +30,33 @@ local function messageFrame(_, _, st)
   return { type = "ScrollingMessageFrame", lines = copyLines(st) }
 end
 
+local function isZero(insets)
+  return insets[1] == 0 and insets[2] == 0 and insets[3] == 0 and insets[4] == 0
+end
+
+-- The EditBox fields that appear only when set: selection, password, insets, and a justify other than LEFT. Reads the
+-- justify from the font object chain (the setters store it), not through GetJustifyH, whose fresh default is CENTER.
+local function editExtras(w, st, edit, widget)
+  local selection, insets = edit.selection, edit.insets
+  local justify = FontChain.value(w, st, "JustifyH")
+  widget.selection = selection and { from = selection.from, to = selection.to } or nil
+  widget.password = edit.password or nil
+  widget.insets = not isZero(insets) and { l = insets[1], r = insets[2], t = insets[3], b = insets[4] } or nil
+  widget.justifyH = justify and justify[1] ~= "LEFT" and justify[1] or nil
+end
+
 local function editBox(w, obj, st)
-  local cursor, multiLine = Read.stored(st, "CursorPosition"), Read.stored(st, "MultiLine")
-  return {
+  local edit = BehaviourEdit.read(st)
+  local widget = {
     type = "EditBox",
-    text = st.text or "",
-    cursor = cursor and cursor[1] or DEFAULT_CURSOR,
+    text = BehaviourEdit.displayText(st),
+    cursor = edit.cursor,
     focused = w.input.editFocus == obj,
-    multiLine = multiLine ~= nil and multiLine[1] == true,
+    multiLine = edit.multiLine,
   }
+  editExtras(w, st, edit, widget)
+
+  return widget
 end
 
 local function checkButton(_, _, st)
