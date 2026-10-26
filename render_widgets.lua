@@ -45,8 +45,12 @@ local function checkButton(_, _, st)
   return { type = "CheckButton", checked = st.checked == true, enabled = not st.disabled }
 end
 
+-- state and locked appear only when they differ from the defaults, so a fresh Button exports as it always did.
 local function button(_, _, st)
-  return { type = "Button", enabled = not st.disabled }
+  local btn = st.btn or {}
+  local state = btn.state ~= "NORMAL" and btn.state or nil
+
+  return { type = "Button", enabled = not st.disabled, state = state, locked = btn.locked or nil }
 end
 
 local function slider(w, obj, st)

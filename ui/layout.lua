@@ -10,11 +10,12 @@ local BehaviourRender = require("ui.behaviour_render")
 local Callsite = require("ui.callsite")
 local FontChain = require("ui.font_chain")
 local Measure = require("ui.measure")
+local Shift = require("ui.layout_shift")
 
 -- Method names whose call changes layout; ui/widgets.lua bumps the version before running them.
 M.MUTATORS = {}
 for name in
-  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetIgnoreParentScale SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap"):gmatch(
+  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetIgnoreParentScale SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap SetPushedTextOffset SetButtonState SetFontString"):gmatch(
     "%S+"
   )
 do
@@ -97,16 +98,17 @@ local function targetPixels(w, anchor, resolving)
   return targetState and M.entry(w, target, resolving).pixel
 end
 
--- Where anchor lands in pixels, with the anchor point's alignments; nil when the point name or the target is bad.
-local function anchorPosition(w, anchor, scale, resolving)
+-- Where anchor lands in pixels, with the anchor point's alignments; nil when the point name or the target is bad. shiftX
+-- and shiftY (units) are added to the anchor's offsets (ui/layout_shift.lua).
+local function anchorPosition(w, anchor, scale, resolving, shiftX, shiftY)
   local own, relative = ALIGN[anchor[1]], ALIGN[anchor[3]]
   local box = own and relative and targetPixels(w, anchor, resolving)
   if not box then
     return nil
   end
   return {
-    x = box.left + relative[1] * (box.right - box.left) + anchor[4] * scale,
-    y = box.bottom + relative[2] * (box.top - box.bottom) + anchor[5] * scale,
+    x = box.left + relative[1] * (box.right - box.left) + (anchor[4] + shiftX) * scale,
+    y = box.bottom + relative[2] * (box.top - box.bottom) + (anchor[5] + shiftY) * scale,
     ax = own[1],
     ay = own[2],
   }
@@ -163,18 +165,29 @@ local function clampShift(w, st, pixel, scale)
   return axisShift(left, right, w.screen.width, false), axisShift(bottom, top, w.screen.height, true)
 end
 
+-- The pixel positions of every anchor of region, in set order; nil when one has no position.
+local function positionsOf(w, region, st, scale, resolving)
+  local shiftX, shiftY = Shift.of(w, region, st)
+  local points = {}
+  for i, anchor in ipairs(st.points) do
+    points[i] = anchorPosition(w, anchor, scale, resolving, shiftX, shiftY)
+    if not points[i] then
+      return nil
+    end
+  end
+
+  return points
+end
+
 local function compute(w, region, st, resolving)
   -- source: row LY7: offsets and sizes are in the region's own scale space, scale multiplies down the parent chain.
   local scale = BehaviourRender.effectiveScale(w, st)
   if scale <= 0 then
     return nil
   end
-  local points = {}
-  for i, anchor in ipairs(st.points) do
-    points[i] = anchorPosition(w, anchor, scale, resolving)
-    if not points[i] then
-      return nil
-    end
+  local points = positionsOf(w, region, st, scale, resolving)
+  if not points then
+    return nil
   end
   local explicitWidth = explicitSize(st, "x")
   local width = explicitWidth or M.autoSize(w, region, "x")

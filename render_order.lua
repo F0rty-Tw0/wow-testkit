@@ -2,6 +2,7 @@
 local M = {}
 
 local Behaviour = require("ui.behaviour")
+local BehaviourButton = require("ui.behaviour_button")
 local BehaviourRender = require("ui.behaviour_render")
 local Read = require("render_read")
 
@@ -14,20 +15,6 @@ local DEFAULT_SUBLEVEL = 0
 local FRAME_PART, REGION_PART = 0, 1
 local TEXTURE_RANK, FONT_STRING_RANK = 0, 1
 local REGION_KINDS = { Texture = "texture", FontString = "fontstring" }
-
--- source: row V9, wiki Layer, Details: "Setting Frame:EnableMouse() causes HIGHLIGHT to show/hide as the cursor hovers
--- the Frame." A HIGHLIGHT region draws while the mouse focus is its frame or a descendant of it.
-local function mouseIsOver(w, frame)
-  local cursor = w.input and w.input.mouseFocus
-  while cursor do
-    if cursor == frame then
-      return true
-    end
-    local st = w.ui.state[cursor]
-    cursor = st and st.parent
-  end
-  return false
-end
 
 -- The layer index and sublevel of a region from its stored DrawLayer pack.
 local function layerOf(st)
@@ -57,6 +44,24 @@ local function precedes(a, b)
   return false
 end
 
+-- source: row V9, wiki Layer, Details: "Setting Frame:EnableMouse() causes HIGHLIGHT to show/hide as the cursor hovers
+-- the Frame." A HIGHLIGHT region draws while the mouse focus is its frame or a descendant of it; a button's draws by
+-- BehaviourButton.highlightShown instead (W17), and a state texture of a button only in its state (W17, W24).
+local function regionDraws(w, st)
+  local owner = st.parent
+  if st.role and not BehaviourButton.shown(w, owner, st.role) then
+    return false
+  end
+  if layerOf(st) ~= "HIGHLIGHT" then
+    return true
+  end
+  if w.ui.state[owner].plan.isA.button then
+    return BehaviourButton.highlightShown(w, owner)
+  end
+
+  return BehaviourButton.mouseWithin(w, owner)
+end
+
 -- Splits the visible objects of w.ui.state into frames (obj -> frameKey) and region entries { obj, st, kind }.
 local function visibleObjects(w)
   local frames, regions = {}, {}
@@ -82,8 +87,7 @@ function M.collect(w)
   end
   for _, entry in ipairs(regions) do
     local parentKey = frames[entry.st.parent]
-    local layer = layerOf(entry.st)
-    if parentKey and (layer ~= "HIGHLIGHT" or mouseIsOver(w, entry.st.parent)) then
+    if parentKey and regionDraws(w, entry.st) then
       entry.key = regionKey(parentKey, entry.st, entry.kind)
       entries[#entries + 1] = entry
     end
