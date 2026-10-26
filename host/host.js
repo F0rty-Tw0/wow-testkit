@@ -185,26 +185,27 @@ window.TK = window.TK || {};
 
     // The addon folder is quiet: list it again and have the worker remount it and reload. An edit can land while an earlier
     // remount is out, so the state leaves Reloading only when no remount is out and no edit waits for its quiet window.
-    // A walk that ends after a pagehide or a new worker posts nothing; remounts is left for the next open to reset, as
-    // closeWorker may already have.
+    // A walk or a reply that ends after a pagehide or a new worker belongs to a dead session and moves nothing; remounts
+    // is left for the next open to reset, as closeWorker may already have.
     async function remount() {
       if (state !== 'Reloading') return;
       const mine = worker;
+      const live = () => mine === worker && !shutDown;
       edited = false;
       remounts++;
       let addon;
       try {
         addon = await walk(dep.addon);
       } catch (err) {
-        if (mine === worker) handleFailed(err, 'addon');
+        if (live()) handleFailed(err, 'addon');
 
         return;
       }
-      if (mine !== worker || shutDown) return;
+      if (!live()) return;
       files = { addon: byPath(addon), extract: files.extract };
       post('remount', { addon }).then((reply) => {
         remounts--;
-        if (remounts === 0 && !edited) dispatch(JSON.parse(reply).ok ? 'reloadReply' : 'luaError');
+        if (live() && remounts === 0 && !edited) dispatch(JSON.parse(reply).ok ? 'reloadReply' : 'luaError');
       }, () => {});
     }
 

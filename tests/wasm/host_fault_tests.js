@@ -167,18 +167,49 @@
         await until(() => ctl.state() === 'Reloading', 'Reloading');
         // From here every listing of the folder waits for release: the remount's walk once the quiet window ends.
         let release;
+        let hits = 0;
         const gate = new Promise((resolve) => (release = resolve));
         const entries = addon.entries.bind(addon);
         addon.entries = async function* () {
+          hits++;
           await gate;
           yield* entries();
         };
         await sleep(300);
+        // One held listing is the watcher's poll, the second the remount's walk.
+        A.eq(hits >= 2 && ctl.state() === 'Reloading', true, 'the remount walk is held');
         window.dispatchEvent(new Event('pagehide'));
         A.eq(ctl.state(), 'Stopped');
         release();
         await sleep(200);
         A.same(fake.posted, ['open', 'pagehide'], 'the walk ended with the page');
+      } finally {
+        ctl.stop();
+      }
+    },
+  });
+
+  T.push({
+    name: 'host_remount_reply_after_pagehide_does_not_end_the_restore',
+    fn: async () => {
+      const held = [];
+      const fake = scripted((msg, say) => {
+        if (msg.type === 'remount') held.push(() => reply(say, msg, { ok: false, error: 'boom' }));
+        else if (msg.type !== 'pagehide') reply(say, msg, { ok: true }); // the shutdown sync never ends
+      });
+      const addon = fakeDir({ 'A.toc': 'x', 'Main.lua': 'a = 1' }, 'A');
+      const ctl = H.start({ addon, account: 'F', spawn: fake.spawn, poll: { interval: 50, quiet: 100 }, timers: { hideMs: 400 } });
+      try {
+        await until(() => ctl.state() === 'Running', 'Running');
+        addon.edit('Main.lua', 'a = 2');
+        await until(() => held.length === 1, 'the remount');
+        window.dispatchEvent(new Event('pagehide'));
+        window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+        A.eq(ctl.state(), 'Loading');
+        held[0](); // the old worker answers during the restore's wait
+        await sleep(50);
+        A.eq(ctl.state(), 'Loading', 'the reply of the shut-down session moves nothing');
+        await until(() => ctl.state() === 'Running', 'Running after the restore');
       } finally {
         ctl.stop();
       }
