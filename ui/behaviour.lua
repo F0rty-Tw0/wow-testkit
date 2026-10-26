@@ -3,7 +3,8 @@
 -- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), texture (ui/behaviour_texture.lua), alpha/scale/level/strata
 -- (ui/behaviour_render.lua), region creation (ui/behaviour_regions.lua), script/event (ui/behaviour_scripts.lua),
 -- keyboard, wheel, drag, moving and sizing (ui/behaviour_drag.lua), animation (ui/behaviour_animation.lua), attribute
--- (ui/behaviour_attributes.lua) and GetDebugName (ui/behaviour_debug_name.lua) methods.
+-- (ui/behaviour_attributes.lua) and GetDebugName (ui/behaviour_debug_name.lua) methods. The button methods
+-- (ui/behaviour_button.lua) register through Typed.add into M.typed instead.
 local M = {}
 
 local AddonEnv = require("addon_env")
@@ -11,6 +12,7 @@ local Callsite = require("ui.callsite")
 local BehaviourLayout = require("ui.behaviour_layout")
 local BehaviourText = require("ui.behaviour_text")
 local BehaviourTexture = require("ui.behaviour_texture")
+local BehaviourButton = require("ui.behaviour_button")
 local BehaviourRender = require("ui.behaviour_render")
 local BehaviourRegions = require("ui.behaviour_regions")
 local BehaviourScripts = require("ui.behaviour_scripts")
@@ -182,6 +184,7 @@ local MODULES = {
   BehaviourLayout,
   BehaviourText,
   BehaviourTexture,
+  BehaviourButton,
   BehaviourRender,
   BehaviourRegions,
   BehaviourScripts,

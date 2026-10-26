@@ -2,7 +2,8 @@
 -- Per template: Ketho Templates.lua type, direct inherits and mixin names (flattened over the inherits
 -- chain), the parentKey children (key and widget type) flattened over the inherits chain from the XML, the
 -- XML <Size> (most derived wins), protected for Secure* templates, and scripts (handler name -> the mixin method the
--- XML's method="" names, for the few handlers the kit models). Facts only: no Blizzard XML or Lua.
+-- XML's method="" names, for the few handlers the kit models). A child with buttonText = true is the <ButtonText> of its
+-- button (ui/template_apply.lua makes it the button's FontString). Facts only: no Blizzard XML or Lua.
 -- The comment above each entry lists the inherits chain and the XML file that defines each link.
 -- Templates in use by the reference addons (WhisperMessenger, RaidGroupWrap, MouseOverTooltip), 2026-10-04.
 local M = {}
@@ -226,7 +227,9 @@ M.TEMPLATES = {
       { key = "Left", type = "Texture" },
       { key = "Right", type = "Texture" },
       { key = "Middle", type = "Texture" },
-      { key = "Text", type = "FontString" },
+      -- source: confirmed (W66) UIPanelButtonNoTooltipTemplate declares `Text` as the <ButtonText> of the button
+      -- (blizzard_sharedxml/secureuipaneltemplates.xml:39), so it is the button's FontString.
+      { key = "Text", type = "FontString", buttonText = true },
     },
     mixins = { "UIButtonFitToTextBehaviorMixin", "UIPanelButtonMixin" },
     protected = false,

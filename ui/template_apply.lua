@@ -21,6 +21,9 @@ function M.apply(w, frame, st, entry)
   for _, child in ipairs(entry.children) do
     local childType = w.globals.widgets[child.type] and child.type or FALLBACK_CHILD_TYPE
     frame[child.key] = w.ui.create(childType, nil, frame)
+    if child.buttonText then
+      frame:SetFontString(frame[child.key])
+    end
   end
   if entry.size then
     st.width, st.height = entry.size[1], entry.size[2]
