@@ -13,11 +13,12 @@
 
   const TKW = (self.TKW = { mod: null, sessionDir, caseInsensitive });
 
-  const unsafePart = (part) => typeof part !== 'string' || part === '' || part === '.' || part === '..' || part.includes('/');
+  const unsafePart = (part) =>
+    typeof part !== 'string' || part === '' || part === '.' || part === '..' || /[/\\\x00-\x1f]/.test(part);
 
   // The session folder of one addon for one account and character: SavedVariables live per combination. The names come
   // from the page's stored choices, so a character that is not "Realm/Character" or a part that is empty, "." or ".."
-  // or holds a slash throws.
+  // or holds a slash, a backslash or a control character throws.
   function sessionDir(account, character, addonFolder) {
     const where = character ? character.split('/') : ['_account'];
     const parts = [account || '_none', ...where, addonFolder];

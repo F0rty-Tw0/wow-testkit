@@ -110,6 +110,8 @@
             ['A/B', null, 'D'],
             ['A', null, '..'],
             ['A', null, ''],
+            ['A\\B', null, 'D'],
+            ['A', 'Realm/Ch\u0000r', 'D'],
           ];
 
           return tries.map(function (args) {
@@ -125,7 +127,7 @@
         const reply = await open(worker, { account: 'A', character: '../../escape' }); // also waits for the runtime
         A.eq(reply.ok, false);
         A.eq(/bad session folder/.test(reply.error), true, reply.error);
-        A.same(await send(worker, { type: 'probe' }), ['threw', 'threw', 'threw', 'threw', 'threw', 'threw', 'threw', 'threw', 'threw']);
+        A.same(await send(worker, { type: 'probe' }), Array(11).fill('threw'));
       });
     },
   });
