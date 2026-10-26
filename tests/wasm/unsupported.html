@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Host page without the File System Access API</title>
+  </head>
+  <body data-host-page>
+    <div id="host"><span id="host-state"></span></div>
+    <div id="stage"></div>
+    <script>
+      window.showDirectoryPicker = undefined;
+    </script>
+    <script src="../../viewer/transport.js"></script>
+    <script src="../../host/host_fs.js"></script>
+    <script src="../../host/host_state.js"></script>
+    <script src="../../host/host.js"></script>
+    <script src="../../host/host_assets.js"></script>
+    <script src="../../host/host_page.js"></script>
+  </body>
+</html>

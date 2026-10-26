@@ -1,0 +1,72 @@
+/* The browser host's own styles (host/index.html): the strip over the viewer, its profile note, banner and badge, the
+   Chromium-only message, and the background slot (browser host spec 10) under a stage that lets it show through. The
+   viewer's colour tokens (viewer.css) apply. */
+#host {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+#picker,
+#host-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+#host button,
+#host select {
+  font: inherit;
+}
+
+#host-state {
+  font-weight: 600;
+}
+
+#profile-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#missing-art {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--placeholder);
+  color: #fff;
+}
+
+#banner {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--accent);
+}
+
+#host [hidden],
+#banner[hidden] {
+  display: none;
+}
+
+#unsupported {
+  padding: 12px 14px;
+  background: var(--banner);
+  color: var(--banner-ink);
+}
+
+#background {
+  position: absolute;
+  inset: 0;
+  background: #1a1a1a;
+}
+
+#stage {
+  background: transparent;
+}

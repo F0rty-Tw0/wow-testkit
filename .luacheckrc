@@ -107,3 +107,8 @@ files["canaries/*/*/*/*.lua"] = {
 files["tests/fixtures/docs*/*.lua"] = {
   read_globals = { "APIDocumentation", "Enum", "Constants" },
 }
+
+-- WTF import fixture: its saved variable globals are what the WTF files seed.
+files["tests/fixtures/addons/WtfDemo/*.lua"] = {
+  globals = { "WtfDemoDB", "WtfDemoCharDB" },
+}

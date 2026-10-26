@@ -3,6 +3,8 @@
 local A = require("assert")
 local H = require("tests.helpers.session")
 local Json = require("json")
+local Tmp = require("tests.helpers.tmp")
+local fs = require("fs")
 
 local function drained(host)
   return Json.decode(host:drain())
@@ -238,6 +240,21 @@ local function test_a_lost_session_reloads_once_a_world_can_be_built_again()
   end)
 end
 
+-- The WTF import and reimport tests live in test_session_host_wtf.lua; this one needs withFailingWorlds.
+local function test_a_lost_session_accepts_reimport()
+  local acc = Tmp.dir("wtfhost") .. "/acc.lua"
+  fs.writeFile(acc, "WtfDemoDB = { n = 3 }")
+  H.withHost({ addonDir = H.WTF, wtf = { account = acc } }, function(host)
+    withFailingWorlds(2, function()
+      host:handleJson("reload", "{}")
+    end)
+    A.truthy(host.lost)
+    local reply = Json.decode(host:handleJson("reimport", "{}"))
+    A.same({ reply.ok, host.lost }, { true, nil })
+    A.eq(_G.WtfDemoDB.n, 3)
+  end)
+end
+
 return function()
   test_a_reload_whose_world_fails_reopens_the_previous_options()
   test_a_reload_that_cannot_rebuild_any_world_loses_the_session()
@@ -253,4 +270,5 @@ return function()
   test_malformed_json_replies_an_error()
   test_snapshot_assets_carry_located()
   test_a_bad_reload_flavor_replies_an_error_and_keeps_the_session()
+  test_a_lost_session_accepts_reimport()
 end
