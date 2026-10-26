@@ -11,6 +11,7 @@ local AddonEnv = require("addon_env")
 local Callsite = require("ui.callsite")
 local BehaviourLayout = require("ui.behaviour_layout")
 local BehaviourText = require("ui.behaviour_text")
+local BehaviourFontString = require("ui.behaviour_fontstring")
 local BehaviourTexture = require("ui.behaviour_texture")
 local BehaviourButton = require("ui.behaviour_button")
 local BehaviourRender = require("ui.behaviour_render")
@@ -183,6 +184,7 @@ end
 local MODULES = {
   BehaviourLayout,
   BehaviourText,
+  BehaviourFontString,
   BehaviourTexture,
   BehaviourButton,
   BehaviourRender,

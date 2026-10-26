@@ -44,7 +44,7 @@ local function test_button_text_is_the_buttons_font_string_with_height_and_shado
     local text = _G.BtnText
     A.eq(_G.Btn:GetFontString(), text)
     A.eq(text:GetObjectType(), "FontString")
-    A.eq(w.ui.state[text].values.TextHeight[1], 14)
+    A.eq(select(2, text:GetFont()), 14)
     A.same({ text:GetShadowOffset() }, { 1, -1 })
     A.same(w.ui.state[text].values.ShadowColor, { n = 4, 0, 0, 0, 1 })
   end)

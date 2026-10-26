@@ -2,21 +2,18 @@
 local M = {}
 
 local Assets = require("render_assets")
+local BehaviourFontString = require("ui.behaviour_fontstring")
 local BehaviourRender = require("ui.behaviour_render")
 local BehaviourTexture = require("ui.behaviour_texture")
 local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
 local Read = require("render_read")
+local TextState = require("ui.text_state")
 local Widgets = require("render_widgets")
 
 local ID_PREFIX = { frame = "f", texture = "t", fontstring = "s" }
 local WHITE = { 1, 1, 1, 1 }
 local BLACK = { 0, 0, 0, 1 }
-
--- source: row V11, wiki XML/FontString attribute defaults: justifyH CENTER, justifyV MIDDLE, wordwrap true,
--- maxLines 0, spacing 0. That a CreateFontString object has the same defaults is assumed.
-local DEFAULT_JUSTIFY_H, DEFAULT_JUSTIFY_V = "CENTER", "MIDDLE"
-local DEFAULT_MAX_LINES, DEFAULT_SPACING = 0, 0
 
 M.refPath = Assets.refPath
 M.refId = Assets.refId
@@ -97,8 +94,8 @@ local function addEscapes(assets, text)
   end
 end
 
-local function shadowOf(st)
-  local offset, color = Read.stored(st, "ShadowOffset"), Read.stored(st, "ShadowColor")
+local function shadowOf(w, st)
+  local offset, color = TextState.shadowOffset(w, st), TextState.shadowColor(w, st)
   if not (offset or color) then
     return nil
   end
@@ -119,17 +116,15 @@ local function fontFields(w, st, item, assets)
   item.color = Read.color(FontChain.inherited(w, st, "textColor"), WHITE)
 end
 
-local function fontStringFields(w, st, item, assets)
+local function fontStringFields(w, obj, st, item, assets)
   fontFields(w, st, item, assets)
-  local justifyH, justifyV = Read.stored(st, "JustifyH"), Read.stored(st, "JustifyV")
-  item.justifyH = justifyH and justifyH[1] or DEFAULT_JUSTIFY_H
-  item.justifyV = justifyV and justifyV[1] or DEFAULT_JUSTIFY_V
-  item.shadow = shadowOf(st)
-  local wrap = Read.stored(st, "WordWrap")
-  item.wrap = wrap == nil or wrap[1] and true or false
-  local maxLines, spacing = Read.stored(st, "MaxLines"), Read.stored(st, "Spacing")
-  item.maxLines = maxLines and maxLines[1] or DEFAULT_MAX_LINES
-  item.spacing = spacing and spacing[1] or DEFAULT_SPACING
+  item.justifyH = TextState.justifyH(w, st)
+  item.justifyV = TextState.justifyV(w, st)
+  item.shadow = shadowOf(w, st)
+  item.wrap = TextState.wordWrap(st)
+  item.maxLines = TextState.maxLines(st)
+  item.spacing = TextState.spacing(w, st)
+  item.truncated = BehaviourFontString.isTruncated(w, obj) or nil
 end
 
 -- entry.rect and entry.clip are set by the caller (render.lua).
@@ -159,7 +154,7 @@ function M.item(w, entry, assets)
       item[key] = value
     end
   else
-    fontStringFields(w, st, item, assets)
+    fontStringFields(w, entry.obj, st, item, assets)
     item.autoWidth = Layout.autoWidth(w, entry.obj) or nil
   end
   return item

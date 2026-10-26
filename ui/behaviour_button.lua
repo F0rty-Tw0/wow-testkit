@@ -8,6 +8,7 @@ local M = {}
 
 local AddonEnv = require("addon_env")
 local BehaviourText = require("ui.behaviour_text")
+local FontChain = require("ui.font_chain")
 local State = require("ui.button_state")
 local Shift = require("ui.layout_shift")
 local Typed = require("ui.typed")
@@ -115,19 +116,39 @@ end
 
 -- Button text -------------------------------------------------------------------------------------------------
 
+-- Makes fs the button text; its state remembers the button (textOwner), so the font chain finds the state font object.
+local function adoptText(w, obj, st, fs)
+  local btn = State.write(st)
+  local previous = btn.fs and w.ui.state[btn.fs]
+  if previous then
+    previous.textOwner = nil
+  end
+  btn.fs = fs
+  local fsState = fs and w.ui.state[fs]
+  if fsState then
+    fsState.textOwner = obj
+  end
+end
+
+-- source: assumed (W22) the text of a button shows the font object of the button's state; ui/font_chain.lua asks this
+-- before the text's own font object.
+FontChain.ownerFont = function(w, st)
+  return st.textOwner and M.fontFor(w, st.textOwner)
+end
+
 -- The button text FontString, created over the whole button on first use.
-local function fontString(_, obj, st)
+local function fontString(w, obj, st)
   local btn = State.write(st)
   if not btn.fs then
-    btn.fs = obj:CreateFontString(nil, "ARTWORK")
+    adoptText(w, obj, st, obj:CreateFontString(nil, "ARTWORK"))
     btn.fs:SetAllPoints()
   end
 
   return btn.fs
 end
 
-local function setFontString(_, _, st, fs)
-  State.write(st).fs = fs
+local function setFontString(w, obj, st, fs)
+  adoptText(w, obj, st, fs)
 end
 
 local function getFontString(_, _, st)

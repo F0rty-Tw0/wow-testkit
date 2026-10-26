@@ -5,6 +5,7 @@ local M = {}
 local AddonEnv = require("addon_env")
 local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
+local TextState = require("ui.text_state")
 
 local unpack = unpack
 
@@ -60,7 +61,8 @@ function methods.GetFontObject(_, _, st)
   return st.fontObject
 end
 
--- Copies the source's effective font, text color and generic settings (shadow, justify, ...).
+-- Copies the source's effective font, text color and generic settings (shadow, justify, ...); the settings a font
+-- object chain supplies (ui/text_state.lua) are copied as the source reads them.
 function methods.CopyFontObject(w, _, st, source)
   local sourceState = w.ui.state[resolveObject(w, source)]
   if not sourceState then
@@ -70,6 +72,9 @@ function methods.CopyFontObject(w, _, st, source)
   st.textColor = inherited(w, sourceState, "textColor")
   for key, value in pairs(sourceState.values) do
     st.values[key] = value
+  end
+  for _, key in ipairs(TextState.INHERITED_KEYS) do
+    st.values[key] = FontChain.value(w, sourceState, key) or st.values[key]
   end
 end
 
