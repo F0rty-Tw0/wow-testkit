@@ -165,6 +165,7 @@ local function create(w, typeName, name, parent)
   w.ui.seq = w.ui.seq + 1
   local st = { plan = class.plan, seq = w.ui.seq, name = name, shown = true, points = {}, values = {}, children = {}, regions = {} }
   w.ui.state[obj] = st
+  w.ui.bySeq[st.seq] = obj
   Callsite.credit(w, "widgets", typeName)
   Behaviour.setParent(w, obj, st, parent)
   if name ~= nil then
@@ -268,6 +269,8 @@ function M.install(w)
     -- name -> { type, apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
     virtuals = {},
     seq = 0,
+    -- seq -> widget, weak-valued: EnumerateFrames walks it in creation order
+    bySeq = setmetatable({}, { __mode = "v" }),
     create = function(typeName, name, parent)
       return create(w, typeName, name, parent)
     end,

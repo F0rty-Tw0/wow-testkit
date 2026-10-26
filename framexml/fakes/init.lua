@@ -16,6 +16,7 @@ local STAGE1 = {
   "framexml.fakes.client",
   "framexml.fakes.slash",
   "framexml.fakes.tooltip",
+  "framexml.fakes.frame_globals",
   "framexml.fakes.menu_frames",
   "framexml.fakes.dropdown",
   "framexml.fakes.menu",
