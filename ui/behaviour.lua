@@ -3,8 +3,8 @@
 -- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), texture (ui/behaviour_texture.lua), alpha/scale/level/strata
 -- (ui/behaviour_render.lua), region creation (ui/behaviour_regions.lua), script/event (ui/behaviour_scripts.lua),
 -- keyboard, wheel, drag, moving and sizing (ui/behaviour_drag.lua), animation (ui/behaviour_animation.lua), attribute
--- (ui/behaviour_attributes.lua) and GetDebugName (ui/behaviour_debug_name.lua) methods. The button methods
--- (ui/behaviour_button.lua) register through Typed.add into M.typed instead.
+-- (ui/behaviour_attributes.lua), GetDebugName (ui/behaviour_debug_name.lua) and frame extras (ui/behaviour_frame_extras.lua)
+-- methods. The button methods (ui/behaviour_button.lua) register through Typed.add into M.typed instead.
 local M = {}
 
 local AddonEnv = require("addon_env")
@@ -25,6 +25,7 @@ local BehaviourDebugName = require("ui.behaviour_debug_name")
 local BehaviourEdit = require("ui.behaviour_edit")
 local BehaviourRange = require("ui.behaviour_range")
 local BehaviourScroll = require("ui.behaviour_scroll")
+local BehaviourFrameExtras = require("ui.behaviour_frame_extras")
 
 local unpack = unpack
 
@@ -201,6 +202,7 @@ local MODULES = {
   BehaviourEdit,
   BehaviourRange,
   BehaviourScroll,
+  BehaviourFrameExtras,
 }
 for _, module in ipairs(MODULES) do
   for name, fn in pairs(module.methods) do

@@ -47,24 +47,24 @@ end
 local function test_generic_getter_returns_setter_args()
   withWidgets("retail", function()
     local f = _G.CreateFrame("Frame")
-    f:SetID(7)
-    A.eq(f:GetID(), 7)
+    f:SetFlattensRenderLayers(true)
+    A.eq(f:GetFlattensRenderLayers(), true)
   end)
 end
 
 local function test_unset_generic_getter_counts_unscripted()
   withWidgets("retail", function(w)
     local f = _G.CreateFrame("Frame")
-    A.eq(f:GetID(), 0)
-    A.eq(w.unscripted["Frame:GetID"], 1)
+    A.eq(f:GetFlattensRenderLayers(), false)
+    A.eq(w.unscripted["Frame:GetFlattensRenderLayers"], 1)
   end)
 end
 
 local function test_unknown_verb_method_counts_unscripted()
   withWidgets("retail", function(w)
     local f = _G.CreateFrame("Frame")
-    A.eq(select("#", f:Raise()), 0)
-    A.eq(w.unscripted["Frame:Raise"], 1)
+    A.eq(select("#", f:DesaturateHierarchy()), 0)
+    A.eq(w.unscripted["Frame:DesaturateHierarchy"], 1)
   end)
 end
 
