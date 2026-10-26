@@ -96,9 +96,11 @@ window.TK = window.TK || {};
       });
     }
 
-    // Ends the worker and fails everything it still owed an answer to.
+    // Ends the worker and its watcher, and fails everything it still owed an answer to.
     function closeWorker(reason) {
       clock.clearTimeout(quietTimer);
+      if (watcher) watcher.stop();
+      watcher = null;
       if (dog) dog.stop();
       if (worker) worker.terminate();
       worker = null;
@@ -134,19 +136,21 @@ window.TK = window.TK || {};
     }
 
     // A restore after a pagehide first waits (at most hideMs) for that worker's shutdown sync, which a terminate would cut.
+    // The watcher stops before the wait, so a read error during it cannot move the state; anything else that does ends
+    // the restore.
     async function openSession() {
       const shutting = hiding;
       hiding = null;
+      if (watcher) watcher.stop();
+      watcher = null;
       if (shutting) await within(shutting, clock.hideMs);
-      if (ended) return;
+      if (ended || state !== 'Loading') return;
       closeWorker('restarted');
       shutDown = false;
       const mine = (worker = dep.spawn());
       dog = watchdog(Object.assign({}, clock, { onExpire: (type, seconds, id) => onExpire(mine, seconds, id) }));
       mine.onmessage = ({ data }) => mine === worker && onMessage(data);
       mine.onerror = (ev) => mine === worker && dispatch('fatal', 'runtime stopped: ' + ev.message);
-      if (watcher) watcher.stop();
-      watcher = null;
       let msg;
       try {
         msg = await openMessage();
@@ -181,6 +185,8 @@ window.TK = window.TK || {};
 
     // The addon folder is quiet: list it again and have the worker remount it and reload. An edit can land while an earlier
     // remount is out, so the state leaves Reloading only when no remount is out and no edit waits for its quiet window.
+    // A walk that ends after a pagehide or a new worker posts nothing; remounts is left for the next open to reset, as
+    // closeWorker may already have.
     async function remount() {
       if (state !== 'Reloading') return;
       const mine = worker;
@@ -190,12 +196,11 @@ window.TK = window.TK || {};
       try {
         addon = await walk(dep.addon);
       } catch (err) {
-        remounts--;
         if (mine === worker) handleFailed(err, 'addon');
 
         return;
       }
-      if (mine !== worker) return;
+      if (mine !== worker || shutDown) return;
       files = { addon: byPath(addon), extract: files.extract };
       post('remount', { addon }).then((reply) => {
         remounts--;
@@ -274,7 +279,6 @@ window.TK = window.TK || {};
       onEvent: (fn) => eventFns.push(fn),
       stop() {
         ended = true;
-        if (watcher) watcher.stop();
         closeWorker('stopped');
         dep.win.removeEventListener('pagehide', onHide);
         dep.win.removeEventListener('pageshow', onShow);

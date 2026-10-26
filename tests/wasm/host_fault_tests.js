@@ -156,6 +156,36 @@
   });
 
   T.push({
+    name: 'host_remount_walk_that_ends_after_pagehide_posts_nothing',
+    fn: async () => {
+      const fake = recorded();
+      const addon = fakeDir({ 'A.toc': 'x', 'Main.lua': 'a = 1' }, 'A');
+      const ctl = H.start({ addon, account: 'F', spawn: fake.spawn, poll: { interval: 50, quiet: 100 } });
+      try {
+        await until(() => ctl.state() === 'Running', 'Running');
+        addon.edit('Main.lua', 'a = 2');
+        await until(() => ctl.state() === 'Reloading', 'Reloading');
+        // From here every listing of the folder waits for release: the remount's walk once the quiet window ends.
+        let release;
+        const gate = new Promise((resolve) => (release = resolve));
+        const entries = addon.entries.bind(addon);
+        addon.entries = async function* () {
+          await gate;
+          yield* entries();
+        };
+        await sleep(300);
+        window.dispatchEvent(new Event('pagehide'));
+        A.eq(ctl.state(), 'Stopped');
+        release();
+        await sleep(200);
+        A.same(fake.posted, ['open', 'pagehide'], 'the walk ended with the page');
+      } finally {
+        ctl.stop();
+      }
+    },
+  });
+
+  T.push({
     name: 'host_calls_sent_after_a_reimport_post_after_it',
     fn: async () => {
       const fake = recorded();
