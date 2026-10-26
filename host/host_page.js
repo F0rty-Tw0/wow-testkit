@@ -167,6 +167,7 @@ window.TK = window.TK || {};
       return;
     }
     const names = picked.wtf ? await listCharacters() : null;
+    if (picked.wtf && !names) byId('character').value = ''; // the WTF folder did not list: the launch is account only
     const wtf = picked.wtf || undefined;
     const character = wtf && characterOf(names, picked.character);
     launch({ addon: picked.addon, extract: picked.extract || undefined, wtf, character, account: wtf && wtf.name });
