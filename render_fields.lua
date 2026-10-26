@@ -61,8 +61,8 @@ local function sourceFields(state, assets)
 end
 
 -- The texture fields of an item, each only when it differs from the client default: file or atlas or color, texCoord,
--- vertexColor, gradient, blendMode, desaturated, rotation, horizTile and vertTile. Task 6.6 reuses it for thumb and bar
--- textures.
+-- vertexColor, gradient, blendMode, desaturated, rotation, horizTile and vertTile. The slider thumb and the status bar
+-- texture reuse it.
 function M.look(_, st, assets)
   local state = Read.texture(st)
   local look = sourceFields(state, assets)
@@ -128,6 +128,19 @@ local function fontStringFields(w, obj, st, item, assets)
   item.truncated = BehaviourFontString.isTruncated(w, obj) or nil
 end
 
+-- What the widget exporters (render_widgets_range.lua) need from this file: the texture fields of a region state and the
+-- item id of a frame.
+function M.context(w, assets)
+  return {
+    look = function(regionState)
+      return M.look(w, regionState, assets)
+    end,
+    frameId = function(frame)
+      return M.id({ kind = "frame", st = w.ui.state[frame] })
+    end,
+  }
+end
+
 -- entry.rect and entry.clip are set by the caller (render.lua).
 function M.item(w, entry, assets)
   local st = entry.st
@@ -144,7 +157,7 @@ function M.item(w, entry, assets)
   if entry.kind == "frame" then
     item.strata = BehaviourRender.methods.GetFrameStrata(w, entry.obj, st)
     item.level = BehaviourRender.methods.GetFrameLevel(w, entry.obj, st)
-    item.widget = Widgets.state(w, entry.obj, st)
+    item.widget = Widgets.state(w, entry.obj, st, M.context(w, assets))
     item.backdrop = Widgets.backdrop(w, st, assets)
     return item
   end

@@ -23,6 +23,8 @@ local BehaviourAnimation = require("ui.behaviour_animation")
 local BehaviourAttributes = require("ui.behaviour_attributes")
 local BehaviourDebugName = require("ui.behaviour_debug_name")
 local BehaviourEdit = require("ui.behaviour_edit")
+local BehaviourRange = require("ui.behaviour_range")
+local BehaviourScroll = require("ui.behaviour_scroll")
 
 local unpack = unpack
 
@@ -197,6 +199,8 @@ local MODULES = {
   BehaviourDebugName,
   BehaviourInput,
   BehaviourEdit,
+  BehaviourRange,
+  BehaviourScroll,
 }
 for _, module in ipairs(MODULES) do
   for name, fn in pairs(module.methods) do

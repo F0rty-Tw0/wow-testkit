@@ -46,9 +46,13 @@ end
 
 -- source: row V9, wiki Layer, Details: "Setting Frame:EnableMouse() causes HIGHLIGHT to show/hide as the cursor hovers
 -- the Frame." A HIGHLIGHT region draws while the mouse focus is its frame or a descendant of it; a button's draws by
--- BehaviourButton.highlightShown instead (W17), and a state texture of a button only in its state (W17, W24).
+-- BehaviourButton.highlightShown instead (W17), and a state texture of a button only in its state (W17, W24). A slider
+-- thumb or status bar texture never draws as a region: its widget exports it (W43, W44).
 local function regionDraws(w, st)
   local owner = st.parent
+  if st.widgetPart then
+    return false
+  end
   if st.role and not BehaviourButton.shown(w, owner, st.role) then
     return false
   end

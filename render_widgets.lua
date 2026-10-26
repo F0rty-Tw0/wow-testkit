@@ -4,19 +4,9 @@ local M = {}
 
 local Assets = require("render_assets")
 local BehaviourEdit = require("ui.behaviour_edit")
-local BehaviourText = require("ui.behaviour_text")
 local FontChain = require("ui.font_chain")
+local Range = require("render_widgets_range")
 local Read = require("render_read")
-
--- source: row V12 (confirmed): a fresh Slider's orientation is VERTICAL (wiki API:Slider_SetOrientation default=VERTICAL,
--- XML/Slider orientation default VERTICAL) and a fresh StatusBar's is HORIZONTAL (wiki API:StatusBar_SetOrientation
--- default=HORIZONTAL, XML/StatusBar orientation default HORIZONTAL).
-local DEFAULT_ORIENTATION = { slider = "VERTICAL", statusbar = "HORIZONTAL" }
-
-local function orientation(st, typeKey)
-  local pack = Read.stored(st, "Orientation")
-  return pack and pack[1] or DEFAULT_ORIENTATION[typeKey]
-end
 
 local function copyLines(st)
   local lines = {}
@@ -71,38 +61,23 @@ local function button(_, _, st)
   return { type = "Button", enabled = not st.disabled, state = state, locked = btn.locked or nil }
 end
 
-local function slider(w, obj, st)
-  local min, max = BehaviourText.methods.GetMinMaxValues(w, obj, st)
-  return { type = "Slider", value = BehaviourText.methods.GetValue(w, obj, st), min = min, max = max, orientation = orientation(st, "slider") }
-end
-
-local function statusBar(w, obj, st)
-  local min, max = BehaviourText.methods.GetMinMaxValues(w, obj, st)
-  return {
-    type = "StatusBar",
-    value = BehaviourText.methods.GetValue(w, obj, st),
-    min = min,
-    max = max,
-    color = Read.color({ BehaviourText.methods.GetStatusBarColor(w, obj, st) }),
-    orientation = orientation(st, "statusbar"),
-  }
-end
-
 -- First match wins, so a CheckButton (also a Button) reports as one.
 local BUILDERS = {
   { isA = "scrollingmessageframe", build = messageFrame },
   { isA = "editbox", build = editBox },
   { isA = "checkbutton", build = checkButton },
   { isA = "button", build = button },
-  { isA = "slider", build = slider },
-  { isA = "statusbar", build = statusBar },
+  { isA = "slider", build = Range.slider },
+  { isA = "statusbar", build = Range.statusBar },
+  { isA = "scrollframe", build = Range.scrollFrame },
 }
 
--- The widget table of a frame item, or nil for a plain frame.
-function M.state(w, obj, st)
+-- The widget table of a frame item, or nil for a plain frame. ctx is { look = fn(regionState) -> texture fields,
+-- frameId = fn(frame) -> item id } from render_fields.lua, which this file cannot require.
+function M.state(w, obj, st, ctx)
   for _, entry in ipairs(BUILDERS) do
     if st.plan.isA[entry.isA] then
-      return entry.build(w, obj, st)
+      return entry.build(w, obj, st, ctx)
     end
   end
   return nil
