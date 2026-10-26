@@ -75,9 +75,9 @@ local function test_nan_texcoord_and_nil_vertex_colour_encode_as_null()
     texture:SetVertexColor(nil, 1, 1)
     local snap, text = encoded(w)
     local item = H.item(snap, "BadTex")
-    A.same(item.texCoord, { Json.null, 1, 0, 1 })
+    A.same(item.texCoord, { Json.null, 0, Json.null, 1, 1, 0, 1, 1 })
     A.same(item.vertexColor, { Json.null, 1, 1, 1 })
-    A.contains(text, '"texCoord":[null,1,0,1]')
+    A.contains(text, '"texCoord":[null,0,null,1,1,0,1,1]')
   end)
 end
 

@@ -14,7 +14,7 @@ local Measure = require("ui.measure")
 -- Method names whose call changes layout; ui/widgets.lua bumps the version before running them.
 M.MUTATORS = {}
 for name in
-  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap"):gmatch(
+  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetIgnoreParentScale SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap"):gmatch(
     "%S+"
   )
 do

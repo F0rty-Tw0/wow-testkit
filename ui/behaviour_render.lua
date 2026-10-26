@@ -17,11 +17,13 @@ local function parentState(w, st)
   return st.parent and w.ui.state[st.parent]
 end
 
-local function chainProduct(w, st, field)
+-- The product of st[field] up the parent chain; a region with st[ignoreField] set is the last one multiplied.
+local function chainProduct(w, st, field, ignoreField)
   local product = 1
   while st do
     product = product * (st[field] or 1)
-    st = parentState(w, st)
+    local ignoresParent = st[ignoreField]
+    st = not ignoresParent and parentState(w, st) or nil
   end
   return product
 end
@@ -42,8 +44,14 @@ function methods.GetAlpha(_, _, st)
   return st.alpha or 1
 end
 
-function methods.GetEffectiveAlpha(w, _, st)
-  return chainProduct(w, st, "alpha")
+-- The product of alphas up the parent chain, stopping at a region with SetIgnoreParentAlpha (the stop point is assumed,
+-- row W13).
+function M.effectiveAlpha(w, obj)
+  return chainProduct(w, w.ui.state[obj], "alpha", "ignoreAlpha")
+end
+
+function methods.GetEffectiveAlpha(w, obj)
+  return M.effectiveAlpha(w, obj)
 end
 
 function methods.SetScale(_, _, st, scale)
@@ -54,9 +62,9 @@ function methods.GetScale(_, _, st)
   return st.scale or 1
 end
 
--- The product of scales up the parent chain.
+-- The product of scales up the parent chain, stopping at a region with SetIgnoreParentScale (assumed, row W13).
 function M.effectiveScale(w, st)
-  return chainProduct(w, st, "scale")
+  return chainProduct(w, st, "scale", "ignoreScale")
 end
 
 function methods.GetEffectiveScale(w, _, st)

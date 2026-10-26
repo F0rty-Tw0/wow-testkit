@@ -34,7 +34,7 @@ local function test_state_texture_runs_its_own_children()
     H.load(w, ctx, "Ui.xml")
     local tex = _G.Bt:GetNormalTexture()
     A.same({ tex:GetWidth(), tex:GetHeight() }, { 12, 14 })
-    A.same(w.ui.state[tex].values.TexCoord, { n = 4, 0, 1, 0, 0.5 })
+    A.same({ tex:GetTexCoord() }, { 0, 0, 0, 0.5, 1, 0, 1, 0.5 })
   end)
 end
 

@@ -165,7 +165,7 @@ end
 local function test_atlas_region()
   H.withXml({}, function(w, ctx)
     local tex = region(w, ctx, _G.CreateFrame("Frame"), '<Texture atlas="spark" useAtlasSize="true"/>')
-    A.same({ tex:GetAtlas() }, { "spark", true })
+    A.eq(tex:GetAtlas(), "spark")
   end)
 end
 

@@ -3,6 +3,7 @@ local M = {}
 
 local Assets = require("render_assets")
 local BehaviourRender = require("ui.behaviour_render")
+local BehaviourTexture = require("ui.behaviour_texture")
 local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
 local Read = require("render_read")
@@ -27,53 +28,62 @@ end
 
 local addAtlas, addFont, addFile = Assets.addAtlas, Assets.addFont, Assets.addFile
 
-local function numbers(pack)
-  local list = {}
-  for i = 1, pack.n do
-    list[i] = pack[i]
-  end
-  return list
+local function copy(list)
+  return { list[1], list[2], list[3], list[4], list[5], list[6], list[7], list[8] }
 end
 
-local function colorOf(value)
-  return { value.r, value.g, value.b, value.a or 1 }
+local function sameNumbers(list, default)
+  for i = 1, #default do
+    if list[i] ~= default[i] then
+      return false
+    end
+  end
+
+  return true
 end
 
--- SetGradient(orientation, minColor, maxColor) with color tables, or the Classic form with minR, minG, minB, maxR, maxG, maxB.
-local function gradientOf(pack)
-  if type(pack[2]) == "table" then
-    return { orientation = pack[1], min = colorOf(pack[2]), max = colorOf(pack[3]) }
-  end
-  return { orientation = pack[1], min = { pack[2], pack[3], pack[4], 1 }, max = { pack[5], pack[6], pack[7], 1 } }
+local function colorList(color)
+  return { color[1], color[2], color[3], color[4] }
 end
 
-local function copyStored(item, field, st, key)
-  local pack = Read.stored(st, key)
-  if pack then
-    item[field] = pack[1]
-  end
+local function gradientOf(gradient)
+  return { orientation = gradient.orientation, min = colorList(gradient.min), max = colorList(gradient.max) }
 end
 
-local function textureFields(st, item, assets)
-  local file = Read.stored(st, "Texture")
-  item.file = file and addFile(assets, file[1])
-  local atlas = Read.stored(st, "Atlas")
-  if atlas and type(atlas[1]) == "string" and atlas[1] ~= "" then
-    item.atlas = addAtlas(assets, atlas[1])
+-- The source of a texture. The setters keep file, atlas and color exclusive (ui/behaviour_texture.lua), so it is the one
+-- set last.
+local function sourceFields(state, assets)
+  local look = {}
+  local atlas = state.atlas
+  look.file = addFile(assets, state.file)
+  look.atlas = type(atlas) == "string" and atlas ~= "" and addAtlas(assets, atlas) or nil
+  look.color = state.color and colorList(state.color)
+
+  return look
+end
+
+-- The texture fields of an item, each only when it differs from the client default: file or atlas or color, texCoord,
+-- vertexColor, gradient, blendMode, desaturated, rotation, horizTile and vertTile. Task 6.6 reuses it for thumb and bar
+-- textures.
+function M.look(_, st, assets)
+  local state = Read.texture(st)
+  local look = sourceFields(state, assets)
+  if state.texCoord and not sameNumbers(state.texCoord, BehaviourTexture.FULL_IMAGE) then
+    look.texCoord = copy(state.texCoord)
   end
-  local color = Read.stored(st, "ColorTexture")
-  item.color = color and Read.color(color)
-  local texCoord = Read.stored(st, "TexCoord")
-  item.texCoord = texCoord and numbers(texCoord)
-  local vertexColor = Read.stored(st, "VertexColor")
-  item.vertexColor = vertexColor and Read.color(vertexColor)
-  local gradient = Read.stored(st, "Gradient")
-  item.gradient = gradient and gradientOf(gradient)
-  copyStored(item, "blendMode", st, "BlendMode")
-  copyStored(item, "desaturated", st, "Desaturated")
-  copyStored(item, "rotation", st, "Rotation")
-  copyStored(item, "horizTile", st, "HorizTile")
-  copyStored(item, "vertTile", st, "VertTile")
+  if state.vertexColor and not sameNumbers(state.vertexColor, BehaviourTexture.WHITE) then
+    look.vertexColor = colorList(state.vertexColor)
+  end
+  look.gradient = state.gradient and gradientOf(state.gradient)
+  if state.blend ~= nil and state.blend ~= BehaviourTexture.DEFAULT_BLEND then
+    look.blendMode = state.blend
+  end
+  look.desaturated = state.desaturated or nil
+  look.rotation = state.rotation ~= 0 and state.rotation or nil
+  look.horizTile = state.horizTile or nil
+  look.vertTile = state.vertTile or nil
+
+  return look
 end
 
 -- Registers the textures and atlases a text names: "|T<path>:..|t" and "|A:<atlas>:..|a". "||" is a pipe, not an escape.
@@ -133,7 +143,7 @@ function M.item(w, entry, assets)
     parent = parent and M.id({ kind = "frame", st = parent }),
     rect = entry.rect,
     clip = entry.clip,
-    alpha = BehaviourRender.methods.GetEffectiveAlpha(w, entry.obj, st),
+    alpha = BehaviourRender.effectiveAlpha(w, entry.obj),
   }
   if entry.kind == "frame" then
     item.strata = BehaviourRender.methods.GetFrameStrata(w, entry.obj, st)
@@ -145,7 +155,9 @@ function M.item(w, entry, assets)
   local layer = Read.stored(st, "DrawLayer")
   item.layer, item.sublevel = layer and layer[1] or "ARTWORK", layer and layer[2] or 0
   if entry.kind == "texture" then
-    textureFields(st, item, assets)
+    for key, value in pairs(M.look(w, st, assets)) do
+      item[key] = value
+    end
   else
     fontStringFields(w, st, item, assets)
     item.autoWidth = Layout.autoWidth(w, entry.obj) or nil
