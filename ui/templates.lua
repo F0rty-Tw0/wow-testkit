@@ -16,6 +16,8 @@ M.TEMPLATES = {
     children = {},
     mixins = { "BackdropTemplateMixin" },
     protected = false,
+    -- source: row W47 blizzard_sharedxml/backdrop.xml: <OnLoad method="OnBackdropLoaded"/>
+    scripts = { OnLoad = "OnBackdropLoaded" },
   },
   -- Blizzard_UIPanelTemplates/Mainline/UIPanelTemplates.xml: BaseBasicFrameTemplate, BasicFrameTemplate, BasicFrameTemplateWithInset
   BasicFrameTemplateWithInset = {
