@@ -13,7 +13,8 @@ local Widgets = require("render_widgets")
 
 local ID_PREFIX = { frame = "f", texture = "t", fontstring = "s" }
 local WHITE = { 1, 1, 1, 1 }
-local BLACK = { 0, 0, 0, 1 }
+-- source: assumed (W29) the shadow colour GetShadowColor reports before one is set.
+local NO_SHADOW = { 0, 0, 0, 0 }
 
 M.refPath = Assets.refPath
 M.refId = Assets.refId
@@ -99,7 +100,7 @@ local function shadowOf(w, st)
   if not (offset or color) then
     return nil
   end
-  return { color = Read.color(color, BLACK), x = offset and offset[1] or 0, y = offset and offset[2] or 0 }
+  return { color = Read.color(color, NO_SHADOW), x = offset and offset[1] or 0, y = offset and offset[2] or 0 }
 end
 
 local function fontFields(w, st, item, assets)

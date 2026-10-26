@@ -126,6 +126,14 @@ local function test_fresh_font_string_defaults_assumed() -- (V11)
   end)
 end
 
+local function test_shadow_offset_alone_exports_the_unset_colour_assumed() -- (W29)
+  withFontString(function(_, fontString, read)
+    fontString:SetFont(FONT, 12, "")
+    fontString:SetShadowOffset(1, -1)
+    A.same(read().shadow, { color = { fontString:GetShadowColor() }, x = 1, y = -1 })
+  end)
+end
+
 local function test_font_string_without_a_set_width_is_auto_width()
   withFontString(function(_, fontString, read)
     fontString:SetFont(FONT, 12, "")
@@ -169,6 +177,7 @@ return function()
   test_texture_look_fields()
   test_font_string_fields()
   test_fresh_font_string_defaults_assumed()
+  test_shadow_offset_alone_exports_the_unset_colour_assumed()
   test_font_string_without_a_set_width_is_auto_width()
   test_font_string_with_a_set_width_is_not_auto_width()
   test_font_string_stretched_between_anchors_is_not_auto_width()
