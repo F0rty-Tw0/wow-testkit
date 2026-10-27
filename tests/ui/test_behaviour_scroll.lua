@@ -19,6 +19,47 @@ local function scroller()
   return sf, sc
 end
 
+-- ScrollFrame Sf 100x50 at BOTTOMLEFT of UIParent holding the child Sc 100x200 with no anchor of its own.
+local function anchorlessScroller()
+  local sf = _G.CreateFrame("ScrollFrame", "Sf", _G.UIParent)
+  sf:SetSize(100, 50)
+  sf:SetPoint("BOTTOMLEFT")
+  local sc = _G.CreateFrame("Frame", "Sc", sf)
+  sc:SetSize(100, 200)
+  sf:SetScrollChild(sc)
+
+  return sf, sc
+end
+
+-- source: blizzard_sharedxml/securescrolltemplates.xml:160-168 (`FauxScrollFrameTemplate`) declares its scroll child with
+-- a `<Size>` and no `<Anchors>`; assumed (W45) the frame places such a child at its own top-left.
+local function test_a_scroll_child_without_anchors_sits_at_the_frame_top_left_assumed() -- W45
+  HL.withLayout(SCREEN, function(w)
+    local sf, sc = anchorlessScroller()
+    A.same(Layout.rect(w, sc), { left = 0, bottom = -150, width = 100, height = 200 })
+    A.same({ sf:GetVerticalScrollRange(), sf:GetHorizontalScrollRange() }, { 150, 0 })
+  end)
+end
+
+local function test_an_anchorless_scroll_child_moves_with_the_scroll_offsets_assumed() -- W45
+  HL.withLayout(SCREEN, function(w)
+    local sf, sc = anchorlessScroller()
+    sf:SetVerticalScroll(30)
+    sf:SetHorizontalScroll(20)
+    A.same({ Layout.rect(w, sc).left, Layout.rect(w, sc).bottom }, { -20, -120 })
+  end)
+end
+
+local function test_a_replaced_scroll_child_without_anchors_has_no_rect_assumed() -- W45
+  HL.withLayout(SCREEN, function(w)
+    local sf, sc = anchorlessScroller()
+    local next = _G.CreateFrame("Frame", "Next", sf)
+    next:SetSize(100, 200)
+    sf:SetScrollChild(next)
+    A.same({ Layout.rect(w, sc), Layout.rect(w, next).bottom }, { nil, -150 })
+  end)
+end
+
 local function recordScript(frame, script)
   local seen = {}
   frame:SetScript(script, function(self, ...)
@@ -159,6 +200,9 @@ end
 
 return function()
   test_scroll_ranges_and_child_offset()
+  test_a_scroll_child_without_anchors_sits_at_the_frame_top_left_assumed()
+  test_an_anchorless_scroll_child_moves_with_the_scroll_offsets_assumed()
+  test_a_replaced_scroll_child_without_anchors_has_no_rect_assumed()
   test_set_scroll_child_parents_the_child_to_the_frame_assumed()
   test_horizontal_scroll_moves_the_child_left_assumed()
   test_a_fresh_scroll_frame_has_no_child_and_no_scroll()

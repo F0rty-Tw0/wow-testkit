@@ -16,14 +16,20 @@ function M.pushedOffset(btn)
   return offset[1], offset[2]
 end
 
+-- True when obj is the scroll child of the ScrollFrame state parent (st.scroll, ui/behaviour_scroll.lua).
+function M.isScrollChild(parent, obj)
+  local scroll = parent and parent.scroll
+
+  return scroll ~= nil and scroll.child == obj
+end
+
 -- source: assumed (W45) the scroll child moves by (-horizontal, +vertical): scrolling down moves the content up.
 local function scrollShift(parent, obj)
-  local scroll = parent and parent.scroll
-  if not (scroll and scroll.child == obj) then
+  if not M.isScrollChild(parent, obj) then
     return nil
   end
 
-  return -scroll.h, scroll.v
+  return -parent.scroll.h, parent.scroll.v
 end
 
 -- dx, dy for the region obj with state st; 0, 0 unless it is the text of a PUSHED button or the child of a ScrollFrame.

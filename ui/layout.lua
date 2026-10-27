@@ -152,11 +152,24 @@ local function clampShift(w, st, pixel, scale)
   return axisShift(left, right, w.screen.width, false), axisShift(bottom, top, w.screen.height, true)
 end
 
+-- The anchors of region: the ones set on it, and for a ScrollFrame's scroll child with none, its top-left corner on the
+-- frame's.
+-- source: blizzard_sharedxml/securescrolltemplates.xml:160-168 (`FauxScrollFrameTemplate`) declares its scroll child with a
+-- `<Size>` and no `<Anchors>`; assumed (W45) the frame places such a child at its own top-left.
+local function anchorsOf(w, region, st)
+  local parent = st.parent
+  if #st.points > 0 or not Shift.isScrollChild(parent and w.ui.state[parent], region) then
+    return st.points
+  end
+
+  return { { "TOPLEFT", parent, "TOPLEFT", 0, 0 } }
+end
+
 -- The pixel positions of every anchor of region, in set order; nil when one has no position.
 local function positionsOf(w, region, st, scale, resolving)
   local shiftX, shiftY = Shift.of(w, region, st)
   local points = {}
-  for i, anchor in ipairs(st.points) do
+  for i, anchor in ipairs(anchorsOf(w, region, st)) do
     points[i] = anchorPosition(w, anchor, scale, resolving, shiftX, shiftY)
     if not points[i] then
       return nil
