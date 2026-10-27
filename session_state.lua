@@ -89,14 +89,15 @@ local function toggle(sess, key, value, event)
   -- PLAYER_REGEN_ENABLED fires, so entering combat fires first and sets after.
   if key == "combat" and value then
     sess.s:fireIfKnown(event)
-    sess.w.mock[key], sess.state[key] = value, value
+    sess.w.mock[key] = value
     return
   end
-  sess.w.mock[key], sess.state[key] = value, value
+  sess.w.mock[key] = value
   sess.s:fireIfKnown(event)
 end
 
--- Checks patch, merges it into sess.state and applies it to the world. Returns sess.state.
+-- Checks patch, merges it into sess.state and applies it to the world. Returns sess.state, its combat and group read from
+-- w.mock, which the combat world also sets.
 function M.apply(sess, patch)
   check(patch)
   if patch.units then
@@ -111,6 +112,7 @@ function M.apply(sess, patch)
   end
   toggle(sess, "combat", patch.combat, patch.combat and "PLAYER_REGEN_DISABLED" or "PLAYER_REGEN_ENABLED")
   toggle(sess, "group", patch.group, "GROUP_ROSTER_UPDATE")
+  sess.state.combat, sess.state.group = sess.w.mock.combat, sess.w.mock.group
   return sess.state
 end
 
