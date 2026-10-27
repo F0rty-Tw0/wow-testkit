@@ -57,6 +57,12 @@ files["tests/fixtures/addons/SessionDemo/*.lua"] = {
   read_globals = { "CreateFrame", "UIParent" },
 }
 
+-- Widget demo fixture: one of each widget kind, and a static popup definition.
+files["tests/fixtures/addons/WidgetDemo/*.lua"] = {
+  globals = { "StaticPopupDialogs" },
+  read_globals = { "CreateFrame", "CreateColor", "UIParent" },
+}
+
 -- Developer panel fixture: widgets, an unknown template, two nil globals and a heap-heavy file.
 files["tests/fixtures/addons/DevDemo/*.lua"] = {
   globals = { "DevDemoHeavy" },
