@@ -1,7 +1,8 @@
 -- Retail secret values: the restrictions (Combat, Encounter, ChallengeMode, PvPMatch, Map, Chat), the secret returns of the kit's
 -- implementations for addon callers, the secrecy predicates and the readers. Secret.make, is, reveal and text are
 -- combat_secret_value.lua's (the snapshot and the renderer load that file alone). Secret.install (retail only) sets w.isSecret,
--- w.realType and w.returnFilter, which world_api.wrap runs on a kit implementation's results for addon callers.
+-- w.realType, w.revealArgs, which world_api.wrap runs on a kit implementation's arguments, and w.returnFilter, which it runs
+-- on the implementation's results for addon callers.
 local M = {}
 
 local Combat = require("combat")
@@ -9,8 +10,8 @@ local State = require("game.state")
 local Value = require("combat_secret_value")
 local define = State.define
 
--- Localized: addon code may assign a global named select.
-local select = select
+-- Localized: addon code may assign a global named select or unpack.
+local select, unpack = select, unpack
 
 M.make, M.is, M.reveal, M.text = Value.make, Value.is, Value.reveal, Value.text
 
@@ -35,6 +36,20 @@ local CONDITION_RESTRICTIONS = {
 local LOG_ACCESSORS = { CombatLogGetCurrentEventInfo = true, ["C_CombatLog.GetCurrentEventInfo"] = true }
 local FIRST_SECRET_LOG_FIELD = 3
 local PREDICATE = "^C_Secrets%.Should.*BeSecret$"
+-- source: confirmed (row C16, api/retail/FrameScript.lua) the functions that test, wrap or scrub a secret argument; their implementations get
+-- the secret as passed.
+local READERS = {
+  canaccessallvalues = true,
+  canaccesstable = true,
+  canaccessvalue = true,
+  hasanysecretvalues = true,
+  issecrettable = true,
+  issecretvalue = true,
+  scrub = true,
+  scrubsecretvalues = true,
+  secretunwrap = true,
+  secretwrap = true,
+}
 
 -- Restrictions ------------------------------------------------------------------------------------------------------------
 
@@ -167,6 +182,19 @@ local function realType(value)
   return type(M.reveal(value))
 end
 
+-- w.revealArgs: the packed arguments of a call to the API name with each secret replaced by the value it hides, since the client
+-- takes secrets as arguments; the same table when none is secret or name is a reader that tests the secret itself.
+local function revealArgs(name, args)
+  local out = args
+  for i = 1, READERS[name] and 0 or args.n do
+    if M.is(args[i]) then
+      out = out == args and { n = args.n, unpack(args, 1, args.n) } or out
+      out[i] = M.reveal(args[i])
+    end
+  end
+  return out
+end
+
 -- Retail only: every other flavor's world keeps w.isSecret and w.returnFilter unset, so nothing there is ever secret.
 function M.install(w)
   if w.flavor ~= "retail" then
@@ -175,6 +203,7 @@ function M.install(w)
   w.isSecret = M.is
   w.returnFilter = M.filter(w)
   w.realType = realType
+  w.revealArgs = revealArgs
   installReaders(w)
   installPredicates(w)
   local function sync()
