@@ -39,6 +39,11 @@ function M.later(w, seconds, fn)
   end, 1)
 end
 
+-- Fires a client event under the engine ("blizzard") context.
+function M.fire(w, event, ...)
+  w:run(ENGINE, w.fire, w, event, ...)
+end
+
 -- Returns w.combat, creating it on the first call. Needs the units and game-state fakes Scenario.new installs.
 function M.install(w)
   if w.combat then
@@ -55,6 +60,7 @@ function M.install(w)
   require("combat_events").install(w)
   require("combat_state").install(w)
   require("combat_log").install(w)
+  require("combat_group").install(w)
   return c
 end
 
