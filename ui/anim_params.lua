@@ -1,11 +1,12 @@
 -- Animation property getters and the setters that do not store their arguments as given. The generic setters keep
 -- SetDuration, SetStartDelay, SetEndDelay, SetOrder, SetSmoothing, SetFromAlpha, SetToAlpha, SetOffset, SetScaleFrom,
--- SetScaleTo, SetOrigin and SetTarget in st.values; the getters here answer the stored value or the default through
+-- SetScaleTo and SetOrigin in st.values; the target setters store a spec in st.target (ui/anim_target.lua); the getters here answer the stored value or the default through
 -- Anim.values, the same read the playback uses. Registers through Typed.add for "animation", so M.methods stays empty.
 -- Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
 local M = {}
 
 local Anim = require("ui.anim")
+local AnimTarget = require("ui.anim_target")
 local Typed = require("ui.typed")
 
 local select = select
@@ -60,6 +61,20 @@ Typed.add("GetRadians", "rotation", getter("Radians"))
 Typed.add("GetDegrees", "rotation", function(_, _, st)
   return math.deg(Anim.value(st, "Radians"))
 end)
+
+-- Setter -> the kind of target spec it stores. SetTargetParent takes no argument.
+local TARGET_SETTERS = {
+  SetTarget = "Target",
+  SetChildKey = "ChildKey",
+  SetTargetKey = "TargetKey",
+  SetTargetName = "TargetName",
+  SetTargetParent = "TargetParent",
+}
+for name, kind in pairs(TARGET_SETTERS) do
+  Typed.add(name, "animation", function(_, _, st, value)
+    return AnimTarget.set(st, kind, value)
+  end)
+end
 
 Typed.add("GetTarget", "animation", function(w, animation)
   return Anim.target(w, animation)

@@ -5,6 +5,8 @@
 -- docs/client-sources.md `## Widgets`.
 local M = {}
 
+local AnimTarget = require("ui.anim_target")
+
 local PLAYING, PAUSED, DONE, STOPPED = "PLAYING", "PAUSED", "DONE", "STOPPED"
 M.PLAYING, M.PAUSED, M.DONE, M.STOPPED = PLAYING, PAUSED, DONE, STOPPED
 
@@ -178,16 +180,9 @@ function M.progress(w, group, now)
   return M.progressOf(w, group, M.timeline(w, group), now)
 end
 
--- The target of an animation: its SetTarget widget, else the owner of its group.
+-- The target of an animation (ui/anim_target.lua): what its last target setter names, else the owner of its group.
 function M.target(w, animation)
-  local st = w.ui.state[animation]
-  local set = st.values.Target and st.values.Target[1]
-  if set ~= nil and w.ui.state[set] then
-    return set
-  end
-  local group = w.ui.state[st.parent]
-
-  return group and group.parent
+  return AnimTarget.resolve(w, animation)
 end
 
 return M
