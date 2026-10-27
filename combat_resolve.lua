@@ -100,8 +100,8 @@ local function announceHealth(w, actor, old)
 end
 
 -- spec: { amount, spellID?, school?, crit?, periodic?, ranged?, miss? }; no spellID is a SWING_ hit. Order: immunity or a
--- miss spec (logged as _MISSED, nothing else happens), reduction auras, absorb auras, health, threat and engagement, the
--- log, the unit events, death. Returns { dealt, absorbed, overkill, missed? }: dealt is the damage that got past the
+-- miss spec (logged as _MISSED, nothing else happens), reduction auras, absorb auras, health, the log, threat and
+-- engagement, the unit events, death. Returns { dealt, absorbed, overkill, missed? }: dealt is the damage that got past the
 -- absorbs, overkill the part of it beyond the health (0 when none, row C4).
 function M.damage(w, src, dst, spec)
   checkAmount(spec, "damage")
@@ -121,11 +121,6 @@ function M.damage(w, src, dst, spec)
   dst.health = math.max(0, old - dealt)
   local lethal = dealt > 0 and dst.health == 0
   result.dealt, result.absorbed, result.overkill = dealt, absorbed, math.max(0, dealt - old)
-  -- Threat lists belong to enemies: only a hit on an enemy by a non-enemy adds to one.
-  if dst.isEnemy and not src.isEnemy then
-    Threat.add(w, dst, src, dealt * (src.threatMod or 1))
-  end
-  State.engage(w, src, dst)
   Log.emit(w, prefix .. "_DAMAGE", src, dst, {
     spellID = spec.spellID,
     amount = dealt,
@@ -134,6 +129,12 @@ function M.damage(w, src, dst, spec)
     absorbed = absorbed > 0 and absorbed or nil,
     critical = spec.crit and true or nil,
   })
+  -- After the log line: threat and engagement fire unit events, and row C7 puts those after the action's log line.
+  -- Threat lists belong to enemies: only a hit on an enemy by a non-enemy adds to one.
+  if dst.isEnemy and not src.isEnemy then
+    Threat.add(w, dst, src, dealt * (src.threatMod or 1))
+  end
+  State.engage(w, src, dst)
   if lethal then
     declareDead(w, dst)
   end

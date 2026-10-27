@@ -45,6 +45,17 @@ local function test_damage_order_log_before_unit_events() -- (C7)
   end)
 end
 
+-- Threat and engagement are written before the log line, but their events (UNIT_THREAT_*, UNIT_FLAGS) come after it.
+local function test_damage_log_before_threat_and_flags_events_assumed() -- (C7)
+  H.withCombat("vanilla", function(w)
+    local ann, brute = H.pair(w)
+    local order = H.sequence(w, { "UNIT_THREAT_LIST_UPDATE", "UNIT_FLAGS" })
+    Resolve.damage(w, ann, brute, { amount = 100 })
+    A.eq(order[1], "SWING_DAMAGE")
+    A.eq(#order > 1, true)
+  end)
+end
+
 local function test_lethal_damage_kills_in_order()
   H.withCombat("vanilla", function(w, c)
     local ann, brute = H.pair(w)
@@ -126,6 +137,7 @@ return function()
   test_reduction_then_absorb_then_health()
   test_immunity_logs_missed_immune_and_changes_nothing()
   test_damage_order_log_before_unit_events()
+  test_damage_log_before_threat_and_flags_events_assumed()
   test_lethal_damage_kills_in_order()
   test_threat_uses_the_source_modifier()
   test_heal_caps_at_max_and_reports_overheal()
