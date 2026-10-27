@@ -3,6 +3,7 @@
 -- C_Timer.
 -- Installed into every world by world.lua (gate "none"; C_Timer through gate "api").
 local AddonEnv = require("addon_env")
+local Taint = require("taint")
 
 local M = {}
 
@@ -144,9 +145,11 @@ end
 
 local function installTimers(w)
   w:install("C_Timer.After", function(seconds, callback)
-    w:schedule(seconds, function()
+    -- The wrapper drops the timer argument; it runs with the callback's owner.
+    local wrapper = function()
       callback()
-    end, 1)
+    end
+    w:schedule(seconds, Taint.adopt(w, wrapper, callback), 1)
   end, { gate = "api" })
   w:install("C_Timer.NewTimer", function(seconds, callback)
     return w:schedule(seconds, callback, 1)

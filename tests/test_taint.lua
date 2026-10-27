@@ -107,6 +107,15 @@ local function test_rawset_on_the_addon_view_taints_the_slot()
   end)
 end
 
+local function test_timer_after_callback_keeps_the_scheduling_owner()
+  H.withTaint("retail", function(w, Taint)
+    H.probe(w, Taint)
+    H.run(w, "Foo", "C_Timer.After(1, function() later = TK_Seen() end)")
+    w:advance(1)
+    A.eq(_G.later, "Foo")
+  end)
+end
+
 local function test_log_is_capped_and_listeners_hear_each_entry()
   H.withTaint("retail", function(w, Taint)
     local heard = 0
@@ -161,6 +170,7 @@ return function()
   test_kit_function_inherits_the_running_taint()
   test_taint_is_restored_after_an_error()
   test_rawset_on_the_addon_view_taints_the_slot()
+  test_timer_after_callback_keeps_the_scheduling_owner()
   test_log_is_capped_and_listeners_hear_each_entry()
   test_nested_frame_does_not_take_the_outer_frames_table_changes()
   test_secret_args_still_follow_context_after_taint()
