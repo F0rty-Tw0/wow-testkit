@@ -282,7 +282,7 @@ local function test_ui_panel_button_text_is_the_button_font_string() -- W66
   end)
 end
 
-local function test_only_the_button_text_child_is_flagged() -- W66
+local function test_only_the_button_text_children_are_flagged() -- W66
   local flagged = {}
   for name, entry in pairs(Templates.TEMPLATES) do
     for _, child in ipairs(entry.children) do
@@ -291,7 +291,8 @@ local function test_only_the_button_text_child_is_flagged() -- W66
       end
     end
   end
-  A.same(flagged, { "UIPanelButtonTemplate.Text" })
+  table.sort(flagged)
+  A.same(flagged, { "UIMenuButtonStretchTemplate.Text", "UIPanelButtonTemplate.Text" })
 end
 
 return function()
@@ -320,5 +321,5 @@ return function()
   test_button_text_font_follows_the_state_assumed()
   test_a_disabled_state_without_a_font_uses_the_normal_one_assumed()
   test_ui_panel_button_text_is_the_button_font_string()
-  test_only_the_button_text_child_is_flagged()
+  test_only_the_button_text_children_are_flagged()
 end

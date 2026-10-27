@@ -4,7 +4,9 @@
 -- XML <Size> (most derived wins), protected for Secure* templates, and scripts (handler name -> the mixin method the
 -- XML's method="" names, for the few handlers the kit models). A child with buttonText = true is the <ButtonText> of its
 -- button (ui/template_apply.lua makes it the button's FontString). Facts only: no Blizzard XML or Lua.
--- The comment above each entry lists the inherits chain and the XML file that defines each link.
+-- The comment above each entry lists the inherits chain and the XML file that defines each link. An entry whose
+-- `inherits` names another entry is applied after it (ui/template_apply.lua), so the entries in ui/templates_buttons.lua
+-- and ui/templates_panels.lua list only their own children; the entries below predate that and stay flattened.
 -- Templates in use by the reference addons (WhisperMessenger, RaidGroupWrap, MouseOverTooltip), 2026-10-04.
 local M = {}
 
@@ -198,7 +200,8 @@ M.TEMPLATES = {
     type = "CheckButton",
     inherits = { "UICheckButtonArtTemplate" },
     children = {
-      { key = "Text", type = "FontString" },
+      -- source: row W66 (confirmed) checkbuttontemplates.xml:54-58: LEFT of the button's RIGHT, x -2
+      { key = "Text", type = "FontString", anchor = { "LEFT", "RIGHT", -2, 0 } },
     },
     mixins = {},
     protected = false,
@@ -257,5 +260,12 @@ M.TEMPLATES = {
     scripts = { OnLoad = "OnLoad", OnShow = "OnShow" },
   },
 }
+
+-- The button and panel families live in their own files (this file's size); names are unique across the three.
+for _, group in ipairs({ require("ui.templates_buttons"), require("ui.templates_panels") }) do
+  for name, entry in pairs(group.TEMPLATES) do
+    M.TEMPLATES[name] = entry
+  end
+end
 
 return M
