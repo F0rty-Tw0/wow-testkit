@@ -105,7 +105,7 @@
   V.backdrop = function (node, item, ctx) {
     const info = item.backdrop;
     if (item.piece === 'edge') {
-      if (info.edgeFile || info.borderColor) node.style.border = `${Number(info.edgeSize) || 1}px solid ${V.rgba(info.borderColor || V.WHITE)}`;
+      if (info.edgeFile) node.style.border = `${Number(info.edgeSize) || 1}px solid ${V.rgba(info.borderColor || V.WHITE)}`;
 
       return;
     }
