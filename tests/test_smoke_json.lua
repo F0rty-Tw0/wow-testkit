@@ -63,6 +63,14 @@ local function test_failed_run_keeps_only_message_and_sorted_unscripted()
   A.contains(text, '"printed": 3')
   A.eq(text:find("traceback", 1, true), nil)
 end
+local function test_addons_and_unscripted_names_are_sorted()
+  local run = { status = "fail", errors = {}, unscripted = { { name = "Zed", count = 1 }, { name = "Alpha", count = 2 } } }
+  local results = { { name = "Second", results = { retail = run } }, { name = "First", results = { retail = run } } }
+  local text = SmokeJson.format(results, { "retail" })
+  local first, second = text:find('"name": "First"', 1, true), text:find('"name": "Second"', 1, true)
+  local alpha, zed = text:find('"name": "Alpha"', 1, true), text:find('"name": "Zed"', 1, true)
+  A.same({ first < second, alpha < zed }, { true, true })
+end
 local function test_print_is_silenced_and_counted()
   local corpus = Tmp.dir("loud")
   fs.mkdirp(corpus .. "/Loud")
@@ -84,5 +92,6 @@ end
 return function()
   test_document_matches_the_schema()
   test_failed_run_keeps_only_message_and_sorted_unscripted()
+  test_addons_and_unscripted_names_are_sorted()
   test_print_is_silenced_and_counted()
 end
