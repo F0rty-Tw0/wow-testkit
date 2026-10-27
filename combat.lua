@@ -54,6 +54,7 @@ function M.install(w)
   require("combat_auras").install(w)
   require("combat_events").install(w)
   require("combat_state").install(w)
+  require("combat_log").install(w)
   return c
 end
 

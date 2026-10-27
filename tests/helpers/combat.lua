@@ -58,6 +58,17 @@ function M.watch(_, events)
   return log
 end
 
+-- A frame on COMBAT_LOG_EVENT_UNFILTERED whose handler calls fn(CombatLogGetCurrentEventInfo()). The accessor exists on
+-- vanilla, mists and tbc only (row C18), so retail tests read the entry Log.emit returns instead.
+function M.onLog(_, fn)
+  local frame = _G.CreateFrame("Frame")
+  frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+  frame:SetScript("OnEvent", function()
+    fn(_G.CombatLogGetCurrentEventInfo())
+  end)
+  return frame
+end
+
 function M.names(log)
   local out = {}
   for i, entry in ipairs(log) do
