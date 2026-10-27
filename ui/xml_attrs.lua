@@ -78,6 +78,20 @@ M.frame = {
   id = numberSetter("SetID"),
   alpha = numberSetter("SetAlpha"),
   scale = numberSetter("SetScale"),
+  -- source: row W43 and W44 (xsd:1004-1007, :1034): Slider and StatusBar attributes; the xsd spells a fill style Standard,
+  -- StandardNoRangeFill, Center or Reverse and SetFillStyle takes the upper case.
+  orientation = stringSetter("SetOrientation"),
+  valuestep = numberSetter("SetValueStep"),
+  fillstyle = function(_, obj, _, value)
+    return callIfPresent(obj, "SetFillStyle", value:upper())
+  end,
+  -- source: rows W35-W40 (xsd:1062-1064 and the EditBox attributes): EditBox attributes.
+  multiline = boolSetter("SetMultiLine"),
+  numeric = boolSetter("SetNumeric"),
+  maxletters = numberSetter("SetMaxLetters"),
+  autofocus = boolSetter("SetAutoFocus"),
+  historylines = numberSetter("SetHistoryLines"),
+  password = boolSetter("SetPassword"),
   mixin = mixin,
   securemixin = mixin,
   inherits = function(w, frame, _, value)

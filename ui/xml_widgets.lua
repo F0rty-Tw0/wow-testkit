@@ -1,4 +1,5 @@
--- XML extras of buttons, font strings and legacy backdrops: state textures, ButtonText, FontHeight, Shadow, Backdrop.
+-- XML extras of buttons, sliders, status bars, scroll frames, font strings and legacy backdrops: state and widget part
+-- textures, ScrollChild, ButtonText, FontHeight, Shadow, Backdrop.
 local M = {}
 
 local XmlBuild = require("ui.xml_build")
@@ -6,11 +7,17 @@ local XmlLayout = require("ui.xml_layout")
 
 local handlers = XmlBuild.handlers
 
--- Button state tags to the setter that stores the texture (the button keeps it for its state).
+-- Part tags to the setter that stores the texture: a button keeps it for its state, a slider or status bar draws it as its
+-- thumb or bar (rows W17, W43, W44).
 local STATE_TEXTURES = {
   normaltexture = "SetNormalTexture",
   pushedtexture = "SetPushedTexture",
   highlighttexture = "SetHighlightTexture",
+  disabledtexture = "SetDisabledTexture",
+  checkedtexture = "SetCheckedTexture",
+  disabledcheckedtexture = "SetDisabledCheckedTexture",
+  thumbtexture = "SetThumbTexture",
+  bartexture = "SetStatusBarTexture",
 }
 
 -- A copy of node that builds as `tag`, so the region builder takes a <NormalTexture> for a Texture and a <ButtonText>
@@ -32,6 +39,17 @@ end
 
 for tag, setter in pairs(STATE_TEXTURES) do
   handlers[tag] = stateTexture(setter)
+end
+
+-- source: wiki API_ScrollFrame_SetScrollChild "Sets the scroll child for the scroll frame."; the xsd ScrollChild holds one
+-- frame, which is built under the scroll frame and becomes its child.
+function handlers.scrollchild(w, scrollFrame, _, node, session)
+  for _, child in ipairs(node.children) do
+    local frame = XmlBuild.frame(w, child, scrollFrame, session)
+    if frame then
+      scrollFrame:SetScrollChild(frame)
+    end
+  end
 end
 
 function handlers.buttontext(w, button, _, node, session)
