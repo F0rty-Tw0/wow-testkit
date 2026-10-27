@@ -3,13 +3,14 @@
 -- add one line to AREAS.
 local M = {}
 
+local Keys = require("game.keys")
 local Session = require("game.session")
 local State = require("game.state")
 
 M.define = State.define
 M.ALL = State.ALL
 
-local AREAS = { Session }
+local AREAS = { Session, Keys }
 
 -- w.mock is shared with session_state.lua (modifiers, combat, group), so it is created only when absent and each
 -- area's defaults fill the keys not yet set.
