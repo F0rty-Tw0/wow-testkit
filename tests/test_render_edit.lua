@@ -52,6 +52,13 @@ local function test_justify_exports_only_when_not_left_assumed()
   end)
 end
 
+local function test_fresh_justify_getter_and_snapshot_agree_on_left_assumed()
+  H.withRender(function(w)
+    local box = S.anchored("EditBox", "FreshJust")
+    A.same({ box:GetJustifyH(), S.snap(w, "FreshJust").widget.justifyH }, { "LEFT", nil })
+  end)
+end
+
 local function test_justify_from_a_font_object_exports()
   H.withRender(function(w)
     local font = _G.CreateFont("T65EditFont")
@@ -68,5 +75,6 @@ return function()
   test_highlight_exports_the_selection()
   test_insets_export_only_when_not_all_zero_assumed()
   test_justify_exports_only_when_not_left_assumed()
+  test_fresh_justify_getter_and_snapshot_agree_on_left_assumed()
   test_justify_from_a_font_object_exports()
 end

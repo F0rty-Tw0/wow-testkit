@@ -9,6 +9,9 @@ local FontChain = require("ui.font_chain")
 -- source: xsd:505-509 and xsd:762-769 (`spacing` 0, `justifyV` MIDDLE, `justifyH` CENTER, `wordwrap` true, `maxLines` 0);
 -- same values as V11. That a CreateFontString object has the same defaults is assumed (V11).
 M.JUSTIFY_H = "CENTER"
+-- source: assumed (W31) an EditBox that set no justify aligns LEFT, as the snapshot (render_widgets.lua) treats it; no row
+-- or page gives it a default.
+M.EDIT_JUSTIFY_H = "LEFT"
 M.JUSTIFY_V = "MIDDLE"
 M.SPACING = 0
 M.MAX_LINES = 0
@@ -23,7 +26,9 @@ local function first(pack, default)
 end
 
 function M.justifyH(w, st)
-  return first(FontChain.value(w, st, "JustifyH"), M.JUSTIFY_H)
+  local default = st.plan.isA.editbox and M.EDIT_JUSTIFY_H or M.JUSTIFY_H
+
+  return first(FontChain.value(w, st, "JustifyH"), default)
 end
 
 function M.justifyV(w, st)

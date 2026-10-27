@@ -24,8 +24,8 @@ local function isZero(insets)
   return insets[1] == 0 and insets[2] == 0 and insets[3] == 0 and insets[4] == 0
 end
 
--- The EditBox fields that appear only when set: selection, password, insets, and a justify other than LEFT. Reads the
--- justify from the font object chain (the setters store it), not through GetJustifyH, whose fresh default is CENTER.
+-- The EditBox fields that appear only when set: selection, password, insets, and a justify other than LEFT (the default
+-- GetJustifyH answers, ui/text_state.lua). Reads the justify from the font object chain, not through GetJustifyH.
 local function editExtras(w, st, edit, widget)
   local selection, insets = edit.selection, edit.insets
   local justify = FontChain.value(w, st, "JustifyH")

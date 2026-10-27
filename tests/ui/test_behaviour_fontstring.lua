@@ -170,12 +170,12 @@ local function test_inheritance_follows_a_chain_of_font_objects_assumed() -- W31
   end)
 end
 
-local function test_edit_box_justify_inherits_from_the_font_object_assumed() -- W31
+local function test_edit_box_justify_defaults_left_then_inherits_from_the_font_object_assumed() -- W31
   HW.withWidgets("retail", function()
     local font = _G.CreateFont("T64Edit")
     font:SetJustifyH("RIGHT")
     local box = _G.CreateFrame("EditBox")
-    A.eq(box:GetJustifyH(), "CENTER")
+    A.eq(box:GetJustifyH(), "LEFT")
     box:SetFontObject(font)
     A.eq(box:GetJustifyH(), "RIGHT")
     box:SetJustifyH("LEFT")
@@ -377,7 +377,7 @@ return function()
   test_font_object_answers_the_getters()
   test_text_settings_inherit_from_the_font_object_assumed()
   test_inheritance_follows_a_chain_of_font_objects_assumed()
-  test_edit_box_justify_inherits_from_the_font_object_assumed()
+  test_edit_box_justify_defaults_left_then_inherits_from_the_font_object_assumed()
   test_copy_font_object_copies_inherited_settings_assumed()
   test_set_text_height_changes_size_only_assumed()
   test_set_text_height_keeps_an_inherited_file_assumed()
