@@ -51,6 +51,7 @@ function M.install(w)
   w.combat = c
   -- Required here, not at the top: the modules require this one for emit and listen.
   require("combat_actors").install(w)
+  require("combat_auras").install(w)
   return c
 end
 

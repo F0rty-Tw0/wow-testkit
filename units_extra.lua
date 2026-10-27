@@ -199,6 +199,8 @@ local function installAuras(w, deps)
   end)
 end
 
+M.nthAura = nthAura
+
 -- deps: { fixture = Units' fixture(state, token), fieldAnswer = Units' fieldAnswer(w, name, fields), normalize }.
 function M.install(w, deps)
   installNames(w, deps)
