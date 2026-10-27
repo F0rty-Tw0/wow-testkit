@@ -1,5 +1,5 @@
 -- Presets: a solo, dungeon or raid world built from combat_roster_data.lua. Presets.apply replaces the previous preset (its
--- group, members and enemies), configures the player (faction, race, class, role, level), fills the group with actors named
+-- group, members and enemies), configures the player (faction, race, class, role, level, full health, alive), fills the group with actors named
 -- "Kit <Class> <n>" whose classes cycle by role, spawns the enemy pack with behaviour rules, and starts nothing unless
 -- opts.inCombat is set. Every number comes from the roster data (R4).
 local M = {}
@@ -8,6 +8,7 @@ local Actors = require("combat_actors")
 local Ai = require("combat_ai")
 local Combat = require("combat")
 local Group = require("combat_group")
+local Resolve = require("combat_resolve")
 local Roster = require("combat_roster_data")
 
 local PLAYER = "player"
@@ -120,11 +121,14 @@ local function dress(actor, o, class, race, role)
   actor.threatMod = Roster.MEMBERS[role].threatMod
 end
 
+-- A dead or ghost player comes back at full health through Resolve.revive, which emits the "flags" hook.
 local function configurePlayer(w, player, o)
   dress(player, o, o.class, o.race, o.role)
   local health = Roster.MEMBERS[o.role].health
   Actors.setHealthMax(w, player, health)
-  Actors.setHealth(w, player, health)
+  if not Resolve.revive(w, player, health) then
+    Actors.setHealth(w, player, health)
+  end
 end
 
 -- The roster in order: the player, then the tanks, healers and damage dealers the mix still needs.

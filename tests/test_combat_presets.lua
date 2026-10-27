@@ -2,6 +2,7 @@
 local A = require("assert")
 local Actors = require("combat_actors")
 local H = require("tests.helpers.combat")
+local Resolve = require("combat_resolve")
 local Roster = require("combat_roster_data")
 local Threat = require("combat_threat")
 
@@ -256,6 +257,17 @@ local function test_replacing_an_in_combat_preset_stops_its_ai()
   end)
 end
 
+local function test_a_preset_revives_a_dead_player()
+  H.withCombat("retail", function(w, _, s)
+    s:preset("solo", {})
+    Resolve.kill(w, Actors.get(w, "player"))
+    local log = H.watch(w, { "UNIT_FLAGS" })
+    s:preset("dungeon", {})
+    A.same({ _G.UnitIsDead("player"), _G.UnitHealth("player"), _G.UnitHealthMax("player") }, { false, 1000, 1000 })
+    A.same(log[1], { "UNIT_FLAGS", 1, "player", event = "UNIT_FLAGS", n = 1 })
+  end)
+end
+
 local function test_preset_spells_are_kit_data_and_named()
   H.withCombat("retail", function(w, c, s)
     s:preset("dungeon", { inCombat = true })
@@ -286,5 +298,6 @@ return function()
   test_a_bad_preset_raises_at_the_scenarios_line_and_builds_nothing()
   test_applying_a_preset_twice_replaces_the_first()
   test_replacing_an_in_combat_preset_stops_its_ai()
+  test_a_preset_revives_a_dead_player()
   test_preset_spells_are_kit_data_and_named()
 end
