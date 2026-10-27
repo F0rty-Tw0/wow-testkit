@@ -125,7 +125,20 @@ local function test_checked_texture_draws_while_checked_and_enabled_assumed() --
     A.same(H.names(Render.snapshot(w), "Chk"), { "Chk", "ChkOn" })
     cb:Disable()
     A.same(H.names(Render.snapshot(w), "Chk"), { "Chk", "ChkOff" })
-    A.same(H.item(Render.snapshot(w), "Chk").widget, { type = "CheckButton", checked = true, enabled = false })
+    A.same(H.item(Render.snapshot(w), "Chk").widget, { type = "CheckButton", checked = true, enabled = false, checkedTexture = true })
+  end)
+end
+
+-- The viewer draws a stand-in check mark for a checked box, unless the addon gave it art of its own.
+local function test_a_check_button_says_whether_it_has_a_checked_texture() -- W24
+  H.withRender(function(w)
+    local cb = S.anchored("CheckButton", "Chk")
+    cb:SetChecked(true)
+    A.eq(H.item(Render.snapshot(w), "Chk").widget.checkedTexture, nil)
+    cb:SetCheckedTexture(cb:CreateTexture("ChkOn"))
+    A.eq(H.item(Render.snapshot(w), "Chk").widget.checkedTexture, true)
+    cb:SetCheckedTexture(nil)
+    A.eq(H.item(Render.snapshot(w), "Chk").widget.checkedTexture, nil)
   end)
 end
 
@@ -172,6 +185,7 @@ return function()
   test_pushed_state_shifts_only_the_button_text()
   test_disabled_button_shows_its_disabled_texture_or_the_normal_one()
   test_checked_texture_draws_while_checked_and_enabled_assumed()
+  test_a_check_button_says_whether_it_has_a_checked_texture()
   test_button_text_made_by_set_text_fills_the_button_assumed()
   test_set_font_string_on_a_pushed_button_shifts_the_text()
   test_fresh_button_widget_shape_is_unchanged()

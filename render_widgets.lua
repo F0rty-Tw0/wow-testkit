@@ -49,8 +49,12 @@ local function editBox(w, obj, st)
   return widget
 end
 
+-- checkedTexture appears only when the button has a checked or disabled-checked texture, which draws as its own item.
 local function checkButton(_, _, st)
-  return { type = "CheckButton", checked = st.checked == true, enabled = not st.disabled }
+  local tex = (st.btn or {}).tex or {}
+  local hasArt = tex.checked ~= nil or tex.disabledChecked ~= nil
+
+  return { type = "CheckButton", checked = st.checked == true, enabled = not st.disabled, checkedTexture = hasArt or nil }
 end
 
 -- state and locked appear only when they differ from the defaults, so a fresh Button exports as it always did.
