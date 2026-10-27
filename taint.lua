@@ -252,11 +252,12 @@ function M.read(w, tbl, key)
 end
 
 -- source: `blizzard_framexml/securetemplates.lua:752` (forceinsecure taints the rest of the execution). Taints the running
--- frame with Taint.FORCED and logs it; nothing when no frame is running.
+-- frame with Taint.FORCED and logs it; nothing when no frame is running or the frame is tainted already (forceinsecure
+-- only taints secure execution, so an addon's own taint stays attributed to it).
 function M.force(w)
   local stack = w.taint.stack
   local depth = #stack
-  if depth == 0 then
+  if depth == 0 or stack[depth] then
     return
   end
   stack[depth] = M.FORCED

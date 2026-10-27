@@ -130,6 +130,14 @@ local function test_forceinsecure_taints_the_rest_of_the_execution_assumed() -- 
   end)
 end
 
+local function test_forceinsecure_in_addon_code_keeps_the_addon_taint_assumed() -- TS6
+  H.withTaint("retail", function(w)
+    H.run(w, "Foo", "forceinsecure(); KitY = 1")
+    A.same({ _G.issecurevariable("KitY") }, { false, "Foo" })
+    A.eq(#H.events(w, "forced"), 0)
+  end)
+end
+
 return function()
   test_issecure_follows_the_running_code_assumed()
   test_issecurevariable_answers_from_the_slots_assumed()
@@ -141,4 +149,5 @@ return function()
   test_securecall_by_name_and_securecallfunction_pass_arguments_and_return_results()
   test_secureexecuterange_calls_func_with_key_value_and_extras_through_securecall()
   test_forceinsecure_taints_the_rest_of_the_execution_assumed()
+  test_forceinsecure_in_addon_code_keeps_the_addon_taint_assumed()
 end
