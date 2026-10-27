@@ -41,9 +41,11 @@ function methods.RegisterEvent(w, obj, _, event)
   return w:registerEvent(obj, event)
 end
 
--- ponytail: units are not filtered; the frame receives the event for every unit.
-function methods.RegisterUnitEvent(w, obj, _, event)
-  return w:registerEvent(obj, event)
+-- source: confirmed (row C15) the frame gets the event only for the listed units (up to four), a repeated call or a later
+-- RegisterEvent overwrites the registration; assumed the unit is the event's first argument.
+function methods.RegisterUnitEvent(w, obj, _, event, ...)
+  w:registerEvent(obj, event)
+  w:setUnitFilter(obj, event, { ... })
 end
 
 function methods.UnregisterEvent(w, obj, _, event)

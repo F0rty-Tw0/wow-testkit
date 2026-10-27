@@ -3,6 +3,7 @@
 local M = {}
 
 local WorldTimers = require("world_timers")
+local WorldUnitFilter = require("world_unit_filter")
 
 local unpack = unpack
 -- Localized: addon code may assign a global named select or xpcall.
@@ -18,6 +19,9 @@ local ADDON_CHUNK_PREFIX = "@addon:"
 local methods = {}
 M.methods = methods
 for name, fn in pairs(WorldTimers.methods) do
+  methods[name] = fn
+end
+for name, fn in pairs(WorldUnitFilter.methods) do
   methods[name] = fn
 end
 
@@ -69,6 +73,7 @@ function M.reset(w)
   w.timerSeq = 0
   w.scripts = setmetatable({}, { __mode = "k" })
   w.eventFrames = {}
+  w.unitFilters = {}
   w.chunks = {}
 end
 
@@ -220,6 +225,7 @@ end
 
 function methods:registerEvent(frame, event)
   checkEvent(self, event)
+  self:clearUnitFilter(frame, event)
   local frames = self.eventFrames[event] or {}
   self.eventFrames[event] = frames
   if not indexOf(frames, frame) then
@@ -228,6 +234,7 @@ function methods:registerEvent(frame, event)
 end
 
 function methods:unregisterEvent(frame, event)
+  self:clearUnitFilter(frame, event)
   local frames = self.eventFrames[event]
   local i = frames and indexOf(frames, frame)
   if i then
@@ -269,7 +276,7 @@ function methods:fire(event, ...)
   end
   local snapshot = { unpack(frames) }
   for _, frame in ipairs(snapshot) do
-    if indexOf(frames, frame) then
+    if indexOf(frames, frame) and self:passesUnitFilter(frame, event, (...)) then
       self:callScript(frame, "OnEvent", event, ...)
     end
   end
