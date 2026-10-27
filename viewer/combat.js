@@ -3,7 +3,8 @@
 // Play / Pause, speed and the time readout. Every control posts /call/combat (session_combat.lua). Play posts a step of
 // 0.1 * speed seconds every 100 ms until Pause, so the session's clock moves only while this page asks (a background
 // tab's timers slow to about 1 s). #combatlog lists the combat log's text lines (/call/combatlog) after every combat
-// reply and combatlog event, kept scrolled to the newest unless the reader scrolled up, with Clear. A reload is a new
+// reply and combatlog event, kept scrolled to the newest unless the reader scrolled up, with Clear. Each ok reply emits
+// 'combat' { action, inCombat } on the TK bus, so the Mock state panel (state.js) re-reads. A reload is a new
 // world whose log numbers its lines from 1 again. Classic script; parseSpeed, formatTime and presetRequest are pure for
 // tests/viewer/unit_combat.js.
 window.TK = window.TK || {};
@@ -136,6 +137,7 @@ window.TK = window.TK || {};
       const reply = await TK.api('combat', req);
       show(reply);
       fetchLog();
+      if (reply.ok) TK.emit('combat', { action: req.action, inCombat: reply.inCombat });
 
       return reply;
     } catch (err) {

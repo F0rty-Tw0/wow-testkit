@@ -1,6 +1,6 @@
 // Mock state panel (live mode): a JSON fixture editor per unit token, the mouseover unit, the shift/ctrl/alt keys, the
 // combat flag and the group kind. Each change sends a patch (TK.api('state')) and shows the merged state the session
-// answers; a reload reads the fresh session's state.
+// answers; a reload and a combat action (combat.js) read the session's state afresh.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -125,8 +125,16 @@ window.TK = window.TK || {};
     panels.hidden = false;
   }
 
+  // A combat action may set the combat flag, the group and the fixtures. A step re-reads only when it flips combat, so
+  // a playing fight does not overwrite a fixture being edited ten times a second.
+  function onCombat(change) {
+    const flipped = Boolean(change.inCombat) !== dom.combat.checked;
+    if (change.action !== 'step' || flipped) send({});
+  }
+
   function start() {
     TK.on('reload', () => send({}));
+    TK.on('combat', onCombat);
     send({});
   }
 
