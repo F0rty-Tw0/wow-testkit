@@ -1,10 +1,12 @@
 -- The size of a FontString's text, in its own units: ui/measure.lua on the text and font read from kit state (the font
 -- object chain, size 12 when none), with the line limit and spacing of ui/text_state.lua. Nothing here calls a method
--- of the region, so an addon override cannot run inside a layout resolve.
+-- of the region, so an addon override cannot run inside a layout resolve. A retail secret text measures as the text it
+-- hides (combat_secret_value.lua).
 local M = {}
 
 local FontChain = require("ui.font_chain")
 local Measure = require("ui.measure")
+local Secret = require("combat_secret_value")
 local TextState = require("ui.text_state")
 
 -- file, size, flags of the font st shows.
@@ -26,9 +28,9 @@ function M.of(w, region, axis, wrap)
   local file, size, flags = fontOf(w, st)
   local maxLines = TextState.maxLines(st)
   if axis == "x" then
-    return Measure.width(w, file, size, flags, st.text, maxLines)
+    return Measure.width(w, file, size, flags, Secret.text(st.text), maxLines)
   end
-  local count = Measure.lineCount(w, file, size, flags, st.text, wrap)
+  local count = Measure.lineCount(w, file, size, flags, Secret.text(st.text), wrap)
   local lines = maxLines > 0 and math.min(maxLines, count) or count
 
   return lines * size * Measure.LINE_HEIGHT + (lines - 1) * TextState.spacing(w, st)
@@ -40,7 +42,7 @@ function M.unbounded(w, region)
   local st = w.ui.state[region]
   local file, size, flags = fontOf(w, st)
 
-  return Measure.width(w, file, size, flags, st.text)
+  return Measure.width(w, file, size, flags, Secret.text(st.text))
 end
 
 -- source: confirmed (W30) wiki API_FontString_GetUnboundedStringWidth: "GetWrappedWidth() includes word wrap and
@@ -49,7 +51,7 @@ function M.wrapped(w, region, wrap)
   local st = w.ui.state[region]
   local file, size, flags = fontOf(w, st)
 
-  return Measure.wrappedWidth(w, file, size, flags, st.text, wrap, TextState.maxLines(st))
+  return Measure.wrappedWidth(w, file, size, flags, Secret.text(st.text), wrap, TextState.maxLines(st))
 end
 
 -- source: assumed (W26) text is truncated when max lines hid some of it, or when a line is wider than the fixed width
@@ -58,11 +60,11 @@ function M.isTruncated(w, region, wrap, fixedWidth)
   local st = w.ui.state[region]
   local file, size, flags = fontOf(w, st)
   local maxLines = TextState.maxLines(st)
-  if maxLines > 0 and Measure.lineCount(w, file, size, flags, st.text, wrap) > maxLines then
+  if maxLines > 0 and Measure.lineCount(w, file, size, flags, Secret.text(st.text), wrap) > maxLines then
     return true
   end
 
-  return fixedWidth ~= nil and Measure.wrappedWidth(w, file, size, flags, st.text, wrap, maxLines) > fixedWidth
+  return fixedWidth ~= nil and Measure.wrappedWidth(w, file, size, flags, Secret.text(st.text), wrap, maxLines) > fixedWidth
 end
 
 -- source: assumed (W25) one line of the current size, with no spacing.

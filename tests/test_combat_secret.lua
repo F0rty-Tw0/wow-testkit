@@ -206,6 +206,21 @@ local function test_snapshot_reveals_secret_text()
   end)
 end
 
+-- Measuring is kit work on the real text: a font string holding a secret sizes like the plain text it hides.
+local function test_a_secret_text_measures_as_its_hidden_text()
+  H.withCombat("retail", function(w)
+    local frame = _G.CreateFrame("Frame")
+    local plain, hidden = frame:CreateFontString(), frame:CreateFontString()
+    plain:SetText("Hidden")
+    asAddon(w, hidden.SetText, hidden, Secret.make("Hidden", w))
+    local ok, width = pcall(hidden.GetStringWidth, hidden)
+    A.same({ ok, width }, { true, plain:GetStringWidth() })
+    A.eq(hidden:GetStringHeight(), plain:GetStringHeight())
+    A.eq(hidden:GetUnboundedStringWidth(), plain:GetUnboundedStringWidth())
+    A.eq(hidden:IsTruncated(), false)
+  end)
+end
+
 local function test_state_sets_combat_and_encounter_restrictions()
   H.withCombat("retail", function(w)
     local player = Actors.get(w, "player")
@@ -246,6 +261,7 @@ return function()
   test_cleu_payload_is_secret_while_restricted_assumed()
   test_secret_install_is_retail_only()
   test_snapshot_reveals_secret_text()
+  test_a_secret_text_measures_as_its_hidden_text()
   test_state_sets_combat_and_encounter_restrictions()
   test_a_plain_npc_fight_sets_combat_but_not_encounter()
 end
