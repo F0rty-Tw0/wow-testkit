@@ -151,6 +151,14 @@ local function test_issecurevariable_returns_true_nil()
   end)
 end
 
+local function test_forceinsecure_does_nothing_and_debugstack_answers_an_empty_stack_assumed() -- W72
+  withWorld("retail", function()
+    A.same({ _G.forceinsecure() }, {})
+    A.eq(_G.debugstack(), "")
+    A.eq(_G.debugstack(1, 2, 3), "")
+  end)
+end
+
 local function test_default_error_handler_records_error()
   withWorld("retail", function(w)
     _G.geterrorhandler()("boom")
@@ -269,6 +277,7 @@ return function()
   test_hooksecurefunc_missing_function_errors()
   test_securecall_accepts_function_or_global_name()
   test_issecurevariable_returns_true_nil()
+  test_forceinsecure_does_nothing_and_debugstack_answers_an_empty_stack_assumed()
   test_default_error_handler_records_error()
   test_seterrorhandler_replaces_handler()
   test_seterrorhandler_receives_script_errors_in_addon_context()
