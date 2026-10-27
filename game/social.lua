@@ -140,7 +140,25 @@ local function installClubs(w)
   end)
 end
 
+-- source: confirmed wiki API_Ambiguate: "short" drops the realm, "mail" (and "craftingorder") keep it, the rest drop it
+-- only for the player's own realm; assumed (no guild roster) a character on another realm is not in the guild.
+local KEEP_REALM = { mail = true, craftingorder = true }
+
+local function installAmbiguate(w)
+  define(w, "Ambiguate", function(fullName, context)
+    local name, realm = fullName:match("^(.-)%-(.+)$")
+    if not name or KEEP_REALM[context] then
+      return fullName
+    end
+    if context == "short" or realm == (w.mock.realm:gsub("[ %-%.]", "")) then
+      return name
+    end
+    return fullName
+  end)
+end
+
 function M.install(w)
+  installAmbiguate(w)
   installBattleNet(w)
   installInstance(w)
   installChannels(w)

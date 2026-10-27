@@ -30,6 +30,7 @@ call("GetInstanceInfo"); call("IsInGuild"); call("C_PartyInfo.IsGUIDInGroup", "P
 call("GetChannelName", 1); call("C_ChatInfo.InChatMessagingLockdown"); call("C_ChatInfo.RegisterAddonMessagePrefix", "WM")
 call("C_Club.GetGuildClubId"); call("C_Club.GetSubscribedClubs"); call("C_HouseEditor.IsHouseEditorActive")
 call("C_RestrictedActions.IsAddOnRestrictionActive", 0); call("C_XMLUtil.GetTemplateInfo", "Nope")
+call("Ambiguate", "Bob-Silvermoon", "none")
 CreateFrame("Button"):RegisterForDrag("LeftButton")
 ]]
 
@@ -45,6 +46,25 @@ local function test_wm_shape_addon_leaves_nothing_unscripted() -- (G18)
     A.same(results[flavor].unscripted, {}, flavor)
     A.eq(results[flavor].status, "pass", flavor)
   end
+end
+
+-- source: confirmed wiki API_Ambiguate context table; assumed a character on another realm is not in the guild (the kit
+-- has no guild roster).
+local function test_ambiguate_follows_the_context_table_assumed()
+  G.withGame("retail", function(w)
+    w:setMock({ realm = "Argent Dawn" })
+    local same, other = "Bob-ArgentDawn", "Bob-Silvermoon"
+    for context, want in pairs({
+      all = { "Bob", other },
+      none = { "Bob", other },
+      guild = { "Bob", other },
+      short = { "Bob", "Bob" },
+      mail = { same, other },
+    }) do
+      A.same({ _G.Ambiguate(same, context), _G.Ambiguate(other, context) }, want, context)
+    end
+    A.eq(_G.Ambiguate("Bob", "mail"), "Bob")
+  end)
 end
 
 local function test_battle_net_reads_assumed() -- (G18)
@@ -180,6 +200,7 @@ end
 
 return function()
   test_wm_shape_addon_leaves_nothing_unscripted()
+  test_ambiguate_follows_the_context_table_assumed()
   test_battle_net_reads_assumed()
   test_instance_info_follows_the_mock()
   test_open_world_instance_info_assumed()
