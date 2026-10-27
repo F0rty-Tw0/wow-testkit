@@ -9,6 +9,7 @@ local Behaviour = require("ui.behaviour")
 local Callsite = require("ui.callsite")
 local Inherits = require("ui.inherits")
 local Layout = require("ui.layout")
+local ProtectedData = require("taint_protected_data")
 local TemplateApply = require("ui.template_apply")
 local Validate = require("validate")
 local WorldApi = require("world_api")
@@ -69,12 +70,15 @@ local function buildPlan(w, typeName)
   for _, ancestor in ipairs(ancestors) do
     isA[ancestor:lower()] = true
   end
+  local isFrame = isA.frame == true
   for name in pairs(Inherits.methodNames(w.globals.widgets, typeName)) do
     local signature = findSignature(w.manifest, ancestors, name)
     local unchecked = Behaviour.uncheckedArgs[name] or {}
-    methods[name] = { signature = signature, check = signature and lenient(signature, unchecked) }
+    -- protected: a tainted call to it on a protected frame in combat is refused (row TS9); frames only, so Texture:Show() is not
+    local protected = isFrame and ((signature and signature.protected) or ProtectedData.methods[name]) == true
+    methods[name] = { signature = signature, check = signature and lenient(signature, unchecked), protected = protected }
   end
-  return { type = typeName, isA = isA, isFrame = isA.frame == true, methods = methods }
+  return { type = typeName, isA = isA, isFrame = isFrame, methods = methods }
 end
 
 local function planFor(w, typeName)
@@ -114,7 +118,7 @@ local function generic(plan, name, signature)
 end
 
 -- The installed method: resolves self's state, checks args in addon context, then runs impl(w, self, st, ...).
-local function bind(w, plan, name, impl, check)
+local function bind(w, plan, name, impl, check, protected)
   local label = plan.type .. ":" .. name
   local names = { name = label, flavor = w.flavor }
   local changesLayout = Layout.MUTATORS[name]
@@ -122,6 +126,10 @@ local function bind(w, plan, name, impl, check)
     local st = w.ui.state[self]
     if not st then
       error(label .. ": self is not a widget of this world", 2)
+    end
+    -- Cheapest test first: forbidden frames and flagged methods in combat go on to the taint guard, which checks the caller.
+    if (st.forbidden or (protected and w.mock and w.mock.combat == true)) and w.taint.guardMethod(w, self, plan.type, name) then
+      return
     end
     if changesLayout then
       Layout.invalidate(w, self)
@@ -149,7 +157,7 @@ local function classFor(w, typeName)
     local plan = planFor(w, typeName)
     local methods = {}
     for name, entry in pairs(plan.methods) do
-      methods[name] = bind(w, plan, name, entry.impl or implFor(plan, name, entry.signature), entry.check)
+      methods[name] = bind(w, plan, name, entry.impl or implFor(plan, name, entry.signature), entry.check, entry.protected)
     end
     class = { plan = plan, meta = { __index = methods } }
     w.ui.classes[typeName] = class
@@ -186,9 +194,9 @@ function M.applyTemplates(w, frame, templates)
   end
 end
 
--- True when a Secure* template made frame protected.
+-- True when frame is protected, explicitly (a Secure* template) or implicitly (taint_frames.lua).
 function M.isProtected(w, frame)
-  return w.ui.state[frame].protected == true
+  return (w.taint.isProtected(w, frame))
 end
 
 -- The exact frame type name for a CreateFrame argument: a registered intrinsic first, else the flavor's catalog. nil

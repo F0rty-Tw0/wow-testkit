@@ -40,6 +40,7 @@ function M.install(w)
   M.declare(w, rawget(_G, "Constants"), "Constants", true)
   require("taint_api").install(w)
   require("taint_protected").install(w)
+  require("taint_frames").install(w)
 end
 
 -- The running taint: the addon's name, or nil while execution is secure.
