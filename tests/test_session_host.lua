@@ -1,5 +1,5 @@
 -- SessionHost: the JSON boundary both hosts relay through: request decoding and null rules, the outbox that survives a
--- reload, and the located field on snapshot assets.
+-- reload, the combatlog event and the located field on snapshot assets.
 local A = require("assert")
 local H = require("tests.helpers.session")
 local Json = require("json")
@@ -255,6 +255,22 @@ local function test_a_lost_session_accepts_reimport()
   end)
 end
 
+local function test_host_pushes_combatlog_when_the_log_grows()
+  H.withHost({ addonDir = H.DEMO:gsub("SessionDemo$", "CombatDemo") }, function(host)
+    host:handleJson("combat", '{"action":"preset","name":"dungeon"}')
+    host:handleJson("combat", '{"action":"pull"}')
+    host:drain()
+    host:handleJson("combat", '{"action":"step","seconds":3}')
+    local pushed = {}
+    for _, item in ipairs(drained(host)) do
+      pushed[item.event] = item.data
+    end
+    A.same(pushed.combatlog, { seq = host.sess.w.combat.log.seq })
+    host:handleJson("combatlog", '{"since":0}')
+    A.eq(#drained(host), 0)
+  end)
+end
+
 return function()
   test_a_reload_whose_world_fails_reopens_the_previous_options()
   test_a_reload_that_cannot_rebuild_any_world_loses_the_session()
@@ -271,4 +287,5 @@ return function()
   test_snapshot_assets_carry_located()
   test_a_bad_reload_flavor_replies_an_error_and_keeps_the_session()
   test_a_lost_session_accepts_reimport()
+  test_host_pushes_combatlog_when_the_log_grows()
 end

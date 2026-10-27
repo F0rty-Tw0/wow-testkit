@@ -21,6 +21,7 @@ import session
 
 ADDONS = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "addons"
 DEMO, CLICKY, DEV_DEMO = ADDONS / "SessionDemo", ADDONS / "Clicky", ADDONS / "DevDemo"
+COMBAT_DEMO = ADDONS / "CombatDemo"
 STREAM_WAIT = 3
 
 

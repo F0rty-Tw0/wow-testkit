@@ -9,8 +9,8 @@
     POST /call/<method>      any method, through SessionHost:handleJson; the reply is always status 200
     POST /input /fire /slash /state /reload   the same calls for curl and the selftests (400 when the request is malformed)
                              (/reload takes { flavor?, size?, keepSaved? }; session_options.lua checks it, 400 if bad)
-    GET  /stream             server-sent events: hello { boot } first, then snapshot, console, reload (a keepalive
-                             comment every 15 s); boot is random per server, so a viewer can tell a restarted one
+    GET  /stream             server-sent events: hello { boot } first, then snapshot, console, reload, combatlog (a
+                             keepalive comment every 15 s); boot is random per server, so a viewer can tell a restarted one
     GET  /?token=<token>     sets the session cookie and redirects to the live viewer, fitted to the window
     GET  /viewer/*, /assets/*   static files
 
