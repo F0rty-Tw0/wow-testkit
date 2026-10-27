@@ -3,11 +3,11 @@
 -- several flavors and always destroys each world; Scenario.runFile does that for a scn_<name>.lua file.
 local M = {}
 
-local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local FrameXML = require("framexml.fakes")
 local Game = require("game")
 local Input = require("input")
+local ScenarioAddons = require("scenario_addons")
 local Units = require("units")
 local Widgets = require("ui.widgets")
 local World = require("world")
@@ -17,8 +17,6 @@ local debugTraceback = debug.traceback
 local MOUSEOVER = "mouseover"
 local ENGINE = "blizzard"
 local LOGIN_EVENTS = { "VARIABLES_LOADED", "PLAYER_LOGIN" }
--- ADDON_LOADED payload: addOnName, containsBindings (the manifest lists both as required).
-local CONTAINS_BINDINGS = false
 
 local Scenario = {}
 Scenario.__index = Scenario
@@ -50,8 +48,10 @@ local function installWorld(w)
   FrameXML.installStage1(w)
 end
 
--- opts: { addon, root, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario, update } }.
--- s.ns / s.info exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden mode.
+-- opts: { addon, root, addonsDir?, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario,
+-- update } }; addonsDir (the folder that holds the addon and its dependencies) defaults to the parent of root.
+-- s.ns / s.info / s.deps exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden
+-- mode.
 function M.new(opts)
   local w = World.new({ flavor = opts.flavor, screen = opts.screen, client = opts.client })
   local ok, err = pcall(installWorld, w)
@@ -61,6 +61,7 @@ function M.new(opts)
   end
   local golden = opts.golden or {}
   w.goldenMode = opts.golden ~= nil
+  w.mock.addonsDir = ScenarioAddons.dirOf(opts)
   return setmetatable({
     w = w,
     flavor = w.flavor,
@@ -90,21 +91,20 @@ function Scenario:fireIfKnown(event, ...)
   w:run(ENGINE, w.fire, w, event, ...)
 end
 
--- Loads the addon, applies saved variables and fires the login events. opts.saved overrides s.saved; opts.reloading
--- fires PLAYER_ENTERING_WORLD(isInitialLogin = false, isReloadingUi = true) instead of (true, false). When the addon
--- is skipped on the flavor (not declared), raises SKIPPED so the rest of the run does not execute.
+-- Loads the addon and its dependencies (each with its saved variables and ADDON_LOADED) and fires the login events.
+-- opts.saved overrides s.saved; opts.reloading fires PLAYER_ENTERING_WORLD(isInitialLogin = false, isReloadingUi =
+-- true) instead of (true, false). When the addon is skipped (not declared on the flavor, a dependency missing or not
+-- loadable), raises SKIPPED so the rest of the run does not execute.
 function Scenario:login(opts)
   local reloading = opts ~= nil and opts.reloading == true
   if opts and opts.saved ~= nil then
     self.saved = opts.saved
   end
   local w = self.w
-  self.ns, self.info = w:run(ENGINE, Addon.load, w, { name = self.addon, root = self.root })
+  self.ns, self.info = ScenarioAddons.load(self)
   if self.info.status == "skipped" then
     error(SKIPPED, 0)
   end
-  Addon.applySaved(w, self.info, self.saved)
-  self:fireIfKnown("ADDON_LOADED", self.addon, CONTAINS_BINDINGS)
   for _, event in ipairs(LOGIN_EVENTS) do
     if event == "PLAYER_LOGIN" then
       w.mock.loggedIn = true
