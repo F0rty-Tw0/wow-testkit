@@ -69,6 +69,30 @@ function M.onLog(_, fn)
   return frame
 end
 
+-- Subevent names of the combat log entries (c.log.entries), oldest first.
+function M.subevents(c)
+  local out = {}
+  for i, entry in ipairs(c.log.entries) do
+    out[i] = entry[2]
+  end
+  return out
+end
+
+-- Firing order of the combat log and the listed unit events: a log entry shows as its subevent. Reads the payload through
+-- CombatLogGetCurrentEventInfo, so it needs vanilla, mists or tbc (row C18).
+function M.sequence(_, events)
+  local out = {}
+  local frame = _G.CreateFrame("Frame")
+  frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+  for _, event in ipairs(events) do
+    frame:RegisterEvent(event)
+  end
+  frame:SetScript("OnEvent", function(_, event)
+    out[#out + 1] = event == "COMBAT_LOG_EVENT_UNFILTERED" and select(2, _G.CombatLogGetCurrentEventInfo()) or event
+  end)
+  return out
+end
+
 function M.names(log)
   local out = {}
   for i, entry in ipairs(log) do

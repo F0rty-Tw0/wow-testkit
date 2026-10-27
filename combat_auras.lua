@@ -38,6 +38,8 @@ local function isHarmful(w, spec)
   return record ~= nil and record.harmful == true
 end
 
+M.isHarmful = isHarmful
+
 local function sourceToken(w, source)
   if type(source) == "table" then
     return Actors.tokens(w, source)[1]
