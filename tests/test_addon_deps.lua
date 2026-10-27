@@ -193,6 +193,32 @@ local function test_optional_dependency_not_loadable_on_the_flavor_is_passed_ove
   A.eq(ran, true)
 end
 
+-- source: assumed (row G16) an optional dependency that cannot load because its own required dependency is absent is
+-- passed over, and the addon still loads.
+local function test_optional_dependency_missing_its_own_dependency_is_passed_over_assumed()
+  local dir = Tmp.dir("deps")
+  addon(dir, "O", "## Dependencies: Gone\n", "")
+  addon(dir, "Main", "## OptionalDeps: O\n", "")
+  A.same(names(orderOf(dir, "Main")), { "Main" })
+end
+
+-- source: assumed (row G16) an optional dependency whose own required dependency does not load on the flavor does not
+-- load either; the addon still loads.
+local function test_optional_dependency_whose_dependency_is_skipped_does_not_load_assumed()
+  local dir = Tmp.dir("deps")
+  addon(dir, "OnlyRetail", "", "")
+  fs.writeFile(dir .. "/OnlyRetail/OnlyRetail.toc", "## Interface: 120100\nOnlyRetail.lua\n")
+  addon(dir, "O", "## Dependencies: OnlyRetail\n", "O_RAN = true")
+  addon(dir, "Main", "## OptionalDeps: O\n", "MAIN_RAN = true")
+  local seen
+  local results = Scenario.matrix({ "vanilla" }, function(s)
+    s:login()
+    seen = { rawget(_G, "O_RAN"), rawget(_G, "MAIN_RAN") }
+  end, { addon = "Main", root = dir .. "/Main" })
+  A.eq(results.vanilla.status, "pass", tostring(results.vanilla.reason))
+  A.same(seen, { nil, true })
+end
+
 -- source: assumed (row G16) a required dependency the mock holds as loaded is satisfied without a folder.
 local function test_a_required_dependency_mocked_loaded_needs_no_folder_assumed()
   local dir = Tmp.dir("deps")
@@ -248,6 +274,8 @@ return function()
   test_login_lists_dependencies_and_notes_them()
   test_dependency_skipped_on_the_flavor_skips_the_dependent_assumed()
   test_optional_dependency_not_loadable_on_the_flavor_is_passed_over_assumed()
+  test_optional_dependency_missing_its_own_dependency_is_passed_over_assumed()
+  test_optional_dependency_whose_dependency_is_skipped_does_not_load_assumed()
   test_a_required_dependency_mocked_loaded_needs_no_folder_assumed()
   test_login_with_a_missing_dependency_is_skipped_assumed()
   test_a_dependency_already_loaded_does_not_load_again()

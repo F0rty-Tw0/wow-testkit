@@ -45,25 +45,28 @@ local function cycleReason(stack, name)
 end
 
 -- opts: { name, root, addonsDir? = the parent of root, flavor, provided? = fn(name) true for a dependency satisfied
--- without a folder }. Returns entries = { { name, root, required }, ... } with each addon's required dependencies first,
--- then its optional ones (each depth first), and the addon last; required is true for the addon and for each entry
--- reached through required dependencies only. Or returns nil and why it cannot load: "missing dependency: <name>" or
+-- without a folder }. Returns entries = { { name, root, requires }, ... } with each addon's required dependencies first,
+-- then its optional ones (each depth first), and the addon last; requires lists the entry's required dependencies that
+-- are entries too. Or returns nil and why the addon cannot load: "missing dependency: <name>" or
 -- "dependency cycle: A -> B -> A". A dependency listed twice loads once.
 function M.order(opts)
   local addonsDir = opts.addonsDir or M.addonsDirOf(opts.root)
-  local entries, done, visiting, stack = {}, {}, {}, {}
-  local entryOf = {}
+  local entries, done, failed, visiting, stack = {}, {}, {}, {}, {}
   local visit
   -- source: assumed (row G16) a Blizzard_ dependency is satisfied without loading and is not listed; an absent
-  -- optional dependency is ignored; a required one that is absent blocks the addon unless opts.provided answers for it.
-  local function visitAll(names, required, viaRequired)
+  -- optional dependency is ignored; a required one that is absent blocks its dependent unless opts.provided answers
+  -- for it. An optional dependency that cannot load is passed over, so only required edges carry a failure up.
+  local function visitAll(names, required, requires)
     for _, dep in ipairs(names) do
       local root = addonsDir .. "/" .. dep
       if dep:sub(1, #BLIZZARD_PREFIX) ~= BLIZZARD_PREFIX then
         if Toc.exists(root, dep) then
-          local reason = visit(dep, root, required and viaRequired)
-          if reason then
+          local reason = visit(dep, root)
+          if reason and required then
             return reason
+          end
+          if required then
+            requires[#requires + 1] = dep
           end
         elseif required and not (opts.provided and opts.provided(dep)) then
           return "missing dependency: " .. dep
@@ -71,28 +74,28 @@ function M.order(opts)
       end
     end
   end
-  function visit(name, root, required)
-    if done[name] then
-      entryOf[name].required = entryOf[name].required or required
-      return nil
+  function visit(name, root)
+    if failed[name] or done[name] then
+      return failed[name]
     end
     if visiting[name] then
       return cycleReason(stack, name)
     end
     visiting[name] = true
     stack[#stack + 1] = name
-    local deps = Toc.dependencies(metaOf(root, name, opts.flavor))
-    local reason = visitAll(deps.required, true, required) or visitAll(deps.optional, false, required)
+    local deps, requires = Toc.dependencies(metaOf(root, name, opts.flavor)), {}
+    local reason = visitAll(deps.required, true, requires) or visitAll(deps.optional, false, requires)
+    stack[#stack] = nil
+    visiting[name] = nil
     if reason then
+      failed[name] = reason
       return reason
     end
-    stack[#stack] = nil
-    visiting[name], done[name] = nil, true
-    entryOf[name] = { name = name, root = root, required = required }
-    entries[#entries + 1] = entryOf[name]
+    done[name] = true
+    entries[#entries + 1] = { name = name, root = root, requires = requires }
     return nil
   end
-  local reason = visit(opts.name, opts.root, true)
+  local reason = visit(opts.name, opts.root)
   if reason then
     return nil, reason
   end
@@ -121,11 +124,11 @@ end
 
 -- Loads M.order(opts) (flavor = w's) under the caller's context through Addon.load and calls afterEach(entry) after
 -- each addon that loads; entry = { name, ns, info }. A dependency w.mock.addons already holds as loaded is not loaded
--- again, and satisfies a required dependency that has no folder. The last entry is the addon itself. A dependency that
--- comes back skipped stops the addon only when it is required; an optional one is passed over. When the addon cannot
--- load (the order failed, a required dependency came back skipped, or its own TOC skips it) its info is skipped with a
--- reason: "missing dependency: X", "dependency cycle: A -> B -> A" or "dependency X not loadable: <its reason>", and
--- afterEach is not called for it.
+-- again, and satisfies a required dependency that has no folder. The last entry is the addon itself. An entry whose
+-- required dependency came back skipped is skipped too; a skipped dependency is passed over, so the addon loads unless
+-- the skip reaches it through required dependencies. When the addon cannot load (the order failed, a required
+-- dependency was skipped, or its own TOC skips it) its info is skipped with a reason: "missing dependency: X",
+-- "dependency cycle: A -> B -> A" or "dependency X not loadable: <its reason>", and afterEach is not called for it.
 function M.loadAll(w, opts, afterEach)
   local order, reason = M.order({
     name = opts.name,
@@ -139,20 +142,25 @@ function M.loadAll(w, opts, afterEach)
   if not order then
     return { { name = opts.name, ns = {}, info = skipped(reason) } }
   end
-  local entries = {}
+  local entries, failed = {}, {}
   for i, item in ipairs(order) do
     local isAddon = i == #order
-    if isAddon or not isLoaded(w, item.name) then
+    local blocker
+    for _, dep in ipairs(item.requires) do
+      blocker = blocker or (failed[dep] and "dependency " .. dep .. " not loadable: " .. failed[dep])
+    end
+    if blocker and isAddon then
+      entries[#entries + 1] = { name = opts.name, ns = {}, info = skipped(blocker) }
+    elseif blocker then
+      failed[item.name] = blocker
+    elseif isAddon or not isLoaded(w, item.name) then
       local ns, info = Addon.load(w, item)
       local entry = { name = item.name, ns = ns, info = info }
-      if info.status == "skipped" and not isAddon and item.required then
-        local why = "dependency " .. item.name .. " not loadable: " .. info.reason
-        entries[#entries + 1] = { name = opts.name, ns = {}, info = skipped(why) }
-        return entries
-      end
-      -- source: assumed (row G16) an optional dependency that cannot load is passed over; the addon still loads.
-      local passedOver = info.status == "skipped" and not isAddon
-      if not passedOver then
+      -- source: assumed (row G16) a dependency that cannot load is passed over; the addon still loads unless it
+      -- requires it.
+      if info.status == "skipped" and not isAddon then
+        failed[item.name] = info.reason
+      else
         entries[#entries + 1] = entry
       end
       if info.status ~= "skipped" then
