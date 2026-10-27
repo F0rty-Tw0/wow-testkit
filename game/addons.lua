@@ -7,10 +7,12 @@ local M = {}
 local AddonDeps = require("addon_deps")
 local State = require("game.state")
 local Toc = require("toc")
+local WorldApi = require("world_api")
 local fs = require("fs")
 local define = State.define
 
 local ENGINE = "blizzard"
+local BLIZZARD_PREFIX = "Blizzard_"
 -- source: assumed (row G15) every addon is INSECURE: the kit models no secure addons.
 local SECURITY = "INSECURE"
 
@@ -52,8 +54,10 @@ local function newCatalog(w)
     return names
   end
 
-  -- The installed addon an index (1-based, in name order) or a name stands for, or nil.
-  function catalog.resolve(ident)
+  -- The installed addon an index (1-based, in name order) or a name stands for, or nil. source: assumed (row G16) a
+  -- dependency check treats a Blizzard_ addon as present, so the call api asked about one the mock does not hold counts
+  -- unscripted.
+  function catalog.resolve(ident, api)
     local names = catalog.names()
     if type(ident) == "number" then
       return names[ident]
@@ -62,6 +66,9 @@ local function newCatalog(w)
       if name == ident then
         return name
       end
+    end
+    if type(ident) == "string" and ident:sub(1, #BLIZZARD_PREFIX) == BLIZZARD_PREFIX then
+      WorldApi.markUnscripted(w, api)
     end
     return nil
   end
@@ -93,13 +100,13 @@ end
 local function installQueries(w, catalog)
   -- source: confirmed (row G15) loadedOrLoading, loaded; the kit has no loading state, so both are the same.
   define(w, "C_AddOns.IsAddOnLoaded", function(ident)
-    local name = catalog.resolve(ident)
+    local name = catalog.resolve(ident, "C_AddOns.IsAddOnLoaded")
     local loaded = name ~= nil and catalog.state(name).loaded == true
     return loaded, loaded
   end)
   -- source: confirmed (row G15) nil for a field the TOC lacks.
   define(w, "C_AddOns.GetAddOnMetadata", function(ident, field)
-    local name = catalog.resolve(ident)
+    local name = catalog.resolve(ident, "C_AddOns.GetAddOnMetadata")
     return name and catalog.meta(name)[field] or nil
   end)
   define(w, "C_AddOns.GetNumAddOns", function()
@@ -108,7 +115,7 @@ local function installQueries(w, catalog)
   -- source: confirmed (row G15) name, title, notes, loadable, reason, security; assumed the title is the folder name
   -- without a Title field, reason is DISABLED for a disabled addon and nil otherwise, and security is INSECURE.
   define(w, "C_AddOns.GetAddOnInfo", function(ident)
-    local name = catalog.resolve(ident)
+    local name = catalog.resolve(ident, "C_AddOns.GetAddOnInfo")
     if not name then
       return nil
     end
@@ -120,7 +127,7 @@ end
 local function installEnableFlags(w, catalog)
   local function setEnabled(api, enabled)
     define(w, api, function(ident)
-      local name = catalog.resolve(ident)
+      local name = catalog.resolve(ident, api)
       if name then
         local state = catalog.state(name)
         state.enabled = enabled
@@ -147,7 +154,7 @@ local function installLoad(w, catalog)
   -- source: assumed (row G15) true once loaded, or nil and MISSING (not installed), DISABLED or a loadFailure code; a
   -- loaded addon answers true without loading again; an addon the mock holds without a folder is loaded as it stands.
   define(w, "C_AddOns.LoadAddOn", function(ident)
-    local name = catalog.resolve(ident)
+    local name = catalog.resolve(ident, "C_AddOns.LoadAddOn")
     if not name then
       return nil, "MISSING"
     elseif not catalog.enabled(name) then

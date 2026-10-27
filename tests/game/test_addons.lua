@@ -165,6 +165,26 @@ local function test_a_dependency_cleared_with_false_loads_from_its_folder_assume
   end)
 end
 
+-- source: assumed (row G16) a Blizzard_ addon is present to a dependency check; the kit holds no record of it, so the
+-- API answers not installed and counts the call unscripted, until the scenario scripts it in w.mock.addons.
+local function test_a_blizzard_addon_without_a_record_answers_not_installed_as_unscripted_assumed()
+  G.withGame("retail", function(w)
+    A.same({ _G.C_AddOns.IsAddOnLoaded("Blizzard_Collections") }, { false, false })
+    A.same({ _G.C_AddOns.LoadAddOn("Blizzard_Collections") }, { nil, "MISSING" })
+    A.same(w.unscripted, { ["C_AddOns.IsAddOnLoaded"] = 1, ["C_AddOns.LoadAddOn"] = 1 })
+  end)
+end
+
+-- source: assumed (row G15) a Blizzard_ addon the scenario scripts is an ordinary mocked addon.
+local function test_a_scripted_blizzard_addon_answers_without_unscripted_assumed()
+  G.withGame("retail", function(w)
+    w:setMock({ addons = { Blizzard_Collections = { loaded = true } } })
+    A.same({ _G.C_AddOns.IsAddOnLoaded("Blizzard_Collections") }, { true, true })
+    A.eq(_G.C_AddOns.LoadAddOn("Blizzard_Collections"), true)
+    A.same(w.unscripted, {})
+  end)
+end
+
 -- source: assumed (row G15) an addon that is not installed answers the defaults; the kit knows the addons folder, so
 -- that is a scripted answer (addons probe optional integrations this way), not an unscripted one.
 local function test_an_uninstalled_addon_answers_defaults_as_scripted_assumed()
@@ -216,6 +236,8 @@ return function()
   test_mock_addons_need_no_folder_assumed()
   test_an_addon_cleared_with_false_is_absent_assumed()
   test_a_dependency_cleared_with_false_loads_from_its_folder_assumed()
+  test_a_blizzard_addon_without_a_record_answers_not_installed_as_unscripted_assumed()
+  test_a_scripted_blizzard_addon_answers_without_unscripted_assumed()
   test_an_uninstalled_addon_answers_defaults_as_scripted_assumed()
   test_bare_addon_globals_are_absent_and_reload_calls_are_present()
   test_reload_ui_flags_and_logout_quit_are_scripted_assumed()
