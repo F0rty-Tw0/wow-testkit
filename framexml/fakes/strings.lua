@@ -11,6 +11,18 @@ M.STRINGS = {
   FACTION_HORDE = "Horde",
   PVP = "PvP",
   ITEM_LEVEL = "Item Level %d",
+  ACCEPT = "Accept",
+  CANCEL = "Cancel",
+  OKAY = "Okay",
+  YES = "Yes",
+  NO = "No",
+  GOLD = "Gold",
+  SILVER = "Silver",
+  COPPER = "Copper",
+  GOLD_AMOUNT = "%d Gold",
+  SILVER_AMOUNT = "%d Silver",
+  COPPER_AMOUNT = "%d Copper",
+  LARGE_NUMBER_SEPERATOR = ",",
 }
 
 function M.install(w)
