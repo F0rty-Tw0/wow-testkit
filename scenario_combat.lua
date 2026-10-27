@@ -1,11 +1,12 @@
 -- Scenario combat steps: s:pull(target) engages an enemy and starts the AI, s:combat(entries) runs a timeline on the world
--- clock and s:kill(token) kills a unit. Each installs the combat world first and runs under the engine ("blizzard") context.
--- A unit that does not exist raises at the call, naming the step.
+-- clock, s:kill(token) kills a unit and s:preset(name, opts) builds a solo, dungeon or raid world. Each installs the combat
+-- world first and runs under the engine ("blizzard") context. A unit that does not exist raises at the call, naming the step.
 local M = {}
 
 local Actors = require("combat_actors")
 local Ai = require("combat_ai")
 local Combat = require("combat")
+local Presets = require("combat_presets")
 local Resolve = require("combat_resolve")
 local Timeline = require("combat_timeline")
 
@@ -55,6 +56,15 @@ function M.extend(Scenario)
     Combat.install(w)
     local actor = unitOf(w, token, "s:kill")
     w:run(ENGINE, Resolve.kill, w, actor)
+  end
+
+  -- name: "solo", "dungeon" or "raid"; opts: see combat_presets.lua. A bad name or option raises at this call. Returns
+  -- { player, members, enemies }.
+  function Scenario:preset(name, opts)
+    local w = self.w
+    Combat.install(w)
+    Presets.resolve(w, name, opts)
+    return w:run(ENGINE, Presets.apply, w, name, opts)
   end
 end
 
