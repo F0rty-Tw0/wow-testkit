@@ -10,14 +10,22 @@ local Read = require("render_read")
 
 local text = BehaviourText.methods
 
--- The texture fields of the thumb or bar region part, with the size SetSize gave it; nil when there is none.
+-- source: assumed (V8) a texture draws on ARTWORK, sublevel 0 unless told otherwise.
+local DEFAULT_LAYER, DEFAULT_SUBLEVEL = "ARTWORK", 0
+
+-- The texture fields of the thumb or bar region part, with the size SetSize gave it and the layer and sublevel it draws
+-- in when they are not the default; nil when there is none.
 local function partLook(w, part, ctx)
   if not part then
     return nil
   end
   local state = w.ui.state[part]
   local look = ctx.look(state)
+  local pack = Read.stored(state, "DrawLayer")
+  local layer, sublevel = pack and pack[1] or DEFAULT_LAYER, pack and pack[2] or DEFAULT_SUBLEVEL
   look.width, look.height = state.width, state.height
+  look.layer = layer ~= DEFAULT_LAYER and layer or nil
+  look.sublevel = sublevel ~= DEFAULT_SUBLEVEL and sublevel or nil
 
   return look
 end

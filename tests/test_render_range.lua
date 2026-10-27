@@ -66,6 +66,32 @@ local function test_status_bar_exports_reverse_and_texture() -- W44
   end)
 end
 
+-- The part draws among the regions of its frame in its own layer, so the snapshot says which (only when it is not the
+-- default ARTWORK, sublevel 0), for the viewer to stack the fill and the thumb among them.
+local function test_a_slider_thumb_exports_its_draw_layer_when_not_the_default() -- W43
+  H.withRender(function(w)
+    local s = S.anchored("Slider", "Sl", nil, 100, 20)
+    local thumb = s:CreateTexture("SlThumb", "OVERLAY", nil, 3)
+    thumb:SetColorTexture(1, 0, 0)
+    s:SetThumbTexture(thumb)
+    local exported = S.snap(w, "Sl").widget.thumb
+    A.same({ exported.layer, exported.sublevel }, { "OVERLAY", 3 })
+  end)
+end
+
+local function test_a_status_bar_texture_exports_its_draw_layer_when_not_the_default() -- W44
+  H.withRender(function(w)
+    local bar = S.anchored("StatusBar", "Bar")
+    local tex = bar:CreateTexture("BarTex", "BACKGROUND")
+    tex:SetColorTexture(1, 1, 1)
+    bar:SetStatusBarTexture(tex)
+    local exported = S.snap(w, "Bar").widget.texture
+    A.same({ exported.layer, exported.sublevel }, { "BACKGROUND", nil })
+    tex:SetDrawLayer("ARTWORK", 0)
+    A.same({ S.snap(w, "Bar").widget.texture.layer, S.snap(w, "Bar").widget.texture.sublevel }, { nil, nil })
+  end)
+end
+
 local function test_status_bar_texture_region_is_not_drawn() -- W44
   H.withRender(function(w)
     local bar = S.anchored("StatusBar", "Bar")
@@ -148,6 +174,8 @@ return function()
   test_slider_orientation_getter_and_snapshot_agree()
   test_status_bar_orientation_getter_and_snapshot_agree()
   test_status_bar_exports_reverse_and_texture()
+  test_a_slider_thumb_exports_its_draw_layer_when_not_the_default()
+  test_a_status_bar_texture_exports_its_draw_layer_when_not_the_default()
   test_status_bar_texture_region_is_not_drawn()
   test_status_bar_exports_a_fill_style_other_than_standard()
   test_scroll_frame_widget_and_shifted_child_rect()
