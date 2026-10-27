@@ -1,6 +1,7 @@
 -- Combat state: the player's regen events and lockdown, and the engaged flags of the actors.
 local A = require("assert")
 local Actors = require("combat_actors")
+local Combat = require("combat")
 local H = require("tests.helpers.combat")
 local State = require("combat_state")
 
@@ -176,6 +177,22 @@ local function test_engage_rejects_a_value_that_is_not_an_actor()
   end)
 end
 
+local function test_lockdown_hook_follows_the_mock_flag()
+  H.withCombat("retail", function(w)
+    local _, brute = H.pair(w)
+    local player = Actors.get(w, "player")
+    local seen = {}
+    Combat.listen(w, "lockdown", function(on)
+      seen[#seen + 1] = { on, w.mock.combat }
+    end)
+    State.engage(w, brute, player)
+    State.engage(w, brute, player)
+    State.disengage(w, brute)
+    w:advance(w.combat.dropDelay + 0.1)
+    A.same(seen, { { true, true }, { false, false } })
+  end)
+end
+
 return function()
   test_engage_fires_regen_once_and_sets_lockdown()
   test_combat_drops_after_the_delay_assumed()
@@ -188,4 +205,5 @@ return function()
   test_engaging_a_friendly_does_not_start_combat()
   test_a_dead_actor_engages_no_one()
   test_engage_rejects_a_value_that_is_not_an_actor()
+  test_lockdown_hook_follows_the_mock_flag()
 end

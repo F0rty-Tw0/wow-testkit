@@ -1,7 +1,7 @@
 -- Combat world: Combat.install(w) adds the actors, auras, unit events and combat state on top of a Scenario world's
 -- unit fixtures and game-state fakes, and owns the hooks the later combat modules share. State changes call
 -- Combat.emit(w, kind, ...); modules Combat.listen to the kinds they react to (cvar, health, healthmax, power, aura,
--- cast, target, flags, death, spawn, despawn, moved, threat). Without Combat.install nothing here is active.
+-- cast, target, flags, lockdown, death, spawn, despawn, moved, threat). Without Combat.install nothing here is active.
 local M = {}
 
 local unpack = unpack

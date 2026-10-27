@@ -60,6 +60,7 @@ local function dropNow(w)
   local changed = p and setFlag(p, false)
   -- source: confirmed (row G8) lockdown ends before PLAYER_REGEN_ENABLED fires.
   w:setMock({ combat = false })
+  Combat.emit(w, "lockdown", false)
   fire(w, "PLAYER_REGEN_ENABLED")
   if p then
     announce(w, p, changed)
@@ -105,6 +106,7 @@ function M.engage(w, a, b)
       -- source: confirmed (row G8) lockdown begins after PLAYER_REGEN_DISABLED fires.
       fire(w, "PLAYER_REGEN_DISABLED")
       w:setMock({ combat = true })
+      Combat.emit(w, "lockdown", true)
     end
   end
   local changed = { setFlag(first, true), setFlag(second, true) }
