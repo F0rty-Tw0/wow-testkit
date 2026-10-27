@@ -59,6 +59,17 @@
       "id": "f12", "kind": "frame", "name": "ArtCheck", "alpha": 1, "strata": "MEDIUM", "level": 1,
       "rect": { "x": 260, "y": 260, "width": 24, "height": 24 },
       "widget": { "type": "CheckButton", "checked": true, "enabled": true, "checkedTexture": true }
+    },
+    {
+      "id": "f13", "kind": "frame", "name": "FileBar", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 260, "y": 220, "width": 100, "height": 20 },
+      "widget": { "type": "StatusBar", "value": 4, "min": 0, "max": 10, "orientation": "HORIZONTAL", "texture": { "file": "path:interface/addons/demo/pic" } }
     }
-  ]
+  ],
+  "assets": {
+    "path:interface/addons/demo/pic": {
+      "kind": "path", "path": "Interface/AddOns/Demo/Pic", "source": "addon",
+      "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAGElEQVR4nGNkYPj/n4GBgYEJRPz/z8gAACQUBAH39kd4AAAAAElFTkSuQmCC"
+    }
+  }
 }

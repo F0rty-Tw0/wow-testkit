@@ -163,7 +163,7 @@
     Object.assign(fill.style, V.fillRect(widget));
     if (alpha < 1) fill.style.opacity = String(alpha);
     if (!texture) fill.style.backgroundColor = V.rgba(widget.color || V.WHITE);
-    else V.texture(fill, Object.assign(texture, { vertexColor: barTint(widget) || texture.vertexColor }));
+    else V.texture(fill, Object.assign(texture, { vertexColor: barTint(widget) || texture.vertexColor }), ctx);
     node.append(fill);
   }
 
