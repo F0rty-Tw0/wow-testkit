@@ -96,13 +96,16 @@ local function test_bad_reload_requests_leave_the_session_alone()
   end)
 end
 
+-- The frames the kit itself shows, so a world with no addon items holds only these.
+local KIT_FRAMES = { UIParent = true, WorldFrame = true, UIErrorsFrame = true }
+
 local function test_skipped_addon_keeps_the_session_alive()
   H.withHost({ addonDir = RETAIL_ONLY }, function(host)
     local reply = call(host, "reload", { flavor = "vanilla" })
     A.eq(reply.ok, true)
     local snap = call(host, "snapshot")
     for _, item in ipairs(snap.items) do
-      A.truthy(item.name == "UIParent" or item.name == "WorldFrame", tostring(item.name))
+      A.truthy(KIT_FRAMES[item.name], tostring(item.name))
     end
     A.eq(snap.session.flavor, "vanilla")
     A.truthy(type(snap.session.skipped) == "string" and snap.session.skipped ~= "")
