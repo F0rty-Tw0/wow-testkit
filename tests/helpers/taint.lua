@@ -34,6 +34,11 @@ function M.probe(w, Taint)
   end)
 end
 
+-- Puts the world in combat lockdown (on) or out of it (off): the mock's combat flag, the source of InCombatLockdown.
+function M.setCombat(w, on)
+  w:setMock({ combat = on })
+end
+
 -- The log entries of kind (every entry when kind is nil), oldest first.
 function M.events(w, kind)
   local out = {}
