@@ -109,6 +109,24 @@ local function test_use_glyphs_replaces_the_estimate_for_that_font()
   end)
 end
 
+local function test_lines_and_line_count_follow_the_wrap_assumed() -- R2
+  H.withWorld("retail", function(w)
+    A.same(Measure.lines(w, FONT, 10, "", "aa\nbbbb cccc", nil), { "aa", "bbbb cccc" })
+    A.same(Measure.lines(w, FONT, 10, "", "aa\nbbbb cccc", 30), { "aa", "bbbb", "cccc" })
+    A.eq(Measure.lineCount(w, FONT, 10, "", "aa\nbbbb cccc", 30), 3)
+    A.eq(Measure.lineCount(w, FONT, 10, "", "", 30), 1)
+  end)
+end
+
+local function test_max_lines_limit_the_widest_line_assumed() -- R2
+  H.withWorld("retail", function(w)
+    A.eq(Measure.width(w, FONT, 10, "", "aa\nbbbbbb"), 30)
+    A.eq(Measure.width(w, FONT, 10, "", "aa\nbbbbbb", 1), 10)
+    A.eq(Measure.wrappedWidth(w, FONT, 10, "", "bbbb aaaaaa", 30), 30)
+    A.eq(Measure.wrappedWidth(w, FONT, 10, "", "bbbb aaaaaa", 30, 1), 20)
+  end)
+end
+
 return function()
   test_width_counts_visible_characters_assumed()
   test_hyperlink_prefix_and_closing_tag_are_invisible_assumed()
@@ -120,4 +138,6 @@ return function()
   test_height_is_lines_times_the_line_height_assumed()
   test_wrapping_breaks_at_spaces_assumed()
   test_use_glyphs_replaces_the_estimate_for_that_font()
+  test_lines_and_line_count_follow_the_wrap_assumed()
+  test_max_lines_limit_the_widest_line_assumed()
 end

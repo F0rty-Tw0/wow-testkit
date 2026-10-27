@@ -1,5 +1,6 @@
 -- WoW's Lua extensions: the global string/table/math aliases, wipe/strsplit/strjoin/strtrim/tContains,
--- hooksecurefunc, securecall, issecurevariable, the error handler, debugprofilestop, GetTime and C_Timer.
+-- hooksecurefunc, securecall, issecurevariable, forceinsecure, debugstack, the error handler, debugprofilestop, GetTime and
+-- C_Timer.
 -- Installed into every world by world.lua (gate "none"; C_Timer through gate "api").
 local AddonEnv = require("addon_env")
 
@@ -173,6 +174,12 @@ function M.install(w)
   end)
   w:install("issecurevariable", function()
     return true, nil
+  end)
+  -- Both are engine functions with no Lua source (row W72, assumed): forceinsecure does nothing, and debugstack answers an
+  -- empty stack because the kit keeps no stack text of its own.
+  w:install("forceinsecure", function() end)
+  w:install("debugstack", function()
+    return ""
   end)
   w:install("debugprofilestop", function()
     return osClock() * MS_PER_SECOND

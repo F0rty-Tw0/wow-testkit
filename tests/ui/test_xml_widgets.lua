@@ -34,7 +34,7 @@ local function test_state_texture_runs_its_own_children()
     H.load(w, ctx, "Ui.xml")
     local tex = _G.Bt:GetNormalTexture()
     A.same({ tex:GetWidth(), tex:GetHeight() }, { 12, 14 })
-    A.same(w.ui.state[tex].values.TexCoord, { n = 4, 0, 1, 0, 0.5 })
+    A.same({ tex:GetTexCoord() }, { 0, 0, 0, 0.5, 1, 0, 1, 0.5 })
   end)
 end
 
@@ -44,7 +44,7 @@ local function test_button_text_is_the_buttons_font_string_with_height_and_shado
     local text = _G.BtnText
     A.eq(_G.Btn:GetFontString(), text)
     A.eq(text:GetObjectType(), "FontString")
-    A.eq(w.ui.state[text].values.TextHeight[1], 14)
+    A.eq(select(2, text:GetFont()), 14)
     A.same({ text:GetShadowOffset() }, { 1, -1 })
     A.same(w.ui.state[text].values.ShadowColor, { n = 4, 0, 0, 0, 1 })
   end)

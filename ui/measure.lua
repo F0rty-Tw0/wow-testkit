@@ -110,22 +110,49 @@ local function wrap(w, fontFile, size, flags, paragraph, wrapWidth)
   return lines
 end
 
--- Width of the widest line; wrapping does not change it.
-function M.width(w, fontFile, size, flags, text)
-  local widest = 0
+-- The lines text breaks into: each paragraph is one line, or with wrapWidth > 0 it wraps (see wrap).
+function M.lines(w, fontFile, size, flags, text, wrapWidth)
+  local lines = {}
   for _, paragraph in ipairs(paragraphs(text)) do
-    widest = math.max(widest, lineWidth(w, fontFile, size, flags, paragraph))
+    if wrapWidth and wrapWidth > 0 then
+      for _, line in ipairs(wrap(w, fontFile, size, flags, paragraph, wrapWidth)) do
+        lines[#lines + 1] = line
+      end
+    else
+      lines[#lines + 1] = paragraph
+    end
   end
-  return widest
+  return lines
 end
 
--- Lines * size * LINE_HEIGHT; with wrapWidth > 0 each paragraph wraps, without one it is a single line.
-function M.height(w, fontFile, size, flags, text, wrapWidth)
-  local lines = 0
-  for _, paragraph in ipairs(paragraphs(text)) do
-    lines = lines + (wrapWidth and wrapWidth > 0 and #wrap(w, fontFile, size, flags, paragraph, wrapWidth) or 1)
+-- Number of lines: with wrapWidth > 0 each paragraph wraps, without one it is a single line.
+function M.lineCount(w, fontFile, size, flags, text, wrapWidth)
+  return #M.lines(w, fontFile, size, flags, text, wrapWidth)
+end
+
+-- Width of the widest of the first maxLines lines (all of them when maxLines is nil or 0).
+local function widest(w, fontFile, size, flags, lines, maxLines)
+  local last = maxLines and maxLines > 0 and math.min(maxLines, #lines) or #lines
+  local widthOfWidest = 0
+  for i = 1, last do
+    widthOfWidest = math.max(widthOfWidest, lineWidth(w, fontFile, size, flags, lines[i]))
   end
-  return lines * size * M.LINE_HEIGHT
+  return widthOfWidest
+end
+
+-- Width of the widest paragraph; wrapping does not change it. maxLines keeps only the first paragraphs.
+function M.width(w, fontFile, size, flags, text, maxLines)
+  return widest(w, fontFile, size, flags, M.lines(w, fontFile, size, flags, text, nil), maxLines)
+end
+
+-- Width of the widest wrapped line among the first maxLines.
+function M.wrappedWidth(w, fontFile, size, flags, text, wrapWidth, maxLines)
+  return widest(w, fontFile, size, flags, M.lines(w, fontFile, size, flags, text, wrapWidth), maxLines)
+end
+
+-- Lines * size * LINE_HEIGHT.
+function M.height(w, fontFile, size, flags, text, wrapWidth)
+  return M.lineCount(w, fontFile, size, flags, text, wrapWidth) * size * M.LINE_HEIGHT
 end
 
 return M

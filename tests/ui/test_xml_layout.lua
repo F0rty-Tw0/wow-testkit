@@ -207,7 +207,7 @@ local function test_layers_give_regions_their_draw_layer_and_texcoords()
     A.same({ lay.Bg:GetDrawLayer() }, { "BACKGROUND", -1 })
     A.same({ lay.Mid:GetDrawLayer() }, { "ARTWORK", 0 })
     A.same({ lay.Label:GetDrawLayer() }, { "OVERLAY", 0 })
-    A.same(w.ui.state[lay.Bg].values.TexCoord, { n = 4, 0, 0.5, 0, 1 })
+    A.same({ lay.Bg:GetTexCoord() }, { 0, 0, 0, 1, 0.5, 0, 0.5, 1 })
   end)
 end
 
@@ -215,9 +215,9 @@ local function test_color_calls_the_setter_of_its_region_assumed()
   H.withXml({ ["Ui.xml"] = LAYERS }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
     local lay = _G.Lay
-    A.same(w.ui.state[lay.Bg].values.ColorTexture, { n = 4, 1, 0, 0, 0.5 })
+    A.same(w.ui.state[lay.Bg].tex.color, { 1, 0, 0, 0.5 })
     -- alpha defaults to 1 (X18)
-    A.same(w.ui.state[lay.Mid].values.ColorTexture, { n = 4, 0, 1, 0, 1 })
+    A.same(w.ui.state[lay.Mid].tex.color, { 0, 1, 0, 1 })
     A.same({ lay.Label:GetTextColor() }, { 1, 1, 0, 1 })
   end)
 end

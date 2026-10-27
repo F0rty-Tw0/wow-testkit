@@ -65,7 +65,7 @@ local function build(w)
     if entry.rect and Finite.rect(entry.rect) then
       entry.clip = clipOf(w, entry)
       items[#items + 1] = Fields.item(w, entry, assets)
-    else
+    elseif entry.kind ~= "backdrop" then
       unplaced[#unplaced + 1] = { id = Fields.id(entry), name = entry.st.name, kind = entry.kind }
     end
   end

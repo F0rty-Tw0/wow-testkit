@@ -2,14 +2,15 @@
 -- Widget state lives in ui/behaviour_input.lua; the mouse and edit focus live in w.input.
 local M = {}
 
+local BehaviourEdit = require("ui.behaviour_edit")
 local BehaviourInput = require("ui.behaviour_input")
+local Layout = require("ui.layout")
 local LayoutHit = require("ui.layout_hit")
 
 local DEFAULT_BUTTON = "LeftButton"
 local KEY_SCRIPTS = { ENTER = "OnEnterPressed", ESCAPE = "OnEscapePressed", TAB = "OnTabPressed" }
 M.KEY_SCRIPTS = KEY_SCRIPTS
--- One UTF-8 character: a lead byte (%z is NUL in Lua 5.1 patterns) plus its continuation bytes.
-local UTF8_CHAR = "[%z\1-\127\194-\244][\128-\191]*"
+local NEWLINE = "\n"
 
 -- Frame ------------------------------------------------------------------------------------------------------
 
@@ -112,6 +113,7 @@ function M.leave(w, frame)
     error("leave: " .. label(w, frame) .. " does not have the mouse", 2)
   end
   w.input.mouseFocus = nil
+  Layout.invalidate(w, frame)
   w:callScript(frame, "OnLeave", true)
 end
 
@@ -122,17 +124,27 @@ function M.enter(w, frame)
     M.leave(w, old)
   end
   w.input.mouseFocus = frame
+  Layout.invalidate(w, frame)
   w:callScript(frame, "OnEnter", true)
 end
 
 -- source: confirmed (row I8) each character: OnChar(char) then OnTextChanged(true); typed text bypasses SetText.
+-- source: assumed (W35) a character the box refuses (max letters, a non-digit in a numeric box) fires neither script.
+-- Returns whether the character went in.
+function M.typeChar(w, box, char)
+  if not BehaviourEdit.typeChar(w.ui.state[box], char) then
+    return false
+  end
+  w:callScript(box, "OnChar", char)
+  w:callScript(box, "OnTextChanged", true)
+
+  return true
+end
+
 function M.type(w, box, text)
   box:SetFocus()
-  local st = w.ui.state[box]
-  for char in text:gmatch(UTF8_CHAR) do
-    st.text = (st.text or "") .. char
-    w:callScript(box, "OnChar", char)
-    w:callScript(box, "OnTextChanged", true)
+  for char in text:gmatch(BehaviourEdit.UTF8_CHAR) do
+    M.typeChar(w, box, char)
   end
 end
 
@@ -143,6 +155,11 @@ function M.press(w, box, key)
   end
   if w.input.editFocus ~= box then
     error("press: " .. label(w, box) .. " does not have focus", 2)
+  end
+  -- source: assumed (W38) in a multi-line box Enter types a newline and OnEnterPressed does not fire.
+  if key == "ENTER" and BehaviourEdit.read(w.ui.state[box]).multiLine then
+    M.typeChar(w, box, NEWLINE)
+    return
   end
   w:callScript(box, script)
 end

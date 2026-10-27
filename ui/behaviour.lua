@@ -1,16 +1,19 @@
 -- Hand-written widget semantics: visibility, hierarchy and identity.
 -- Each method is fn(w, obj, st, ...) where st is obj's state in w.ui.state. M.methods also carries the anchor and
--- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), SetAtlas (ui/behaviour_atlas.lua), alpha/scale/level/strata
+-- size (ui/behaviour_layout.lua), text (ui/behaviour_text.lua), texture (ui/behaviour_texture.lua), alpha/scale/level/strata
 -- (ui/behaviour_render.lua), region creation (ui/behaviour_regions.lua), script/event (ui/behaviour_scripts.lua),
 -- keyboard, wheel, drag, moving and sizing (ui/behaviour_drag.lua), animation (ui/behaviour_animation.lua), attribute
--- (ui/behaviour_attributes.lua) and GetDebugName (ui/behaviour_debug_name.lua) methods.
+-- (ui/behaviour_attributes.lua), GetDebugName (ui/behaviour_debug_name.lua) and frame extras (ui/behaviour_frame_extras.lua)
+-- methods. The button methods (ui/behaviour_button.lua) register through Typed.add into M.typed instead.
 local M = {}
 
 local AddonEnv = require("addon_env")
 local Callsite = require("ui.callsite")
 local BehaviourLayout = require("ui.behaviour_layout")
 local BehaviourText = require("ui.behaviour_text")
-local BehaviourAtlas = require("ui.behaviour_atlas")
+local BehaviourFontString = require("ui.behaviour_fontstring")
+local BehaviourTexture = require("ui.behaviour_texture")
+local BehaviourButton = require("ui.behaviour_button")
 local BehaviourRender = require("ui.behaviour_render")
 local BehaviourRegions = require("ui.behaviour_regions")
 local BehaviourScripts = require("ui.behaviour_scripts")
@@ -19,6 +22,10 @@ local BehaviourDrag = require("ui.behaviour_drag")
 local BehaviourAnimation = require("ui.behaviour_animation")
 local BehaviourAttributes = require("ui.behaviour_attributes")
 local BehaviourDebugName = require("ui.behaviour_debug_name")
+local BehaviourEdit = require("ui.behaviour_edit")
+local BehaviourRange = require("ui.behaviour_range")
+local BehaviourScroll = require("ui.behaviour_scroll")
+local BehaviourFrameExtras = require("ui.behaviour_frame_extras")
 
 local unpack = unpack
 
@@ -181,7 +188,9 @@ end
 local MODULES = {
   BehaviourLayout,
   BehaviourText,
-  BehaviourAtlas,
+  BehaviourFontString,
+  BehaviourTexture,
+  BehaviourButton,
   BehaviourRender,
   BehaviourRegions,
   BehaviourScripts,
@@ -190,6 +199,10 @@ local MODULES = {
   BehaviourAttributes,
   BehaviourDebugName,
   BehaviourInput,
+  BehaviourEdit,
+  BehaviourRange,
+  BehaviourScroll,
+  BehaviourFrameExtras,
 }
 for _, module in ipairs(MODULES) do
   for name, fn in pairs(module.methods) do

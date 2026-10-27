@@ -3,20 +3,10 @@
 local M = {}
 
 local Assets = require("render_assets")
-local BehaviourText = require("ui.behaviour_text")
+local BehaviourEdit = require("ui.behaviour_edit")
+local FontChain = require("ui.font_chain")
+local Range = require("render_widgets_range")
 local Read = require("render_read")
-
-local DEFAULT_CURSOR = 0
-
--- source: row V12 (confirmed): a fresh Slider's orientation is VERTICAL (wiki API:Slider_SetOrientation default=VERTICAL,
--- XML/Slider orientation default VERTICAL) and a fresh StatusBar's is HORIZONTAL (wiki API:StatusBar_SetOrientation
--- default=HORIZONTAL, XML/StatusBar orientation default HORIZONTAL).
-local DEFAULT_ORIENTATION = { slider = "VERTICAL", statusbar = "HORIZONTAL" }
-
-local function orientation(st, typeKey)
-  local pack = Read.stored(st, "Orientation")
-  return pack and pack[1] or DEFAULT_ORIENTATION[typeKey]
-end
 
 local function copyLines(st)
   local lines = {}
@@ -30,40 +20,49 @@ local function messageFrame(_, _, st)
   return { type = "ScrollingMessageFrame", lines = copyLines(st) }
 end
 
+local function isZero(insets)
+  return insets[1] == 0 and insets[2] == 0 and insets[3] == 0 and insets[4] == 0
+end
+
+-- The EditBox fields that appear only when set: selection, password, insets, and a justify other than LEFT (the default
+-- GetJustifyH answers, ui/text_state.lua). Reads the justify from the font object chain, not through GetJustifyH.
+local function editExtras(w, st, edit, widget)
+  local selection, insets = edit.selection, edit.insets
+  local justify = FontChain.value(w, st, "JustifyH")
+  widget.selection = selection and { from = selection.from, to = selection.to } or nil
+  widget.password = edit.password or nil
+  widget.insets = not isZero(insets) and { l = insets[1], r = insets[2], t = insets[3], b = insets[4] } or nil
+  widget.justifyH = justify and justify[1] ~= "LEFT" and justify[1] or nil
+end
+
 local function editBox(w, obj, st)
-  local cursor, multiLine = Read.stored(st, "CursorPosition"), Read.stored(st, "MultiLine")
-  return {
+  local edit = BehaviourEdit.read(st)
+  local widget = {
     type = "EditBox",
-    text = st.text or "",
-    cursor = cursor and cursor[1] or DEFAULT_CURSOR,
+    text = BehaviourEdit.displayText(st),
+    cursor = edit.cursor,
     focused = w.input.editFocus == obj,
-    multiLine = multiLine ~= nil and multiLine[1] == true,
+    multiLine = edit.multiLine,
   }
+  editExtras(w, st, edit, widget)
+
+  return widget
 end
 
+-- checkedTexture appears only when the button has a checked or disabled-checked texture, which draws as its own item.
 local function checkButton(_, _, st)
-  return { type = "CheckButton", checked = st.checked == true, enabled = not st.disabled }
+  local tex = (st.btn or {}).tex or {}
+  local hasArt = tex.checked ~= nil or tex.disabledChecked ~= nil
+
+  return { type = "CheckButton", checked = st.checked == true, enabled = not st.disabled, checkedTexture = hasArt or nil }
 end
 
+-- state and locked appear only when they differ from the defaults, so a fresh Button exports as it always did.
 local function button(_, _, st)
-  return { type = "Button", enabled = not st.disabled }
-end
+  local btn = st.btn or {}
+  local state = btn.state ~= "NORMAL" and btn.state or nil
 
-local function slider(w, obj, st)
-  local min, max = BehaviourText.methods.GetMinMaxValues(w, obj, st)
-  return { type = "Slider", value = BehaviourText.methods.GetValue(w, obj, st), min = min, max = max, orientation = orientation(st, "slider") }
-end
-
-local function statusBar(w, obj, st)
-  local min, max = BehaviourText.methods.GetMinMaxValues(w, obj, st)
-  return {
-    type = "StatusBar",
-    value = BehaviourText.methods.GetValue(w, obj, st),
-    min = min,
-    max = max,
-    color = Read.color({ BehaviourText.methods.GetStatusBarColor(w, obj, st) }),
-    orientation = orientation(st, "statusbar"),
-  }
+  return { type = "Button", enabled = not st.disabled, state = state, locked = btn.locked or nil }
 end
 
 -- First match wins, so a CheckButton (also a Button) reports as one.
@@ -72,15 +71,17 @@ local BUILDERS = {
   { isA = "editbox", build = editBox },
   { isA = "checkbutton", build = checkButton },
   { isA = "button", build = button },
-  { isA = "slider", build = slider },
-  { isA = "statusbar", build = statusBar },
+  { isA = "slider", build = Range.slider },
+  { isA = "statusbar", build = Range.statusBar },
+  { isA = "scrollframe", build = Range.scrollFrame },
 }
 
--- The widget table of a frame item, or nil for a plain frame.
-function M.state(w, obj, st)
+-- The widget table of a frame item, or nil for a plain frame. ctx is { look = fn(regionState) -> texture fields,
+-- frameId = fn(frame) -> item id } from render_fields.lua, which this file cannot require.
+function M.state(w, obj, st, ctx)
   for _, entry in ipairs(BUILDERS) do
     if st.plan.isA[entry.isA] then
-      return entry.build(w, obj, st)
+      return entry.build(w, obj, st, ctx)
     end
   end
   return nil

@@ -2,6 +2,7 @@
 -- Class colors are the commonly published hex values; difficulty bands are a kit approximation of the client's.
 local M = {}
 
+local ColorUtil = require("framexml.fakes.color_util")
 local Core = require("framexml.fakes.core")
 
 local HEX_MAX = 255
@@ -30,13 +31,6 @@ local CLASS_HEX = {
   EVOKER = "33937f",
 }
 
-local ClassColor = {}
-ClassColor.__index = ClassColor
-
-function ClassColor:GenerateHexColor()
-  return self.colorStr
-end
-
 local function channel(hex, first)
   return tonumber(hex:sub(first, first + 1), 16) / HEX_MAX
 end
@@ -44,12 +38,9 @@ end
 local function classColors()
   local out = {}
   for class, hex in pairs(CLASS_HEX) do
-    out[class] = setmetatable({
-      r = channel(hex, 1),
-      g = channel(hex, 3),
-      b = channel(hex, 5),
-      colorStr = "ff" .. hex,
-    }, ClassColor)
+    local color = ColorUtil.new(channel(hex, 1), channel(hex, 3), channel(hex, 5), 1)
+    color.colorStr = "ff" .. hex
+    out[class] = color
   end
   return out
 end

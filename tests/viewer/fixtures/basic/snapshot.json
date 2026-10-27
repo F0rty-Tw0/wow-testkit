@@ -4,8 +4,17 @@
   "items": [
     {
       "id": "f1", "kind": "frame", "name": "Panel", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 20, "y": 20, "width": 360, "height": 260 }
+    },
+    {
+      "id": "b1.center", "kind": "backdrop", "piece": "center", "parent": "f1", "alpha": 1, "layer": "BACKGROUND", "sublevel": 0,
       "rect": { "x": 20, "y": 20, "width": 360, "height": 260 },
       "backdrop": { "color": [0.1, 0.1, 0.1, 0.9], "borderColor": [1, 1, 1, 1] }
+    },
+    {
+      "id": "b1.edge", "kind": "backdrop", "piece": "edge", "parent": "f1", "alpha": 1, "layer": "BORDER", "sublevel": 0,
+      "rect": { "x": 20, "y": 20, "width": 360, "height": 260 },
+      "backdrop": { "edgeFile": "path:interface/tooltips/ui-tooltip-border", "color": [0.1, 0.1, 0.1, 0.9], "borderColor": [1, 1, 1, 1] }
     },
     {
       "id": "t2", "kind": "texture", "name": "Swatch", "parent": "f1", "alpha": 1, "layer": "ARTWORK", "sublevel": 0,
@@ -99,25 +108,41 @@
     {
       "id": "f19", "kind": "frame", "name": "Slide", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
       "rect": { "x": 284, "y": 92, "width": 88, "height": 10 },
-      "widget": { "type": "Slider", "value": 25, "min": 0, "max": 100, "orientation": "HORIZONTAL" },
+      "widget": { "type": "Slider", "value": 25, "min": 0, "max": 100, "orientation": "HORIZONTAL" }
+    },
+    {
+      "id": "b19.center", "kind": "backdrop", "piece": "center", "parent": "f19", "alpha": 1, "layer": "BACKGROUND", "sublevel": 0,
+      "rect": { "x": 284, "y": 92, "width": 88, "height": 10 },
       "backdrop": { "color": [0.3, 0.3, 0.3, 1], "borderColor": [1, 1, 1, 1] }
     },
     {
       "id": "f20", "kind": "frame", "name": "Ticked", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
       "rect": { "x": 284, "y": 108, "width": 16, "height": 16 },
-      "widget": { "type": "CheckButton", "checked": true, "enabled": true },
+      "widget": { "type": "CheckButton", "checked": true, "enabled": true }
+    },
+    {
+      "id": "b20.center", "kind": "backdrop", "piece": "center", "parent": "f20", "alpha": 1, "layer": "BACKGROUND", "sublevel": 0,
+      "rect": { "x": 284, "y": 108, "width": 16, "height": 16 },
       "backdrop": { "color": [0.3, 0.3, 0.3, 1], "borderColor": [1, 1, 1, 1] }
     },
     {
       "id": "f21", "kind": "frame", "name": "Unticked", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
       "rect": { "x": 308, "y": 108, "width": 16, "height": 16 },
-      "widget": { "type": "CheckButton", "checked": false, "enabled": true },
+      "widget": { "type": "CheckButton", "checked": false, "enabled": true }
+    },
+    {
+      "id": "b21.center", "kind": "backdrop", "piece": "center", "parent": "f21", "alpha": 1, "layer": "BACKGROUND", "sublevel": 0,
+      "rect": { "x": 308, "y": 108, "width": 16, "height": 16 },
       "backdrop": { "color": [0.3, 0.3, 0.3, 1], "borderColor": [1, 1, 1, 1] }
     },
     {
       "id": "f22", "kind": "frame", "name": "Log", "parent": "f1", "alpha": 1, "strata": "MEDIUM", "level": 2,
       "rect": { "x": 284, "y": 130, "width": 90, "height": 60 },
-      "widget": { "type": "ScrollingMessageFrame", "lines": [ { "text": "first", "r": 1, "g": 1, "b": 0 }, { "text": "second |cffff0000red|r", "r": 1, "g": 1, "b": 1 }, { "text": "third", "r": 0.5, "g": 0.5, "b": 0.5 } ] },
+      "widget": { "type": "ScrollingMessageFrame", "lines": [ { "text": "first", "r": 1, "g": 1, "b": 0 }, { "text": "second |cffff0000red|r", "r": 1, "g": 1, "b": 1 }, { "text": "third", "r": 0.5, "g": 0.5, "b": 0.5 } ] }
+    },
+    {
+      "id": "b22.center", "kind": "backdrop", "piece": "center", "parent": "f22", "alpha": 1, "layer": "BACKGROUND", "sublevel": 0,
+      "rect": { "x": 284, "y": 130, "width": 90, "height": 60 },
       "backdrop": { "color": [0, 0, 0, 0.8], "borderColor": [1, 1, 1, 1] }
     },
     {

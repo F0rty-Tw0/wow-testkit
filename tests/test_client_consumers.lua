@@ -1,5 +1,5 @@
--- The kit consumers of a client extract: real strings, atlas info, SetAtlas sizing and glyph widths. w.client is the
--- only switch, so with none the world is the kit's own.
+-- The kit consumers of a client extract: real strings, atlas info and glyph widths (SetAtlas sizing is in
+-- tests/ui/test_behaviour_texture.lua). w.client is the only switch, so with none the world is the kit's own.
 local A = require("assert")
 local FrameXML = require("framexml.fakes")
 local H = require("tests.helpers.client")
@@ -73,45 +73,6 @@ local function test_atlas_info_answers_the_extract_entry()
   end)
 end
 
-local function test_set_atlas_with_use_atlas_size_sizes_the_texture()
-  withClient({ ["atlas.lua"] = ATLAS }, function()
-    local t = _G.CreateFrame("Frame"):CreateTexture()
-    t:SetAtlas("Mini-Atlas", true)
-    A.eq(t:GetWidth(), 20)
-    A.eq(t:GetHeight(), 10)
-    A.eq(t:GetAtlas(), "Mini-Atlas")
-  end)
-end
-
-local function test_set_atlas_without_use_atlas_size_keeps_the_size()
-  withClient({ ["atlas.lua"] = ATLAS }, function()
-    local t = _G.CreateFrame("Frame"):CreateTexture()
-    t:SetSize(5, 6)
-    t:SetAtlas("Mini-Atlas")
-    A.eq(t:GetWidth(), 5)
-    A.eq(t:GetHeight(), 6)
-  end)
-end
-
-local function test_set_atlas_with_use_atlas_size_and_no_extract_keeps_the_size()
-  withClient(nil, function()
-    local t = _G.CreateFrame("Frame"):CreateTexture()
-    t:SetSize(5, 6)
-    t:SetAtlas("Mini-Atlas", true)
-    A.eq(t:GetWidth(), 5)
-    A.eq(t:GetAtlas(), "Mini-Atlas")
-  end)
-end
-
-local function test_set_atlas_with_an_unknown_atlas_keeps_the_size()
-  withClient({ ["atlas.lua"] = ATLAS }, function()
-    local t = _G.CreateFrame("Frame"):CreateTexture()
-    t:SetSize(5, 6)
-    t:SetAtlas("nope", true)
-    A.eq(t:GetWidth(), 5)
-  end)
-end
-
 local function test_glyph_tables_measure_text_through_the_world()
   local table = "return { upm = 1000, notdef = 500, advance = { [65] = 700 }, kern = {} }"
   withClient({ ["fonts/glyphs/frizqt__.ttf.lua"] = table }, function(w)
@@ -125,9 +86,5 @@ return function()
   test_extract_without_strings_or_atlas_leaves_the_kit_values()
   test_no_extract_changes_nothing()
   test_atlas_info_answers_the_extract_entry()
-  test_set_atlas_with_use_atlas_size_sizes_the_texture()
-  test_set_atlas_without_use_atlas_size_keeps_the_size()
-  test_set_atlas_with_use_atlas_size_and_no_extract_keeps_the_size()
-  test_set_atlas_with_an_unknown_atlas_keeps_the_size()
   test_glyph_tables_measure_text_through_the_world()
 end

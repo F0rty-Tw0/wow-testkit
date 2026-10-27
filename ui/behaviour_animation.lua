@@ -1,8 +1,13 @@
 -- AnimationGroup methods: creating animations and listing them. Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
+-- Playback (Play, Stop, ...) and the animation properties register through Typed.add in ui/anim_play.lua and
+-- ui/anim_params.lua, required here.
 local M = {}
 
 local Callsite = require("ui.callsite")
 local Inherits = require("ui.inherits")
+
+require("ui.anim_params")
+require("ui.anim_play")
 
 local unpack = unpack
 

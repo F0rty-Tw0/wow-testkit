@@ -3,6 +3,7 @@
   'use strict';
 
   const MESSAGE_SIZE = 14;
+  const DEFAULT_THUMB = 8; // the .thumb width (horizontal) or height (vertical) in viewer.css
 
   function div(className) {
     const node = document.createElement('div');
@@ -100,9 +101,15 @@
     effects(node, item);
   };
 
-  // Colour as the fill, bgFile over it, the border from borderColor and edgeSize. Insets and the edge art are not drawn.
-  function backdrop(info, ctx) {
-    const node = div('backdrop');
+  // The center piece draws the colour as the fill and bgFile over it; the edge piece draws the border from borderColor and
+  // edgeSize. Insets and the edge art are not drawn.
+  V.backdrop = function (node, item, ctx) {
+    const info = item.backdrop;
+    if (item.piece === 'edge') {
+      if (info.edgeFile) node.style.border = `${Number(info.edgeSize) || 1}px solid ${V.rgba(info.borderColor || V.WHITE)}`;
+
+      return;
+    }
     const href = info.bgFile && V.assetUrl(ctx, info.bgFile);
     const tileSize = Number(info.tileSize) > 0 ? `${info.tileSize}px` : 'auto';
     if (info.color) node.style.backgroundColor = V.rgba(info.color);
@@ -112,10 +119,7 @@
       node.style.backgroundRepeat = info.tile ? 'repeat' : 'no-repeat';
       node.style.backgroundSize = info.tile ? tileSize : '100% 100%';
     }
-    if (info.edgeFile || info.borderColor) node.style.border = `${Number(info.edgeSize) || 1}px solid ${V.rgba(info.borderColor || V.WHITE)}`;
-
-    return node;
-  }
+  };
 
   function fraction(widget) {
     const span = Number(widget.max) - Number(widget.min);
@@ -124,37 +128,116 @@
     return span > 0 && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
   }
 
-  function statusBar(node, widget) {
+  // The fill's box inside its bar. A Standard fill grows from the left (bottom when vertical) and from the opposite edge
+  // when reversed or the Reverse fill style; a Center fill grows from the middle, as long as the fraction.
+  V.fillRect = function (widget) {
+    const part = fraction(widget) * 100;
+    const style = String(widget.fillStyle || 'STANDARD').toUpperCase();
+    const reversed = Boolean(widget.reverse) || style === 'REVERSE';
+    const vertical = widget.orientation === 'VERTICAL';
+    const box = vertical
+      ? { left: '0px', right: 'auto', top: 'auto', bottom: 'auto', width: '100%', height: part + '%' }
+      : { top: '0px', bottom: 'auto', left: 'auto', right: 'auto', width: part + '%', height: '100%' };
+    const near = vertical ? 'bottom' : 'left';
+    const far = vertical ? 'top' : 'right';
+    if (style === 'CENTER') box[vertical ? 'top' : 'left'] = (100 - part) / 2 + '%';
+    else box[reversed ? far : near] = '0px';
+
+    return box;
+  };
+
+  // The bar colour is the vertex colour of the bar texture, so it multiplies the texture's own: a white colour texture
+  // under a green bar colour is green. null when the product is white, which tints nothing.
+  function barTint(widget) {
+    const bar = widget.color || V.WHITE;
+    const own = widget.texture.vertexColor || V.WHITE;
+    const tint = [own[0] * bar[0], own[1] * bar[1], own[2] * bar[2]];
+
+    return tint.every((channel) => channel === 1) ? null : tint;
+  }
+
+  // The bar texture is the fill; a bar without one fills with the bar colour.
+  function statusBar(node, widget, ctx, item) {
     const fill = div('fill');
-    const percent = fraction(widget) * 100 + '%';
-    fill.style.backgroundColor = V.rgba(widget.color || V.WHITE);
-    if (widget.orientation === 'VERTICAL') Object.assign(fill.style, { top: 'auto', bottom: '0px', width: '100%', height: percent });
-    else fill.style.width = percent;
+    const alpha = widget.color ? Number(widget.color[3] ?? 1) : 1;
+    const texture = widget.texture && Object.assign({ rect: { width: item.rect.width, height: item.rect.height } }, widget.texture);
+    Object.assign(fill.style, V.fillRect(widget));
+    if (alpha < 1) fill.style.opacity = String(alpha);
+    if (!texture) fill.style.backgroundColor = V.rgba(widget.color || V.WHITE);
+    else V.texture(fill, Object.assign(texture, { vertexColor: barTint(widget) || texture.vertexColor }), ctx);
     node.append(fill);
   }
 
+  // The selected characters as [from, to) in 0-based positions, clamped to the text; null when nothing is selected.
+  V.selectionRange = function (widget, length) {
+    const range = widget.selection;
+    if (!range) return null;
+    const from = Math.min(length, Math.max(0, Number(range.from) || 0));
+    const to = Math.min(length, Math.max(from, Number(range.to) || 0));
+
+    return to > from ? [from, to] : null;
+  }
+
+  // Appends value[from, to) to parent, with the caret where the cursor falls in it the first time; returns whether it did.
+  function appendSlice(parent, value, from, to, caretAt) {
+    const placed = caretAt !== null && caretAt >= from && caretAt <= to;
+    if (!placed) {
+      parent.append(document.createTextNode(value.slice(from, to)));
+
+      return false;
+    }
+    parent.append(document.createTextNode(value.slice(from, caretAt)), div('caret'), document.createTextNode(value.slice(caretAt, to)));
+
+    return true;
+  }
+
+  // The text split around the selection, which is one .selection span; the caret goes in the first piece that holds it.
   function editBox(node, widget) {
     const text = div('text');
     const value = String(widget.text || '');
     const cursor = Math.min(value.length, Math.max(0, Number(widget.cursor) || 0));
+    const range = V.selectionRange(widget, value.length) || [value.length, value.length];
+    const selection = document.createElement('span');
+    let caretAt = widget.focused ? cursor : null;
+    selection.className = 'selection';
     text.style.whiteSpace = widget.multiLine ? 'pre-wrap' : 'pre';
-    text.append(document.createTextNode(value.slice(0, cursor)));
-    if (widget.focused) text.append(div('caret'));
-    text.append(document.createTextNode(value.slice(cursor)));
+    const pieces = [[text, 0, range[0]], [selection, range[0], range[1]], [text, range[1], value.length]];
+    for (const [parent, from, to] of pieces) {
+      if (parent === selection && from === to) continue;
+      if (appendSlice(parent, value, from, to, caretAt)) caretAt = null;
+      if (parent === selection) text.append(selection);
+    }
     node.append(text);
   }
 
+  // A checked box with no art of its own gets a stand-in check mark.
   function checkButton(node, widget) {
-    if (widget.checked) node.append(div('check'));
+    if (widget.checked && !widget.checkedTexture) node.append(div('check'));
   }
 
-  // A vertical slider's minimum is at the top.
-  function slider(node, widget) {
+  // The thumb's box. assumed: the thumb's centre travels the track inset by half the thumb, so its edge sits on the track
+  // end at the minimum and the maximum (a vertical slider's minimum is at the top). With a sized thumb texture that size is
+  // centred across the track; without one the stylesheet's 8px thumb fills it.
+  V.thumbRect = function (widget) {
+    const horizontal = widget.orientation === 'HORIZONTAL';
+    const size = widget.thumb || {};
+    const sized = size.width > 0 && size.height > 0;
+    const sizedAlong = horizontal ? size.width : size.height;
+    const along = sized ? sizedAlong : DEFAULT_THUMB;
+    const travel = `calc((100% - ${along}px) * ${fraction(widget)})`;
+    const box = horizontal ? { left: travel } : { top: travel };
+    const across = horizontal ? { top: '50%', transform: 'translateY(-50%)' } : { left: '50%', transform: 'translateX(-50%)' };
+    box.transform = 'none';
+    if (sized) Object.assign(box, across, { width: `${size.width}px`, height: `${size.height}px` });
+
+    return box;
+  };
+
+  function slider(node, widget, ctx) {
     const thumb = div('thumb');
-    const at = fraction(widget) * 100 + '%';
     thumb.classList.add(widget.orientation === 'HORIZONTAL' ? 'horizontal' : 'vertical');
-    if (widget.orientation === 'HORIZONTAL') thumb.style.left = at;
-    else thumb.style.top = at;
+    Object.assign(thumb.style, V.thumbRect(widget));
+    if (widget.thumb) V.texture(thumb, Object.assign({ rect: { width: widget.thumb.width, height: widget.thumb.height } }, widget.thumb), ctx);
     node.append(thumb);
   }
 
@@ -173,7 +256,6 @@
 
   V.frame = function (node, item, ctx) {
     const build = item.widget && WIDGETS[item.widget.type];
-    if (item.backdrop) node.append(backdrop(item.backdrop, ctx));
-    if (build) build(node, item.widget, ctx);
+    if (build) build(node, item.widget, ctx, item);
   };
 })((window.Viewer = window.Viewer || {}));

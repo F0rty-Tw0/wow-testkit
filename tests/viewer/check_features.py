@@ -63,7 +63,7 @@ def check_slider(root):
     thumb = one(by_id(root, "f19"), by_class("thumb"), "f19 .thumb")
     if "horizontal" not in thumb.classes():
         raise AssertionError("thumb classes %s" % thumb.classes())
-    expect_style(thumb, {"left": "25%"})
+    expect_style(thumb, {"left": "calc(25% - 2px)", "transform": "none"})
 
 
 def check_check_button(root):

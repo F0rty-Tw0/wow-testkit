@@ -4,14 +4,13 @@
 local M = {}
 
 local Bindings = require("bindings")
+local BehaviourEdit = require("ui.behaviour_edit")
 local Input = require("input")
 local LayoutHit = require("ui.layout_hit")
 
 -- Held modifiers in the order the combination string names them.
 local MODIFIERS = { { "alt", "ALT" }, { "ctrl", "CTRL" }, { "shift", "SHIFT" } }
 local BACKSPACE = "BACKSPACE"
--- The last UTF-8 character: a lead byte and its continuation bytes at the end of the text.
-local LAST_CHAR = "[^\128-\191][\128-\191]*$"
 
 -- "ALT-CTRL-SHIFT-<KEY>" with only the held modifiers.
 local function combination(key, mods)
@@ -26,15 +25,12 @@ local function combination(key, mods)
   return table.concat(parts, "-")
 end
 
--- source: assumed (K1) BACKSPACE removes the last UTF-8 character and fires OnTextChanged(true).
+-- source: assumed (K1) BACKSPACE removes the selection, else the UTF-8 character before the cursor, and fires
+-- OnTextChanged(true) when it removed something.
 local function backspace(w, box)
-  local st = w.ui.state[box]
-  local text = st.text or ""
-  if text == "" then
-    return
+  if BehaviourEdit.backspace(w.ui.state[box]) then
+    w:callScript(box, "OnTextChanged", true)
   end
-  st.text = text:gsub(LAST_CHAR, "")
-  w:callScript(box, "OnTextChanged", true)
 end
 
 -- source: assumed (K1) an EditBox with focus gets the key and nothing else does: OnKeyDown(key), then ENTER, ESCAPE and

@@ -8,13 +8,14 @@ local M = {}
 
 local BehaviourRender = require("ui.behaviour_render")
 local Callsite = require("ui.callsite")
-local FontChain = require("ui.font_chain")
-local Measure = require("ui.measure")
+local Shift = require("ui.layout_shift")
+local TextSize = require("ui.text_size")
+local TextState = require("ui.text_state")
 
 -- Method names whose call changes layout; ui/widgets.lua bumps the version before running them.
 M.MUTATORS = {}
 for name in
-  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap"):gmatch(
+  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetIgnoreParentScale SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap SetMaxLines SetSpacing SetTextHeight SetNormalFontObject SetHighlightFontObject SetDisabledFontObject Enable Disable SetEnabled LockHighlight UnlockHighlight SetHighlightLocked SetPushedTextOffset SetButtonState SetFontString SetVerticalScroll SetHorizontalScroll SetScrollChild"):gmatch(
     "%S+"
   )
 do
@@ -62,28 +63,15 @@ local function explicitSize(st, axis)
   return size and size > 0 and size or nil
 end
 
--- source: row LY10 is assumed (no source states the rule). A FontString's text size, in its own units, on one axis
--- (height wraps at wrap, nil = one line per paragraph); nil for any other region. Text and font are read from the
--- kit state, not through region:GetText() / GetFont(), so no addon override runs inside a resolve. The font
--- is inherited from font objects, size 12 when none.
+-- A FontString's text size, in its own units, on one axis (ui/text_size.lua); nil for any other region.
 function M.autoSize(w, region, axis, wrap)
-  local st = w.ui.state[region]
-  if not (st and st.plan.isA.fontstring) then
-    return nil
-  end
-  local font = FontChain.inherited(w, st, "font") or {}
-  local file, size, flags = font[1], tonumber(font[2]) or Measure.DEFAULT_FONT_SIZE, font[3]
-  if axis == "x" then
-    return Measure.width(w, file, size, flags, st.text)
-  end
-  return Measure.height(w, file, size, flags, st.text, wrap)
+  return TextSize.of(w, region, axis, wrap)
 end
 
 -- The width wrapped text breaks at: the explicit width, or the width two opposite anchors fix (anchorWidth, units).
 -- nil when word wrap is off (SetWordWrap(false)) or the width would come from the text.
 local function wrapOf(st, anchorWidth)
-  local wrapOff = st.values.WordWrap and st.values.WordWrap[1] == false
-  return not wrapOff and (anchorWidth or explicitSize(st, "x")) or nil
+  return TextState.wordWrap(st) and (anchorWidth or explicitSize(st, "x")) or nil
 end
 
 -- assumed (row LY3): the screen target is the physical screen rect, whatever the region's scale.
@@ -97,16 +85,17 @@ local function targetPixels(w, anchor, resolving)
   return targetState and M.entry(w, target, resolving).pixel
 end
 
--- Where anchor lands in pixels, with the anchor point's alignments; nil when the point name or the target is bad.
-local function anchorPosition(w, anchor, scale, resolving)
+-- Where anchor lands in pixels, with the anchor point's alignments; nil when the point name or the target is bad. shiftX
+-- and shiftY (units) are added to the anchor's offsets (ui/layout_shift.lua).
+local function anchorPosition(w, anchor, scale, resolving, shiftX, shiftY)
   local own, relative = ALIGN[anchor[1]], ALIGN[anchor[3]]
   local box = own and relative and targetPixels(w, anchor, resolving)
   if not box then
     return nil
   end
   return {
-    x = box.left + relative[1] * (box.right - box.left) + anchor[4] * scale,
-    y = box.bottom + relative[2] * (box.top - box.bottom) + anchor[5] * scale,
+    x = box.left + relative[1] * (box.right - box.left) + (anchor[4] + shiftX) * scale,
+    y = box.bottom + relative[2] * (box.top - box.bottom) + (anchor[5] + shiftY) * scale,
     ax = own[1],
     ay = own[2],
   }
@@ -163,18 +152,42 @@ local function clampShift(w, st, pixel, scale)
   return axisShift(left, right, w.screen.width, false), axisShift(bottom, top, w.screen.height, true)
 end
 
+-- The anchors of region: the ones set on it, and for a ScrollFrame's scroll child with none, its top-left corner on the
+-- frame's.
+-- source: blizzard_sharedxml/securescrolltemplates.xml:160-168 (`FauxScrollFrameTemplate`) declares its scroll child with a
+-- `<Size>` and no `<Anchors>`; assumed (W45) the frame places such a child at its own top-left.
+local function anchorsOf(w, region, st)
+  local parent = st.parent
+  if #st.points > 0 or not Shift.isScrollChild(parent and w.ui.state[parent], region) then
+    return st.points
+  end
+
+  return { { "TOPLEFT", parent, "TOPLEFT", 0, 0 } }
+end
+
+-- The pixel positions of every anchor of region, in set order; nil when one has no position.
+local function positionsOf(w, region, st, scale, resolving)
+  local shiftX, shiftY = Shift.of(w, region, st)
+  local points = {}
+  for i, anchor in ipairs(anchorsOf(w, region, st)) do
+    points[i] = anchorPosition(w, anchor, scale, resolving, shiftX, shiftY)
+    if not points[i] then
+      return nil
+    end
+  end
+
+  return points
+end
+
 local function compute(w, region, st, resolving)
   -- source: row LY7: offsets and sizes are in the region's own scale space, scale multiplies down the parent chain.
   local scale = BehaviourRender.effectiveScale(w, st)
   if scale <= 0 then
     return nil
   end
-  local points = {}
-  for i, anchor in ipairs(st.points) do
-    points[i] = anchorPosition(w, anchor, scale, resolving)
-    if not points[i] then
-      return nil
-    end
+  local points = positionsOf(w, region, st, scale, resolving)
+  if not points then
+    return nil
   end
   local explicitWidth = explicitSize(st, "x")
   local width = explicitWidth or M.autoSize(w, region, "x")
@@ -244,6 +257,18 @@ function M.wrapWidth(w, region)
   end
   local st = w.ui.state[region]
   return st and wrapOf(st)
+end
+
+-- The width region's text is fixed to, in region units: its rect width unless that comes from the text, else the width
+-- SetWidth set. nil when the width comes from the text.
+function M.fixedWidth(w, region)
+  local entry = M.entry(w, region)
+  if entry.rect then
+    return not entry.autoWidth and entry.rect.width or nil
+  end
+  local st = w.ui.state[region]
+
+  return st and explicitSize(st, "x")
 end
 
 -- True when region's width is the text estimate (autoSize): no explicit width and not stretched between two anchors.

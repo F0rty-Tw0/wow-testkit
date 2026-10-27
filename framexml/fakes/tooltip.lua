@@ -5,6 +5,7 @@
 local M = {}
 
 local Core = require("framexml.fakes.core")
+local TooltipExtras = require("framexml.fakes.tooltip_extras")
 local TooltipLines = require("framexml.fakes.tooltip_lines")
 local TooltipUnit = require("framexml.fakes.tooltip_unit")
 
@@ -252,6 +253,9 @@ end
 -- GameTooltip is created eagerly (hidden, like the client's) so it wins over the lazy frame-name lookup.
 function M.install(w)
   installEnumFallbacks(w)
+  for name, impl in pairs(TooltipExtras.methods) do
+    methods[name] = impl
+  end
   local tooltip = Core.createNamed(w, "GameTooltip", TOOLTIP_NAME, _G.UIParent)
   attachMethods(w, tooltip)
   tooltip:Hide()

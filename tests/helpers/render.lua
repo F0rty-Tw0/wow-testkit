@@ -31,6 +31,17 @@ function M.item(snap, name)
   return nil
 end
 
+-- The backdrop piece ("center" or "edge") of the frame called frameName, or nil when it has none.
+function M.piece(snap, frameName, piece)
+  local frame = M.item(snap, frameName)
+  for _, item in ipairs(snap.items) do
+    if item.kind == "backdrop" and item.parent == frame.id and item.piece == piece then
+      return item
+    end
+  end
+  return nil
+end
+
 -- { x, y, width, height } of the item called name.
 function M.rect(snap, name)
   local item = M.item(snap, name)
