@@ -3,6 +3,7 @@
 local M = {}
 
 local Callsite = require("ui.callsite")
+local Protected = require("taint_protected")
 local Scripts = require("ui.scripts")
 
 local methods = {}
@@ -40,12 +41,12 @@ local FORBIDDEN_EVENTS = { COMBAT_LOG_EVENT = true, COMBAT_LOG_EVENT_UNFILTERED 
 
 -- source: confirmed (row C1) on retail 12.0.0 an addon registering the combat log events fires ADDON_ACTION_FORBIDDEN
 -- (addon name, function); assumed the call does not raise, registers nothing and the Register call returns false. Blizzard
--- code registers them as before. Follow-up for the taint phase: the "Interface action failed" console line and taint log.
+-- code registers them as before. The refusal goes through Protected.report: taint log, event and popup.
 local function forbidden(w, event, call)
   if w.flavor ~= "retail" or not FORBIDDEN_EVENTS[event] or not w:callerIsAddon() then
     return false
   end
-  w:run("blizzard", w.fire, w, "ADDON_ACTION_FORBIDDEN", Callsite.addon(w) or "", call .. "()")
+  Protected.report(w, "FORBIDDEN", call .. "()", Callsite.addon(w))
   return true
 end
 
