@@ -4,9 +4,11 @@
 local A = require("assert")
 local Btn = require("ui.behaviour_button")
 local HW = require("tests.helpers.widgets")
+local Input = require("input")
 local Templates = require("ui.templates")
 
 local PATH = "Interface\\Buttons\\WHITE8X8"
+local FONT = "Fonts\\FRIZQT__.TTF"
 
 local function near(actual, expected)
   A.truthy(math.abs(actual - expected) < 1e-9, string.format("expected %s, got %s", expected, actual))
@@ -312,6 +314,74 @@ local function test_button_text_font_follows_the_state_assumed() -- W22
   end)
 end
 
+-- A centred button text sized by its string: the width follows whichever state font object is showing, so each state
+-- change has to drop the cached rect.
+local function sizedTextButton()
+  local b = newButton()
+  b:SetSize(200, 40)
+  b:SetPoint("CENTER")
+  local normal, big = _G.CreateFont("T63SizedN"), _G.CreateFont("T63SizedBig")
+  normal:SetFont(FONT, 10, "")
+  big:SetFont(FONT, 30, "")
+  b:SetNormalFontObject(normal)
+  b:SetHighlightFontObject(big)
+  b:SetDisabledFontObject(big)
+  b:SetText("abc")
+  local fs = b:GetFontString()
+  fs:ClearAllPoints()
+  fs:SetPoint("CENTER")
+
+  return b, fs
+end
+
+local function textWidths(fs)
+  return { fs:GetWidth(), fs:GetStringWidth() }
+end
+
+local function sameWidths(fs)
+  local widths = textWidths(fs)
+  A.eq(widths[1], widths[2])
+  A.truthy(widths[1] > 0)
+end
+
+local function test_the_text_rect_follows_the_font_after_a_hover_assumed() -- W22
+  HW.withWidgets("retail", function(w)
+    local b, fs = sizedTextButton()
+    local small = fs:GetWidth()
+    Input.enter(w, b)
+    A.truthy(fs:GetWidth() > small)
+    sameWidths(fs)
+    Input.leave(w, b)
+    A.eq(fs:GetWidth(), small)
+  end)
+end
+
+local function test_the_text_rect_follows_the_font_after_a_disable_assumed() -- W22
+  HW.withWidgets("retail", function()
+    local b, fs = sizedTextButton()
+    local small = fs:GetWidth()
+    b:SetEnabled(false)
+    A.truthy(fs:GetWidth() > small)
+    sameWidths(fs)
+    b:SetEnabled(true)
+    A.eq(fs:GetWidth(), small)
+  end)
+end
+
+local function test_the_text_rect_follows_the_font_after_a_highlight_lock_assumed() -- W22
+  HW.withWidgets("retail", function()
+    local b, fs = sizedTextButton()
+    local small = fs:GetWidth()
+    b:LockHighlight()
+    A.truthy(fs:GetWidth() > small)
+    sameWidths(fs)
+    b:UnlockHighlight()
+    A.eq(fs:GetWidth(), small)
+    b:SetHighlightLocked(true)
+    A.truthy(fs:GetWidth() > small)
+  end)
+end
+
 local function test_a_disabled_state_without_a_font_uses_the_normal_one_assumed() -- W22
   HW.withWidgets("retail", function(w)
     local b = newButton()
@@ -371,6 +441,9 @@ return function()
   test_check_button_checked_textures()
   test_a_plain_button_has_no_checked_textures()
   test_button_text_font_follows_the_state_assumed()
+  test_the_text_rect_follows_the_font_after_a_hover_assumed()
+  test_the_text_rect_follows_the_font_after_a_disable_assumed()
+  test_the_text_rect_follows_the_font_after_a_highlight_lock_assumed()
   test_a_disabled_state_without_a_font_uses_the_normal_one_assumed()
   test_ui_panel_button_text_is_the_button_font_string()
   test_only_the_button_text_children_are_flagged()

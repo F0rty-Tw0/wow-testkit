@@ -15,7 +15,7 @@ local TextState = require("ui.text_state")
 -- Method names whose call changes layout; ui/widgets.lua bumps the version before running them.
 M.MUTATORS = {}
 for name in
-  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetIgnoreParentScale SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap SetMaxLines SetSpacing SetTextHeight SetNormalFontObject SetHighlightFontObject SetDisabledFontObject Enable Disable SetPushedTextOffset SetButtonState SetFontString SetVerticalScroll SetHorizontalScroll SetScrollChild"):gmatch(
+  ("SetPoint SetAllPoints ClearAllPoints ClearPoint SetSize SetWidth SetHeight SetScale SetParent SetClampedToScreen SetClampRectInsets SetIgnoreParentScale SetText SetFormattedText SetFont SetFontObject CopyFontObject SetWordWrap SetMaxLines SetSpacing SetTextHeight SetNormalFontObject SetHighlightFontObject SetDisabledFontObject Enable Disable SetEnabled LockHighlight UnlockHighlight SetHighlightLocked SetPushedTextOffset SetButtonState SetFontString SetVerticalScroll SetHorizontalScroll SetScrollChild"):gmatch(
     "%S+"
   )
 do

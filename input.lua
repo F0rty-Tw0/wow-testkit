@@ -4,6 +4,7 @@ local M = {}
 
 local BehaviourEdit = require("ui.behaviour_edit")
 local BehaviourInput = require("ui.behaviour_input")
+local Layout = require("ui.layout")
 local LayoutHit = require("ui.layout_hit")
 
 local DEFAULT_BUTTON = "LeftButton"
@@ -112,6 +113,7 @@ function M.leave(w, frame)
     error("leave: " .. label(w, frame) .. " does not have the mouse", 2)
   end
   w.input.mouseFocus = nil
+  Layout.invalidate(w, frame)
   w:callScript(frame, "OnLeave", true)
 end
 
@@ -122,6 +124,7 @@ function M.enter(w, frame)
     M.leave(w, old)
   end
   w.input.mouseFocus = frame
+  Layout.invalidate(w, frame)
   w:callScript(frame, "OnEnter", true)
 end
 
