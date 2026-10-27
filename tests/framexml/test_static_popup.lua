@@ -149,6 +149,24 @@ local function test_showing_the_same_dialog_again_cancels_it_as_override_and_reu
   end)
 end
 
+-- source: confirmed (W72) blizzard_staticpopup/staticpopup.lua:372-377 a dialog with noCancelOnReuse is hidden, not cancelled.
+local function test_showing_a_no_cancel_on_reuse_dialog_again_does_not_cancel_it() -- W72
+  withFrameXML("retail", function()
+    local cancels = 0
+    _G.StaticPopupDialogs["WD_KEEP"] = {
+      text = "x",
+      button1 = "Okay",
+      noCancelOnReuse = 1,
+      OnCancel = function()
+        cancels = cancels + 1
+      end,
+    }
+    local first = _G.StaticPopup_Show("WD_KEEP", nil, nil, "one")
+    local second = _G.StaticPopup_Show("WD_KEEP", nil, nil, "two")
+    A.same({ second == first, cancels, second.data, second:IsShown() }, { true, 0, "two", true })
+  end)
+end
+
 local function test_the_dialog_table_and_functions_exist_on_every_flavor() -- W72
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -170,5 +188,6 @@ return function()
   test_hide_hides_the_dialog_of_that_name_only()
   test_a_second_dialog_while_the_frame_is_busy_cancels_and_returns_nil()
   test_showing_the_same_dialog_again_cancels_it_as_override_and_reuses_the_frame()
+  test_showing_a_no_cancel_on_reuse_dialog_again_does_not_cancel_it()
   test_the_dialog_table_and_functions_exist_on_every_flavor()
 end

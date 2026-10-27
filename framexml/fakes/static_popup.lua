@@ -101,7 +101,7 @@ end
 
 -- source: row W72 (confirmed) blizzard_staticpopup/staticpopup.lua:300 an unknown which raises "Dialog X does not exist.";
 -- :392 no free dialog calls OnCancel(nil, data) and answers nil; a dialog of the same name already up is cancelled with
--- the reason "override" and reused (:380-383).
+-- the reason "override" and reused (:372-377); with noCancelOnReuse it is only hidden, OnCancel does not run.
 local function show(dialog)
   return function(which, textArg1, textArg2, data)
     local info = rawget(_G, "StaticPopupDialogs")[which]
@@ -114,6 +114,8 @@ local function show(dialog)
       end
 
       return nil
+    elseif dialog:IsShown() and info.noCancelOnReuse then
+      dialog:Hide()
     elseif dialog:IsShown() then
       cancelAndHide(dialog, OVERRIDE)
     end
