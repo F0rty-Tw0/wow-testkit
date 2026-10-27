@@ -1,7 +1,7 @@
--- Combat world: Combat.install(w) adds the actors and auras on top of a Scenario world's unit fixtures and game-state
--- fakes, and owns the hooks the later combat modules share. State changes call Combat.emit(w, kind, ...); modules
--- Combat.listen to the kinds they react to (cvar, health, healthmax, power, aura, cast, target, flags, death, spawn,
--- despawn, moved, threat). Without Combat.install nothing here is active.
+-- Combat world: Combat.install(w) adds the actors, auras, unit events and combat state on top of a Scenario world's
+-- unit fixtures and game-state fakes, and owns the hooks the later combat modules share. State changes call
+-- Combat.emit(w, kind, ...); modules Combat.listen to the kinds they react to (cvar, health, healthmax, power, aura,
+-- cast, target, flags, death, spawn, despawn, moved, threat). Without Combat.install nothing here is active.
 local M = {}
 
 local unpack = unpack
@@ -52,6 +52,7 @@ function M.install(w)
   -- Required here, not at the top: the modules require this one for emit and listen.
   require("combat_actors").install(w)
   require("combat_auras").install(w)
+  require("combat_events").install(w)
   return c
 end
 

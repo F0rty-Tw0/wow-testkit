@@ -42,7 +42,8 @@ function M.pair(w)
   return ann, brute
 end
 
--- A frame registered for events; log[i] = { event = name, n = argument count, ... } in firing order.
+-- A frame registered for events; log[i] = { event, n, ... } in firing order (payload from index 3), also keyed .event and
+-- .n.
 function M.watch(_, events)
   local log = {}
   local frame = _G.CreateFrame("Frame")
@@ -50,7 +51,9 @@ function M.watch(_, events)
     frame:RegisterEvent(event)
   end
   frame:SetScript("OnEvent", function(_, event, ...)
-    log[#log + 1] = { event = event, n = select("#", ...), ... }
+    local entry = { event, select("#", ...), ... }
+    entry.event, entry.n = event, entry[2]
+    log[#log + 1] = entry
   end)
   return log
 end

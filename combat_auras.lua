@@ -149,6 +149,8 @@ local function publicCopy(aura)
   return out
 end
 
+M.publicCopy = publicCopy
+
 local function byInstance(data, id)
   for _, aura in ipairs(data.auras or {}) do
     if aura.auraInstanceID == id then

@@ -15,7 +15,7 @@ local DEFAULT_MAX = 100
 local HOSTILE, FRIENDLY = 2, 5
 local DEFAULT_POWER = "MANA"
 local PLAYER_NAME = "Player"
-local PLAYER = "player"
+local PLAYER, TARGET = "player", "target"
 
 -- kind -> the GUID type.
 local GUID_TYPES = { player = "Player", arena = "Player", npc = "Creature", boss = "Creature", pet = "Pet" }
@@ -33,6 +33,14 @@ local function newGuid(c, kind, npcId)
     return string.format("Player-%d-%08X", SERVER, c.seq)
   end
   return string.format("%s-0-%d-%d-%d-%d-%010X", guidType, SERVER, INSTANCE, ZONE, npcId, c.seq)
+end
+
+-- source: confirmed (row C6) a cast GUID is Cast-3-<server>-<instance>-<zone>-<spellId>-<10 hex>; assumed the fields
+-- after Cast-3 are the actor GUIDs' server, instance and zone.
+function M.newCastGuid(w, spellID)
+  local c = w.combat
+  c.seq = c.seq + 1
+  return string.format("Cast-3-%d-%d-%d-%d-%010X", SERVER, INSTANCE, ZONE, spellID, c.seq)
 end
 
 -- Enum.PowerType's number for a power token ("RUNIC_POWER" -> Enum.PowerType.RunicPower), nil when the world has none.
@@ -200,6 +208,24 @@ function M.setDead(w, actor, dead)
   end
   actor.isDead = dead
   Combat.emit(w, dead and "death" or "flags", actor)
+end
+
+-- Points the actor at other (an actor, or nil to clear) and emits "target" with the old GUID when it changed. The player's
+-- target also rebinds the "target" token.
+function M.setTarget(w, actor, other)
+  local old, new = actor.targetGuid, other and other.guid or nil
+  if old == new then
+    return
+  end
+  actor.targetGuid = new
+  if w.unitState.byToken[PLAYER] == actor then
+    if other then
+      M.bind(w, other, TARGET)
+    else
+      M.unbind(w, TARGET)
+    end
+  end
+  Combat.emit(w, "target", actor, old)
 end
 
 function M.setPos(w, actor, x, y)
