@@ -17,6 +17,7 @@ local STAGE1 = {
   "framexml.fakes.format_util",
   "framexml.fakes.table_util",
   "framexml.fakes.callbacks",
+  "framexml.fakes.faux_scroll",
   "framexml.fakes.client",
   "framexml.fakes.slash",
   "framexml.fakes.tooltip",
