@@ -19,14 +19,48 @@ local function test_template_frames_get_set_backdrop()
   end)
 end
 
-local function test_get_backdrop_returns_the_table_passed_and_nil_clears()
+local EMPTY_INSETS = { left = 0, right = 0, top = 0, bottom = 0 }
+
+local function test_get_backdrop_returns_a_defaulted_copy_and_nil_clears() -- W47
   withFrameXML("retail", function()
     local frame = backdropFrame()
     A.eq(frame:GetBackdrop(), nil)
     frame:SetBackdrop(INFO)
-    A.eq(frame:GetBackdrop(), INFO)
+    local expected = {
+      bgFile = INFO.bgFile,
+      edgeFile = "",
+      tile = true,
+      tileSize = 16,
+      tileEdge = true,
+      edgeSize = 39,
+      insets = EMPTY_INSETS,
+    }
+    A.same(frame:GetBackdrop(), expected)
     frame:SetBackdrop(nil)
     A.eq(frame:GetBackdrop(), nil)
+  end)
+end
+
+local function test_get_backdrop_copy_is_not_the_stored_table() -- W47
+  withFrameXML("retail", function()
+    local frame = backdropFrame()
+    frame:SetBackdrop(INFO)
+    local copy = frame:GetBackdrop()
+    copy.tileSize = 99
+    copy.insets.left = 5
+    A.same({ INFO.tileSize, INFO.insets, frame:GetBackdrop().tileSize }, { 16, nil, 16 })
+  end)
+end
+
+local function test_get_backdrop_keeps_the_values_set_and_get_edge_size_defaults_a_zero_edge_size() -- W47
+  withFrameXML("retail", function()
+    local frame = backdropFrame()
+    frame:SetBackdrop({ edgeFile = "e", edgeSize = 8, tile = false, tileEdge = false, insets = { left = 3 } })
+    local info = frame:GetBackdrop()
+    A.same({ info.edgeFile, info.edgeSize, info.tile, info.tileEdge }, { "e", 8, false, false })
+    A.same(info.insets, { left = 3, right = 0, top = 0, bottom = 0 })
+    frame:SetBackdrop({ edgeFile = "e", edgeSize = 0 })
+    A.same({ frame:GetBackdrop().edgeSize, frame:GetEdgeSize() }, { 0, 39 })
   end)
 end
 
@@ -196,7 +230,7 @@ local function test_apply_backdrop_uses_the_info_field_and_resets_the_colours() 
     frame.backdropColor = rgbColor(1, 0, 0)
     frame.backdropInfo = other
     frame:ApplyBackdrop()
-    A.eq(frame:GetBackdrop(), other)
+    A.eq(frame:GetBackdrop().edgeSize, 4)
     A.same({ frame:GetBackdropColor() }, { 1, 1, 1, 1 })
   end)
 end
@@ -227,7 +261,7 @@ local function test_backdrop_template_applies_the_key_values_when_the_frame_load
   HX.withXml({ ["a.xml"] = XML }, function(w, ctx)
     rawset(_G, "XML_BACKDROP_INFO", INFO)
     HX.load(w, ctx, "a.xml")
-    A.eq(_G.XmlBd:GetBackdrop(), INFO)
+    A.eq(_G.XmlBd:GetBackdrop().bgFile, INFO.bgFile)
     A.same({ _G.XmlBd:GetBackdropColor() }, { 1, 1, 1, 0.25 })
   end)
 end
@@ -240,7 +274,9 @@ end
 
 return function()
   test_template_frames_get_set_backdrop()
-  test_get_backdrop_returns_the_table_passed_and_nil_clears()
+  test_get_backdrop_returns_a_defaulted_copy_and_nil_clears()
+  test_get_backdrop_copy_is_not_the_stored_table()
+  test_get_backdrop_keeps_the_values_set_and_get_edge_size_defaults_a_zero_edge_size()
   test_colours_of_a_new_backdrop_read_white()
   test_omitted_alpha_is_one()
   test_colours_without_a_backdrop_are_ignored_and_read_nothing()

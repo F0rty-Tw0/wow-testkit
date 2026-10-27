@@ -11,6 +11,9 @@ local unpack = unpack
 local COLOR_FIELDS = 4
 local OPAQUE = 1
 local MISSING_INFO = "attempt to index field 'backdropInfo' (a nil value)"
+-- source: row W47 (confirmed) Backdrop.lua:157 (defaultEdgeSize, "the old default") and :195-201 (GetEdgeSize).
+local DEFAULT_EDGE_SIZE = 39
+local INSET_SIDES = { "left", "right", "top", "bottom" }
 
 local function white()
   return { 1, 1, 1, OPAQUE }
@@ -37,6 +40,38 @@ local function channels(field, alpha)
   end
 
   return r, g, b, alpha or OPAQUE
+end
+
+local function copyTable(value)
+  if type(value) ~= "table" then
+    return value
+  end
+  local copy = {}
+  for key, item in pairs(value) do
+    copy[key] = copyTable(item)
+  end
+
+  return copy
+end
+
+-- source: row W47 (confirmed) Backdrop.lua:354-396 (GetBackdrop): a copy of backdropInfo with bgFile and edgeFile "", tile
+-- false, tileSize 0, tileEdge true, edgeSize from GetEdgeSize and every inset 0 filled in where absent.
+local function withDefaults(self, info)
+  local copy = copyTable(info)
+  copy.bgFile = copy.bgFile or ""
+  copy.edgeFile = copy.edgeFile or ""
+  copy.tile = copy.tile or false
+  copy.tileSize = copy.tileSize or 0
+  if copy.tileEdge == nil then
+    copy.tileEdge = true
+  end
+  copy.edgeSize = copy.edgeSize or self:GetEdgeSize()
+  copy.insets = copy.insets or {}
+  for _, side in ipairs(INSET_SIDES) do
+    copy.insets[side] = copy.insets[side] or 0
+  end
+
+  return copy
 end
 
 local function hasPieces(info)
@@ -108,9 +143,16 @@ local function newMixin(w)
   -- not stored.
   function mixin.SetBorderBlendMode() end
 
+  function mixin.GetEdgeSize(self)
+    local size = self.backdropInfo.edgeSize
+
+    return size and size > 0 and size or DEFAULT_EDGE_SIZE
+  end
+
   function mixin.GetBackdrop(self)
-    local backdrop = backdropOf(w, self)
-    return backdrop and backdrop.info
+    local info = self.backdropInfo
+
+    return info and withDefaults(self, info) or nil
   end
 
   -- source: row V13 (confirmed) Backdrop.lua:398-400, :407-410, :417-419, :430-433: without a backdrop the setters do
