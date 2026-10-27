@@ -83,8 +83,12 @@ end
 
 -- source: row V4, Backdrop.lua:326 and NineSlice.lua:168: the backdrop's Center texture is in BACKGROUND and its edge pieces
 -- default to BORDER. Assumed (no source): sublevel 0, and a piece draws below a region of its layer and sublevel, since
--- the frame is created before its regions.
-local BACKDROP_PIECES = { { piece = "center", layer = "BACKGROUND" }, { piece = "edge", layer = "BORDER" } }
+-- the frame is created before its regions. Backdrop.lua:255-265: the Center's texture is bgFile and each edge piece's is
+-- edgeFile, so a piece whose file is unset draws nothing and is not exported.
+local BACKDROP_PIECES = {
+  { piece = "center", layer = "BACKGROUND", file = "bgFile" },
+  { piece = "edge", layer = "BORDER", file = "edgeFile" },
+}
 
 -- The entries { obj = frame, st, kind = "backdrop", piece, layer, key } of the backdrop of a frame, none without one.
 local function backdropEntries(obj, st, frameKeys)
@@ -93,8 +97,10 @@ local function backdropEntries(obj, st, frameKeys)
     return entries
   end
   for _, part in ipairs(BACKDROP_PIECES) do
-    local key = { frameKeys[1], frameKeys[2], frameKeys[3], REGION_PART, LAYERS[part.layer], TEXTURE_RANK, DEFAULT_SUBLEVEL, st.seq }
-    entries[#entries + 1] = { obj = obj, st = st, kind = "backdrop", piece = part.piece, layer = part.layer, key = key }
+    if st.backdrop.info[part.file] then
+      local key = { frameKeys[1], frameKeys[2], frameKeys[3], REGION_PART, LAYERS[part.layer], TEXTURE_RANK, DEFAULT_SUBLEVEL, st.seq }
+      entries[#entries + 1] = { obj = obj, st = st, kind = "backdrop", piece = part.piece, layer = part.layer, key = key }
+    end
   end
 
   return entries

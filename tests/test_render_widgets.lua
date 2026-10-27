@@ -133,6 +133,22 @@ local function test_backdrop_colours_default_to_white() -- (V13)
   end)
 end
 
+-- source: row V4 (confirmed) Blizzard_SharedXML/Backdrop.lua:255-265: the Center piece's texture is bgFile and every
+-- edge piece's is edgeFile, so a backdrop without one of them draws nothing for that piece.
+local function test_backdrop_exports_only_the_pieces_that_have_a_file()
+  H.withRender(function(w)
+    anchored("Frame", "BgOnly", "BackdropTemplate"):SetBackdrop({ bgFile = "Interface/Buttons/WHITE8X8" })
+    anchored("Frame", "EdgeOnly", "BackdropTemplate"):SetBackdrop({ edgeFile = "Interface/Tooltips/UI-Tooltip-Border" })
+    local snap = Render.snapshot(w)
+    A.same({
+      H.piece(snap, "BgOnly", "center") ~= nil,
+      H.piece(snap, "BgOnly", "edge") ~= nil,
+      H.piece(snap, "EdgeOnly", "center") ~= nil,
+      H.piece(snap, "EdgeOnly", "edge") ~= nil,
+    }, { true, false, false, true })
+  end)
+end
+
 local function test_cleared_backdrop_is_absent()
   H.withRender(function(w)
     local frame = anchored("Frame", "GoneBD", "BackdropTemplate")
@@ -171,7 +187,7 @@ end
 local function test_backdrop_piece_follows_the_frame_alpha_and_has_no_name()
   H.withRender(function(w)
     local frame = anchored("Frame", "AlphaBD", "BackdropTemplate")
-    frame:SetBackdrop({ bgFile = "Interface/Buttons/WHITE8X8" })
+    frame:SetBackdrop({ bgFile = "Interface/Buttons/WHITE8X8", edgeFile = "Interface/Tooltips/UI-Tooltip-Border" })
     frame:SetAlpha(0.5)
     local snap = Render.snapshot(w)
     local piece = H.piece(snap, "AlphaBD", "center")
@@ -205,6 +221,7 @@ return function()
   test_plain_frame_has_no_widget_and_no_backdrop()
   test_backdrop_exports_files_colours_and_insets()
   test_backdrop_colours_default_to_white()
+  test_backdrop_exports_only_the_pieces_that_have_a_file()
   test_cleared_backdrop_is_absent()
   test_backdrop_pieces_sort_with_the_regions_of_their_layers_assumed()
   test_backdrop_piece_follows_the_frame_alpha_and_has_no_name()
