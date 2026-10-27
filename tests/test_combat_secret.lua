@@ -176,7 +176,8 @@ local function test_cleu_payload_is_secret_while_restricted_assumed() -- (C17)
     A.eq(_G.issecretvalue(got[15]), false)
     Secret.setRestriction(w, "Combat", true)
     got = { asAddon(w, _G.CombatLogGetCurrentEventInfo) }
-    A.same({ got[1] == entry[1], got[2], _G.issecretvalue(got[3]), _G.issecretvalue(got[15]) }, { true, "SPELL_DAMAGE", true, true })
+    local fields = { got[1] == entry[1], got[2], got[3], _G.issecretvalue(got[4]), _G.issecretvalue(got[15]) }
+    A.same(fields, { true, "SPELL_DAMAGE", false, true, true }) -- hideCaster is a boolean, so it stays plain
     A.eq(Secret.reveal(got[15]), entry[15])
   end)
 end
@@ -237,6 +238,16 @@ local function test_a_status_bar_takes_secret_values_and_renders_them()
   end)
 end
 
+-- Lua 5.1 cannot raise on a truth test, so a secret boolean would always pass `if`: the kit hands addons the plain boolean.
+local function test_a_boolean_return_stays_plain_in_combat_assumed() -- (C16)
+  H.withCombat("retail", function(w, _, s)
+    s:preset("dungeon", { inCombat = true })
+    A.eq(_G.issecretvalue(asAddon(w, _G.UnitHealth, "party1")), true)
+    local same = asAddon(w, _G.UnitIsUnit, "party2", "player")
+    A.same({ type(same), same }, { "boolean", false })
+  end)
+end
+
 local function test_state_sets_combat_and_encounter_restrictions()
   H.withCombat("retail", function(w)
     local player = Actors.get(w, "player")
@@ -279,6 +290,7 @@ return function()
   test_snapshot_reveals_secret_text()
   test_a_secret_text_measures_as_its_hidden_text()
   test_a_status_bar_takes_secret_values_and_renders_them()
+  test_a_boolean_return_stays_plain_in_combat_assumed()
   test_state_sets_combat_and_encounter_restrictions()
   test_a_plain_npc_fight_sets_combat_but_not_encounter()
 end

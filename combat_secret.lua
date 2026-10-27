@@ -105,16 +105,19 @@ local function shouldBeSecret(w, secret)
   return false
 end
 
+-- source: assumed (row C16) booleans stay plain: a secret is a userdata, always true to an `if`, and Lua 5.1 cannot raise on a
+-- truth test the way the client does.
 local function hide(w, packed, from)
   local out = { n = packed.n }
   for i = 1, packed.n do
     local value = packed[i]
-    out[i] = (i >= from and value ~= nil) and M.make(value, w) or value
+    out[i] = (i >= from and value ~= nil and type(value) ~= "boolean") and M.make(value, w) or value
   end
   return out
 end
 
--- w.returnFilter: the packed results of a kit implementation for an addon caller, secret where the manifest's secret field says so.
+-- w.returnFilter: the packed results of a kit implementation for an addon caller, secret where the manifest's secret field says so
+-- (booleans excepted).
 function M.filter(w)
   return function(name, signature, packed)
     if LOG_ACCESSORS[name] then
