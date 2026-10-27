@@ -28,10 +28,15 @@ function M.withScenario(flavor, fn)
   end
 end
 
--- Runs fn(w, c, s) on a fresh Scenario world with Combat installed, always destroyed.
-function M.withCombat(flavor, fn)
+-- Runs fn(w, c, s) on a fresh Scenario world with Combat installed, always destroyed. Enemy nameplates are off unless
+-- plates is true, so a hostile actor holds no nameplate# token to add unit events of its own.
+function M.withCombat(flavor, fn, plates)
   M.withScenario(flavor, function(w, s)
-    fn(w, Combat.install(w), s)
+    local c = Combat.install(w)
+    if not plates then
+      w.mock.cvars.nameplateshowenemies = "0"
+    end
+    fn(w, c, s)
   end)
 end
 
