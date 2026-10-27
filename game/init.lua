@@ -4,12 +4,14 @@
 local M = {}
 
 local Addons = require("game.addons")
+local Bindings = require("bindings")
 local Chat = require("game.chat")
 local Group = require("game.group")
 local Items = require("game.items")
 local Keys = require("game.keys")
 local Macros = require("game.macros")
 local Session = require("game.session")
+local Social = require("game.social")
 local Spells = require("game.spells")
 local State = require("game.state")
 local Zone = require("game.zone")
@@ -17,7 +19,7 @@ local Zone = require("game.zone")
 M.define = State.define
 M.ALL = State.ALL
 
-local AREAS = { Session, Keys, Group, Spells, Items, Zone, Addons, Macros, Chat }
+local AREAS = { Session, Keys, Group, Spells, Items, Zone, Addons, Macros, Chat, Social }
 
 -- w.mock is shared with session_state.lua (modifiers, combat, group), so it is created only when absent and each
 -- area's defaults fill the keys not yet set.
@@ -31,6 +33,10 @@ end
 function M.install(w)
   w.mock = w.mock or {}
   w.setMock = setMock
+  -- A session installs bindings before the addon runs and keeps its loaded keys; any other world gets empty ones.
+  if w.bindings == nil then
+    Bindings.install(w)
+  end
   for _, area in ipairs(AREAS) do
     State.fill(w.mock, area.DEFAULTS)
     area.install(w)
