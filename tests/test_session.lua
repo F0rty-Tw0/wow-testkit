@@ -203,6 +203,18 @@ local function test_reload_with_an_unusable_option_keeps_the_session_whole()
   end)
 end
 
+-- source: confirmed (row G15) ReloadUI reloads the interface; the host runs the reload after the call that raised it.
+local function test_reload_ui_reloads_the_session()
+  H.withHost(nil, function(host)
+    A.eq(host.sess.loads, 1)
+    host:handleJson("slash", '{"text":"/run ReloadUI()"}')
+    A.eq(host.sess.loads, 2)
+    A.eq(_G.SessionDemoDB.runs, 2)
+    A.eq(host.sess.w.reloadRequested, nil)
+    A.eq(host.sess.pendingReload, nil)
+  end)
+end
+
 return function()
   test_new_loads_the_addon_and_snapshots()
   test_click_by_id_toggles_a_check_button()
@@ -221,4 +233,5 @@ return function()
   test_a_folder_without_a_toc_is_a_recorded_error()
   test_reload_swaps_in_a_fresh_world_and_counts_loads()
   test_reload_with_an_unusable_option_keeps_the_session_whole()
+  test_reload_ui_reloads_the_session()
 end

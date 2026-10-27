@@ -3,8 +3,8 @@
 --   python tools/run51.py --script bin/tk.lua test [...]    -> runs the command, returns its exit code
 -- `tk test [flavor...] [--update] [--addon <path>]` runs <addon>/tests/scenarios/scn_*.lua on each flavor and
 -- prints failures first, then one line per scenario and flavor, the most common unscripted calls and the totals.
--- `tk smoke <dir> [flavor...]` runs every addon folder in <dir> through the built-in smoke scenario and prints
--- one scoreboard.
+-- `tk smoke <dir> [flavor...] [--json]` runs every addon folder in <dir> through the built-in smoke scenario and
+-- prints one scoreboard, or with --json a diffable JSON document.
 -- `tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]` runs the addon, writes
 -- the render snapshot to <out>/snapshot.json and, with --png, a Chrome screenshot of it.
 -- `tk client extract|status [args]` extracts data from the installed game client or reports the extract's state
@@ -21,7 +21,7 @@ local Cli = {}
 
 local isModule = (...) == "bin.tk"
 
-local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...]"
+local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...] [--json]"
   .. " | tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]"
   .. " | tk client extract|status [args]\n"
 local EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
@@ -58,22 +58,24 @@ local function parseTest(argv)
   return opts
 end
 
--- { dir, flavors? } from argv[2..], or nil plus a message. A repeated flavor runs once, in first-seen order.
+-- { dir, flavors?, json } from argv[2..], or nil plus a message. A repeated flavor runs once, in first-seen order.
 local function parseSmoke(argv)
-  local dir, flavors, seen = argv[2], {}, {}
+  local dir, flavors, seen, json = argv[2], {}, {}, false
   if not dir then
     return nil, "smoke needs a directory"
   end
   for i = 3, #argv do
-    if not pcall(Flavors.get, argv[i]) then
+    if argv[i] == "--json" then
+      json = true
+    elseif not pcall(Flavors.get, argv[i]) then
       return nil, "unknown flavor '" .. argv[i] .. "'; flavors: " .. table.concat(Flavors.list, ", ")
-    end
-    if not seen[argv[i]] then
+    elseif not seen[argv[i]] then
       seen[argv[i]] = true
       flavors[#flavors + 1] = argv[i]
     end
   end
-  return { dir = dir:gsub("\\", "/"):gsub("(.)/+$", "%1"), flavors = #flavors > 0 and flavors or nil }
+  local cleaned = dir:gsub("\\", "/"):gsub("(.)/+$", "%1")
+  return { dir = cleaned, flavors = #flavors > 0 and flavors or nil, json = json }
 end
 
 local function slashes(path)

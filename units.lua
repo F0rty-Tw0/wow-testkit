@@ -3,6 +3,7 @@
 -- counting and w:stub overrides still apply, and names the flavor lacks are skipped.
 local M = {}
 
+local UnitsExtra = require("units_extra")
 local WorldApi = require("world_api")
 
 local unpack = unpack
@@ -55,7 +56,27 @@ local FIELD_ANSWERS = {
   UnitInParty = { "inParty" },
   UnitInRaid = { "inRaid" },
   UnitIsPVP = { "pvp" },
+  UnitClassBase = { "classFile" },
+  UnitSex = { "sex" },
+  UnitPowerType = { "powerType", "powerToken" },
+  UnitIsDead = { "isDead" },
+  UnitIsGhost = { "isGhost" },
+  UnitIsConnected = { "isConnected" },
+  UnitIsAFK = { "isAFK" },
+  UnitIsDND = { "isDND" },
+  UnitIsVisible = { "isVisible" },
+  UnitInRange = { "inRange", "rangeChecked" },
+  UnitPlayerControlled = { "playerControlled" },
+  UnitCreatureType = { "creatureType", "creatureTypeID" },
+  UnitClassification = { "classification" },
+  UnitThreatSituation = { "threat" },
+  UnitGetTotalAbsorbs = { "absorbs" },
+  UnitGetIncomingHeals = { "incomingHeals" },
 }
+
+-- source: assumed (row G11) a fixture unit is connected and visible unless its fixture says otherwise. Applied before
+-- the manifest default and not counted as unscripted.
+local KIT_DEFAULTS = { isConnected = true, isVisible = true }
 
 -- Fields that answer nil when unset instead of the manifest default (UnitName's realm is nil for same-realm units).
 local NIL_WHEN_UNSET = { realm = true }
@@ -96,6 +117,9 @@ local function fieldAnswer(w, name, fields)
       local value = data[field]
       if value == nil and FALLBACK_FIELD[field] then
         value = data[FALLBACK_FIELD[field]]
+      end
+      if value == nil then
+        value = KIT_DEFAULTS[field]
       end
       if value == nil and not NIL_WHEN_UNSET[field] then
         value, defaulted = defaults[i], true
@@ -200,6 +224,9 @@ local function mouseover(self, token)
   self.unitState.alias = normalize(token)
 end
 
+M.fixture = fixture
+M.fieldAnswer = fieldAnswer
+
 function M.install(w)
   w.unitState = { byToken = {}, guids = {}, alias = nil, count = 0 }
   w.unit = unit
@@ -210,6 +237,7 @@ function M.install(w)
   for name, answer in pairs(specialAnswers(w)) do
     w:install(name, answer, API_GATE)
   end
+  UnitsExtra.install(w, { fixture = fixture, fieldAnswer = fieldAnswer, normalize = normalize })
 end
 
 return M

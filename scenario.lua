@@ -3,12 +3,12 @@
 -- several flavors and always destroys each world; Scenario.runFile does that for a scn_<name>.lua file.
 local M = {}
 
-local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local FrameXML = require("framexml.fakes")
-local Golden = require("golden")
+local Game = require("game")
 local Input = require("input")
-local Snapshot = require("snapshot")
+local ScenarioAddons = require("scenario_addons")
+local ScenarioSmoke = require("scenario_smoke")
 local Units = require("units")
 local Widgets = require("ui.widgets")
 local World = require("world")
@@ -18,13 +18,13 @@ local debugTraceback = debug.traceback
 local MOUSEOVER = "mouseover"
 local ENGINE = "blizzard"
 local LOGIN_EVENTS = { "VARIABLES_LOADED", "PLAYER_LOGIN" }
--- ADDON_LOADED payload: addOnName, containsBindings (the manifest lists both as required).
-local CONTAINS_BINDINGS = false
 
 local Scenario = {}
 Scenario.__index = Scenario
 require("scenario_input").extend(Scenario)
+require("scenario_game").extend(Scenario)
 require("scenario_preview").extend(Scenario)
+require("scenario_snapshot").extend(Scenario)
 
 -- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor
 -- as skipped instead of failed.
@@ -44,12 +44,15 @@ end
 
 local function installWorld(w)
   Units.install(w)
+  Game.install(w)
   Widgets.install(w)
   FrameXML.installStage1(w)
 end
 
--- opts: { addon, root, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario, update } }.
--- s.ns / s.info exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden mode.
+-- opts: { addon, root, addonsDir?, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario,
+-- update } }; addonsDir (the folder that holds the addon and its dependencies) defaults to the parent of root.
+-- s.ns / s.info / s.deps exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden
+-- mode.
 function M.new(opts)
   local w = World.new({ flavor = opts.flavor, screen = opts.screen, client = opts.client })
   local ok, err = pcall(installWorld, w)
@@ -59,6 +62,8 @@ function M.new(opts)
   end
   local golden = opts.golden or {}
   w.goldenMode = opts.golden ~= nil
+  w.mock.addonsDir = ScenarioAddons.dirOf(opts)
+  ScenarioSmoke.silencePrint(w, opts)
   return setmetatable({
     w = w,
     flavor = w.flavor,
@@ -88,22 +93,24 @@ function Scenario:fireIfKnown(event, ...)
   w:run(ENGINE, w.fire, w, event, ...)
 end
 
--- Loads the addon, applies saved variables and fires the login events. opts.saved overrides s.saved; opts.reloading
--- fires PLAYER_ENTERING_WORLD(isInitialLogin = false, isReloadingUi = true) instead of (true, false). When the addon
--- is skipped on the flavor (not declared), raises SKIPPED so the rest of the run does not execute.
+-- Loads the addon and its dependencies (each with its saved variables and ADDON_LOADED) and fires the login events.
+-- opts.saved overrides s.saved; opts.reloading fires PLAYER_ENTERING_WORLD(isInitialLogin = false, isReloadingUi =
+-- true) instead of (true, false). When the addon is skipped (not declared on the flavor, a dependency missing or not
+-- loadable), raises SKIPPED so the rest of the run does not execute.
 function Scenario:login(opts)
   local reloading = opts ~= nil and opts.reloading == true
   if opts and opts.saved ~= nil then
     self.saved = opts.saved
   end
   local w = self.w
-  self.ns, self.info = w:run(ENGINE, Addon.load, w, { name = self.addon, root = self.root })
+  self.ns, self.info = ScenarioAddons.load(self)
   if self.info.status == "skipped" then
     error(SKIPPED, 0)
   end
-  Addon.applySaved(w, self.info, self.saved)
-  self:fireIfKnown("ADDON_LOADED", self.addon, CONTAINS_BINDINGS)
   for _, event in ipairs(LOGIN_EVENTS) do
+    if event == "PLAYER_LOGIN" then
+      w.mock.loggedIn = true
+    end
     self:fireIfKnown(event)
   end
   self:fireIfKnown("PLAYER_ENTERING_WORLD", not reloading, reloading)
@@ -156,41 +163,6 @@ function Scenario:slash(text)
   return w:run(ENGINE, w.slash, w, text)
 end
 
-local function snapshotText(target)
-  if target.kind == "menu" then
-    return Snapshot.menu(target)
-  end
-  if target:GetObjectType() == "GameTooltip" then
-    return Snapshot.tooltip(target)
-  end
-  return Snapshot.frame(target)
-end
-
--- Checks target's snapshot against the golden file "<name>.<flavor>.txt". A mismatch is recorded as an error
--- (failing the report) instead of thrown; a newly written golden adds a note. The snapshot's own widget reads
--- are not counted as unscripted.
-function Scenario:snapshot(name, target)
-  local w = self.w
-  if type(target) ~= "table" then
-    error("s:snapshot: no target to snapshot (got " .. type(target) .. "); s:menu() is nil when no menu is open", 2)
-  end
-  if not self.goldenRoot then
-    error("s:snapshot needs a golden root; run the scenario through Scenario.runFile", 2)
-  end
-  local unscripted = {}
-  for key, count in pairs(w.unscripted) do
-    unscripted[key] = count
-  end
-  local text = snapshotText(target)
-  w.unscripted = unscripted
-  local ok, result = pcall(Golden.check, self.goldenRoot, self.scenarioName, name, self.flavor, text, self.update)
-  if not ok then
-    w:recordError(result)
-  elseif result == "written" then
-    self:note("golden written: " .. self.scenarioName .. "/" .. name .. "." .. self.flavor .. ".txt")
-  end
-end
-
 local function unscriptedList(unscripted)
   local list = {}
   for name, count in pairs(unscripted) do
@@ -227,6 +199,7 @@ function Scenario:report()
     unscripted = unscriptedList(w.unscripted),
     warnings = copyList(w.warnings),
     notes = notes,
+    printed = w.printed or 0,
   }
 end
 

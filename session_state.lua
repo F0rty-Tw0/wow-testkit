@@ -1,12 +1,14 @@
 -- Session mock state, set from the viewer's state panel: unit fixtures, the mouseover unit, modifier keys, the combat
--- flag and the group kind. The world reads the last three from w.mock through the kit's own IsShiftKeyDown,
--- InCombatLockdown, IsInGroup and their siblings; a changed flag fires the event the client fires for it.
+-- flag and the group kind. The world reads the last three from w.mock through game/keys.lua (IsShiftKeyDown and its
+-- siblings) and game/group.lua (InCombatLockdown, IsInGroup and theirs); a changed flag fires the event the client
+-- fires for it.
 local M = {}
 
 local Json = require("json")
 
 local GROUPS = { none = true, party = true, raid = true }
 local MODIFIERS = { shift = true, ctrl = true, alt = true }
+local DEFAULT_MODIFIERS = { shift = false, ctrl = false, alt = false }
 local FIELDS = { units = true, mouseover = true, modifiers = true, combat = true, group = true }
 
 local function sortedKeys(t)
@@ -64,37 +66,11 @@ local function copy(t)
   return out
 end
 
-local function installApi(w)
-  local mock = w.mock
-  local function down(key)
-    return function()
-      return mock.modifiers[key]
-    end
-  end
-  w:install("IsShiftKeyDown", down("shift"), { gate = "api" })
-  w:install("IsControlKeyDown", down("ctrl"), { gate = "api" })
-  w:install("IsAltKeyDown", down("alt"), { gate = "api" })
-  w:install("IsModifierKeyDown", function()
-    local held = mock.modifiers
-    return held.shift or held.ctrl or held.alt
-  end, { gate = "api" })
-  w:install("InCombatLockdown", function()
-    return mock.combat
-  end, { gate = "api" })
-  w:install("IsInGroup", function()
-    return mock.group ~= "none"
-  end, { gate = "api" })
-  w:install("IsInRaid", function()
-    return mock.group == "raid"
-  end, { gate = "api" })
-end
-
--- Creates w.mock = { modifiers, combat, group } (later phases add their own fields beside these), sess.state and the
--- API functions that read w.mock.
+-- Merges { modifiers, combat, group } into w.mock (Game.install created it; later phases add their own fields beside
+-- these) and creates sess.state. The APIs that read them are game/keys.lua and game/group.lua.
 function M.install(w, sess)
-  w.mock = { modifiers = { shift = false, ctrl = false, alt = false }, combat = false, group = "none" }
-  sess.state = { units = Json.object({}), modifiers = copy(w.mock.modifiers), combat = false, group = "none" }
-  installApi(w)
+  w:setMock({ modifiers = DEFAULT_MODIFIERS, combat = false, group = "none" })
+  sess.state = { units = Json.object({}), modifiers = copy(DEFAULT_MODIFIERS), combat = false, group = "none" }
 end
 
 local function applyUnits(sess, units)
@@ -107,6 +83,13 @@ end
 -- Sets the flag and fires event when value differs from the current one.
 local function toggle(sess, key, value, event)
   if value == nil or value == sess.w.mock[key] then
+    return
+  end
+  -- source: confirmed (row G8) combat lockdown begins after PLAYER_REGEN_DISABLED fires and ends before
+  -- PLAYER_REGEN_ENABLED fires, so entering combat fires first and sets after.
+  if key == "combat" and value then
+    sess.s:fireIfKnown(event)
+    sess.w.mock[key], sess.state[key] = value, value
     return
   end
   sess.w.mock[key], sess.state[key] = value, value

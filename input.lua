@@ -91,8 +91,7 @@ end
 -- source: confirmed (row I7) OnMouseDown(button), [click handlers when registered Down], OnMouseUp(button, true),
 -- [click handlers when registered Up]. A frame that is not a Button gets only the mouse scripts. beforeUp, when given,
 -- runs while the button is held (a drag moves the cursor there).
-function M.click(w, frame, button, beforeUp)
-  button = button or DEFAULT_BUTTON
+local function runClick(w, frame, button, beforeUp)
   local isButton = isA(w, frame, "button")
   w:callScript(frame, "OnMouseDown", button)
   if isButton and BehaviourInput.isRegistered(w, frame, button, "Down") then
@@ -104,6 +103,24 @@ function M.click(w, frame, button, beforeUp)
   w:callScript(frame, "OnMouseUp", button, true)
   if isButton and BehaviourInput.isRegistered(w, frame, button, "Up") then
     BehaviourInput.runClick(w, frame, button, false)
+  end
+end
+
+-- source: assumed (row G7) GetMouseButtonClicked answers the clicked button while the click runs and what it answered
+-- before once the click ends, even when it fails. A world without w.mock has no such answer.
+function M.click(w, frame, button, beforeUp)
+  button = button or DEFAULT_BUTTON
+  local mock = w.mock
+  local previous = mock and mock.clicked
+  if mock then
+    mock.clicked = button
+  end
+  local ok, err = pcall(runClick, w, frame, button, beforeUp)
+  if mock then
+    mock.clicked = previous
+  end
+  if not ok then
+    error(err, 0)
   end
 end
 

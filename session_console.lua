@@ -1,6 +1,6 @@
 -- The session console: one ring of the newest lines the addon printed, sent to chat or raised, read by the viewer's
--- console panel. Console.install puts the shims in place (print, the chat frames when absent, SendChatMessage) and turns
--- each recorded addon error into an error line; Console.push is the one way a line gets in, so later chat fakes call it.
+-- console panel. Console.install puts the shims in place (print, the chat frames when absent) and turns each recorded
+-- addon error into an error line; Console.push is the one way a line gets in, so the chat fakes call it.
 local M = {}
 
 M.SIZE = 500
@@ -8,8 +8,8 @@ M.SIZE = 500
 -- Localized: addon code may assign globals named select or tostring.
 local select, tostring = select, tostring
 
--- Line kinds: print, chat (DEFAULT_CHAT_FRAME), error-frame (UIErrorsFrame), send (SendChatMessage), error (a recorded
--- addon error) and system (the session's own notes, such as an unknown slash command).
+-- Line kinds: print, chat (DEFAULT_CHAT_FRAME), error-frame (UIErrorsFrame), send (SendChatMessage, pushed by game/chat.lua),
+-- error (a recorded addon error) and system (the session's own notes, such as an unknown slash command).
 function M.push(w, kind, text, r, g, b)
   local ring = w.console
   ring.seq = ring.seq + 1
@@ -76,14 +76,6 @@ function M.install(w, sess)
     if rawget(_G, name) == nil then
       w:set(name, messageFrame(w, kind))
     end
-  end
-  local function send(message, chatType)
-    M.push(w, "send", "[" .. tostring(chatType or "SAY") .. "] " .. tostring(message))
-  end
-  w:install("C_ChatInfo.SendChatMessage", send, { gate = "api" })
-  -- No flavor's API data lists the bare name, so gate "none" always passes: the absence check is the only guard.
-  if rawget(_G, "SendChatMessage") == nil then
-    w:install("SendChatMessage", send, { gate = "none" })
   end
   echoErrors(w)
 end
