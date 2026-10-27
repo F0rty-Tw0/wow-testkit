@@ -66,6 +66,39 @@ local function test_a_path_fills_the_button_assumed() -- W18
   end)
 end
 
+local function pointTargets(w, texture)
+  local points = w.ui.state[texture].points
+
+  return { #points, points[1] and points[1][2], points[2] and points[2][2] }
+end
+
+-- source: blizzard_sharedxml/modelscenetemplates.xml:25 draws `<NormalTexture file=.../>` with no Anchors; assumed (W18)
+-- a texture object handed over without any anchor fills the button like a path does.
+local function test_an_adopted_texture_without_points_fills_the_button_assumed() -- W18
+  HW.withWidgets("retail", function(w)
+    local b = newButton()
+    for _, set in ipairs({ "SetNormalTexture", "SetPushedTexture", "SetHighlightTexture", "SetDisabledTexture" }) do
+      local own = b:CreateTexture()
+      b[set](b, own)
+      A.same(pointTargets(w, own), { 2, b, b })
+    end
+    local cb = _G.CreateFrame("CheckButton", nil, _G.UIParent)
+    local check = cb:CreateTexture()
+    cb:SetCheckedTexture(check)
+    A.same(pointTargets(w, check), { 2, cb, cb })
+  end)
+end
+
+local function test_an_adopted_texture_keeps_its_own_points_assumed() -- W18
+  HW.withWidgets("retail", function(w)
+    local b = newButton()
+    local own = b:CreateTexture()
+    own:SetPoint("CENTER")
+    b:SetNormalTexture(own)
+    A.same({ #w.ui.state[own].points, w.ui.state[own].points[1][1] }, { 1, "CENTER" })
+  end)
+end
+
 local function test_a_second_path_reuses_the_button_made_region_assumed() -- W18
   HW.withWidgets("retail", function()
     local b = newButton()
@@ -300,6 +333,8 @@ return function()
   test_a_texture_object_is_reparented_to_the_button()
   test_state_atlas_makes_a_region_with_the_atlas()
   test_a_path_fills_the_button_assumed()
+  test_an_adopted_texture_without_points_fills_the_button_assumed()
+  test_an_adopted_texture_keeps_its_own_points_assumed()
   test_a_second_path_reuses_the_button_made_region_assumed()
   test_nil_clears_the_state_texture()
   test_state_textures_draw_on_artwork_and_the_highlight_on_highlight_assumed()

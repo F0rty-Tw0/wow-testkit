@@ -47,7 +47,8 @@ local function claim(w, st, role, region, owned)
 end
 
 -- source: confirmed (W18) a texture object is re-parented to the button; assumed (W18) a path or atlas makes a region of
--- the button that fills it (a region the button made for the role is reused).
+-- the button that fills it (a region the button made for the role is reused), and so does an object with no anchors of
+-- its own (blizzard_sharedxml/modelscenetemplates.xml:25 draws a state texture with none).
 local function regionFor(w, obj, st, role, asset)
   local existing = State.read(st).tex[role]
   if isTexture(w, asset) then
@@ -56,6 +57,9 @@ local function regionFor(w, obj, st, role, asset)
       asset:SetParent(obj)
       if ROLE_LAYER[role] then
         asset:SetDrawLayer(ROLE_LAYER[role])
+      end
+      if asset:GetNumPoints() == 0 then
+        asset:SetAllPoints()
       end
       claim(w, st, role, asset, false)
     end
