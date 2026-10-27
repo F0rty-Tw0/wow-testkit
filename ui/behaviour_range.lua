@@ -6,6 +6,7 @@
 local M = {}
 
 local BehaviourText = require("ui.behaviour_text")
+local Slot = require("ui.role_slot")
 local Typed = require("ui.typed")
 
 M.methods = {}
@@ -97,51 +98,25 @@ end)
 
 -- Thumb and bar texture --------------------------------------------------------------------------------------
 
-local function isTexture(w, value)
-  local state = type(value) == "table" and w.ui.state[value]
-
-  return state and state.plan.isA.texture == true
-end
-
--- Frees the texture region of part: it is an ordinary region again, and one the widget made itself is hidden.
-local function release(w, opts, part)
-  local old = opts[part]
-  if not old then
-    return
-  end
-  local oldState = w.ui.state[old]
-  oldState.widgetPart = nil
-  if oldState.partOwned then
-    old:Hide()
-  end
-  opts[part] = nil
-end
-
-local function claim(w, opts, part, region, owned)
-  opts[part] = region
-  local regionState = w.ui.state[region]
-  regionState.widgetPart = part
-  regionState.partOwned = owned or nil
-end
+local KEYS = { mark = "widgetPart", owned = "partOwned" }
 
 -- source: assumed (W43, W44) a texture object becomes the thumb or bar and is re-parented to the widget; a path or file
--- id fills a region the widget makes (and reuses on the next path).
+-- id retextures the region already there (adopted or made by the widget), else fills a region the widget makes.
 local function setPart(part)
   return function(w, obj, st, asset)
     local opts = write(st)
     local old = opts[part]
-    if isTexture(w, asset) then
+    if Slot.isTexture(w, asset) then
       if old ~= asset then
-        release(w, opts, part)
+        Slot.release(w, opts, part, KEYS)
         asset:SetParent(obj)
-        claim(w, opts, part, asset, false)
+        Slot.claim(w, opts, part, asset, false, KEYS)
       end
 
       return
     end
-    if not (old and w.ui.state[old].partOwned) then
-      release(w, opts, part)
-      claim(w, opts, part, obj:CreateTexture(nil, ARTWORK), true)
+    if not old then
+      Slot.claim(w, opts, part, obj:CreateTexture(nil, ARTWORK), true, KEYS)
     end
     opts[part]:SetTexture(asset)
   end

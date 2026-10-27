@@ -102,6 +102,18 @@ local function test_status_bar_texture_region_is_not_drawn() -- W44
   end)
 end
 
+local function test_a_path_on_an_adopted_bar_texture_draws_no_extra_region_assumed() -- W44
+  H.withRender(function(w)
+    local bar = S.anchored("StatusBar", "Bar")
+    local tex = bar:CreateTexture("BarTex")
+    tex:SetAllPoints()
+    bar:SetStatusBarTexture(tex)
+    local before = #Render.snapshot(w).items
+    bar:SetStatusBarTexture(PATH)
+    A.same({ #Render.snapshot(w).items, S.snap(w, "Bar").widget.texture }, { before, { file = Fields.refPath(PATH) } })
+  end)
+end
+
 local function test_status_bar_exports_a_fill_style_other_than_standard() -- W44
   H.withRender(function(w)
     local bar = S.anchored("StatusBar", "Bar")
@@ -177,6 +189,7 @@ return function()
   test_a_slider_thumb_exports_its_draw_layer_when_not_the_default()
   test_a_status_bar_texture_exports_its_draw_layer_when_not_the_default()
   test_status_bar_texture_region_is_not_drawn()
+  test_a_path_on_an_adopted_bar_texture_draws_no_extra_region_assumed()
   test_status_bar_exports_a_fill_style_other_than_standard()
   test_scroll_frame_widget_and_shifted_child_rect()
   test_scroll_frame_exports_the_horizontal_offset_and_range()

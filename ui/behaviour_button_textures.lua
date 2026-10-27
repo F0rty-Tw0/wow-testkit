@@ -5,6 +5,7 @@
 local M = {}
 
 local BehaviourTexture = require("ui.behaviour_texture")
+local Slot = require("ui.role_slot")
 local State = require("ui.button_state")
 local Typed = require("ui.typed")
 
@@ -16,42 +17,19 @@ local DEFAULT_HIGHLIGHT_BLEND = "ADD"
 -- roles keep the layer their region already has.
 local ROLE_LAYER = { normal = "ARTWORK", pushed = "ARTWORK", highlight = "HIGHLIGHT", disabled = "ARTWORK" }
 
-local function isTexture(w, value)
-  local st = type(value) == "table" and w.ui.state[value]
+local KEYS = { mark = "role", owned = "roleOwned" }
 
-  return st and st.plan.isA.texture == true
-end
-
--- Frees role: the region stops being the state texture, and one the button made is hidden.
 local function release(w, st, role)
-  local btn = State.write(st)
-  local old = btn.tex[role]
-  if not old then
-    return
-  end
-  local oldState = w.ui.state[old]
-  oldState.role = nil
-  if oldState.roleOwned then
-    oldState.roleOwned = nil
-    old:Hide()
-  end
-  btn.tex[role] = nil
+  Slot.release(w, State.write(st).tex, role, KEYS)
 end
 
-local function claim(w, st, role, region, owned)
-  local btn = State.write(st)
-  btn.tex[role] = region
-  local regionState = w.ui.state[region]
-  regionState.role = role
-  regionState.roleOwned = owned or nil
-end
-
--- source: confirmed (W18) a texture object is re-parented to the button; assumed (W18) a path or atlas makes a region of
--- the button that fills it (a region the button made for the role is reused), and so does an object with no anchors of
--- its own (blizzard_sharedxml/modelscenetemplates.xml:25 draws a state texture with none).
+-- source: confirmed (W18) a texture object is re-parented to the button; assumed (W18) a path or atlas retextures the
+-- region that already fills the role (adopted or made by the button), else makes a region of the button that fills it,
+-- and so does an object with no anchors of its own (blizzard_sharedxml/modelscenetemplates.xml:25 draws a state texture
+-- with none).
 local function regionFor(w, obj, st, role, asset)
   local existing = State.read(st).tex[role]
-  if isTexture(w, asset) then
+  if Slot.isTexture(w, asset) then
     if existing ~= asset then
       release(w, st, role)
       asset:SetParent(obj)
@@ -61,18 +39,17 @@ local function regionFor(w, obj, st, role, asset)
       if asset:GetNumPoints() == 0 then
         asset:SetAllPoints()
       end
-      claim(w, st, role, asset, false)
+      Slot.claim(w, State.write(st).tex, role, asset, false, KEYS)
     end
 
     return asset
   end
-  if existing and w.ui.state[existing].roleOwned then
+  if existing then
     return existing
   end
-  release(w, st, role)
   local region = obj:CreateTexture(nil, ROLE_LAYER[role])
   region:SetAllPoints()
-  claim(w, st, role, region, true)
+  Slot.claim(w, State.write(st).tex, role, region, true, KEYS)
 
   return region
 end
@@ -104,7 +81,7 @@ local function setRoleSource(role, isAtlas)
       return
     end
     local region = regionFor(w, obj, st, role, asset)
-    if not isTexture(w, asset) then
+    if not Slot.isTexture(w, asset) then
       setSource(region, asset, isAtlas)
     end
     if role == "highlight" then

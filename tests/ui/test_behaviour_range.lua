@@ -153,6 +153,27 @@ local function test_a_path_after_a_path_reuses_the_bar_texture() -- W44
   end)
 end
 
+local function test_a_path_retextures_an_adopted_bar_texture_assumed() -- W44
+  withWidgets("retail", function(w)
+    local bar = _G.CreateFrame("StatusBar")
+    local own = bar:CreateTexture()
+    bar:SetStatusBarTexture(own)
+    bar:SetStatusBarTexture("Interface\\Bar")
+    A.same({ bar:GetStatusBarTexture() == own, own:GetTexture(), select("#", bar:GetRegions()) }, { true, "Interface\\Bar", 1 })
+    A.same({ w.ui.state[own].widgetPart, w.ui.state[own].partOwned }, { "bar", nil })
+  end)
+end
+
+local function test_a_path_retextures_an_adopted_thumb_assumed() -- W43
+  withWidgets("retail", function()
+    local slider = _G.CreateFrame("Slider")
+    local own = slider:CreateTexture()
+    slider:SetThumbTexture(own)
+    slider:SetThumbTexture("thumb.blp")
+    A.same({ slider:GetThumbTexture() == own, own:GetTexture(), select("#", slider:GetRegions()) }, { true, "thumb.blp", 1 })
+  end)
+end
+
 local function test_replacing_the_bar_texture_releases_the_old_one() -- W44
   withWidgets("retail", function(w)
     local bar = _G.CreateFrame("StatusBar")
@@ -231,6 +252,8 @@ return function()
   test_status_bar_texture_round_trips_through_a_path()
   test_status_bar_texture_adopts_a_texture_object()
   test_a_path_after_a_path_reuses_the_bar_texture()
+  test_a_path_retextures_an_adopted_bar_texture_assumed()
+  test_a_path_retextures_an_adopted_thumb_assumed()
   test_replacing_the_bar_texture_releases_the_old_one()
   test_replacing_a_made_bar_texture_hides_it()
   test_adopting_a_texture_re_parents_it()

@@ -34,6 +34,16 @@ local function test_thumb_and_bar_textures_become_the_widget_parts() -- W43 W44
   end)
 end
 
+-- source: assumed (W44) a path set on a bar whose BarTexture element made the region retextures that region.
+local function test_a_path_retextures_the_xml_bar_texture_assumed() -- W44
+  H.withXml({ ["Ui.xml"] = RANGE }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local bar = _G.Bar:GetStatusBarTexture()
+    _G.Bar:SetStatusBarTexture("Interface\\Other")
+    A.same({ _G.Bar:GetStatusBarTexture() == bar, bar:GetTexture(), select("#", _G.Bar:GetRegions()) }, { true, "Interface\\Other", 1 })
+  end)
+end
+
 local SCROLL = [[
 <Ui><ScrollFrame name="Sf"><Size x="100" y="50"/><Anchors><Anchor point="CENTER"/></Anchors><ScrollChild><Frame name="SfKid"><Size x="100" y="200"/><Anchors><Anchor point="TOPLEFT"/></Anchors></Frame></ScrollChild></ScrollFrame></Ui>]]
 
@@ -80,6 +90,7 @@ end
 return function()
   test_slider_and_status_bar_attributes_reach_their_setters()
   test_thumb_and_bar_textures_become_the_widget_parts()
+  test_a_path_retextures_the_xml_bar_texture_assumed()
   test_scroll_child_element_is_the_scroll_frames_child()
   test_edit_box_attributes_reach_their_setters()
   test_disabled_and_checked_texture_elements_belong_to_the_button()

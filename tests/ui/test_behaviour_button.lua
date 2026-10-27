@@ -110,6 +110,22 @@ local function test_a_second_path_reuses_the_button_made_region_assumed() -- W18
   end)
 end
 
+-- source: assumed (W18) SetXTexture(path) on a role that already has a region retextures that region, owned or adopted.
+local function test_a_path_retextures_an_adopted_region_assumed() -- W18
+  HW.withWidgets("retail", function(w)
+    local b = newButton()
+    local own = b:CreateTexture()
+    own:SetTexture("Interface\\Own")
+    b:SetPushedTexture(own)
+    b:SetPushedTexture(PATH)
+    A.same({ b:GetPushedTexture() == own, own:GetTexture(), select("#", b:GetRegions()) }, { true, PATH, 1 })
+    A.same({ w.ui.state[own].role, w.ui.state[own].roleOwned }, { "pushed", nil })
+    own:Hide()
+    b:SetPushedAtlas("common-pushed")
+    A.same({ b:GetPushedTexture() == own, own:GetAtlas() }, { true, "common-pushed" })
+  end)
+end
+
 local function test_nil_clears_the_state_texture() -- W18
   HW.withWidgets("retail", function()
     local b = newButton()
@@ -336,6 +352,7 @@ return function()
   test_an_adopted_texture_without_points_fills_the_button_assumed()
   test_an_adopted_texture_keeps_its_own_points_assumed()
   test_a_second_path_reuses_the_button_made_region_assumed()
+  test_a_path_retextures_an_adopted_region_assumed()
   test_nil_clears_the_state_texture()
   test_state_textures_draw_on_artwork_and_the_highlight_on_highlight_assumed()
   test_highlight_blend_defaults_to_add_unless_given_assumed()

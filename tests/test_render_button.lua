@@ -31,6 +31,16 @@ local function test_only_the_normal_texture_draws_at_rest() -- W17
   end)
 end
 
+-- source: assumed (W18) a path set on a role whose region the addon passed retextures it, so one region draws.
+local function test_a_path_on_an_adopted_state_texture_draws_one_region_assumed() -- W18
+  H.withRender(function(w)
+    local b = button()
+    local before = #Render.snapshot(w).items
+    b:SetNormalTexture("Interface\\Buttons\\WHITE8X8")
+    A.eq(#Render.snapshot(w).items, before)
+  end)
+end
+
 local function test_pushed_state_swaps_the_texture_and_exports_state() -- W17
   H.withRender(function(w)
     local b = button()
@@ -178,6 +188,7 @@ end
 
 return function()
   test_only_the_normal_texture_draws_at_rest()
+  test_a_path_on_an_adopted_state_texture_draws_one_region_assumed()
   test_pushed_state_swaps_the_texture_and_exports_state()
   test_pushed_without_a_pushed_texture_keeps_the_normal_one()
   test_highlight_draws_when_hovered_or_locked()
