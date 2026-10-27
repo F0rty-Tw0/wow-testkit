@@ -32,13 +32,13 @@
 }
 
 /* Side panels (live mode), right of the stage; viewer.js fitScale leaves room for them. The inspector fills the first
-   column above the combat log and the developer panel; console, command line, events and mock state stack in the
-   second. */
+   column above the developer panel; console, command line, combat log, events and mock state stack in the second, so a
+   fight's log takes the console's room, not the inspector's details. */
 #panels {
   display: grid;
   flex: none;
   grid-template-columns: 320px 320px;
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto auto;
   gap: 8px;
   height: calc(100vh - 80px);
   margin-left: 12px;
@@ -84,26 +84,27 @@
 
 #inspector {
   grid-column: 1;
-  grid-row: 1 / 3;
-}
-
-/* The combat log (combat.js) sits under the inspector, above the developer panel. */
-#combatlog {
-  grid-column: 1;
-  grid-row: 3;
+  grid-row: 1 / 5;
 }
 
 #dev {
   grid-column: 1;
-  grid-row: 4;
+  grid-row: 5;
   overflow-x: auto;
 }
 
+/* In document order: console, command line, events, mock state (all live mode), then the combat log (combat.js),
+   placed under the command line. */
 #console,
 #cmdline,
+#combatlog,
 #events,
 #state {
   grid-column: 2;
+}
+
+#combatlog {
+  grid-row: 3;
 }
 
 #combatlog .lines {

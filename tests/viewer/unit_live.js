@@ -3,7 +3,8 @@
 // a new boot, its seq and console lines from 1 again) and sends its own line 2 and snapshot 2. Each console backlog
 // answers late, after a stream line newer than its own lines (and, on "b", one it also holds). Then the combat bar's
 // Pull puts the session in combat in a party, which the Mock state panel must show, and a step that leaves combat on
-// must not re-read the state. Writes PASS/FAIL lines into #out like unit.js, for check_unit.py.
+// must not re-read the state; the combat log takes the second panel column, not the inspector's. Writes PASS/FAIL lines
+// into #out like unit.js, for check_unit.py.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -88,6 +89,8 @@ window.TK = window.TK || {};
     const shown = { combat: combatBox.querySelector('input').checked, group: document.querySelectorAll('#state select')[2].value };
     check(out, 'the state panel shows combat on and a party after a pull', shown, { combat: true, group: 'party' });
     check(out, 'a step that leaves combat on does not re-read the state', count('state'), marks.statesBeforeStep);
+    const column = (id) => getComputedStyle(document.getElementById(id)).gridColumnStart;
+    check(out, "the combat log sits beside the inspector, not under it, so it leaves the inspector's details room", column('combatlog'), '2');
     out.setAttribute('data-done', '1');
   }
 
