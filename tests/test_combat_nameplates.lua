@@ -5,6 +5,7 @@ local Combat = require("combat")
 local H = require("tests.helpers.combat")
 local Layout = require("ui.layout")
 local Nameplates = require("combat_nameplates")
+local Resolve = require("combat_resolve")
 
 local PLATE_EVENTS = { "NAME_PLATE_CREATED", "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED" }
 
@@ -45,6 +46,18 @@ local function test_lifecycle_order_and_frame_reuse() -- (C13)
     A.eq(log[4][3], "nameplate1")
     A.eq(_G.C_NamePlate.GetNamePlateForUnit("nameplate1"), frame)
     A.eq(frame:IsShown(), true)
+  end, true)
+end
+
+local function test_a_dead_actor_loses_its_plate_and_a_revived_one_gets_it_back_assumed()
+  H.withCombat("retail", function(w)
+    local _, brute = H.pair(w)
+    local log = H.watch(w, PLATE_EVENTS)
+    Resolve.kill(w, brute)
+    A.same(H.names(log), { "NAME_PLATE_UNIT_REMOVED" })
+    A.eq(_G.C_NamePlate.GetNamePlateForUnit("nameplate1"), nil)
+    Resolve.revive(w, brute, 100)
+    A.same(H.names(log), { "NAME_PLATE_UNIT_REMOVED", "NAME_PLATE_UNIT_ADDED" })
   end, true)
 end
 
@@ -200,6 +213,7 @@ end
 return function()
   test_plate_rect_follows_the_ground_projection()
   test_lifecycle_order_and_frame_reuse()
+  test_a_dead_actor_loses_its_plate_and_a_revived_one_gets_it_back_assumed()
   test_removed_fires_while_the_token_still_maps()
   test_range_and_cvars_gate_plates()
   test_cvar_defaults_are_filled_in_the_cvar_store()

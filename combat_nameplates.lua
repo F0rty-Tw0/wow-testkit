@@ -54,6 +54,10 @@ end
 -- nil when the actor gets no plate, else whether its plate is forbidden (a friend inside an instance).
 local function forbiddenFor(w, actor)
   local cvars = w.mock.cvars
+  -- source: assumed (no row) a dead unit has no plate; a revive brings it back.
+  if actor.isDead then
+    return nil
+  end
   if actor.isEnemy then
     if cvars.nameplateshowenemies ~= "1" then
       return nil
@@ -183,6 +187,8 @@ function M.install(w)
   Combat.listen(w, "spawn", sync)
   Combat.listen(w, "moved", sync)
   Combat.listen(w, "cvar", sync)
+  Combat.listen(w, "death", sync)
+  Combat.listen(w, "flags", sync)
   -- The despawn hook runs before the actor's tokens are unbound, so its plate still resolves while REMOVED is delivered.
   Combat.listen(w, "despawn", function(actor)
     local plate = plateOf(c, actor)
