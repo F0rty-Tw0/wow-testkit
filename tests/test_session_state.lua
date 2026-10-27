@@ -105,6 +105,16 @@ local function test_events_lists_payload_names()
   end)
 end
 
+local function test_state_shares_the_game_mock_and_its_key_readers()
+  H.withSession(nil, function(sess)
+    A.same({ _G.GetLocale(), sess.w.mock.modifiers }, { "enUS", { shift = false, ctrl = false, alt = false } })
+    sess.w:setMock({ modifiers = { rshift = true } })
+    A.same({ _G.IsShiftKeyDown(), _G.IsRightShiftKeyDown(), _G.IsLeftShiftKeyDown() }, { true, true, false })
+    sess:call("state", { modifiers = { ctrl = true } })
+    A.same({ _G.IsControlKeyDown(), _G.IsShiftKeyDown() }, { true, true })
+  end)
+end
+
 return function()
   test_modifiers_answer_the_key_state()
   test_combat_flag_fires_events_once()
@@ -112,4 +122,5 @@ return function()
   test_state_merges_and_returns_the_whole_state()
   test_empty_state_patch_reads_without_a_change()
   test_events_lists_payload_names()
+  test_state_shares_the_game_mock_and_its_key_readers()
 end

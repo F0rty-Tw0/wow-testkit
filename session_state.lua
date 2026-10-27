@@ -1,12 +1,14 @@
 -- Session mock state, set from the viewer's state panel: unit fixtures, the mouseover unit, modifier keys, the combat
--- flag and the group kind. The world reads the last three from w.mock through the kit's own IsShiftKeyDown,
--- InCombatLockdown, IsInGroup and their siblings; a changed flag fires the event the client fires for it.
+-- flag and the group kind. The world reads the last three from w.mock through the kit's own IsShiftKeyDown
+-- (game/keys.lua), InCombatLockdown, IsInGroup and their siblings; a changed flag fires the event the client fires
+-- for it.
 local M = {}
 
 local Json = require("json")
 
 local GROUPS = { none = true, party = true, raid = true }
 local MODIFIERS = { shift = true, ctrl = true, alt = true }
+local DEFAULT_MODIFIERS = { shift = false, ctrl = false, alt = false }
 local FIELDS = { units = true, mouseover = true, modifiers = true, combat = true, group = true }
 
 local function sortedKeys(t)
@@ -66,18 +68,6 @@ end
 
 local function installApi(w)
   local mock = w.mock
-  local function down(key)
-    return function()
-      return mock.modifiers[key]
-    end
-  end
-  w:install("IsShiftKeyDown", down("shift"), { gate = "api" })
-  w:install("IsControlKeyDown", down("ctrl"), { gate = "api" })
-  w:install("IsAltKeyDown", down("alt"), { gate = "api" })
-  w:install("IsModifierKeyDown", function()
-    local held = mock.modifiers
-    return held.shift or held.ctrl or held.alt
-  end, { gate = "api" })
   w:install("InCombatLockdown", function()
     return mock.combat
   end, { gate = "api" })
@@ -89,11 +79,12 @@ local function installApi(w)
   end, { gate = "api" })
 end
 
--- Creates w.mock = { modifiers, combat, group } (later phases add their own fields beside these), sess.state and the
--- API functions that read w.mock.
+-- Merges { modifiers, combat, group } into w.mock (Game.install created it; later phases add their own fields beside
+-- these), creates sess.state and installs the combat and group functions that read w.mock. The modifier keys are
+-- answered by game/keys.lua.
 function M.install(w, sess)
-  w.mock = { modifiers = { shift = false, ctrl = false, alt = false }, combat = false, group = "none" }
-  sess.state = { units = Json.object({}), modifiers = copy(w.mock.modifiers), combat = false, group = "none" }
+  w:setMock({ modifiers = DEFAULT_MODIFIERS, combat = false, group = "none" })
+  sess.state = { units = Json.object({}), modifiers = copy(DEFAULT_MODIFIERS), combat = false, group = "none" }
   installApi(w)
 end
 
