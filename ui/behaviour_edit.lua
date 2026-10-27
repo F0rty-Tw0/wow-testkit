@@ -1,5 +1,5 @@
 -- EditBox behaviour: the cursor and selection, typing limits (max letters, numeric), the password mask, multi-line,
--- auto focus, history lines and text insets. State lives in st.edit (a box nothing was set on has none and reads
+-- auto focus, the history maximum and text insets. State lives in st.edit (a box nothing was set on has none and reads
 -- M.DEFAULT). Positions count UTF-8 characters, 0 before the first. Methods register through Typed.add for "editbox", so
 -- M.methods stays empty; input.lua types through M.typeChar and input_keys.lua deletes through M.backspace.
 local M = {}
@@ -179,14 +179,12 @@ local function getDisplayText(_, _, st)
   return M.displayText(st)
 end
 
+-- source: confirmed (W40) api/retail/SimpleEditBoxAPI.lua:167 GetHistoryLines and :847 SetHistoryLines both name it
+-- numHistoryLines (xsd:1063 defaults `historyLines` to 0): it is the box's maximum, kept by the generic store, not the
+-- count of lines added here.
 local function addHistoryLine(_, _, st, line)
   local history = of(st).history
   history[#history + 1] = line
-end
-
--- source: assumed (W40, plan Task 6.5) the count of stored lines; the api's numHistoryLines may be the box's maximum.
-local function getHistoryLines(_, _, st)
-  return #M.read(st).history
 end
 
 local function setTextInsets(_, _, st, left, right, top, bottom)
@@ -231,7 +229,6 @@ local EDIT_BOX_METHODS = {
   SetNumber = setNumber,
   GetDisplayText = getDisplayText,
   AddHistoryLine = addHistoryLine,
-  GetHistoryLines = getHistoryLines,
   SetTextInsets = setTextInsets,
   GetTextInsets = getTextInsets,
 }

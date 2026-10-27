@@ -285,13 +285,15 @@ local function test_backspace_deletes_before_the_cursor_assumed() -- W32
   end)
 end
 
-local function test_history_lines_are_stored() -- W40
+local function test_history_lines_is_the_maximum_not_the_stored_count_assumed() -- W40
   HW.withWidgets("retail", function()
     local box = newBox()
     A.eq(box:GetHistoryLines(), 0)
     box:AddHistoryLine("x")
-    box:AddHistoryLine("x")
-    A.eq(box:GetHistoryLines(), 2)
+    box:AddHistoryLine("y")
+    A.eq(box:GetHistoryLines(), 0)
+    box:SetHistoryLines(5)
+    A.eq(box:GetHistoryLines(), 5)
   end)
 end
 
@@ -340,7 +342,7 @@ return function()
   test_multi_line_enter_inserts_a_newline_assumed()
   test_single_line_enter_fires_the_script()
   test_backspace_deletes_before_the_cursor_assumed()
-  test_history_lines_are_stored()
+  test_history_lines_is_the_maximum_not_the_stored_count_assumed()
   test_text_insets_default_zero_and_are_stored_assumed()
   test_auto_focus_defaults_true_and_show_does_not_focus_assumed()
 end
