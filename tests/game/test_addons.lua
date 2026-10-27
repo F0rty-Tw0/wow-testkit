@@ -136,13 +136,14 @@ local function test_mock_addons_need_no_folder_assumed()
   end)
 end
 
--- source: assumed (row G15) an addon nothing knows answers the defaults and counts as unscripted.
-local function test_an_unknown_addon_answers_defaults_and_counts_assumed()
+-- source: assumed (row G15) an addon that is not installed answers the defaults; the kit knows the addons folder, so
+-- that is a scripted answer (addons probe optional integrations this way), not an unscripted one.
+local function test_an_uninstalled_addon_answers_defaults_as_scripted_assumed()
   G.withGame("retail", function(w)
     A.same({ _G.C_AddOns.IsAddOnLoaded("Nobody") }, { false, false })
     A.eq(_G.C_AddOns.GetAddOnMetadata("Nobody", "Title"), nil)
     A.eq(_G.C_AddOns.GetAddOnInfo("Nobody"), nil)
-    A.same(w.unscripted, { ["C_AddOns.IsAddOnLoaded"] = 1, ["C_AddOns.GetAddOnMetadata"] = 1, ["C_AddOns.GetAddOnInfo"] = 1 })
+    A.same(w.unscripted, {})
   end)
 end
 
@@ -184,7 +185,7 @@ return function()
   test_load_on_demand_loads_dependencies_first()
   test_load_on_demand_failures_name_a_reason_assumed()
   test_mock_addons_need_no_folder_assumed()
-  test_an_unknown_addon_answers_defaults_and_counts_assumed()
+  test_an_uninstalled_addon_answers_defaults_as_scripted_assumed()
   test_bare_addon_globals_are_absent_and_reload_calls_are_present()
   test_reload_ui_flags_and_logout_quit_are_scripted_assumed()
 end

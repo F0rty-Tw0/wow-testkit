@@ -7,7 +7,6 @@ local M = {}
 local AddonDeps = require("addon_deps")
 local State = require("game.state")
 local Toc = require("toc")
-local WorldApi = require("world_api")
 local fs = require("fs")
 local define = State.define
 
@@ -86,28 +85,19 @@ local function newCatalog(w)
     return text and Toc.parse(text).meta or {}
   end
 
-  -- Like resolve, and counts name as unscripted when nothing is installed under ident.
-  function catalog.find(ident, api)
-    local name = catalog.resolve(ident)
-    if not name then
-      WorldApi.markUnscripted(w, api)
-    end
-    return name
-  end
-
   return catalog
 end
 
 local function installQueries(w, catalog)
   -- source: confirmed (row G15) loadedOrLoading, loaded; the kit has no loading state, so both are the same.
   define(w, "C_AddOns.IsAddOnLoaded", function(ident)
-    local name = catalog.find(ident, "C_AddOns.IsAddOnLoaded")
+    local name = catalog.resolve(ident)
     local loaded = name ~= nil and catalog.state(name).loaded == true
     return loaded, loaded
   end)
   -- source: confirmed (row G15) nil for a field the TOC lacks.
   define(w, "C_AddOns.GetAddOnMetadata", function(ident, field)
-    local name = catalog.find(ident, "C_AddOns.GetAddOnMetadata")
+    local name = catalog.resolve(ident)
     return name and catalog.meta(name)[field] or nil
   end)
   define(w, "C_AddOns.GetNumAddOns", function()
@@ -116,7 +106,7 @@ local function installQueries(w, catalog)
   -- source: confirmed (row G15) name, title, notes, loadable, reason, security; assumed the title is the folder name
   -- without a Title field, reason is DISABLED for a disabled addon and nil otherwise, and security is INSECURE.
   define(w, "C_AddOns.GetAddOnInfo", function(ident)
-    local name = catalog.find(ident, "C_AddOns.GetAddOnInfo")
+    local name = catalog.resolve(ident)
     if not name then
       return nil
     end
@@ -128,7 +118,7 @@ end
 local function installEnableFlags(w, catalog)
   local function setEnabled(api, enabled)
     define(w, api, function(ident)
-      local name = catalog.find(ident, api)
+      local name = catalog.resolve(ident)
       if name then
         local state = catalog.state(name)
         state.enabled = enabled
