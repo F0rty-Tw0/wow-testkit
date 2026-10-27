@@ -6,14 +6,11 @@ local Actors = require("combat_actors")
 local Auras = require("combat_auras")
 local Combat = require("combat")
 
-local ENGINE = "blizzard"
 local PLAYER = "player"
 -- actor -> the absorb total its last UNIT_ABSORB_AMOUNT_CHANGED announced.
 local announcedAbsorbs = setmetatable({}, { __mode = "k" })
 
-local function fire(w, event, ...)
-  w:run(ENGINE, w.fire, w, event, ...)
-end
+local fire = Combat.fire
 
 -- source: assumed (row C7) one event per token naming the actor, in TOKEN_ORDER. makeArgs(token) gives the payload after
 -- the unit; it runs per token so every handler gets its own tables.

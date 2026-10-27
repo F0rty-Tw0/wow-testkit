@@ -6,7 +6,6 @@ local M = {}
 
 local Combat = require("combat")
 
-local ENGINE = "blizzard"
 local PLAYER = "player"
 -- source: assumed (row C10) the client drops combat a few seconds after the last hostile contact.
 local DROP_DELAY = 5
@@ -50,9 +49,7 @@ local function hasHostileFoe(w, actor)
   return false
 end
 
-local function fire(w, event)
-  w:run(ENGINE, w.fire, w, event)
-end
+local fire = Combat.fire
 
 local function dropNow(w)
   local c, p = w.combat, player(w)
