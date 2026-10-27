@@ -10,6 +10,7 @@ local M = {}
 local Combat = require("combat")
 local Resolve = require("combat_resolve")
 local State = require("combat_state")
+local Threat = require("combat_threat")
 
 local unpack = unpack
 
@@ -185,7 +186,18 @@ function M.stop(_, actor)
   fired[actor] = nil
 end
 
--- Engages the enemy with the player and the player's group, then starts the AI of every actor that has one.
+-- The group's living tank pulls, else the player.
+local function pullerOf(c, player)
+  for _, member in ipairs(c.group and c.group.members or {}) do
+    if member.role == "TANK" and not member.isDead then
+      return member
+    end
+  end
+  return player
+end
+
+-- Engages the enemy with the player and the player's group, puts the puller on the enemy's threat list (at 0, so it
+-- leads until someone out-threats it), then starts the AI of every actor that has one.
 function M.pull(w, enemy)
   local c = w.combat
   local player = w.unitState.byToken[PLAYER]
@@ -194,6 +206,9 @@ function M.pull(w, enemy)
     if member ~= player then
       State.engage(w, enemy, member)
     end
+  end
+  if enemy.isEnemy then
+    Threat.add(w, enemy, pullerOf(c, player), 0)
   end
   for _, guid in ipairs({ unpack(c.order) }) do
     local actor = c.actors[guid]

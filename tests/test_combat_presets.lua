@@ -3,6 +3,7 @@ local A = require("assert")
 local Actors = require("combat_actors")
 local H = require("tests.helpers.combat")
 local Roster = require("combat_roster_data")
+local Threat = require("combat_threat")
 
 -- The tokens of the player and everyone in the group, in roster order.
 local function memberTokens(count, raid)
@@ -118,6 +119,25 @@ local function test_in_combat_toggle_pulls_the_pack()
       damage = damage + (entry[2]:find("_DAMAGE$") and 1 or 0)
     end
     A.truthy(damage > 0)
+  end)
+end
+
+-- The group's tank pulls: it heads every enemy's threat list, so enemies nobody hits still swing at the tank.
+local function test_the_tank_pulls_and_holds_every_enemy()
+  H.withCombat("retail", function(w, c, s)
+    local preset = s:preset("dungeon", { inCombat = true })
+    for _, enemy in ipairs(preset.enemies) do
+      A.eq(Threat.top(enemy).role, "TANK")
+    end
+    s:advance(3)
+    local boss, hits = Actors.get(w, "boss1"), 0
+    for _, entry in ipairs(c.log.entries) do
+      if entry[4] == boss.guid and entry[2]:find("_DAMAGE$") then
+        hits = hits + 1
+        A.eq(c.actors[entry[8]].role, "TANK")
+      end
+    end
+    A.truthy(hits > 0)
   end)
 end
 
@@ -257,6 +277,7 @@ return function()
   test_the_players_role_counts_inside_the_mix()
   test_party_tokens_do_not_exist_in_a_raid_assumed()
   test_in_combat_toggle_pulls_the_pack()
+  test_the_tank_pulls_and_holds_every_enemy()
   test_without_the_toggle_nothing_starts()
   test_level_default_is_per_flavour()
   test_class_lists_follow_the_flavour()
