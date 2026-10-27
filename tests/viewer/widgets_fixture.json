@@ -1,0 +1,21 @@
+{
+  "ver": 1,
+  "screen": { "width": 400, "height": 300, "scale": 1 },
+  "items": [
+    {
+      "id": "f1", "kind": "frame", "name": "Edit", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 20, "y": 20, "width": 200, "height": 24 },
+      "widget": { "type": "EditBox", "text": "hello", "cursor": 5, "focused": false, "multiLine": false, "selection": { "from": 1, "to": 3 } }
+    },
+    {
+      "id": "f2", "kind": "frame", "name": "Bar", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 20, "y": 80, "width": 200, "height": 20 },
+      "widget": { "type": "StatusBar", "value": 8, "min": 0, "max": 10, "color": [0, 1, 0, 1], "orientation": "HORIZONTAL", "reverse": true }
+    },
+    {
+      "id": "f3", "kind": "frame", "name": "Slide", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 20, "y": 140, "width": 200, "height": 20 },
+      "widget": { "type": "Slider", "value": 5, "min": 0, "max": 10, "orientation": "HORIZONTAL", "thumb": { "width": 10, "height": 20, "color": [1, 0, 0, 1] } }
+    }
+  ]
+}

@@ -124,23 +124,65 @@
     return span > 0 && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
   }
 
-  function statusBar(node, widget) {
-    const fill = div('fill');
+  // The fill's box inside its bar: it grows from the left (bottom when vertical) and from the opposite edge when reversed.
+  V.fillRect = function (widget) {
     const percent = fraction(widget) * 100 + '%';
+    const reversed = Boolean(widget.reverse);
+    if (widget.orientation === 'VERTICAL') {
+      return { left: '0px', right: 'auto', top: reversed ? '0px' : 'auto', bottom: reversed ? 'auto' : '0px', width: '100%', height: percent };
+    }
+
+    return { top: '0px', bottom: 'auto', left: reversed ? 'auto' : '0px', right: reversed ? '0px' : 'auto', width: percent, height: '100%' };
+  };
+
+  // A bar texture covers the fill; the bar colour stays under it.
+  function statusBar(node, widget, ctx, item) {
+    const fill = div('fill');
     fill.style.backgroundColor = V.rgba(widget.color || V.WHITE);
-    if (widget.orientation === 'VERTICAL') Object.assign(fill.style, { top: 'auto', bottom: '0px', width: '100%', height: percent });
-    else fill.style.width = percent;
+    Object.assign(fill.style, V.fillRect(widget));
+    if (widget.texture) V.texture(fill, Object.assign({ rect: { width: item.rect.width, height: item.rect.height } }, widget.texture), ctx);
     node.append(fill);
   }
 
+  // The selected characters as [from, to) in 0-based positions, clamped to the text; null when nothing is selected.
+  V.selectionRange = function (widget, length) {
+    const range = widget.selection;
+    if (!range) return null;
+    const from = Math.min(length, Math.max(0, Number(range.from) || 0));
+    const to = Math.min(length, Math.max(from, Number(range.to) || 0));
+
+    return to > from ? [from, to] : null;
+  }
+
+  // Appends value[from, to) to parent, with the caret where the cursor falls in it the first time; returns whether it did.
+  function appendSlice(parent, value, from, to, caretAt) {
+    const placed = caretAt !== null && caretAt >= from && caretAt <= to;
+    if (!placed) {
+      parent.append(document.createTextNode(value.slice(from, to)));
+
+      return false;
+    }
+    parent.append(document.createTextNode(value.slice(from, caretAt)), div('caret'), document.createTextNode(value.slice(caretAt, to)));
+
+    return true;
+  }
+
+  // The text split around the selection, which is one .selection span; the caret goes in the first piece that holds it.
   function editBox(node, widget) {
     const text = div('text');
     const value = String(widget.text || '');
     const cursor = Math.min(value.length, Math.max(0, Number(widget.cursor) || 0));
+    const range = V.selectionRange(widget, value.length) || [value.length, value.length];
+    const selection = document.createElement('span');
+    let caretAt = widget.focused ? cursor : null;
+    selection.className = 'selection';
     text.style.whiteSpace = widget.multiLine ? 'pre-wrap' : 'pre';
-    text.append(document.createTextNode(value.slice(0, cursor)));
-    if (widget.focused) text.append(div('caret'));
-    text.append(document.createTextNode(value.slice(cursor)));
+    const pieces = [[text, 0, range[0]], [selection, range[0], range[1]], [text, range[1], value.length]];
+    for (const [parent, from, to] of pieces) {
+      if (parent === selection && from === to) continue;
+      if (appendSlice(parent, value, from, to, caretAt)) caretAt = null;
+      if (parent === selection) text.append(selection);
+    }
     node.append(text);
   }
 
@@ -148,13 +190,26 @@
     if (widget.checked) node.append(div('check'));
   }
 
-  // A vertical slider's minimum is at the top.
-  function slider(node, widget) {
-    const thumb = div('thumb');
+  // The thumb's box: centred on the value fraction along the track (a vertical slider's minimum is at the top), and, when
+  // the thumb texture has a size, that size centred across it.
+  V.thumbRect = function (widget) {
     const at = fraction(widget) * 100 + '%';
+    const horizontal = widget.orientation === 'HORIZONTAL';
+    const size = widget.thumb || {};
+    const box = horizontal ? { left: at } : { top: at };
+    if (size.width > 0 && size.height > 0) {
+      Object.assign(box, horizontal ? { top: '50%' } : { left: '50%' }, { width: `${size.width}px`, height: `${size.height}px` });
+      box.transform = 'translate(-50%, -50%)';
+    }
+
+    return box;
+  };
+
+  function slider(node, widget, ctx) {
+    const thumb = div('thumb');
     thumb.classList.add(widget.orientation === 'HORIZONTAL' ? 'horizontal' : 'vertical');
-    if (widget.orientation === 'HORIZONTAL') thumb.style.left = at;
-    else thumb.style.top = at;
+    Object.assign(thumb.style, V.thumbRect(widget));
+    if (widget.thumb) V.texture(thumb, Object.assign({ rect: { width: widget.thumb.width, height: widget.thumb.height } }, widget.thumb), ctx);
     node.append(thumb);
   }
 
@@ -174,6 +229,6 @@
   V.frame = function (node, item, ctx) {
     const build = item.widget && WIDGETS[item.widget.type];
     if (item.backdrop) node.append(backdrop(item.backdrop, ctx));
-    if (build) build(node, item.widget, ctx);
+    if (build) build(node, item.widget, ctx, item);
   };
 })((window.Viewer = window.Viewer || {}));
