@@ -238,6 +238,7 @@ function M.setPos(w, actor, x, y)
 end
 
 -- Adopts every fixture already bound (the player first, then by token order) and creates the player when none exists.
+-- An adopted fixture's health defaults like Actors.add's: health and its maximum to each other, else 100.
 function M.install(w)
   local c = w.combat
   local byToken = w.unitState.byToken
@@ -254,6 +255,8 @@ function M.install(w)
       data.isPlayer = isPlayer
       data.npcId = data.npcId or (1000 + c.seq + 1)
       data.guid = newGuid(c, data.kind, data.npcId)
+      data.healthMax = data.healthMax or data.health or DEFAULT_MAX
+      data.health = data.health or data.healthMax
       State.fill(data, DEFAULTS)
       register(c, data)
     end

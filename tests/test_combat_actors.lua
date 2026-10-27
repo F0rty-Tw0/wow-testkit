@@ -78,6 +78,20 @@ local function test_install_adopts_existing_fixtures_and_creates_the_player()
   end)
 end
 
+-- An adopted fixture without health gets the actor default, so a healer weighing every ally can read its fraction.
+local function test_install_fills_health_on_an_adopted_fixture_without_it()
+  H.withScenario("retail", function(w, s)
+    w:unit("focus", { name = "Bob" })
+    w:unit("mouseover", { name = "Kim", health = 300 })
+    Combat.install(w)
+    local bob, kim = w.unitState.byToken.focus, w.unitState.byToken.mouseover
+    A.same({ bob.health, bob.healthMax, kim.health, kim.healthMax }, { 100, 100, 300, 300 })
+    s:preset("dungeon", { inCombat = true })
+    w:advance(10)
+    A.eq(#w.errors, 0, w.errors[1] and w.errors[1].message)
+  end)
+end
+
 local function test_install_twice_returns_the_same_world()
   H.withCombat("retail", function(w, c)
     A.truthy(Combat.install(w) == c)
@@ -288,6 +302,7 @@ return function()
   test_hostility_fields_follow_the_hostile_flag()
   test_power_type_comes_from_the_enum()
   test_install_adopts_existing_fixtures_and_creates_the_player()
+  test_install_fills_health_on_an_adopted_fixture_without_it()
   test_install_twice_returns_the_same_world()
   test_one_actor_many_tokens_resolves_in_token_order()
   test_setters_clamp_and_emit_only_on_change()
