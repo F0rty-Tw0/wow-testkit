@@ -122,6 +122,24 @@ local function test_set_number_and_empty_number() -- W36
   end)
 end
 
+local function test_a_sign_and_a_decimal_part_belong_to_the_number_assumed() -- W36
+  HW.withWidgets("retail", function()
+    local box = newBox()
+    box:SetNumber(-5)
+    A.eq(box:GetNumber(), -5)
+    box:SetNumber(1.5)
+    A.eq(box:GetNumber(), 1.5)
+    box:SetText(".5x")
+    A.eq(box:GetNumber(), 0.5)
+    box:SetText("5.")
+    A.eq(box:GetNumber(), 5)
+    for _, text in ipairs({ "-", ".", "-.", "" }) do
+      box:SetText(text)
+      A.eq(box:GetNumber(), 0)
+    end
+  end)
+end
+
 local function test_password_box_hides_display_text_only_assumed() -- W37
   HW.withWidgets("retail", function()
     local box = newBox()
@@ -337,6 +355,7 @@ return function()
   test_typing_moves_the_cursor_after_the_character_assumed()
   test_set_text_moves_the_cursor_before_the_scripts_run_assumed()
   test_set_number_and_empty_number()
+  test_a_sign_and_a_decimal_part_belong_to_the_number_assumed()
   test_password_box_hides_display_text_only_assumed()
   test_password_display_counts_characters_assumed()
   test_highlight_selects_and_typing_replaces()

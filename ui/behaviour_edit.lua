@@ -14,7 +14,7 @@ M.methods = {}
 -- One UTF-8 character: a lead byte (%z is NUL in Lua 5.1 patterns) plus its continuation bytes.
 M.UTF8_CHAR = "[%z\1-\127\194-\244][\128-\191]*"
 local DIGIT = "^%d$"
-local NUMBER_PREFIX = "^%d+"
+local NUMBER_PREFIX = "^-?%d*%.?%d+"
 local MASK = "*"
 
 local function newEdit()
@@ -169,7 +169,8 @@ local function highlightText(_, _, st, start, stop)
 end
 
 -- source: confirmed (W36) wiki API_EditBox_GetNumber: "It will return number recognized so far, or 0 if there were no
--- valid digits recognized."; "The function will never return nil."
+-- valid digits recognized."; "The function will never return nil."; assumed (W36) the number recognised is a leading
+-- sign and decimal part too, so SetNumber(-5) and SetNumber(1.5) read back as given.
 local function getNumber(_, _, st)
   return tonumber((st.text or ""):match(NUMBER_PREFIX)) or 0
 end
