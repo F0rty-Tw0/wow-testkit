@@ -8,7 +8,7 @@ Prints PASS/FAIL per check and a count; exit 1 on any failure.
 
 import sys
 
-from dom_tree import TreeParser, by_class, by_id, expect_style, one
+from dom_tree import TreeParser, by_class, by_id, expect_style, find, one
 
 
 def check_selection(root):
@@ -70,6 +70,12 @@ def check_thumb_draws_above_the_background(root):
         raise AssertionError("z-index background %d, slider %d, want background < slider" % (background, slider))
 
 
+def check_checked_box_with_art_has_no_stand_in_mark(root):
+    marks = find(by_id(root, "f12"), by_class("check"))
+    if marks:
+        raise AssertionError("checked f12 with a checked texture has %d .check" % len(marks))
+
+
 CHECKS = [
     ("edit selection", check_selection),
     ("reversed status bar fill", check_reversed_fill),
@@ -79,6 +85,7 @@ CHECKS = [
     ("textured bar fill is the texture times the bar colour", check_textured_bar_fill_is_the_texture_times_the_bar_colour),
     ("bar fill draws above its background and below its text", check_bar_fill_draws_above_the_background_and_below_the_text),
     ("slider thumb draws above its background", check_thumb_draws_above_the_background),
+    ("a checked box with art has no stand-in mark", check_checked_box_with_art_has_no_stand_in_mark),
 ]
 
 

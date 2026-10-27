@@ -54,6 +54,11 @@
     {
       "id": "t11", "kind": "texture", "parent": "f10", "alpha": 1, "layer": "BACKGROUND", "sublevel": 0, "color": [0.25, 0.25, 0.25, 1],
       "rect": { "x": 20, "y": 300, "width": 200, "height": 20 }
+    },
+    {
+      "id": "f12", "kind": "frame", "name": "ArtCheck", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 260, "y": 260, "width": 24, "height": 24 },
+      "widget": { "type": "CheckButton", "checked": true, "enabled": true, "checkedTexture": true }
     }
   ]
 }

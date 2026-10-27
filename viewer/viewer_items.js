@@ -209,8 +209,9 @@
     node.append(text);
   }
 
+  // A checked box with no art of its own gets a stand-in check mark.
   function checkButton(node, widget) {
-    if (widget.checked) node.append(div('check'));
+    if (widget.checked && !widget.checkedTexture) node.append(div('check'));
   }
 
   // The thumb's box: centred on the value fraction along the track (a vertical slider's minimum is at the top), and, when
