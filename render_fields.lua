@@ -9,6 +9,7 @@ local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
 local Read = require("render_read")
 local RenderAnim = require("render_anim")
+local Secret = require("combat_secret_value")
 local TextState = require("ui.text_state")
 local Widgets = require("render_widgets")
 
@@ -114,9 +115,9 @@ local function fontFields(w, st, item, assets)
     item.size = font[2]
     item.flags = font[3]
   end
-  item.text = st.text
-  if st.text then
-    addEscapes(assets, st.text)
+  item.text = Secret.text(st.text)
+  if item.text then
+    addEscapes(assets, item.text)
   end
   item.color = Read.color(FontChain.inherited(w, st, "textColor"), WHITE)
 end

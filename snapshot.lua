@@ -3,6 +3,8 @@
 -- outside escapes takes the font string's own text color. Never contains file paths or line numbers.
 local M = {}
 
+local Secret = require("combat_secret_value")
+
 local INDENT = "  "
 local NO_VALUE = "-"
 local COLOR_ESCAPE = "^|c%x%x(%x%x%x%x%x%x)"
@@ -77,7 +79,7 @@ function M.runs(text, base)
 end
 
 local function fontRuns(fontString)
-  return M.runs(fontString:GetText(), hex(fontString:GetTextColor()))
+  return M.runs(Secret.text(fontString:GetText()), hex(fontString:GetTextColor()))
 end
 
 -- One line per tooltip row ("L: <runs>", plus " | R: <runs>" for a non-empty right text), then the border color.

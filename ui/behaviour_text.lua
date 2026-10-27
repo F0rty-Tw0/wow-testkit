@@ -5,6 +5,7 @@ local M = {}
 local AddonEnv = require("addon_env")
 local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
+local Secret = require("combat_secret_value")
 local TextState = require("ui.text_state")
 
 local unpack = unpack
@@ -31,6 +32,10 @@ local function color(r, g, b, a)
 end
 
 function methods.SetText(_, _, st, text)
+  if Secret.is(text) then
+    st.text = text
+    return
+  end
   st.text = text ~= nil and tostring(text) or nil
 end
 

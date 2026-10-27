@@ -1,5 +1,6 @@
 -- Builds the installed function for a WoW API name: call counting and argument validation in addon context,
--- then a w:stub override, then the kit implementation, then signature-derived defaults.
+-- then a w:stub override, then the kit implementation (its results pass through w.returnFilter(name, signature, packed) when
+-- one is set and the caller is addon code), then signature-derived defaults.
 local M = {}
 
 local Callsite = require("ui.callsite")
@@ -95,6 +96,12 @@ function M.wrap(w, name, signature, impl)
       return unpack(values, 1, values.n)
     end
     if impl then
+      local filter = w.returnFilter
+      if filter and w:callerIsAddon() then
+        local packed = pack(impl(...))
+        local filtered = filter(name, signature, packed)
+        return unpack(filtered, 1, filtered.n)
+      end
       return impl(...)
     end
     return unscripted(w, name, signature)

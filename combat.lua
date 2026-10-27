@@ -64,6 +64,7 @@ function M.install(w)
   require("combat_threat").install(w)
   require("combat_ai").install(w)
   require("combat_nameplates").install(w)
+  require("combat_secret").install(w)
   return c
 end
 
