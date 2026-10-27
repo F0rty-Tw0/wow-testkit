@@ -176,6 +176,23 @@ local function test_dependency_skipped_on_the_flavor_skips_the_dependent_assumed
   A.contains(results.vanilla.reason, "dependency OnlyRetail not loadable")
 end
 
+-- source: confirmed (row G16) optional dependencies load first "when present"; assumed the client still loads the addon
+-- when one is installed but cannot load on the flavor.
+local function test_optional_dependency_not_loadable_on_the_flavor_is_passed_over_assumed()
+  local dir = Tmp.dir("deps")
+  addon(dir, "OnlyRetail", "", "")
+  fs.writeFile(dir .. "/OnlyRetail/OnlyRetail.toc", "## Interface: 120100\nOnlyRetail.lua\n")
+  addon(dir, "Main", "## OptionalDeps: OnlyRetail\n", "MAIN_RAN = true")
+  local ran
+  local results = Scenario.matrix({ "vanilla" }, function(s)
+    s:login()
+    ran = rawget(_G, "MAIN_RAN")
+    A.eq(s.info.status, "loaded")
+  end, { addon = "Main", root = dir .. "/Main" })
+  A.eq(results.vanilla.status, "pass", tostring(results.vanilla.reason))
+  A.eq(ran, true)
+end
+
 -- source: assumed (row G16) a missing required dependency stops the login as a skip with the reason.
 local function test_login_with_a_missing_dependency_is_skipped_assumed()
   local dir = Tmp.dir("deps")
@@ -216,6 +233,7 @@ return function()
   test_dependency_fires_addon_loaded_first()
   test_login_lists_dependencies_and_notes_them()
   test_dependency_skipped_on_the_flavor_skips_the_dependent_assumed()
+  test_optional_dependency_not_loadable_on_the_flavor_is_passed_over_assumed()
   test_login_with_a_missing_dependency_is_skipped_assumed()
   test_a_dependency_already_loaded_does_not_load_again()
 end
