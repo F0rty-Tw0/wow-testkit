@@ -183,6 +183,15 @@ local function test_insert_replaces_the_selection_and_honours_the_limits_assumed
   end)
 end
 
+local function test_insert_nil_inserts_nothing_assumed() -- W33
+  HW.withWidgets("retail", function()
+    local box = newBox()
+    box:SetText("ab")
+    box:Insert(nil)
+    A.same({ box:GetText(), box:GetCursorPosition() }, { "ab", 2 })
+  end)
+end
+
 local function test_insert_fires_no_script_assumed() -- W33
   HW.withWidgets("retail", function()
     local box = newBox()
@@ -334,6 +343,7 @@ return function()
   test_highlight_one_argument_runs_to_the_end()
   test_set_cursor_position_drops_the_selection_assumed()
   test_insert_replaces_the_selection_and_honours_the_limits_assumed()
+  test_insert_nil_inserts_nothing_assumed()
   test_insert_fires_no_script_assumed()
   test_an_empty_highlight_selects_nothing_assumed()
   test_backspace_at_the_start_removes_nothing_assumed()

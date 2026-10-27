@@ -128,8 +128,11 @@ function M.backspace(st)
 end
 
 -- source: confirmed (W33) wiki API_EditBox_Insert: "Inserts text at the current cursor position."; assumed (W33) the
--- cursor moves after the insert and no script fires.
+-- cursor moves after the insert and no script fires; assumed (W33) a nil text inserts nothing.
 local function insert(_, _, st, text)
+  if text == nil then
+    return
+  end
   for char in tostring(text):gmatch(M.UTF8_CHAR) do
     M.typeChar(st, char)
   end
