@@ -7,6 +7,7 @@ local BehaviourRange = require("ui.behaviour_range")
 local BehaviourScroll = require("ui.behaviour_scroll")
 local BehaviourText = require("ui.behaviour_text")
 local Read = require("render_read")
+local Secret = require("combat_secret_value")
 
 local text = BehaviourText.methods
 
@@ -43,6 +44,7 @@ function M.slider(w, obj, st, ctx)
   }
 end
 
+-- A retail secret bound or value draws as the number it hides.
 function M.statusBar(w, obj, st, ctx)
   local min, max = text.GetMinMaxValues(w, obj, st)
   local opts = BehaviourRange.read(st)
@@ -50,9 +52,9 @@ function M.statusBar(w, obj, st, ctx)
 
   return {
     type = "StatusBar",
-    value = text.GetValue(w, obj, st),
-    min = min,
-    max = max,
+    value = Secret.reveal(text.GetValue(w, obj, st)),
+    min = Secret.reveal(min),
+    max = Secret.reveal(max),
     color = Read.color({ text.GetStatusBarColor(w, obj, st) }),
     orientation = BehaviourRange.orientation(st, "statusbar"),
     texture = partLook(w, BehaviourRange.part(w, obj, st, "bar"), ctx),

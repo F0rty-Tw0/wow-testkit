@@ -7,6 +7,7 @@ local Log = require("combat_log")
 local Secret = require("combat_secret")
 local Snapshot = require("snapshot")
 local State = require("combat_state")
+local WidgetSnap = require("tests.helpers.widget_snap")
 
 local unpack = unpack
 
@@ -221,6 +222,21 @@ local function test_a_secret_text_measures_as_its_hidden_text()
   end)
 end
 
+-- The usual health bar: an addon feeds secret health into a StatusBar. It keeps the secret, and the render draws the fill.
+local function test_a_status_bar_takes_secret_values_and_renders_them()
+  H.withCombat("retail", function(w)
+    local bar = _G.CreateFrame("StatusBar", "SecretBar", _G.UIParent)
+    bar:SetSize(100, 10)
+    bar:SetPoint("CENTER")
+    local max, value = Secret.make(1000, w), Secret.make(400, w)
+    A.eq(pcall(asAddon, w, bar.SetMinMaxValues, bar, 0, max), true)
+    A.eq(pcall(asAddon, w, bar.SetValue, bar, value), true)
+    A.eq(asAddon(w, bar.GetValue, bar), value)
+    local widget = WidgetSnap.snap(w, "SecretBar").widget
+    A.same({ widget.min, widget.max, widget.value }, { 0, 1000, 400 })
+  end)
+end
+
 local function test_state_sets_combat_and_encounter_restrictions()
   H.withCombat("retail", function(w)
     local player = Actors.get(w, "player")
@@ -262,6 +278,7 @@ return function()
   test_secret_install_is_retail_only()
   test_snapshot_reveals_secret_text()
   test_a_secret_text_measures_as_its_hidden_text()
+  test_a_status_bar_takes_secret_values_and_renders_them()
   test_state_sets_combat_and_encounter_restrictions()
   test_a_plain_npc_fight_sets_combat_but_not_encounter()
 end
