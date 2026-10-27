@@ -52,6 +52,24 @@ function M.fill(target, defaults)
   end
 end
 
+-- Finds a record in a table keyed by numeric id: a number is the id, a string is matched against the records' name
+-- field (the lowest id wins a duplicate name). Returns id, record or nil.
+function M.findRecord(records, ident)
+  if type(ident) == "number" then
+    local record = records[ident]
+    return record and ident, record
+  elseif type(ident) ~= "string" then
+    return nil
+  end
+  local foundId, found
+  for id, record in pairs(records) do
+    if type(record) == "table" and record.name == ident and type(id) == "number" and (not foundId or id < foundId) then
+      foundId, found = id, record
+    end
+  end
+  return foundId, found
+end
+
 -- Installs impl as a kit implementation of name (call counting, validation and w:stub apply where the data has the
 -- name). A name the flavor's data lacks is installed only when flavors lists the flavor (the rows of
 -- docs/client-sources.md G1). Returns whether it was installed.
