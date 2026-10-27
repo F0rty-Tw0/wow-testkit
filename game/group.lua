@@ -63,8 +63,8 @@ local function installGroup(w)
   end)
 end
 
--- source: confirmed (row G8) lockdown and the unit combat flag; assumed (row G8) lockdown is already set inside the
--- PLAYER_REGEN_DISABLED handlers (the session sets the flag before it fires the event).
+-- source: confirmed (row G8) lockdown and the unit combat flag; lockdown begins after PLAYER_REGEN_DISABLED fires
+-- (session_state.lua fires that event before it sets the flag).
 local function installCombat(w)
   define(w, "InCombatLockdown", function()
     return w.mock.combat

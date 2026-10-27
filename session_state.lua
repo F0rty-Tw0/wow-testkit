@@ -85,6 +85,13 @@ local function toggle(sess, key, value, event)
   if value == nil or value == sess.w.mock[key] then
     return
   end
+  -- source: confirmed (row G8) combat lockdown begins after PLAYER_REGEN_DISABLED fires and ends before
+  -- PLAYER_REGEN_ENABLED fires, so entering combat fires first and sets after.
+  if key == "combat" and value then
+    sess.s:fireIfKnown(event)
+    sess.w.mock[key], sess.state[key] = value, value
+    return
+  end
   sess.w.mock[key], sess.state[key] = value, value
   sess.s:fireIfKnown(event)
 end

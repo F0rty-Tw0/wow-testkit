@@ -20,6 +20,24 @@ local function listener(events)
   return seen
 end
 
+-- source: confirmed (row G8) wiki API_InCombatLockdown: "Combat lockdown begins after the PLAYER_REGEN_DISABLED event
+-- fires, and ends before the PLAYER_REGEN_ENABLED event fires."
+local function test_lockdown_is_off_inside_both_regen_handlers()
+  H.withSession(nil, function(sess)
+    local inside = {}
+    local frame = _G.CreateFrame("Frame")
+    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:SetScript("OnEvent", function(_, event)
+      inside[event] = _G.InCombatLockdown()
+    end)
+    sess:call("state", { combat = true })
+    A.same({ inside.PLAYER_REGEN_DISABLED, _G.InCombatLockdown() }, { false, true })
+    sess:call("state", { combat = false })
+    A.same({ inside.PLAYER_REGEN_ENABLED, _G.InCombatLockdown() }, { false, false })
+  end)
+end
+
 local function test_modifiers_answer_the_key_state()
   H.withSession(nil, function(sess)
     A.eq(sess:call("state", { modifiers = { shift = true } }).ok, true)
@@ -118,6 +136,7 @@ end
 return function()
   test_modifiers_answer_the_key_state()
   test_combat_flag_fires_events_once()
+  test_lockdown_is_off_inside_both_regen_handlers()
   test_group_state_answers_and_fires()
   test_state_merges_and_returns_the_whole_state()
   test_empty_state_patch_reads_without_a_change()
