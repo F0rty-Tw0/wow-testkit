@@ -1,6 +1,8 @@
 -- A unit's tooltip data, shaped like the client's tooltip info for GameTooltip:SetUnit: one entry per line
 -- (name, guild, level, faction, PvP), built from the unit's fixture answers (Unit* APIs asked under "blizzard"
 -- context) and the FrameXML strings and colors. Colors are { r, g, b } keyed tables.
+local Taint = require("taint")
+
 local M = {}
 
 local UNKNOWN_LEVEL = -1
@@ -15,10 +17,12 @@ local FALLBACK_LINE_TYPE = "None"
 -- among None lines; Enum.TooltipDataLineType.UnitLevel exists but is not used for it — verify in game.
 local LINE_TYPES = { name = "UnitName", level = "None", guild = "None", faction = "None", pvp = "None" }
 
--- Calls the API name under "blizzard" context; nothing when the flavor lacks it.
+-- Calls the API name under "blizzard" context; nothing when the flavor lacks it. An API an addon replaced taints the
+-- build (row TS4, assumed), as the client's tooltip code calling the addon's function would.
 function M.ask(w, name, ...)
   local fn = rawget(_G, name)
   if fn then
+    Taint.read(w, _G, name)
     return w:run("blizzard", fn, ...)
   end
 end

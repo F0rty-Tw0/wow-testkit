@@ -130,12 +130,12 @@ local function addDataLine(w, self, tip, line)
   methods.AddDoubleLine(w, self, tip, line.leftText, line.rightText, left.r, left.g, left.b, right.r, right.g, right.b)
 end
 
--- Runs byType[key] then byType[ALL] callbacks with (tooltip, data) under "addon" context, errors going to the
--- world's error path. With stopOnTrue, returns true at the first callback returning a true value.
+-- Runs byType[key] then byType[ALL] callbacks with (tooltip, data) under "addon" context and their owner's taint, errors
+-- going to the world's error path. With stopOnTrue, returns true at the first callback returning a true value.
 local function runCallbacks(w, byType, key, tooltip, data, stopOnTrue)
   for _, list in ipairs({ byType[key] or {}, byType[ALL_TYPES] or {} }) do
     for _, fn in ipairs(list) do
-      local results = w:run("addon", w.try, w, fn, tooltip, data)
+      local results = w:callAsAddon(fn, tooltip, data)
       if stopOnTrue and results[1] and results[2] then
         return true
       end
