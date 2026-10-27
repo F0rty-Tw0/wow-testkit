@@ -1,0 +1,88 @@
+-- Smoke JSON: the document tk smoke --json prints and the silenced, counted print of a smoke run.
+local TEST_BUDGET = 100000
+
+local A = require("assert")
+local Smoke = require("smoke")
+local SmokeJson = require("smoke_json")
+local Tmp = require("tests.helpers.tmp")
+local fs = require("fs")
+
+local EXPECTED = [[
+{
+  "addons": [
+    {
+      "name": "A",
+      "runs": {
+        "retail": {
+          "errors": [],
+          "printed": 0,
+          "status": "pass",
+          "unscripted": []
+        },
+        "vanilla": {
+          "errors": [],
+          "printed": 0,
+          "reason": "no TOC for this flavor",
+          "status": "skipped",
+          "unscripted": []
+        }
+      }
+    }
+  ],
+  "flavors": [
+    "retail",
+    "vanilla"
+  ],
+  "totals": {
+    "addons": 1,
+    "fail": 0,
+    "pass": 1,
+    "runs": 2,
+    "skipped": 1
+  },
+  "ver": 1
+}
+]]
+local function test_document_matches_the_schema()
+  local results = {
+    {
+      name = "A",
+      results = {
+        retail = { status = "pass", errors = {}, unscripted = {} },
+        vanilla = { status = "skipped", reason = "no TOC for this flavor", errors = {}, unscripted = {} },
+      },
+    },
+  }
+  A.textEq(SmokeJson.format(results, { "retail", "vanilla" }), EXPECTED)
+end
+local function test_failed_run_keeps_only_message_and_sorted_unscripted()
+  local run = { status = "fail", errors = { { message = "boom", traceback = "tb" } }, unscripted = { { name = "A", count = 2 } }, printed = 3 }
+  local text = SmokeJson.format({ { name = "B", results = { retail = run } } }, { "retail" })
+  A.contains(text, '"errors": [\n            {\n              "message": "boom"\n            }\n          ]')
+  A.contains(text, '"name": "A"')
+  A.contains(text, '"printed": 3')
+  A.eq(text:find("traceback", 1, true), nil)
+end
+local function test_print_is_silenced_and_counted()
+  local corpus = Tmp.dir("loud")
+  fs.mkdirp(corpus .. "/Loud")
+  fs.writeFile(corpus .. "/Loud/Loud.toc", "## Interface: 120100\nLoud.lua\n")
+  fs.writeFile(corpus .. "/Loud/Loud.lua", 'print("noise")\n')
+  local calls = 0
+  local real = _G.print
+  local spy = function()
+    calls = calls + 1
+  end
+  _G.print = spy
+  local result = Smoke.runAddon(corpus .. "/Loud", { "retail" }, TEST_BUDGET)
+  local restored = _G.print
+  _G.print = real
+  A.same({ calls, result.results.retail.printed, result.results.retail.status }, { 0, 1, "pass" })
+  A.eq(restored, spy) -- the world's destroy restores the spy, not the real print
+end
+
+return function()
+  test_document_matches_the_schema()
+  test_failed_run_keeps_only_message_and_sorted_unscripted()
+  test_print_is_silenced_and_counted()
+end

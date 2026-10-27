@@ -8,6 +8,7 @@ local FrameXML = require("framexml.fakes")
 local Game = require("game")
 local Input = require("input")
 local ScenarioAddons = require("scenario_addons")
+local ScenarioSmoke = require("scenario_smoke")
 local Units = require("units")
 local Widgets = require("ui.widgets")
 local World = require("world")
@@ -62,6 +63,7 @@ function M.new(opts)
   local golden = opts.golden or {}
   w.goldenMode = opts.golden ~= nil
   w.mock.addonsDir = ScenarioAddons.dirOf(opts)
+  ScenarioSmoke.silencePrint(w, opts)
   return setmetatable({
     w = w,
     flavor = w.flavor,
@@ -197,6 +199,7 @@ function Scenario:report()
     unscripted = unscriptedList(w.unscripted),
     warnings = copyList(w.warnings),
     notes = notes,
+    printed = w.printed or 0,
   }
 end
 

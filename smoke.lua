@@ -4,12 +4,14 @@ local M = {}
 
 local Flavors = require("tools.flavors")
 local Scenario = require("scenario")
+local SmokeJson = require("smoke_json")
 local SmokeScoreboard = require("smoke_scoreboard")
 local Toc = require("toc")
 local fs = require("fs")
 
 M.BUDGET = 10000000
 M.format = SmokeScoreboard.format
+M.formatJson = SmokeJson.format
 
 local BLIZZARD_PREFIX = "Blizzard_"
 
@@ -200,11 +202,12 @@ function M.runAddon(root, flavors, budget)
   if not name then
     return { name = folderName(root), results = failedEverywhere(flavors, message) }
   end
-  local results = Scenario.matrix(flavors, smokeScenario(budget or M.BUDGET), { addon = name, root = root })
+  local results = Scenario.matrix(flavors, smokeScenario(budget or M.BUDGET), { addon = name, root = root, silencePrint = true })
   return { name = name, results = results }
 end
 
--- opts: { dir, flavors?, budget? }. Runs every addon folder in dir, then writes the scoreboard once. Returns 0 when
+-- opts: { dir, flavors?, budget?, json? }. Runs every addon folder in dir, then writes the scoreboard (the JSON document
+-- with json) once. Returns 0 when
 -- the run completes whatever the results, 2 when dir is missing or holds no addon folder.
 function M.run(opts, write)
   local dir = opts.dir
@@ -225,7 +228,7 @@ function M.run(opts, write)
   for i, name in ipairs(folders) do
     results[i] = M.runAddon(dir .. "/" .. name, flavors, opts.budget)
   end
-  write(M.format(results, flavors))
+  write((opts.json and M.formatJson or M.format)(results, flavors))
   return 0
 end
 

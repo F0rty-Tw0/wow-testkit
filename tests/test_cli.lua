@@ -1,5 +1,5 @@
 -- tk CLI: `tk test [flavor...] [--update] [--addon <path>]` runs an addon's scenarios and prints a summary;
--- `tk smoke <dir> [flavor...]` prints the smoke scoreboard for a folder of addons.
+-- `tk smoke <dir> [flavor...] [--json]` prints the smoke scoreboard (or its JSON document) for a folder of addons.
 local A = require("assert")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
@@ -154,6 +154,15 @@ local function test_smoke_without_dir_exits_2()
   A.eq(code, 2)
 end
 
+local function test_cli_json_flag_prints_only_the_document()
+  local corpus = tempDir("json")
+  copyTree(TEST_DIR .. "/fixtures/smoke/Good", corpus .. "/Good")
+  local code, text = run({ "smoke", corpus, "retail", "--json" })
+  A.eq(code, 0)
+  A.eq(text:sub(1, 22), '{\n  "addons": [\n    {\n')
+  A.eq(text:sub(-2), "}\n")
+end
+
 local function test_preview_without_a_directory_exits_2()
   local code, out = run({ "preview" })
   A.contains(out, "usage")
@@ -215,6 +224,7 @@ return function()
   test_smoke_duplicate_flavor_runs_once()
   test_smoke_unknown_flavor_exits_2()
   test_smoke_without_dir_exits_2()
+  test_cli_json_flag_prints_only_the_document()
   test_preview_without_a_directory_exits_2()
   test_preview_bad_options_exit_2()
   test_preview_passes_the_parsed_options_to_preview_run()
