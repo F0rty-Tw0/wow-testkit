@@ -128,6 +128,21 @@ local function test_a_path_retextures_an_adopted_region_assumed() -- W18
   end)
 end
 
+-- source: assumed (W18) a region another button adopted no longer fills this button's role.
+local function test_a_path_after_another_button_took_the_region_makes_a_new_one_assumed() -- W18
+  HW.withWidgets("retail", function(w)
+    local a, b = newButton(), newButton()
+    local shared = a:CreateTexture()
+    shared:SetTexture("Interface\\Shared")
+    a:SetNormalTexture(shared)
+    b:SetNormalTexture(shared)
+    a:SetNormalTexture(PATH)
+    local mine = a:GetNormalTexture()
+    A.same({ mine ~= shared, mine:GetParent() == a, mine:GetTexture() }, { true, true, PATH })
+    A.same({ shared:GetTexture(), w.ui.state[shared].role, b:GetNormalTexture() == shared }, { "Interface\\Shared", "normal", true })
+  end)
+end
+
 local function test_nil_clears_the_state_texture() -- W18
   HW.withWidgets("retail", function()
     local b = newButton()
@@ -432,6 +447,7 @@ return function()
   test_an_adopted_texture_keeps_its_own_points_assumed()
   test_a_second_path_reuses_the_button_made_region_assumed()
   test_a_path_retextures_an_adopted_region_assumed()
+  test_a_path_after_another_button_took_the_region_makes_a_new_one_assumed()
   test_nil_clears_the_state_texture()
   test_state_textures_draw_on_artwork_and_the_highlight_on_highlight_assumed()
   test_highlight_blend_defaults_to_add_unless_given_assumed()

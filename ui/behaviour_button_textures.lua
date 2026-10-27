@@ -19,8 +19,8 @@ local ROLE_LAYER = { normal = "ARTWORK", pushed = "ARTWORK", highlight = "HIGHLI
 
 local KEYS = { mark = "role", owned = "roleOwned" }
 
-local function release(w, st, role)
-  Slot.release(w, State.write(st).tex, role, KEYS)
+local function release(w, obj, st, role)
+  Slot.release(w, obj, State.write(st).tex, role, KEYS)
 end
 
 -- source: confirmed (W18) a texture object is re-parented to the button; assumed (W18) a path or atlas retextures the
@@ -28,10 +28,10 @@ end
 -- and so does an object with no anchors of its own (blizzard_sharedxml/modelscenetemplates.xml:25 draws a state texture
 -- with none).
 local function regionFor(w, obj, st, role, asset)
-  local existing = State.read(st).tex[role]
+  local existing = Slot.held(w, State.read(st).tex, role, obj)
   if Slot.isTexture(w, asset) then
     if existing ~= asset then
-      release(w, st, role)
+      release(w, obj, st, role)
       asset:SetParent(obj)
       if ROLE_LAYER[role] then
         asset:SetDrawLayer(ROLE_LAYER[role])
@@ -76,7 +76,7 @@ end
 local function setRoleSource(role, isAtlas)
   return function(w, obj, st, asset, blend)
     if asset == nil then
-      release(w, st, role)
+      release(w, obj, st, role)
 
       return
     end
@@ -91,14 +91,14 @@ local function setRoleSource(role, isAtlas)
 end
 
 local function clearRole(role)
-  return function(w, _, st)
-    release(w, st, role)
+  return function(w, obj, st)
+    release(w, obj, st, role)
   end
 end
 
 local function getRole(role)
-  return function(_, _, st)
-    return State.read(st).tex[role]
+  return function(w, obj, st)
+    return Slot.held(w, State.read(st).tex, role, obj)
   end
 end
 

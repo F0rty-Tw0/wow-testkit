@@ -39,7 +39,7 @@ function M.slider(w, obj, st, ctx)
     min = min,
     max = max,
     orientation = BehaviourRange.orientation(st, "slider"),
-    thumb = partLook(w, BehaviourRange.read(st).thumb, ctx),
+    thumb = partLook(w, BehaviourRange.part(w, obj, st, "thumb"), ctx),
   }
 end
 
@@ -55,7 +55,7 @@ function M.statusBar(w, obj, st, ctx)
     max = max,
     color = Read.color({ text.GetStatusBarColor(w, obj, st) }),
     orientation = BehaviourRange.orientation(st, "statusbar"),
-    texture = partLook(w, opts.bar, ctx),
+    texture = partLook(w, BehaviourRange.part(w, obj, st, "bar"), ctx),
     reverse = opts.reverse or nil,
     fillStyle = fillStyle ~= BehaviourRange.DEFAULT_FILL_STYLE and fillStyle or nil,
   }

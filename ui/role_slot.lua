@@ -10,9 +10,20 @@ function M.isTexture(w, value)
   return st and st.plan.isA.texture == true
 end
 
--- Frees slot: the region stops filling it, and one the widget made is hidden.
-function M.release(w, slots, slot, keys)
-  local old = slots[slot]
+-- The region filling slot of obj, or nil once another widget took it (re-parented it away). source: assumed (W18,
+-- W43) a region another widget adopted no longer fills this widget's slot.
+function M.held(w, slots, slot, obj)
+  local region = slots[slot]
+  if region and w.ui.state[region].parent == obj then
+    return region
+  end
+end
+
+-- Frees slot: the region stops filling it, and one the widget made is hidden. A region another widget took keeps its
+-- marks, since they are that widget's now.
+function M.release(w, obj, slots, slot, keys)
+  local old = M.held(w, slots, slot, obj)
+  slots[slot] = nil
   if not old then
     return
   end
@@ -22,7 +33,6 @@ function M.release(w, slots, slot, keys)
     oldState[keys.owned] = nil
     old:Hide()
   end
-  slots[slot] = nil
 end
 
 function M.claim(w, slots, slot, region, owned, keys)

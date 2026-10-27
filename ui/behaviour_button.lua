@@ -11,6 +11,7 @@ local BehaviourText = require("ui.behaviour_text")
 local FontChain = require("ui.font_chain")
 local State = require("ui.button_state")
 local Shift = require("ui.layout_shift")
+local Slot = require("ui.role_slot")
 local Typed = require("ui.typed")
 
 require("ui.behaviour_button_textures")
@@ -57,7 +58,7 @@ function M.shown(w, owner, role)
   end
   local display = State.displayState(st)
   if role == "normal" then
-    return display == "normal" or State.read(st).tex[display] == nil
+    return display == "normal" or Slot.held(w, State.read(st).tex, display, owner) == nil
   end
 
   return display == role

@@ -174,6 +174,20 @@ local function test_a_path_retextures_an_adopted_thumb_assumed() -- W43
   end)
 end
 
+-- source: assumed (W43) a thumb another slider adopted no longer fills this slider's thumb.
+local function test_a_path_after_another_slider_took_the_thumb_makes_a_new_one_assumed() -- W43
+  withWidgets("retail", function(w)
+    local a, b = _G.CreateFrame("Slider"), _G.CreateFrame("Slider")
+    local shared = a:CreateTexture()
+    a:SetThumbTexture(shared)
+    b:SetThumbTexture(shared)
+    a:SetThumbTexture("thumb.blp")
+    local mine = a:GetThumbTexture()
+    A.same({ mine ~= shared, mine:GetParent() == a, mine:GetTexture() }, { true, true, "thumb.blp" })
+    A.same({ shared:GetTexture(), w.ui.state[shared].widgetPart, b:GetThumbTexture() == shared }, { nil, "thumb", true })
+  end)
+end
+
 local function test_replacing_the_bar_texture_releases_the_old_one() -- W44
   withWidgets("retail", function(w)
     local bar = _G.CreateFrame("StatusBar")
@@ -254,6 +268,7 @@ return function()
   test_a_path_after_a_path_reuses_the_bar_texture()
   test_a_path_retextures_an_adopted_bar_texture_assumed()
   test_a_path_retextures_an_adopted_thumb_assumed()
+  test_a_path_after_another_slider_took_the_thumb_makes_a_new_one_assumed()
   test_replacing_the_bar_texture_releases_the_old_one()
   test_replacing_a_made_bar_texture_hides_it()
   test_adopting_a_texture_re_parents_it()

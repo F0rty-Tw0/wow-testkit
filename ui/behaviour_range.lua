@@ -100,15 +100,20 @@ end)
 
 local KEYS = { mark = "widgetPart", owned = "partOwned" }
 
+-- The region filling part ("thumb" or "bar") of obj, or nil.
+function M.part(w, obj, st, part)
+  return Slot.held(w, M.read(st), part, obj)
+end
+
 -- source: assumed (W43, W44) a texture object becomes the thumb or bar and is re-parented to the widget; a path or file
 -- id retextures the region already there (adopted or made by the widget), else fills a region the widget makes.
 local function setPart(part)
   return function(w, obj, st, asset)
     local opts = write(st)
-    local old = opts[part]
+    local old = Slot.held(w, opts, part, obj)
     if Slot.isTexture(w, asset) then
       if old ~= asset then
-        Slot.release(w, opts, part, KEYS)
+        Slot.release(w, obj, opts, part, KEYS)
         asset:SetParent(obj)
         Slot.claim(w, opts, part, asset, false, KEYS)
       end
@@ -123,8 +128,8 @@ local function setPart(part)
 end
 
 local function getPart(part)
-  return function(_, _, st)
-    return M.read(st)[part]
+  return function(w, obj, st)
+    return M.part(w, obj, st, part)
   end
 end
 
