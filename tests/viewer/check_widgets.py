@@ -46,12 +46,39 @@ def check_thumb(root):
         raise AssertionError("transform %r" % thumb.style().get("transform"))
 
 
+def z_index(root, item_id):
+    return int(by_id(root, item_id).style()["z-index"])
+
+
+def check_textured_bar_fill_is_the_texture_times_the_bar_colour(root):
+    fill = one(by_id(root, "f7"), by_class("fill"), ".fill")
+    colour = fill.style().get("background-color", "").replace(" ", "")
+    if colour not in ("rgb(0,255,0)", "rgba(0,255,0,1)"):
+        raise AssertionError("fill colour %r, want green" % colour)
+    expect_style(fill, {"width": "50%"})
+
+
+def check_bar_fill_draws_above_the_background_and_below_the_text(root):
+    background, bar, text = z_index(root, "t8"), z_index(root, "f7"), z_index(root, "s9")
+    if not background < bar < text:
+        raise AssertionError("z-index background %d, bar %d, text %d, want background < bar < text" % (background, bar, text))
+
+
+def check_thumb_draws_above_the_background(root):
+    background, slider = z_index(root, "t11"), z_index(root, "f10")
+    if not background < slider:
+        raise AssertionError("z-index background %d, slider %d, want background < slider" % (background, slider))
+
+
 CHECKS = [
     ("edit selection", check_selection),
     ("reversed status bar fill", check_reversed_fill),
     ("centre status bar fill", check_center_fill),
     ("reverse fill style status bar", check_reverse_fill_style),
     ("slider thumb at the value fraction", check_thumb),
+    ("textured bar fill is the texture times the bar colour", check_textured_bar_fill_is_the_texture_times_the_bar_colour),
+    ("bar fill draws above its background and below its text", check_bar_fill_draws_above_the_background_and_below_the_text),
+    ("slider thumb draws above its background", check_thumb_draws_above_the_background),
 ]
 
 

@@ -58,8 +58,9 @@
   }
 
   // A clipped item sits in its own .clip box at the clip rect, positioned relative to it.
-  function placed(item, ctx) {
+  function placed(item, ctx, stacker, index) {
     const node = itemNode(item, ctx);
+    stacker.place(item, node, index);
     if (!item.clip) return node;
     const clip = document.createElement('div');
     clip.className = 'clip';
@@ -117,9 +118,10 @@
     stage.replaceChildren();
     stage.style.width = screen.width + 'px';
     stage.style.height = screen.height + 'px';
-    for (const item of snapshot.items || []) {
+    const stacker = V.stacker();
+    for (const [index, item] of (snapshot.items || []).entries()) {
       try {
-        if (item.rect) stage.append(placed(item, ctx));
+        if (item.rect) stage.append(placed(item, ctx, stacker, index));
       } catch (err) {
         problems.push(`viewer: item ${item.id} not drawn: ${err.message}`);
       }

@@ -145,12 +145,25 @@
     return box;
   };
 
-  // A bar texture covers the fill; the bar colour stays under it.
+  // The bar colour is the vertex colour of the bar texture, so it multiplies the texture's own: a white colour texture
+  // under a green bar colour is green. null when the product is white, which tints nothing.
+  function barTint(widget) {
+    const bar = widget.color || V.WHITE;
+    const own = widget.texture.vertexColor || V.WHITE;
+    const tint = [own[0] * bar[0], own[1] * bar[1], own[2] * bar[2]];
+
+    return tint.every((channel) => channel === 1) ? null : tint;
+  }
+
+  // The bar texture is the fill; a bar without one fills with the bar colour.
   function statusBar(node, widget, ctx, item) {
     const fill = div('fill');
-    fill.style.backgroundColor = V.rgba(widget.color || V.WHITE);
+    const alpha = widget.color ? Number(widget.color[3] ?? 1) : 1;
+    const texture = widget.texture && Object.assign({ rect: { width: item.rect.width, height: item.rect.height } }, widget.texture);
     Object.assign(fill.style, V.fillRect(widget));
-    if (widget.texture) V.texture(fill, Object.assign({ rect: { width: item.rect.width, height: item.rect.height } }, widget.texture), ctx);
+    if (alpha < 1) fill.style.opacity = String(alpha);
+    if (!texture) fill.style.backgroundColor = V.rgba(widget.color || V.WHITE);
+    else V.texture(fill, Object.assign(texture, { vertexColor: barTint(widget) || texture.vertexColor }));
     node.append(fill);
   }
 
