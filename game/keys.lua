@@ -41,6 +41,15 @@ local function right(held, key)
   return held["r" .. key] == true
 end
 
+local function anyHeld(held)
+  for _, key in pairs(SIDES) do
+    if left(held, key) or right(held, key) then
+      return true
+    end
+  end
+  return false
+end
+
 -- source: assumed (row G6) the generic readers are true for either side, the Left and Right ones for one side.
 local function installModifiers(w)
   for name, key in pairs(SIDES) do
@@ -56,18 +65,16 @@ local function installModifiers(w)
     end)
   end
   define(w, "IsModifierKeyDown", function()
-    local held = w.mock.modifiers
-    for _, key in pairs(SIDES) do
-      if left(held, key) or right(held, key) then
-        return true
-      end
-    end
-    return false
+    return anyHeld(w.mock.modifiers)
   end)
 end
 
 local function modifiedClick(w, action)
   local mock = w.mock
+  -- source: assumed (row G7) a bare IsModifiedClick() is true while any modifier is held.
+  if action == nil then
+    return anyHeld(mock.modifiers)
+  end
   local wanted = mock.modifiedClicks[action] or MODIFIED_CLICK_DEFAULTS[action]
   if wanted == nil then
     require("world_api").markUnscripted(w, "IsModifiedClick")

@@ -72,6 +72,15 @@ local function test_unknown_modified_click_counts_as_unscripted_assumed() -- (G7
   end)
 end
 
+local function test_bare_modified_click_is_any_modifier_held_assumed() -- (G7)
+  G.withGame("retail", function(w)
+    A.eq(_G.IsModifiedClick(), false)
+    w:setMock({ modifiers = { rctrl = true } })
+    A.eq(_G.IsModifiedClick(), true)
+    A.eq(w.unscripted.IsModifiedClick, nil)
+  end)
+end
+
 local function test_mouse_buttons_follow_the_mock() -- (G7)
   G.withGame("retail", function(w)
     A.eq(_G.IsMouseButtonDown(), false)
@@ -114,6 +123,7 @@ return function()
   test_modified_click_reads_the_configured_modifier_assumed()
   test_modified_click_defaults_follow_the_settings_panel()
   test_unknown_modified_click_counts_as_unscripted_assumed()
+  test_bare_modified_click_is_any_modifier_held_assumed()
   test_mouse_buttons_follow_the_mock()
   test_clicked_button_is_set_only_during_the_click_assumed()
   test_clicked_button_restores_the_previous_value_and_survives_an_error_assumed()
