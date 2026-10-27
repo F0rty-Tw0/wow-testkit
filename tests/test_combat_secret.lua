@@ -269,6 +269,14 @@ local function test_a_stub_reads_a_secret_argument_as_its_value()
   end)
 end
 
+local function test_engine_context_passes_a_secret_argument_as_its_value()
+  H.withCombat("retail", function(w, _, s)
+    s:preset("dungeon", { inCombat = true })
+    local guid = asAddon(w, _G.UnitGUID, "party1")
+    A.eq(w:run("blizzard", _G.UnitTokenFromGUID, guid), "party1")
+  end)
+end
+
 local function test_state_sets_combat_and_encounter_restrictions()
   H.withCombat("retail", function(w)
     local player = Actors.get(w, "player")
@@ -314,6 +322,7 @@ return function()
   test_a_boolean_return_stays_plain_in_combat_assumed()
   test_a_secret_passed_back_to_an_api_is_read_as_its_value()
   test_a_stub_reads_a_secret_argument_as_its_value()
+  test_engine_context_passes_a_secret_argument_as_its_value()
   test_state_sets_combat_and_encounter_restrictions()
   test_a_plain_npc_fight_sets_combat_but_not_encounter()
 end
