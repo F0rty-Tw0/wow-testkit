@@ -51,7 +51,7 @@ end
 -- "dependency cycle: A -> B -> A". A dependency listed twice loads once.
 function M.order(opts)
   local addonsDir = opts.addonsDir or M.addonsDirOf(opts.root)
-  local entries, done, failed, visiting, stack = {}, {}, {}, {}, {}
+  local entries, done, visiting, stack = {}, {}, {}, {}
   local visit
   -- source: assumed (row G16) a Blizzard_ dependency is satisfied without loading and is not listed; an absent
   -- optional dependency is ignored; a required one that is absent blocks its dependent unless opts.provided answers
@@ -74,9 +74,11 @@ function M.order(opts)
       end
     end
   end
+  -- A failure is not remembered: a cycle found through an optional edge depends on what is on the stack, so a later
+  -- visit from elsewhere may succeed.
   function visit(name, root)
-    if failed[name] or done[name] then
-      return failed[name]
+    if done[name] then
+      return nil
     end
     if visiting[name] then
       return cycleReason(stack, name)
@@ -88,7 +90,6 @@ function M.order(opts)
     stack[#stack] = nil
     visiting[name] = nil
     if reason then
-      failed[name] = reason
       return reason
     end
     done[name] = true

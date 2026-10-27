@@ -84,6 +84,24 @@ local function test_cycle_blocks_both_assumed()
   A.contains(other, "dependency cycle: Y -> X -> Y")
 end
 
+-- source: assumed (row G16) only a cycle of required dependencies blocks; an optional edge in it is passed over.
+local function test_a_cycle_through_an_optional_dependency_does_not_block_assumed()
+  local dir = Tmp.dir("deps")
+  addon(dir, "A", "## Dependencies: B\n", "")
+  addon(dir, "B", "## OptionalDeps: A\n", "")
+  A.same(names(orderOf(dir, "A")), { "B", "A" })
+end
+
+-- The order must not depend on which dependency is listed first.
+local function test_the_listing_order_does_not_change_whether_an_addon_loads()
+  local dir = Tmp.dir("deps")
+  addon(dir, "A", "## OptionalDeps: B\n", "")
+  addon(dir, "B", "## Dependencies: A\n", "")
+  addon(dir, "R1", "## Dependencies: A, B\n", "")
+  addon(dir, "R2", "## Dependencies: B, A\n", "")
+  A.same({ names(orderOf(dir, "R1")), names(orderOf(dir, "R2")) }, { { "A", "B", "R1" }, { "A", "B", "R2" } })
+end
+
 -- source: assumed (row G16) Blizzard_* dependencies count as present and are not listed.
 local function test_blizzard_dependency_counts_as_present_assumed()
   local dir = Tmp.dir("deps")
@@ -176,6 +194,20 @@ local function test_dependency_skipped_on_the_flavor_skips_the_dependent_assumed
   A.contains(results.vanilla.reason, "dependency OnlyRetail not loadable")
 end
 
+-- source: assumed (row G16) any required dependency that does not load stops the addon, not only the first listed.
+local function test_a_skipped_second_required_dependency_skips_the_dependent_assumed()
+  local dir = Tmp.dir("deps")
+  addon(dir, "Lib", "", "")
+  addon(dir, "OnlyRetail", "", "")
+  fs.writeFile(dir .. "/OnlyRetail/OnlyRetail.toc", "## Interface: 120100\nOnlyRetail.lua\n")
+  addon(dir, "NeedsBoth", "## Dependencies: Lib, OnlyRetail\n", "")
+  local results = Scenario.matrix({ "vanilla" }, function(s)
+    s:login()
+  end, { addon = "NeedsBoth", root = dir .. "/NeedsBoth" })
+  A.eq(results.vanilla.status, "skipped")
+  A.contains(results.vanilla.reason, "dependency OnlyRetail not loadable")
+end
+
 -- source: confirmed (row G16) optional dependencies load first "when present"; assumed the client still loads the addon
 -- when one is installed but cannot load on the flavor.
 local function test_optional_dependency_not_loadable_on_the_flavor_is_passed_over_assumed()
@@ -265,6 +297,8 @@ return function()
   test_a_shared_dependency_loads_once()
   test_missing_required_dependency_blocks_assumed()
   test_cycle_blocks_both_assumed()
+  test_a_cycle_through_an_optional_dependency_does_not_block_assumed()
+  test_the_listing_order_does_not_change_whether_an_addon_loads()
   test_blizzard_dependency_counts_as_present_assumed()
   test_addons_dir_defaults_to_the_parent_of_the_root()
   test_an_explicit_addons_dir_finds_dependencies_elsewhere()
@@ -273,6 +307,7 @@ return function()
   test_dependency_fires_addon_loaded_first()
   test_login_lists_dependencies_and_notes_them()
   test_dependency_skipped_on_the_flavor_skips_the_dependent_assumed()
+  test_a_skipped_second_required_dependency_skips_the_dependent_assumed()
   test_optional_dependency_not_loadable_on_the_flavor_is_passed_over_assumed()
   test_optional_dependency_missing_its_own_dependency_is_passed_over_assumed()
   test_optional_dependency_whose_dependency_is_skipped_does_not_load_assumed()
