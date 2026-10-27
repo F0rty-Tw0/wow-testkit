@@ -201,15 +201,15 @@ end
 
 -- source: confirmed (row C12) UnitThreatSituation(unit, mob?) is nil for a unit off the mob's list; without a mob the
 -- fixture's threat field answers (the highest status over all mobs, as Phase 8's Threat writes it); the status against one
--- mob is the fixture's threatOn[mob guid].
+-- mob is the fixture's threatOn[mob guid]. A fixture with a threat field and no threatOn table answers the field for any mob.
 local function installThreat(w, deps)
   local fixture, guidOf, normalize = deps.fixture, deps.guidOf, deps.normalize
   local read = deps.fieldAnswer(w, "UnitThreatSituation", { "threat" })
   define(w, "UnitThreatSituation", function(unit, mob)
-    if mob == nil then
+    local data = fixture(w.unitState, unit)
+    if mob == nil or (data and data.threatOn == nil and data.threat ~= nil) then
       return read(unit)
     end
-    local data = fixture(w.unitState, unit)
     if not data then
       return unknownUnit(w, "UnitThreatSituation")
     end

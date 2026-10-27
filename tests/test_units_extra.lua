@@ -47,6 +47,18 @@ local function test_threat_situation_reads_the_status_against_one_mob() -- (C12)
   end)
 end
 
+-- A fixture written before per-mob threat existed: with no threatOn table, its threat field answers for any mob.
+local function test_threat_situation_without_a_per_mob_table_reads_the_threat_field()
+  withUnits("retail", function(w)
+    w:unit("target", { guid = "Creature-0-0-0-0-77" })
+    w:unit("player", { threat = 3 })
+    A.eq(_G.UnitThreatSituation("player", "target"), 3)
+    w:unit("party1", {}) -- nothing about threat: off the mob's list
+    A.eq(_G.UnitThreatSituation("party1", "target"), nil)
+    A.eq(w.unscripted.UnitThreatSituation, nil)
+  end)
+end
+
 local function test_dead_or_ghost()
   withUnits("retail", function(w)
     w:unit("target", { isDead = false, isGhost = true })
@@ -198,6 +210,7 @@ end
 return function()
   test_simple_fields_answer_from_the_fixture()
   test_threat_situation_reads_the_status_against_one_mob()
+  test_threat_situation_without_a_per_mob_table_reads_the_threat_field()
   test_dead_or_ghost()
   test_connected_and_visible_default_true_assumed()
   test_enemy_and_attackable_are_read_for_the_player_only_assumed()
