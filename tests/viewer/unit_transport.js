@@ -88,8 +88,8 @@
       A.eq(es.made[0].url, 'http://h/stream');
       es.made[0].fire('console', '{"text":"hi"}');
       A.same(seen, [['console', { text: 'hi' }]]);
-      A.same(TK.transport.EVENTS, ['hello', 'snapshot', 'console', 'reload']);
-      A.same(Object.keys(es.made[0].listeners).sort(), ['console', 'hello', 'reload', 'snapshot']);
+      A.same(TK.transport.EVENTS, ['hello', 'snapshot', 'console', 'reload', 'combatlog']);
+      A.same(Object.keys(es.made[0].listeners).sort(), ['combatlog', 'console', 'hello', 'reload', 'snapshot']);
       const quiet = fakeEventSource();
       TK.transport.http('http://h', { fetch, EventSource: quiet.EventSource, stream: false }).start(() => {});
       A.eq(quiet.made.length, 0);

@@ -114,6 +114,19 @@ def check_dev(root):
         raise AssertionError("no Memory (estimate) header in %r" % panel.text()[:200])
 
 
+def check_combat(root):
+    bar = element(root, "combat")
+    select = one(bar, lambda n: n.tag == "select" and n.attrs.get("id") == "combat-preset", "#combat #combat-preset")
+    values = [n.attrs.get("value") for n in find(select, lambda n: n.tag == "option")]
+    if values != ["solo", "dungeon", "raid:10", "raid:20", "raid:25", "raid:40"]:
+        raise AssertionError("#combat-preset options %r" % values)
+    race = one(bar, lambda n: n.tag == "select" and n.attrs.get("id") == "combat-race", "#combat #combat-race")
+    names = [n.text() for n in find(race, lambda n: n.tag == "option")]
+    if "Human" not in names:
+        raise AssertionError("#combat-race options %r" % names)
+    one(element(root, "combatlog"), lambda n: n.tag == "ol", "#combatlog ol")
+
+
 # (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
     ("ready flag, live snapshot drawn", check_ready, 0),
@@ -126,6 +139,7 @@ CHECKS = [
     ("toolbar #flavor lists auto then the five flavors", check_flavor_picker, 0),
     ("toolbar #size lists the presets and custom; the status line names the addon", check_size_picker, 0),
     ("#dev lists SessionDemo under a Memory (estimate) header", check_dev, 0),
+    ("#combat has the preset options and the race select; #combatlog exists", check_combat, 0),
 ]
 
 

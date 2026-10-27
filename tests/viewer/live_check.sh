@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Live viewer check: starts tools/session.py on SessionDemo (temp TESTKIT_HOME, random port), dumps the DOM of
-# viewer/index.html?live=1&stream=0 and the DOM and a screenshot of the same page with SessionDemoFrame preselected in
-# the inspector, with headless Chrome, checks both DOMs, and stops the server.
+# viewer/index.html?live=1&stream=0 and the DOM of the same page with SessionDemoFrame preselected in the inspector, then
+# a screenshot of that page after a dungeon pull, with headless Chrome, checks both DOMs, and stops the server.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT="${1:?usage: live_check.sh <scratch-dir>}"
@@ -28,5 +28,13 @@ SELECT_URL="$URL&select=SessionDemoFrame&zoom=fit"
 PROFILE="$OUT/chrome-live-profile"
 timeout 60 "$CHROME" --headless=new --disable-gpu --user-data-dir="$PROFILE" --virtual-time-budget=3000 --dump-dom "$URL" > "$OUT/live.html"
 timeout 60 "$CHROME" --headless=new --disable-gpu --user-data-dir="$PROFILE" --window-size=1920,1080 --virtual-time-budget=3000 --dump-dom "$SELECT_URL" > "$OUT/live-select.html"
+# The screenshot shows a fight: a dungeon preset, pulled and stepped 3 s, so the combat toolbar and log have content.
+# SessionDemo draws nothing on the nameplates, so they are empty frames there (CombatDemo labels them).
+call() {
+  curl -sf -H "X-Session-Token: $TOKEN" -H "Content-Type: application/json" -d "$2" "http://127.0.0.1:$PORT/call/$1" > /dev/null
+}
+call combat '{"action":"preset","name":"dungeon"}'
+call combat '{"action":"pull"}'
+call combat '{"action":"step","seconds":3}'
 timeout 60 "$CHROME" --headless=new --disable-gpu --user-data-dir="$PROFILE" --hide-scrollbars --window-size=1920,1080 --virtual-time-budget=3000 --screenshot="$OUT/live.png" "$SELECT_URL"
 python tests/viewer/check_live.py "$OUT/live.html" "$OUT/live-select.html"
