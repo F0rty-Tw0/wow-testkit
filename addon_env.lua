@@ -136,7 +136,7 @@ local function answer(overrides, key, raw)
 end
 
 -- rawget/rawset/next/pairs given the view work on _G with the view's answers (hidden names skipped).
-local function addRawAccess(overrides, view)
+local function addRawAccess(overrides, view, w)
   local function viewNext(_, key)
     local k = hostNext(_G, key)
     while k ~= nil and hidden(overrides, k) do
@@ -165,7 +165,7 @@ local function addRawAccess(overrides, view)
     return hostRawget(t, key)
   end
   overrides.rawset = function(t, key, value)
-    hostRawset(t == view and _G or t, key, value)
+    (w.taint and w.taint.write or hostRawset)(t == view and _G or t, key, value)
     return t
   end
 end
@@ -259,7 +259,7 @@ end
 local function newView(w)
   local view = {}
   local overrides = overridesFor(view, w)
-  addRawAccess(overrides, view)
+  addRawAccess(overrides, view, w)
   addGlobalsMetatable(overrides, view, w)
   hostSetmetatable(view, {
     __index = function(_, key)
@@ -275,7 +275,7 @@ local function newView(w)
     __newindex = function(_, key, value)
       local handler = globalsHandler(w, "__newindex")
       if handler == nil or (hostRawget(_G, key) ~= nil and not hidden(overrides, key)) then
-        hostRawset(_G, key, value)
+        (w.taint and w.taint.write or hostRawset)(_G, key, value)
       elseif hostType(handler) == "function" then
         callHandler(handler, view, key, value)
       else

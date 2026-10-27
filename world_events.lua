@@ -2,6 +2,7 @@
 -- Mixed into the World methods by world.lua; state lives on the world and is reset on destroy.
 local M = {}
 
+local Taint = require("taint")
 local WorldTimers = require("world_timers")
 local WorldUnitFilter = require("world_unit_filter")
 
@@ -52,12 +53,18 @@ function methods:try(fn, ...)
   end))
 end
 
--- try() under "addon" context. Returns the packed result ({ n, ok, ... }).
+-- try() under "addon" context, with a taint frame for fn's owner pushed (a kit fn inherits the running taint); the
+-- previous taint is back on return and on error. Returns the packed result ({ n, ok, ... }).
 function methods:callAsAddon(fn, ...)
   local stack = self.stack
   local depth = #stack
   stack[depth + 1] = "addon"
+  local taint = self.taint
+  local mark = taint and Taint.push(self, fn)
   local results = self:try(fn, ...)
+  if taint then
+    Taint.pop(self, mark)
+  end
   for i = #stack, depth + 1, -1 do
     stack[i] = nil
   end

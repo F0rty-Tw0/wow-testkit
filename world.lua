@@ -10,6 +10,7 @@ local WorldApi = require("world_api")
 local WorldEvents = require("world_events")
 local WorldSnapshot = require("world_snapshot")
 local Screen = require("ui.screen")
+local Taint = require("taint")
 
 local unpack = unpack
 -- Host functions new and destroy use, kept as upvalues: addon writes land raw in _G, so an addon that reassigns
@@ -47,12 +48,21 @@ local function contains(list, item)
   return false
 end
 
+-- rawset, or once taint is installed Taint.rawset, which taints the slot with the running taint.
+local function write(w, tbl, key, value)
+  if w.taint then
+    Taint.rawset(w, tbl, key, value)
+  else
+    rawset(tbl, key, value)
+  end
+end
+
 -- Writes tbl[key]; writes into host tables other than _G (string, math, ...) are recorded for destroy.
 function World:rawWrite(tbl, key, value)
   if tbl ~= _G and not self.created[tbl] then
     self.restores[#self.restores + 1] = { tbl, key, rawget(tbl, key) }
   end
-  rawset(tbl, key, value)
+  write(self, tbl, key, value)
 end
 
 -- Returns the table holding a dotted name's last part and that part; create builds missing namespaces.
@@ -132,6 +142,7 @@ local function installBase(w, row)
   w:install("GetBuildInfo", buildInfo(row))
   Luaext.install(w)
   LuaApi.install(w)
+  Taint.install(w)
 end
 
 -- opts.flavor: one of Flavors.list. opts.screen: { width, height, useUiScale, uiScale }, see ui/screen.lua. opts.client:
@@ -234,7 +245,7 @@ end
 -- Sets the global named name, dots included (a SavedVariables name is one global); install and set split dotted
 -- names into namespaces.
 function World:setGlobal(name, value)
-  rawset(_G, name, value)
+  write(self, _G, name, value)
 end
 
 -- impl: function | { returns = {...} } | { byArgs = { ["arg1|arg2"] = {...} }, default = {...} }.
@@ -246,14 +257,20 @@ function World:stub(name, impl)
   self.stubs[name] = impl
 end
 
--- Calls fn(...) with context pushed; pops it on return and on error (rethrowing the original error value).
+-- Calls fn(...) with context pushed; pops it on return and on error (rethrowing the original error value). A taint frame
+-- is pushed with it: fn's owner under "addon" context, else the running taint.
 function World:run(context, fn, ...)
   if not CONTEXTS[context] then
     error("unknown context '" .. tostring(context) .. "'; valid: " .. CONTEXT_LIST, 2)
   end
   local stack = self.stack
   stack[#stack + 1] = context
+  local taint = self.taint
+  local mark = taint and Taint.push(self, context == "addon" and fn or nil)
   local results = pack(pcall(fn, ...))
+  if taint then
+    Taint.pop(self, mark)
+  end
   stack[#stack] = nil
   if not results[1] then
     error(results[2], 0)
