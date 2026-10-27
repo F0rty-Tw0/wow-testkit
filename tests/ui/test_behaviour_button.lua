@@ -253,6 +253,15 @@ local function test_a_font_object_name_is_looked_up_assumed() -- W22
   end)
 end
 
+local function test_an_unknown_font_object_name_stores_nothing_assumed() -- W22
+  HW.withWidgets("retail", function(w)
+    local b = newButton()
+    b:SetNormalFontObject(_G.CreateFont("T63Known"))
+    b:SetNormalFontObject("T63NoSuchFont")
+    A.same({ b:GetNormalFontObject(), Btn.fontFor(w, b) }, { nil, nil })
+  end)
+end
+
 local function test_text_width_follows_the_button_text_assumed() -- W23
   HW.withWidgets("retail", function()
     local b = newButton()
@@ -436,6 +445,7 @@ return function()
   test_fresh_pushed_text_offset_is_one_minus_one_assumed()
   test_font_objects_per_state_assumed()
   test_a_font_object_name_is_looked_up_assumed()
+  test_an_unknown_font_object_name_stores_nothing_assumed()
   test_text_width_follows_the_button_text_assumed()
   test_lock_highlight_round_trips_assumed()
   test_check_button_checked_textures_assumed()

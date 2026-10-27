@@ -189,7 +189,10 @@ end
 local function setFontObject(state)
   return function(w, _, st, font)
     local fonts = State.write(st).fonts
-    fonts[state] = type(font) == "string" and AddonEnv.global(w, font) or font
+    if type(font) == "string" then
+      font = AddonEnv.global(w, font)
+    end
+    fonts[state] = font
   end
 end
 
