@@ -34,6 +34,17 @@ local function test_dungeon_is_five_with_one_tank_one_healer_three_dps()
   end)
 end
 
+local function test_dungeon_and_raid_are_instances_and_solo_is_the_open_world()
+  H.withCombat("retail", function(_, _, s)
+    s:preset("dungeon", {})
+    A.same({ _G.IsInInstance() }, { true, "party" })
+    s:preset("raid", {})
+    A.same({ _G.IsInInstance() }, { true, "raid" })
+    s:preset("solo", {})
+    A.same({ _G.IsInInstance() }, { false, "none" })
+  end)
+end
+
 local function test_faction_race_class_pick()
   H.withCombat("retail", function(_, _, s)
     s:preset("solo", { faction = "Horde", race = "Orc", class = "WARLOCK" })
@@ -237,6 +248,7 @@ end
 
 return function()
   test_dungeon_is_five_with_one_tank_one_healer_three_dps()
+  test_dungeon_and_raid_are_instances_and_solo_is_the_open_world()
   test_faction_race_class_pick()
   test_defaults_are_alliance_human_warrior_damager()
   test_a_race_with_a_space_keeps_its_file_name()

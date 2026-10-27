@@ -12,6 +12,7 @@ local Roster = require("combat_roster_data")
 
 local PLAYER = "player"
 local PRESETS = { "solo", "dungeon", "raid" }
+local INSTANCE_TYPES = { solo = "none", dungeon = "party", raid = "raid" }
 local FACTIONS = { "Alliance", "Horde" }
 local DEFAULT = { faction = "Alliance", class = "WARRIOR", role = "DAMAGER", size = 10 }
 
@@ -193,6 +194,8 @@ function M.apply(w, name, opts)
   local o = M.resolve(w, name, opts)
   local c = Combat.install(w)
   clearPrevious(w)
+  -- A dungeon is a party instance and a raid a raid instance (IsInInstance reads this store); solo is the open world.
+  w:setMock({ instance = { type = INSTANCE_TYPES[o.name] } })
   for id, spell in pairs(Roster.SPELLS) do
     c.spells[id] = c.spells[id] or copy(spell)
   end
