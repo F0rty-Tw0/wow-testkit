@@ -6,9 +6,7 @@ local M = {}
 local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local FrameXML = require("framexml.fakes")
-local Golden = require("golden")
 local Input = require("input")
-local Snapshot = require("snapshot")
 local Units = require("units")
 local Widgets = require("ui.widgets")
 local World = require("world")
@@ -25,6 +23,7 @@ local Scenario = {}
 Scenario.__index = Scenario
 require("scenario_input").extend(Scenario)
 require("scenario_preview").extend(Scenario)
+require("scenario_snapshot").extend(Scenario)
 
 -- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor
 -- as skipped instead of failed.
@@ -154,41 +153,6 @@ end
 function Scenario:slash(text)
   local w = self.w
   return w:run(ENGINE, w.slash, w, text)
-end
-
-local function snapshotText(target)
-  if target.kind == "menu" then
-    return Snapshot.menu(target)
-  end
-  if target:GetObjectType() == "GameTooltip" then
-    return Snapshot.tooltip(target)
-  end
-  return Snapshot.frame(target)
-end
-
--- Checks target's snapshot against the golden file "<name>.<flavor>.txt". A mismatch is recorded as an error
--- (failing the report) instead of thrown; a newly written golden adds a note. The snapshot's own widget reads
--- are not counted as unscripted.
-function Scenario:snapshot(name, target)
-  local w = self.w
-  if type(target) ~= "table" then
-    error("s:snapshot: no target to snapshot (got " .. type(target) .. "); s:menu() is nil when no menu is open", 2)
-  end
-  if not self.goldenRoot then
-    error("s:snapshot needs a golden root; run the scenario through Scenario.runFile", 2)
-  end
-  local unscripted = {}
-  for key, count in pairs(w.unscripted) do
-    unscripted[key] = count
-  end
-  local text = snapshotText(target)
-  w.unscripted = unscripted
-  local ok, result = pcall(Golden.check, self.goldenRoot, self.scenarioName, name, self.flavor, text, self.update)
-  if not ok then
-    w:recordError(result)
-  elseif result == "written" then
-    self:note("golden written: " .. self.scenarioName .. "/" .. name .. "." .. self.flavor .. ".txt")
-  end
 end
 
 local function unscriptedList(unscripted)
