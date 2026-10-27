@@ -3,6 +3,7 @@
 local A = require("assert")
 local Flavors = require("tools.flavors")
 local G = require("tests.helpers.game")
+local Input = require("input")
 
 local function test_modifier_keys_follow_the_mock() -- (G6)
   G.withGame("retail", function(w)
@@ -79,6 +80,32 @@ local function test_mouse_buttons_follow_the_mock() -- (G7)
   end)
 end
 
+local function test_clicked_button_is_set_only_during_the_click_assumed() -- (G7)
+  G.withGame("retail", function(w)
+    Input.install(w)
+    local seen
+    local b = _G.CreateFrame("Button")
+    b:RegisterForClicks("AnyUp")
+    b:SetScript("OnClick", function()
+      seen = _G.GetMouseButtonClicked()
+    end)
+    Input.click(w, b, "RightButton")
+    A.same({ seen, _G.GetMouseButtonClicked() }, { "RightButton" })
+  end)
+end
+
+local function test_clicked_button_restores_the_previous_value_and_survives_an_error_assumed() -- (G7)
+  G.withGame("retail", function(w)
+    Input.install(w)
+    local b = _G.CreateFrame("Button")
+    w:setMock({ clicked = "MiddleButton" })
+    local ok = pcall(Input.click, w, b, "LeftButton", function()
+      error("boom")
+    end)
+    A.same({ ok, _G.GetMouseButtonClicked() }, { false, "MiddleButton" })
+  end)
+end
+
 return function()
   test_modifier_keys_follow_the_mock()
   test_control_and_alt_sides_follow_the_mock()
@@ -88,4 +115,6 @@ return function()
   test_modified_click_defaults_follow_the_settings_panel()
   test_unknown_modified_click_counts_as_unscripted_assumed()
   test_mouse_buttons_follow_the_mock()
+  test_clicked_button_is_set_only_during_the_click_assumed()
+  test_clicked_button_restores_the_previous_value_and_survives_an_error_assumed()
 end
