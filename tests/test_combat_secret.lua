@@ -259,6 +259,16 @@ local function test_a_secret_passed_back_to_an_api_is_read_as_its_value()
   end)
 end
 
+-- A w:stub is a fake of the client too: its byArgs key is the value a secret argument hides.
+local function test_a_stub_reads_a_secret_argument_as_its_value()
+  H.withCombat("retail", function(w, _, s)
+    s:preset("dungeon", { inCombat = true })
+    local guid = asAddon(w, _G.UnitGUID, "party1")
+    w:stub("UnitTokenFromGUID", { byArgs = { [Secret.reveal(guid)] = { "stubbed" } } })
+    A.eq(asAddon(w, _G.UnitTokenFromGUID, guid), "stubbed")
+  end)
+end
+
 local function test_state_sets_combat_and_encounter_restrictions()
   H.withCombat("retail", function(w)
     local player = Actors.get(w, "player")
@@ -303,6 +313,7 @@ return function()
   test_a_status_bar_takes_secret_values_and_renders_them()
   test_a_boolean_return_stays_plain_in_combat_assumed()
   test_a_secret_passed_back_to_an_api_is_read_as_its_value()
+  test_a_stub_reads_a_secret_argument_as_its_value()
   test_state_sets_combat_and_encounter_restrictions()
   test_a_plain_npc_fight_sets_combat_but_not_encounter()
 end

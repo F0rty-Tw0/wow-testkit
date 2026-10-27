@@ -1,8 +1,8 @@
 -- Retail secret values: the restrictions (Combat, Encounter, ChallengeMode, PvPMatch, Map, Chat), the secret returns of the kit's
 -- implementations for addon callers, the secrecy predicates and the readers. Secret.make, is, reveal and text are
 -- combat_secret_value.lua's (the snapshot and the renderer load that file alone). Secret.install (retail only) sets w.isSecret,
--- w.realType, w.revealArgs, which world_api.wrap runs on a kit implementation's arguments, and w.returnFilter, which it runs
--- on the implementation's results for addon callers.
+-- w.realType, w.revealArgs, which world_api.wrap runs on the arguments a w:stub or kit implementation reads, and
+-- w.returnFilter, which it runs on the implementation's results for addon callers.
 local M = {}
 
 local Combat = require("combat")
