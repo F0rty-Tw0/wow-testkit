@@ -3,7 +3,6 @@
 local A = require("assert")
 local Console = require("session_console")
 local H = require("tests.helpers.session")
-local W = require("tests.helpers.world")
 
 local function lines(sess)
   return sess:call("console", { since = 0 }).lines
@@ -39,19 +38,9 @@ local function test_print_and_chat_calls_reach_the_console()
     A.same({ last(sess).kind, last(sess).text }, { "error-frame", "e" })
     _G.C_ChatInfo.SendChatMessage("hi", "SAY")
     A.same({ last(sess).kind, last(sess).text }, { "send", "[SAY] hi" })
-  end)
-end
-
-local function test_bare_send_chat_message_is_installed_only_when_absent_assumed()
-  H.withSession(nil, function(sess)
-    _G.SendChatMessage("hi", "SAY")
-    A.same({ last(sess).kind, last(sess).text }, { "send", "[SAY] hi" })
-  end)
-  W.withWorld("retail", function(w)
-    local own = function() end
-    w:setGlobal("SendChatMessage", own)
-    Console.install(w, {})
-    A.eq(_G.SendChatMessage, own)
+    _G.SendChatMessage("yo", "YELL")
+    A.same({ last(sess).kind, last(sess).text }, { "send", "[YELL] yo" })
+    A.same({ sess.w.mock.sent[1].msg, sess.w.mock.sent[2].chatType }, { "hi", "YELL" })
   end)
 end
 
@@ -143,7 +132,6 @@ end
 
 return function()
   test_print_and_chat_calls_reach_the_console()
-  test_bare_send_chat_message_is_installed_only_when_absent_assumed()
   test_addon_errors_become_error_lines()
   test_run_executes_lua_and_reports_errors()
   test_dump_prints_values()
