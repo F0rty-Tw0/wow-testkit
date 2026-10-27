@@ -1,6 +1,7 @@
 -- Taint tracking core (Ruling R6): execution taint per addon entry, slot taint on _G and declared tables, reads that
 -- taint the execution, the log and its listeners. Lua 5.1 only.
 local A = require("assert")
+local Callsite = require("ui.callsite")
 local CombatH = require("tests.helpers.combat")
 local H = require("tests.helpers.taint")
 local Secret = require("combat_secret")
@@ -161,6 +162,16 @@ local function test_secret_args_still_follow_context_after_taint()
   end)
 end
 
+-- An error raised from taint.lua credits the first frame outside it (ui/callsite.lua isKit).
+local function test_callsite_skips_taint_module_frames()
+  local root = debug.getinfo(Callsite.level, "S").source:match("^@(.*)ui[/\\]callsite%.lua$")
+  local function raiser()
+    return Callsite.level()
+  end
+  local viaTaint = assert(loadstring("local f = ...; local level = f(); return level", "@" .. root .. "taint.lua"))
+  A.eq(viaTaint(raiser), 3)
+end
+
 return function()
   test_addon_chunk_taints_the_execution_with_its_addon_name_assumed()
   test_addon_global_overwrite_taints_the_slot_and_logs_once_assumed()
@@ -174,4 +185,5 @@ return function()
   test_log_is_capped_and_listeners_hear_each_entry()
   test_nested_frame_does_not_take_the_outer_frames_table_changes()
   test_secret_args_still_follow_context_after_taint()
+  test_callsite_skips_taint_module_frames()
 end
