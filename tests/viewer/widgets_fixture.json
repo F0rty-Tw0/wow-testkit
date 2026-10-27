@@ -64,6 +64,11 @@
       "id": "f13", "kind": "frame", "name": "FileBar", "alpha": 1, "strata": "MEDIUM", "level": 1,
       "rect": { "x": 260, "y": 220, "width": 100, "height": 20 },
       "widget": { "type": "StatusBar", "value": 4, "min": 0, "max": 10, "orientation": "HORIZONTAL", "texture": { "file": "path:interface/addons/demo/pic" } }
+    },
+    {
+      "id": "f14", "kind": "frame", "name": "BottomSlide", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 300, "y": 20, "width": 20, "height": 100 },
+      "widget": { "type": "Slider", "value": 10, "min": 0, "max": 10, "orientation": "VERTICAL", "thumb": { "width": 20, "height": 10, "color": [1, 0, 0, 1] } }
     }
   ],
   "assets": {

@@ -40,10 +40,20 @@ def check_reverse_fill_style(root):
 
 
 def check_thumb(root):
+    # Value 5 of 0..10: the leading edge of the 10px thumb is half the free 190px of the track in.
     thumb = one(by_id(root, "f3"), by_class("thumb"), ".thumb")
-    expect_style(thumb, {"left": "50%", "width": "10px", "height": "20px", "background-color": "rgb(255, 0, 0)"})
-    if "translate(-50%, -50%)" not in thumb.style().get("transform", ""):
+    expect_style(thumb, {"left": "calc(50% - 5px)", "width": "10px", "height": "20px", "background-color": "rgb(255, 0, 0)"})
+    if "translateY(-50%)" not in thumb.style().get("transform", ""):
         raise AssertionError("transform %r" % thumb.style().get("transform"))
+
+
+def check_thumb_stays_inside_the_track_at_both_ends(root):
+    # Value 0 of 0..10: the thumb starts at the track start, not centred on it.
+    start = one(by_id(root, "f10"), by_class("thumb"), "f10 .thumb")
+    expect_style(start, {"left": "calc(0% - 0px)"})
+    # Value 10 of 0..10 on a vertical slider (minimum at the top): the 10px thumb ends at the bottom of the track.
+    end = one(by_id(root, "f14"), by_class("thumb"), "f14 .thumb")
+    expect_style(end, {"top": "calc(100% - 10px)", "width": "20px", "height": "10px"})
 
 
 def z_index(root, item_id):
@@ -92,6 +102,7 @@ CHECKS = [
     ("slider thumb at the value fraction", check_thumb),
     ("textured bar fill is the texture times the bar colour", check_textured_bar_fill_is_the_texture_times_the_bar_colour),
     ("bar fill draws above its background and below its text", check_bar_fill_draws_above_the_background_and_below_the_text),
+    ("slider thumb stays inside the track at both ends", check_thumb_stays_inside_the_track_at_both_ends),
     ("slider thumb draws above its background", check_thumb_draws_above_the_background),
     ("a checked box with art has no stand-in mark", check_checked_box_with_art_has_no_stand_in_mark),
     ("a file textured bar fill draws its image", check_file_textured_bar_fill_draws_its_image),

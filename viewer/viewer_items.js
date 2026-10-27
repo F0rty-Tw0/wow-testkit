@@ -3,6 +3,7 @@
   'use strict';
 
   const MESSAGE_SIZE = 14;
+  const DEFAULT_THUMB = 8; // the .thumb width (horizontal) or height (vertical) in viewer.css
 
   function div(className) {
     const node = document.createElement('div');
@@ -214,17 +215,20 @@
     if (widget.checked && !widget.checkedTexture) node.append(div('check'));
   }
 
-  // The thumb's box: centred on the value fraction along the track (a vertical slider's minimum is at the top), and, when
-  // the thumb texture has a size, that size centred across it.
+  // The thumb's box. assumed: the thumb's centre travels the track inset by half the thumb, so its edge sits on the track
+  // end at the minimum and the maximum (a vertical slider's minimum is at the top). With a sized thumb texture that size is
+  // centred across the track; without one the stylesheet's 8px thumb fills it.
   V.thumbRect = function (widget) {
-    const at = fraction(widget) * 100 + '%';
     const horizontal = widget.orientation === 'HORIZONTAL';
     const size = widget.thumb || {};
-    const box = horizontal ? { left: at } : { top: at };
-    if (size.width > 0 && size.height > 0) {
-      Object.assign(box, horizontal ? { top: '50%' } : { left: '50%' }, { width: `${size.width}px`, height: `${size.height}px` });
-      box.transform = 'translate(-50%, -50%)';
-    }
+    const sized = size.width > 0 && size.height > 0;
+    const sizedAlong = horizontal ? size.width : size.height;
+    const along = sized ? sizedAlong : DEFAULT_THUMB;
+    const travel = `calc((100% - ${along}px) * ${fraction(widget)})`;
+    const box = horizontal ? { left: travel } : { top: travel };
+    const across = horizontal ? { top: '50%', transform: 'translateY(-50%)' } : { left: '50%', transform: 'translateX(-50%)' };
+    box.transform = 'none';
+    if (sized) Object.assign(box, across, { width: `${size.width}px`, height: `${size.height}px` });
 
     return box;
   };
