@@ -61,6 +61,7 @@ function M.install(w)
   require("combat_state").install(w)
   require("combat_log").install(w)
   require("combat_group").install(w)
+  require("combat_threat").install(w)
   return c
 end
 
