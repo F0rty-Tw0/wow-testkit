@@ -1,7 +1,7 @@
 -- Session mock state, set from the viewer's state panel: unit fixtures, the mouseover unit, modifier keys, the combat
--- flag and the group kind. The world reads the last three from w.mock through the kit's own IsShiftKeyDown
--- (game/keys.lua), InCombatLockdown, IsInGroup and their siblings; a changed flag fires the event the client fires
--- for it.
+-- flag and the group kind. The world reads the last three from w.mock through game/keys.lua (IsShiftKeyDown and its
+-- siblings) and game/group.lua (InCombatLockdown, IsInGroup and theirs); a changed flag fires the event the client
+-- fires for it.
 local M = {}
 
 local Json = require("json")
@@ -66,26 +66,11 @@ local function copy(t)
   return out
 end
 
-local function installApi(w)
-  local mock = w.mock
-  w:install("InCombatLockdown", function()
-    return mock.combat
-  end, { gate = "api" })
-  w:install("IsInGroup", function()
-    return mock.group ~= "none"
-  end, { gate = "api" })
-  w:install("IsInRaid", function()
-    return mock.group == "raid"
-  end, { gate = "api" })
-end
-
 -- Merges { modifiers, combat, group } into w.mock (Game.install created it; later phases add their own fields beside
--- these), creates sess.state and installs the combat and group functions that read w.mock. The modifier keys are
--- answered by game/keys.lua.
+-- these) and creates sess.state. The APIs that read them are game/keys.lua and game/group.lua.
 function M.install(w, sess)
   w:setMock({ modifiers = DEFAULT_MODIFIERS, combat = false, group = "none" })
   sess.state = { units = Json.object({}), modifiers = copy(DEFAULT_MODIFIERS), combat = false, group = "none" }
-  installApi(w)
 end
 
 local function applyUnits(sess, units)
