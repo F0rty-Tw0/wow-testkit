@@ -218,7 +218,7 @@ local function test_button_state_takes_normal_pushed_and_disabled() -- W16
   end)
 end
 
-local function test_pushed_text_offset_round_trips() -- W20
+local function test_pushed_text_offset_round_trips_assumed() -- W20
   HW.withWidgets("retail", function()
     local b = newButton()
     b:SetPushedTextOffset(2, -3)
@@ -232,7 +232,7 @@ local function test_fresh_pushed_text_offset_is_one_minus_one_assumed() -- W20
   end)
 end
 
-local function test_font_objects_per_state() -- W22
+local function test_font_objects_per_state_assumed() -- W22
   HW.withWidgets("retail", function()
     local b = newButton()
     local disabled = _G.CreateFont("T63Disabled")
@@ -244,7 +244,7 @@ local function test_font_objects_per_state() -- W22
   end)
 end
 
-local function test_a_font_object_name_is_looked_up() -- W22
+local function test_a_font_object_name_is_looked_up_assumed() -- W22
   HW.withWidgets("retail", function()
     local b = newButton()
     local font = _G.CreateFont("T63Named")
@@ -263,7 +263,7 @@ local function test_text_width_follows_the_button_text_assumed() -- W23
   end)
 end
 
-local function test_lock_highlight_round_trips() -- W17
+local function test_lock_highlight_round_trips_assumed() -- W17
   HW.withWidgets("retail", function()
     local b = newButton()
     A.eq(b:IsHighlightLocked(), false)
@@ -276,7 +276,7 @@ local function test_lock_highlight_round_trips() -- W17
   end)
 end
 
-local function test_check_button_checked_textures() -- W24
+local function test_check_button_checked_textures_assumed() -- W24
   HW.withWidgets("retail", function()
     local cb = _G.CreateFrame("CheckButton", nil, _G.UIParent)
     local own = cb:CreateTexture()
@@ -290,7 +290,7 @@ local function test_check_button_checked_textures() -- W24
   end)
 end
 
-local function test_a_plain_button_has_no_checked_textures() -- W24
+local function test_a_plain_button_has_no_checked_textures_assumed() -- W24
   HW.withWidgets("retail", function()
     local b = newButton()
     A.eq(b.SetCheckedTexture, nil)
@@ -432,14 +432,14 @@ return function()
   test_set_formatted_text_goes_to_the_font_string()
   test_button_state_defaults_assumed()
   test_button_state_takes_normal_pushed_and_disabled()
-  test_pushed_text_offset_round_trips()
+  test_pushed_text_offset_round_trips_assumed()
   test_fresh_pushed_text_offset_is_one_minus_one_assumed()
-  test_font_objects_per_state()
-  test_a_font_object_name_is_looked_up()
+  test_font_objects_per_state_assumed()
+  test_a_font_object_name_is_looked_up_assumed()
   test_text_width_follows_the_button_text_assumed()
-  test_lock_highlight_round_trips()
-  test_check_button_checked_textures()
-  test_a_plain_button_has_no_checked_textures()
+  test_lock_highlight_round_trips_assumed()
+  test_check_button_checked_textures_assumed()
+  test_a_plain_button_has_no_checked_textures_assumed()
   test_button_text_font_follows_the_state_assumed()
   test_the_text_rect_follows_the_font_after_a_hover_assumed()
   test_the_text_rect_follows_the_font_after_a_disable_assumed()

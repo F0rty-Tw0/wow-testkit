@@ -24,7 +24,7 @@ local function button()
   return b
 end
 
-local function test_only_the_normal_texture_draws_at_rest() -- W17
+local function test_only_the_normal_texture_draws_at_rest_assumed() -- W17
   H.withRender(function(w)
     button()
     A.same(H.names(Render.snapshot(w), "Btn"), { "Btn", "BtnN" })
@@ -41,7 +41,7 @@ local function test_a_path_on_an_adopted_state_texture_draws_one_region_assumed(
   end)
 end
 
-local function test_pushed_state_swaps_the_texture_and_exports_state() -- W17
+local function test_pushed_state_swaps_the_texture_and_exports_state_assumed() -- W17
   H.withRender(function(w)
     local b = button()
     b:SetButtonState("PUSHED")
@@ -51,7 +51,7 @@ local function test_pushed_state_swaps_the_texture_and_exports_state() -- W17
   end)
 end
 
-local function test_pushed_without_a_pushed_texture_keeps_the_normal_one() -- W17
+local function test_pushed_without_a_pushed_texture_keeps_the_normal_one_assumed() -- W17
   H.withRender(function(w)
     local b = S.anchored("Button", "Bare")
     local normal = b:CreateTexture("BareN")
@@ -63,7 +63,7 @@ local function test_pushed_without_a_pushed_texture_keeps_the_normal_one() -- W1
   end)
 end
 
-local function test_highlight_draws_when_hovered_or_locked() -- W17
+local function test_highlight_draws_when_hovered_or_locked_assumed() -- W17
   H.withRender(function(w)
     local b = button()
     b:LockHighlight()
@@ -92,7 +92,7 @@ local function test_button_text_is_a_font_string_shifted_while_pushed() -- W20, 
   end)
 end
 
-local function test_pushed_state_shifts_only_the_button_text() -- W20
+local function test_pushed_state_shifts_only_the_button_text_assumed() -- W20
   H.withRender(function(w)
     local b = button()
     local other = b:CreateFontString("TOther")
@@ -104,7 +104,7 @@ local function test_pushed_state_shifts_only_the_button_text() -- W20
   end)
 end
 
-local function test_disabled_button_shows_its_disabled_texture_or_the_normal_one() -- W17
+local function test_disabled_button_shows_its_disabled_texture_or_the_normal_one_assumed() -- W17
   H.withRender(function(w)
     local b = button()
     b:Disable()
@@ -140,7 +140,7 @@ local function test_checked_texture_draws_while_checked_and_enabled_assumed() --
 end
 
 -- The viewer draws a stand-in check mark for a checked box, unless the addon gave it art of its own.
-local function test_a_check_button_says_whether_it_has_a_checked_texture() -- W24
+local function test_a_check_button_says_whether_it_has_a_checked_texture_assumed() -- W24
   H.withRender(function(w)
     local cb = S.anchored("CheckButton", "Chk")
     cb:SetChecked(true)
@@ -166,7 +166,7 @@ local function test_button_text_made_by_set_text_fills_the_button_assumed() -- W
   end)
 end
 
-local function test_set_font_string_on_a_pushed_button_shifts_the_text() -- W20
+local function test_set_font_string_on_a_pushed_button_shifts_the_text_assumed() -- W20
   H.withRender(function(w)
     local b = S.anchored("Button", "Late")
     local fs = b:CreateFontString("LateText")
@@ -187,17 +187,17 @@ local function test_fresh_button_widget_shape_is_unchanged()
 end
 
 return function()
-  test_only_the_normal_texture_draws_at_rest()
+  test_only_the_normal_texture_draws_at_rest_assumed()
   test_a_path_on_an_adopted_state_texture_draws_one_region_assumed()
-  test_pushed_state_swaps_the_texture_and_exports_state()
-  test_pushed_without_a_pushed_texture_keeps_the_normal_one()
-  test_highlight_draws_when_hovered_or_locked()
+  test_pushed_state_swaps_the_texture_and_exports_state_assumed()
+  test_pushed_without_a_pushed_texture_keeps_the_normal_one_assumed()
+  test_highlight_draws_when_hovered_or_locked_assumed()
   test_button_text_is_a_font_string_shifted_while_pushed()
-  test_pushed_state_shifts_only_the_button_text()
-  test_disabled_button_shows_its_disabled_texture_or_the_normal_one()
+  test_pushed_state_shifts_only_the_button_text_assumed()
+  test_disabled_button_shows_its_disabled_texture_or_the_normal_one_assumed()
   test_checked_texture_draws_while_checked_and_enabled_assumed()
-  test_a_check_button_says_whether_it_has_a_checked_texture()
+  test_a_check_button_says_whether_it_has_a_checked_texture_assumed()
   test_button_text_made_by_set_text_fills_the_button_assumed()
-  test_set_font_string_on_a_pushed_button_shifts_the_text()
+  test_set_font_string_on_a_pushed_button_shifts_the_text_assumed()
   test_fresh_button_widget_shape_is_unchanged()
 end

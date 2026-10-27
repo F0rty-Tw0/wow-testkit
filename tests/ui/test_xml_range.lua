@@ -76,7 +76,7 @@ local BUTTONS = [[
 <Ui><Button name="Bt"><DisabledTexture file="Interface\D"/></Button>
 <CheckButton name="Cb"><CheckedTexture file="Interface\C"/><DisabledCheckedTexture file="Interface\DC"/></CheckButton></Ui>]]
 
-local function test_disabled_and_checked_texture_elements_belong_to_the_button() -- W17
+local function test_disabled_and_checked_texture_elements_belong_to_the_button_assumed() -- W17
   H.withXml({ ["Ui.xml"] = BUTTONS }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
     A.same(
@@ -93,5 +93,5 @@ return function()
   test_a_path_retextures_the_xml_bar_texture_assumed()
   test_scroll_child_element_is_the_scroll_frames_child()
   test_edit_box_attributes_reach_their_setters()
-  test_disabled_and_checked_texture_elements_belong_to_the_button()
+  test_disabled_and_checked_texture_elements_belong_to_the_button_assumed()
 end
