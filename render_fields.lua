@@ -8,6 +8,7 @@ local BehaviourTexture = require("ui.behaviour_texture")
 local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
 local Read = require("render_read")
+local RenderAnim = require("render_anim")
 local TextState = require("ui.text_state")
 local Widgets = require("render_widgets")
 
@@ -142,7 +143,7 @@ function M.context(w, assets)
 end
 
 -- entry.rect and entry.clip are set by the caller (render.lua).
-function M.item(w, entry, assets)
+local function build(w, entry, assets)
   local st = entry.st
   local parent = st.parent and w.ui.state[st.parent]
   local item = {
@@ -171,6 +172,14 @@ function M.item(w, entry, assets)
     fontStringFields(w, entry.obj, st, item, assets)
     item.autoWidth = Layout.autoWidth(w, entry.obj) or nil
   end
+  return item
+end
+
+-- The item of entry, with the playing animations applied (render_anim.lua).
+function M.item(w, entry, assets)
+  local item = build(w, entry, assets)
+  RenderAnim.apply(w, entry.obj, item)
+
   return item
 end
 
