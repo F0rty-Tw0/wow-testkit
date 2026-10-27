@@ -29,6 +29,13 @@ local function test_register_unit_event_passes_only_listed_units() -- (C15)
   end)
 end
 
+local function test_register_unit_event_returns_registered() -- (C15)
+  H.withScenario("retail", function()
+    local frame = _G.CreateFrame("Frame")
+    A.eq(frame:RegisterUnitEvent("UNIT_HEALTH", "party1"), true)
+  end)
+end
+
 local function test_two_units_are_both_passed()
   H.withScenario("retail", function(w)
     local log = seen(function(frame)
@@ -119,6 +126,7 @@ end
 
 return function()
   test_register_unit_event_passes_only_listed_units()
+  test_register_unit_event_returns_registered()
   test_two_units_are_both_passed()
   test_unit_tokens_match_without_case()
   test_register_event_after_it_removes_the_filter_assumed()

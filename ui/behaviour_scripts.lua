@@ -42,10 +42,12 @@ function methods.RegisterEvent(w, obj, _, event)
 end
 
 -- source: confirmed (row C15) the frame gets the event only for the listed units (up to four), a repeated call or a later
--- RegisterEvent overwrites the registration; assumed the unit is the event's first argument.
+-- RegisterEvent overwrites the registration, and the call returns registered (true; an unknown event raises in
+-- registerEvent); assumed the unit is the event's first argument.
 function methods.RegisterUnitEvent(w, obj, _, event, ...)
   w:registerEvent(obj, event)
   w:setUnitFilter(obj, event, { ... })
+  return true
 end
 
 function methods.UnregisterEvent(w, obj, _, event)
