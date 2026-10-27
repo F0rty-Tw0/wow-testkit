@@ -3,7 +3,11 @@
 local A = require("assert")
 local G = require("tests.helpers.game")
 local Game = require("game")
+local Scenario = require("scenario")
 local World = require("world")
+
+local TEST_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.*)/game/[^/]*$") or "tests"
+local GOOD = TEST_DIR .. "/fixtures/smoke/Good"
 
 local function test_locale_and_realm_follow_the_mock() -- (G2)
   G.withGame("retail", function(w)
@@ -79,6 +83,20 @@ local function test_namespaced_cvars_share_the_store() -- (G3)
   end)
 end
 
+local function test_logged_in_flips_at_player_login_assumed() -- (G4)
+  local before, during
+  local results = Scenario.matrix({ "retail" }, function(s)
+    before = _G.IsLoggedIn()
+    local f = _G.CreateFrame("Frame")
+    f:RegisterEvent("PLAYER_LOGIN")
+    f:SetScript("OnEvent", function()
+      during = _G.IsLoggedIn()
+    end)
+    s:login()
+  end, { addon = "Good", root = GOOD })
+  A.same({ before, during, results.retail.status }, { nil, true, "pass" })
+end
+
 local function test_logged_in_is_nil_without_a_login() -- (G4)
   G.withGame("retail", function()
     A.eq(_G.IsLoggedIn(), nil)
@@ -121,6 +139,15 @@ local function test_net_stats_keep_four_values_in_an_addon_call() -- (G5)
   end)
 end
 
+local function test_scenario_mock_patches_the_world() -- (G2)
+  local locale
+  local results = Scenario.matrix({ "retail" }, function(s)
+    s:mock({ locale = "koKR" })
+    locale = _G.GetLocale()
+  end, { addon = "Good", root = GOOD })
+  A.same({ locale, results.retail.status }, { "koKR", "pass" })
+end
+
 local function test_names_the_flavor_lacks_stay_absent()
   G.withGame("retail", function(w)
     A.eq(Game.define(w, "NoSuchGameFunction", function() end), false)
@@ -153,11 +180,13 @@ return function()
   test_cvars_are_case_insensitive_strings()
   test_set_cvar_stores_the_string_form()
   test_namespaced_cvars_share_the_store()
+  test_logged_in_flips_at_player_login_assumed()
   test_logged_in_is_nil_without_a_login()
   test_server_time_follows_the_world_clock()
   test_server_time_counts_whole_seconds_from_the_world_start()
   test_kit_values_and_client_flags_assumed()
   test_net_stats_keep_four_values_in_an_addon_call()
+  test_scenario_mock_patches_the_world()
   test_names_the_flavor_lacks_stay_absent()
   test_define_listing_other_flavors_keeps_names_the_data_has()
 end

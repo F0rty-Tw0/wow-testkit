@@ -6,6 +6,7 @@ local M = {}
 local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local FrameXML = require("framexml.fakes")
+local Game = require("game")
 local Input = require("input")
 local Units = require("units")
 local Widgets = require("ui.widgets")
@@ -22,6 +23,7 @@ local CONTAINS_BINDINGS = false
 local Scenario = {}
 Scenario.__index = Scenario
 require("scenario_input").extend(Scenario)
+require("scenario_game").extend(Scenario)
 require("scenario_preview").extend(Scenario)
 require("scenario_snapshot").extend(Scenario)
 
@@ -43,6 +45,7 @@ end
 
 local function installWorld(w)
   Units.install(w)
+  Game.install(w)
   Widgets.install(w)
   FrameXML.installStage1(w)
 end
@@ -103,6 +106,9 @@ function Scenario:login(opts)
   Addon.applySaved(w, self.info, self.saved)
   self:fireIfKnown("ADDON_LOADED", self.addon, CONTAINS_BINDINGS)
   for _, event in ipairs(LOGIN_EVENTS) do
+    if event == "PLAYER_LOGIN" then
+      w.mock.loggedIn = true
+    end
     self:fireIfKnown(event)
   end
   self:fireIfKnown("PLAYER_ENTERING_WORLD", not reloading, reloading)
