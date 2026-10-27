@@ -15,7 +15,7 @@ KETHO_FILES=(GlobalAPI Frames FrameXML WidgetAPI Events Templates)
 DOCS_PATH="Interface/AddOns/Blizzard_APIDocumentationGenerated"
 MIN_DOC_FILES=400
 # Reference only, never loaded by the kit: Blizzard's menu code, read when checking the kit's menu fakes.
-REFERENCE_PATHS=("Interface/AddOns/Blizzard_Menu/" "Interface/AddOns/Blizzard_SharedXML/*/UIDropDownMenu.lua" "Interface/AddOns/Blizzard_CombatLog/" "Interface/AddOns/Blizzard_NamePlates/")
+REFERENCE_PATHS=("Interface/AddOns/Blizzard_Menu/" "Interface/AddOns/Blizzard_SharedXML/*/UIDropDownMenu.lua" "Interface/AddOns/Blizzard_CombatLog/" "Interface/AddOns/Blizzard_NamePlates/" "Interface/AddOns/**/Secure*.lua" "Interface/AddOns/**/Restricted*.lua" "Interface/AddOns/**/UIParent.lua")
 USAGE="usage: bash tools/fetch.sh <branch> [--latest]"
 
 die() {
