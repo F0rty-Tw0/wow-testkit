@@ -83,6 +83,10 @@ local ACTIONS = {
   -- target: a unit token; without one every unengaged hostile is pulled.
   pull = function(sess, req)
     if req.target ~= nil then
+      -- s:pull also takes an actor spec, but a spec's AI timers are scenario code, never a web request's.
+      if type(req.target) ~= "string" then
+        fail("pull target must be a unit token")
+      end
       sess.s:pull(req.target)
       return true
     end

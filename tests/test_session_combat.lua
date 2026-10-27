@@ -118,6 +118,9 @@ local function test_bad_requests_are_refused()
     A.contains(combat(sess, { action = "step", seconds = 61 }).error, "seconds")
     A.contains(combat(sess, { action = "kill" }).error, "target")
     A.contains(combat(sess, { action = "preset", name = "arena" }).error, "unknown preset 'arena'")
+    -- A web request names a unit; an actor spec (with its own AI timers) is scenario code only.
+    local spec = { name = "X", ai = { swing = { every = 0.00001, damage = 0 } } }
+    A.contains(combat(sess, { action = "pull", target = spec }).error, "unit token")
     A.eq(sess.seq, seq)
   end)
 end
