@@ -44,18 +44,18 @@ local function cycleReason(stack, name)
   return "dependency cycle: " .. table.concat(path, " -> ")
 end
 
--- opts: { name, root, addonsDir? = the parent of root, flavor }. Returns entries = { { name, root, required }, ... }
--- with each addon's required dependencies first, then its optional ones (each depth first), and the addon last;
--- required is true for the addon and for each entry reached through required dependencies only. Or returns nil and
--- why it cannot load: "missing dependency: <name>" or "dependency cycle: A -> B -> A". A dependency listed twice
--- loads once.
+-- opts: { name, root, addonsDir? = the parent of root, flavor, provided? = fn(name) true for a dependency satisfied
+-- without a folder }. Returns entries = { { name, root, required }, ... } with each addon's required dependencies first,
+-- then its optional ones (each depth first), and the addon last; required is true for the addon and for each entry
+-- reached through required dependencies only. Or returns nil and why it cannot load: "missing dependency: <name>" or
+-- "dependency cycle: A -> B -> A". A dependency listed twice loads once.
 function M.order(opts)
   local addonsDir = opts.addonsDir or M.addonsDirOf(opts.root)
   local entries, done, visiting, stack = {}, {}, {}, {}
   local entryOf = {}
   local visit
   -- source: assumed (row G16) a Blizzard_ dependency is satisfied without loading and is not listed; an absent
-  -- optional dependency is ignored; a required one that is absent blocks the addon.
+  -- optional dependency is ignored; a required one that is absent blocks the addon unless opts.provided answers for it.
   local function visitAll(names, required, viaRequired)
     for _, dep in ipairs(names) do
       local root = addonsDir .. "/" .. dep
@@ -65,7 +65,7 @@ function M.order(opts)
           if reason then
             return reason
           end
-        elseif required then
+        elseif required and not (opts.provided and opts.provided(dep)) then
           return "missing dependency: " .. dep
         end
       end
@@ -121,12 +121,21 @@ end
 
 -- Loads M.order(opts) (flavor = w's) under the caller's context through Addon.load and calls afterEach(entry) after
 -- each addon that loads; entry = { name, ns, info }. A dependency w.mock.addons already holds as loaded is not loaded
--- again. The last entry is the addon itself. A dependency that comes back skipped stops the addon only when it is
--- required; an optional one is passed over. When the addon cannot load (the order failed, a required dependency came
--- back skipped, or its own TOC skips it) its info is skipped with a reason: "missing dependency: X", "dependency
--- cycle: A -> B -> A" or "dependency X not loadable: <its reason>", and afterEach is not called for it.
+-- again, and satisfies a required dependency that has no folder. The last entry is the addon itself. A dependency that
+-- comes back skipped stops the addon only when it is required; an optional one is passed over. When the addon cannot
+-- load (the order failed, a required dependency came back skipped, or its own TOC skips it) its info is skipped with a
+-- reason: "missing dependency: X", "dependency cycle: A -> B -> A" or "dependency X not loadable: <its reason>", and
+-- afterEach is not called for it.
 function M.loadAll(w, opts, afterEach)
-  local order, reason = M.order({ name = opts.name, root = opts.root, addonsDir = opts.addonsDir, flavor = w.flavor })
+  local order, reason = M.order({
+    name = opts.name,
+    root = opts.root,
+    addonsDir = opts.addonsDir,
+    flavor = w.flavor,
+    provided = function(dep)
+      return isLoaded(w, dep)
+    end,
+  })
   if not order then
     return { { name = opts.name, ns = {}, info = skipped(reason) } }
   end
