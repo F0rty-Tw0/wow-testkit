@@ -27,6 +27,18 @@ def check_reversed_fill(root):
     expect_style(fill, {"inset": "0px 0px auto auto", "width": "80%"})
 
 
+def check_center_fill(root):
+    fill = one(by_id(root, "f4"), by_class("fill"), ".fill")
+    expect_style(fill, {"inset": "0px auto auto 25%", "width": "50%", "height": "100%"})
+    vertical = one(by_id(root, "f6"), by_class("fill"), ".fill")
+    expect_style(vertical, {"inset": "40% auto auto 0px", "width": "100%", "height": "20%"})
+
+
+def check_reverse_fill_style(root):
+    fill = one(by_id(root, "f5"), by_class("fill"), ".fill")
+    expect_style(fill, {"inset": "0px 0px auto auto", "width": "80%"})
+
+
 def check_thumb(root):
     thumb = one(by_id(root, "f3"), by_class("thumb"), ".thumb")
     expect_style(thumb, {"left": "50%", "width": "10px", "height": "20px", "background-color": "rgb(255, 0, 0)"})
@@ -37,6 +49,8 @@ def check_thumb(root):
 CHECKS = [
     ("edit selection", check_selection),
     ("reversed status bar fill", check_reversed_fill),
+    ("centre status bar fill", check_center_fill),
+    ("reverse fill style status bar", check_reverse_fill_style),
     ("slider thumb at the value fraction", check_thumb),
 ]
 

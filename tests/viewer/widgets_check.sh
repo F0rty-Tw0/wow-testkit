@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Viewer widget check: serves viewer/ and tests/viewer/widgets_fixture.json on 127.0.0.1, dumps the DOM with headless Chrome
-# and asserts the EditBox selection, the reversed StatusBar fill and the Slider thumb.
+# and asserts the EditBox selection, the reversed, Center and Reverse StatusBar fills and the Slider thumb.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT="${1:?usage: widgets_check.sh <scratch-dir>}"

@@ -16,6 +16,21 @@
       "id": "f3", "kind": "frame", "name": "Slide", "alpha": 1, "strata": "MEDIUM", "level": 1,
       "rect": { "x": 20, "y": 140, "width": 200, "height": 20 },
       "widget": { "type": "Slider", "value": 5, "min": 0, "max": 10, "orientation": "HORIZONTAL", "thumb": { "width": 10, "height": 20, "color": [1, 0, 0, 1] } }
+    },
+    {
+      "id": "f4", "kind": "frame", "name": "CenterBar", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 20, "y": 180, "width": 200, "height": 20 },
+      "widget": { "type": "StatusBar", "value": 5, "min": 0, "max": 10, "color": [0, 1, 0, 1], "orientation": "HORIZONTAL", "fillStyle": "CENTER" }
+    },
+    {
+      "id": "f5", "kind": "frame", "name": "ReverseBar", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 20, "y": 220, "width": 200, "height": 20 },
+      "widget": { "type": "StatusBar", "value": 8, "min": 0, "max": 10, "color": [0, 1, 0, 1], "orientation": "HORIZONTAL", "fillStyle": "REVERSE" }
+    },
+    {
+      "id": "f6", "kind": "frame", "name": "VerticalCenterBar", "alpha": 1, "strata": "MEDIUM", "level": 1,
+      "rect": { "x": 260, "y": 20, "width": 20, "height": 200 },
+      "widget": { "type": "StatusBar", "value": 2, "min": 0, "max": 10, "color": [0, 1, 0, 1], "orientation": "VERTICAL", "fillStyle": "CENTER" }
     }
   ]
 }

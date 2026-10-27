@@ -127,15 +127,22 @@
     return span > 0 && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
   }
 
-  // The fill's box inside its bar: it grows from the left (bottom when vertical) and from the opposite edge when reversed.
+  // The fill's box inside its bar. A Standard fill grows from the left (bottom when vertical) and from the opposite edge
+  // when reversed or the Reverse fill style; a Center fill grows from the middle, as long as the fraction.
   V.fillRect = function (widget) {
-    const percent = fraction(widget) * 100 + '%';
-    const reversed = Boolean(widget.reverse);
-    if (widget.orientation === 'VERTICAL') {
-      return { left: '0px', right: 'auto', top: reversed ? '0px' : 'auto', bottom: reversed ? 'auto' : '0px', width: '100%', height: percent };
-    }
+    const part = fraction(widget) * 100;
+    const style = String(widget.fillStyle || 'STANDARD').toUpperCase();
+    const reversed = Boolean(widget.reverse) || style === 'REVERSE';
+    const vertical = widget.orientation === 'VERTICAL';
+    const box = vertical
+      ? { left: '0px', right: 'auto', top: 'auto', bottom: 'auto', width: '100%', height: part + '%' }
+      : { top: '0px', bottom: 'auto', left: 'auto', right: 'auto', width: part + '%', height: '100%' };
+    const near = vertical ? 'bottom' : 'left';
+    const far = vertical ? 'top' : 'right';
+    if (style === 'CENTER') box[vertical ? 'top' : 'left'] = (100 - part) / 2 + '%';
+    else box[reversed ? far : near] = '0px';
 
-    return { top: '0px', bottom: 'auto', left: reversed ? 'auto' : '0px', right: reversed ? '0px' : 'auto', width: percent, height: '100%' };
+    return box;
   };
 
   // A bar texture covers the fill; the bar colour stays under it.
