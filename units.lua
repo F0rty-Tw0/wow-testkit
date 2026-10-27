@@ -69,7 +69,6 @@ local FIELD_ANSWERS = {
   UnitPlayerControlled = { "playerControlled" },
   UnitCreatureType = { "creatureType", "creatureTypeID" },
   UnitClassification = { "classification" },
-  UnitThreatSituation = { "threat" },
   UnitGetTotalAbsorbs = { "absorbs" },
   UnitGetIncomingHeals = { "incomingHeals" },
 }
@@ -238,7 +237,7 @@ function M.install(w)
   for name, answer in pairs(specialAnswers(w)) do
     w:install(name, answer, API_GATE)
   end
-  UnitsExtra.install(w, { fixture = fixture, fieldAnswer = fieldAnswer, normalize = normalize })
+  UnitsExtra.install(w, { fixture = fixture, fieldAnswer = fieldAnswer, normalize = normalize, guidOf = guidOf })
 end
 
 return M
