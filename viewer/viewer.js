@@ -8,7 +8,7 @@
   const ZOOM_STEP = 1.25;
   const ORIGIN = { x: 0, y: 0 };
   const TINT_FIELD = { texture: 'vertexColor', fontstring: 'color' };
-  const BUILD = { frame: V.frame, texture: V.texture, fontstring: V.fontString };
+  const BUILD = { frame: V.frame, texture: V.texture, fontstring: V.fontString, backdrop: V.backdrop };
   const params = new URLSearchParams(location.search);
   const view = { zoom: params.get('zoom') || '1', screen: null, outline: params.get('outline') === '1' };
 

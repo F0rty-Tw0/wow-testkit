@@ -12,8 +12,8 @@ from check_features import CHECKS as FEATURE_CHECKS
 from dom_tree import TreeParser, by_class, by_id, expect_style, find, one
 
 ORDER = [
-    "f1", "t2", "t3", "t4", "s5", "s6", "t7", "f8", "f9", "s10",
-    "t11", "t12", "t13", "t14", "t15", "t16", "t17", "t18", "f19", "f20", "f21", "f22",
+    "f1", "b1.center", "b1.edge", "t2", "t3", "t4", "s5", "s6", "t7", "f8", "f9", "s10",
+    "t11", "t12", "t13", "t14", "t15", "t16", "t17", "t18", "f19", "b19.center", "f20", "b20.center", "f21", "b21.center", "f22", "b22.center",
     "s23", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31", "t32",
 ]  # fmt: skip
 
@@ -83,8 +83,8 @@ def check_widgets(root):
 
 
 def check_backdrop(root):
-    backdrop = one(by_id(root, "f1"), by_class("backdrop"), ".backdrop")
-    expect_style(backdrop, {"background-color": "rgba(26, 26, 26, 0.9)"})
+    expect_style(by_id(root, "b1.center"), {"background-color": "rgba(26, 26, 26, 0.9)"})
+    expect_style(by_id(root, "b1.edge"), {"border": "1px solid rgb(255, 255, 255)"})
 
 
 def check_auto_width(root):
@@ -113,7 +113,7 @@ CHECKS = [
     ("inline escapes s6", check_inline),
     ("clip t7", check_clip),
     ("widgets f8 f9", check_widgets),
-    ("backdrop f1", check_backdrop),
+    ("backdrop pieces of f1", check_backdrop),
     ("errors banner", check_errors),
     ("auto-width text s10", check_auto_width),
 ] + FEATURE_CHECKS

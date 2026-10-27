@@ -88,8 +88,8 @@ local function test_plain_frame_has_no_widget_and_no_backdrop()
   H.withRender(function(w)
     anchored("Frame", "Plain")
     local item = H.item(Render.snapshot(w), "Plain")
-    A.eq(item.widget, nil)
-    A.eq(item.backdrop, nil)
+    local snap = Render.snapshot(w)
+    A.same({ item.widget, item.backdrop, H.piece(snap, "Plain", "center"), H.piece(snap, "Plain", "edge") }, {})
   end)
 end
 
@@ -117,7 +117,8 @@ local function test_backdrop_exports_files_colours_and_insets() -- (V13)
       color = { 0, 0, 0, 0.5 },
       borderColor = { 1, 0, 0, 1 },
     }
-    A.same(H.item(snap, "BD").backdrop, expected)
+    A.same(H.piece(snap, "BD", "center").backdrop, expected)
+    A.same(H.piece(snap, "BD", "edge").backdrop, expected)
     A.same(snap.assets["path:interface/buttons/white8x8"], { kind = "path", path = "Interface/Buttons/WHITE8X8" })
   end)
 end
@@ -126,7 +127,7 @@ local function test_backdrop_colours_default_to_white() -- (V13)
   H.withRender(function(w)
     anchored("Frame", "WhiteBD", "BackdropTemplate"):SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
     A.same(
-      H.item(Render.snapshot(w), "WhiteBD").backdrop,
+      H.piece(Render.snapshot(w), "WhiteBD", "center").backdrop,
       { bgFile = "path:interface/buttons/white8x8", color = { 1, 1, 1, 1 }, borderColor = { 1, 1, 1, 1 } }
     )
   end)
@@ -137,7 +138,45 @@ local function test_cleared_backdrop_is_absent()
     local frame = anchored("Frame", "GoneBD", "BackdropTemplate")
     frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
     frame:SetBackdrop(nil)
-    A.eq(H.item(Render.snapshot(w), "GoneBD").backdrop, nil)
+    A.eq(H.piece(Render.snapshot(w), "GoneBD", "center"), nil)
+  end)
+end
+
+-- source: row V4 (confirmed) the backdrop's Center texture is in BACKGROUND and its edge pieces default to BORDER, so a
+-- region in either layer sorts with them; assumed (the sublevel is 0 and a piece draws below a region of the same layer and
+-- sublevel, as the frame is created first).
+local function test_backdrop_pieces_sort_with_the_regions_of_their_layers_assumed()
+  H.withRender(function(w)
+    local frame = anchored("Frame", "SortBD", "BackdropTemplate")
+    frame:SetBackdrop({ bgFile = "Interface/Buttons/WHITE8X8", edgeFile = "Interface/Tooltips/UI-Tooltip-Border" })
+    local function region(name, layer, sublevel)
+      local texture = frame:CreateTexture(name, layer, nil, sublevel)
+      texture:SetAllPoints()
+      texture:SetColorTexture(1, 0, 0, 1)
+    end
+    region("Art", "ARTWORK")
+    region("Border", "BORDER")
+    region("Back", "BACKGROUND")
+    region("Under", "BACKGROUND", -1)
+    local order = {}
+    for _, item in ipairs(Render.snapshot(w).items) do
+      if item.parent == "f" .. w.ui.state[frame].seq or item.name == "SortBD" then
+        order[#order + 1] = item.piece or item.name
+      end
+    end
+    A.same(order, { "SortBD", "Under", "center", "Back", "edge", "Border", "Art" })
+  end)
+end
+
+local function test_backdrop_piece_follows_the_frame_alpha_and_has_no_name()
+  H.withRender(function(w)
+    local frame = anchored("Frame", "AlphaBD", "BackdropTemplate")
+    frame:SetBackdrop({ bgFile = "Interface/Buttons/WHITE8X8" })
+    frame:SetAlpha(0.5)
+    local snap = Render.snapshot(w)
+    local piece = H.piece(snap, "AlphaBD", "center")
+    A.same({ piece.alpha, piece.name, piece.layer, piece.rect }, { 0.5, nil, "BACKGROUND", H.rect(snap, "AlphaBD") })
+    A.eq(H.piece(snap, "AlphaBD", "edge").layer, "BORDER")
   end)
 end
 
@@ -167,5 +206,7 @@ return function()
   test_backdrop_exports_files_colours_and_insets()
   test_backdrop_colours_default_to_white()
   test_cleared_backdrop_is_absent()
+  test_backdrop_pieces_sort_with_the_regions_of_their_layers_assumed()
+  test_backdrop_piece_follows_the_frame_alpha_and_has_no_name()
   test_widget_snapshot_leaves_unscripted_counts_alone()
 end

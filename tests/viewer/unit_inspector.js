@@ -46,6 +46,15 @@
   });
 
   TK_TESTS.push({
+    name: 'inspector.pick answers a backdrop piece with its frame',
+    fn() {
+      const frame = { id: 'f1', rect: { x: 0, y: 0, width: 100, height: 100 } };
+      const piece = { id: 'b1.center', kind: 'backdrop', parent: 'f1', rect: frame.rect };
+      A.eq(TK.inspector.pick({ items: [frame, piece] }, 10, 10), 'f1');
+    },
+  });
+
+  TK_TESTS.push({
     name: 'inspector.outlineBox places a screen rect as percentages of the screen',
     fn() {
       const box = TK.inspector.outlineBox({ x: 960, y: 270, width: 192, height: 108 }, { width: 1920, height: 1080 });

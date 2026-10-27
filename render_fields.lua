@@ -12,7 +12,7 @@ local RenderAnim = require("render_anim")
 local TextState = require("ui.text_state")
 local Widgets = require("render_widgets")
 
-local ID_PREFIX = { frame = "f", texture = "t", fontstring = "s" }
+local ID_PREFIX = { frame = "f", texture = "t", fontstring = "s", backdrop = "b" }
 local WHITE = { 1, 1, 1, 1 }
 -- source: assumed (W29) the shadow colour GetShadowColor reports before one is set.
 local NO_SHADOW = { 0, 0, 0, 0 }
@@ -21,8 +21,11 @@ M.refPath = Assets.refPath
 M.refId = Assets.refId
 M.refAtlas = Assets.refAtlas
 
+-- "f3" for a frame, "b3.center" for the center piece of the backdrop of frame 3.
 function M.id(entry)
-  return ID_PREFIX[entry.kind] .. entry.st.seq
+  local suffix = entry.piece and "." .. entry.piece or ""
+
+  return ID_PREFIX[entry.kind] .. entry.st.seq .. suffix
 end
 
 local addAtlas, addFont, addFile = Assets.addAtlas, Assets.addFont, Assets.addFile
@@ -142,8 +145,27 @@ function M.context(w, assets)
   }
 end
 
+-- A backdrop piece: the whole backdrop data, drawn in the layer of the piece, with the frame as its parent.
+local function backdropPiece(w, entry, assets)
+  return {
+    id = M.id(entry),
+    kind = entry.kind,
+    piece = entry.piece,
+    parent = M.id({ kind = "frame", st = entry.st }),
+    rect = entry.rect,
+    clip = entry.clip,
+    alpha = BehaviourRender.effectiveAlpha(w, entry.obj),
+    layer = entry.layer,
+    sublevel = 0,
+    backdrop = Widgets.backdrop(w, entry.st, assets),
+  }
+end
+
 -- entry.rect and entry.clip are set by the caller (render.lua).
 local function build(w, entry, assets)
+  if entry.kind == "backdrop" then
+    return backdropPiece(w, entry, assets)
+  end
   local st = entry.st
   local parent = st.parent and w.ui.state[st.parent]
   local item = {
@@ -159,7 +181,6 @@ local function build(w, entry, assets)
     item.strata = BehaviourRender.methods.GetFrameStrata(w, entry.obj, st)
     item.level = BehaviourRender.methods.GetFrameLevel(w, entry.obj, st)
     item.widget = Widgets.state(w, entry.obj, st, M.context(w, assets))
-    item.backdrop = Widgets.backdrop(w, st, assets)
     return item
   end
   local layer = Read.stored(st, "DrawLayer")

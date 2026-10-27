@@ -43,13 +43,14 @@ window.TK = window.TK || {};
     return across && down;
   }
 
-  // The id of the topmost drawn item (snapshot items are back to front) whose rect and clip hold the screen point.
+  // The id of the topmost drawn item (snapshot items are back to front) whose rect and clip hold the screen point; a
+  // backdrop piece answers with its frame.
   inspector.pick = (snapshot, x, y) => {
     const items = snapshot.items || [];
     for (let i = items.length - 1; i >= 0; i--) {
       const item = items[i];
       const unclipped = !item.clip || contains(item.clip, x, y);
-      if (item.rect && contains(item.rect, x, y) && unclipped) return item.id;
+      if (item.rect && contains(item.rect, x, y) && unclipped) return item.kind === 'backdrop' ? item.parent : item.id;
     }
 
     return null;

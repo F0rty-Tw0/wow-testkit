@@ -88,7 +88,7 @@ local function test_nan_backdrop_insets_encode_as_null()
     f:SetPoint("CENTER")
     f:SetBackdrop({ bgFile = "InterfaceButtonsWHITE8X8", insets = { left = NAN, right = 1, top = 1, bottom = 1 } })
     local snap, text = encoded(w)
-    A.eq(H.item(snap, "BadBD").backdrop.insets.left, Json.null)
+    A.eq(H.piece(snap, "BadBD", "center").backdrop.insets.left, Json.null)
     A.contains(text, '"left":null')
   end)
 end

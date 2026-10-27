@@ -100,9 +100,15 @@
     effects(node, item);
   };
 
-  // Colour as the fill, bgFile over it, the border from borderColor and edgeSize. Insets and the edge art are not drawn.
-  function backdrop(info, ctx) {
-    const node = div('backdrop');
+  // The center piece draws the colour as the fill and bgFile over it; the edge piece draws the border from borderColor and
+  // edgeSize. Insets and the edge art are not drawn.
+  V.backdrop = function (node, item, ctx) {
+    const info = item.backdrop;
+    if (item.piece === 'edge') {
+      if (info.edgeFile || info.borderColor) node.style.border = `${Number(info.edgeSize) || 1}px solid ${V.rgba(info.borderColor || V.WHITE)}`;
+
+      return;
+    }
     const href = info.bgFile && V.assetUrl(ctx, info.bgFile);
     const tileSize = Number(info.tileSize) > 0 ? `${info.tileSize}px` : 'auto';
     if (info.color) node.style.backgroundColor = V.rgba(info.color);
@@ -112,10 +118,7 @@
       node.style.backgroundRepeat = info.tile ? 'repeat' : 'no-repeat';
       node.style.backgroundSize = info.tile ? tileSize : '100% 100%';
     }
-    if (info.edgeFile || info.borderColor) node.style.border = `${Number(info.edgeSize) || 1}px solid ${V.rgba(info.borderColor || V.WHITE)}`;
-
-    return node;
-  }
+  };
 
   function fraction(widget) {
     const span = Number(widget.max) - Number(widget.min);
@@ -228,7 +231,6 @@
 
   V.frame = function (node, item, ctx) {
     const build = item.widget && WIDGETS[item.widget.type];
-    if (item.backdrop) node.append(backdrop(item.backdrop, ctx));
     if (build) build(node, item.widget, ctx, item);
   };
 })((window.Viewer = window.Viewer || {}));
