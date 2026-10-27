@@ -116,7 +116,7 @@ end
 
 local function isLoaded(w, name)
   local known = w.mock and w.mock.addons and w.mock.addons[name]
-  return known ~= nil and known.loaded == true
+  return type(known) == "table" and known.loaded == true
 end
 
 -- Loads M.order(opts) (flavor = w's) under the caller's context through Addon.load and calls afterEach(entry) after

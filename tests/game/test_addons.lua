@@ -136,6 +136,35 @@ local function test_mock_addons_need_no_folder_assumed()
   end)
 end
 
+-- source: assumed (row G15) false is how a scenario clears an addon (a mock patch never deletes): the addon counts as
+-- absent, so no reader indexes it.
+local function test_an_addon_cleared_with_false_is_absent_assumed()
+  G.withGame("retail", function(w)
+    w:setMock({ addons = { Gone = { loaded = true } } })
+    A.eq(_G.C_AddOns.GetNumAddOns(), 1)
+    w:setMock({ addons = { Gone = false } })
+    A.eq(_G.C_AddOns.GetNumAddOns(), 0)
+    A.same({ _G.C_AddOns.IsAddOnLoaded("Gone") }, { false, false })
+    A.eq(_G.C_AddOns.GetAddOnInfo("Gone"), nil)
+    A.eq(_G.C_AddOns.GetAddOnMetadata("Gone", "Title"), nil)
+    A.same({ pcall(_G.C_AddOns.LoadAddOn, "Gone") }, { true, nil, "MISSING" })
+    _G.C_AddOns.EnableAddOn("Gone")
+    A.eq(_G.C_AddOns.GetNumAddOns(), 0)
+  end)
+end
+
+-- source: assumed (row G15) a dependency cleared with false is not loaded, so it loads from its folder.
+local function test_a_dependency_cleared_with_false_loads_from_its_folder_assumed()
+  local dir = corpus()
+  addon(dir, "Late", "## Dependencies: Lib\n", WATCH)
+  addon(dir, "Lib", "", WATCH)
+  withLogin("retail", dir, function(_, w)
+    w:setMock({ addons = { Lib = false } })
+    A.eq(_G.C_AddOns.LoadAddOn("Late"), true)
+    A.eq(_G.C_AddOns.IsAddOnLoaded("Lib"), true)
+  end)
+end
+
 -- source: assumed (row G15) an addon that is not installed answers the defaults; the kit knows the addons folder, so
 -- that is a scripted answer (addons probe optional integrations this way), not an unscripted one.
 local function test_an_uninstalled_addon_answers_defaults_as_scripted_assumed()
@@ -185,6 +214,8 @@ return function()
   test_load_on_demand_loads_dependencies_first()
   test_load_on_demand_failures_name_a_reason_assumed()
   test_mock_addons_need_no_folder_assumed()
+  test_an_addon_cleared_with_false_is_absent_assumed()
+  test_a_dependency_cleared_with_false_loads_from_its_folder_assumed()
   test_an_uninstalled_addon_answers_defaults_as_scripted_assumed()
   test_bare_addon_globals_are_absent_and_reload_calls_are_present()
   test_reload_ui_flags_and_logout_quit_are_scripted_assumed()

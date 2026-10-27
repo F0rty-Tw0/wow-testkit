@@ -1,7 +1,7 @@
 -- Addon APIs over w.mock: addons = { [name] = { loaded, enabled, meta } } and addonsDir. The installed addons are the
 -- folders of addonsDir that hold a TOC (listed in name order) plus every name the mock holds; an addon's fields come from
--- the mock, else from its TOC for the world's flavor. Loading one on demand goes through AddonDeps, so its dependencies
--- load first. Only the C_AddOns names are installed: no flavor has the bare globals (row G1).
+-- the mock, else from its TOC for the world's flavor. A mock entry that is not a table (false clears one) is no entry.
+-- Loading one on demand goes through AddonDeps, so its dependencies load first. Only the C_AddOns names are installed: no flavor has the bare globals (row G1).
 local M = {}
 
 local AddonDeps = require("addon_deps")
@@ -43,8 +43,8 @@ local function newCatalog(w)
       seen[name] = true
       names[#names + 1] = name
     end
-    for name in pairs(w.mock.addons) do
-      if not seen[name] then
+    for name, held in pairs(w.mock.addons) do
+      if not seen[name] and type(held) == "table" then
         names[#names + 1] = name
       end
     end
@@ -66,8 +66,10 @@ local function newCatalog(w)
     return nil
   end
 
+  -- The mock's record of name; false (how a patch clears an addon) and nil are no record.
   function catalog.state(name)
-    return w.mock.addons[name] or {}
+    local held = w.mock.addons[name]
+    return type(held) == "table" and held or {}
   end
 
   function catalog.enabled(name)
