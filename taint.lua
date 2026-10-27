@@ -11,6 +11,8 @@ local setmetatable, pcall, error, select, unpack = setmetatable, pcall, error, s
 local getinfo, tremove = debug.getinfo, table.remove
 
 M.LOG_LIMIT = 1000
+-- The taint forceinsecure records; the name is recalled from taint logs, not sourced (row TS6, assumed).
+M.FORCED = "*** ForceTaint_Strong ***"
 
 local ADDON_SOURCE = "^@addon:([^/\r\n]+)/"
 
@@ -36,6 +38,7 @@ function M.install(w)
   -- smoke run past its budget hooks every call, so a 0-second ticker would pay that per key.
   M.declare(w, rawget(_G, "Enum"), "Enum", true)
   M.declare(w, rawget(_G, "Constants"), "Constants", true)
+  require("taint_api").install(w)
 end
 
 -- The running taint: the addon's name, or nil while execution is secure.
@@ -246,6 +249,18 @@ function M.read(w, tbl, key)
   stack[depth] = taint
   local text = "execution tainted by " .. taint .. " reading " .. tostring(key)
   M.record(w, { kind = "read", addon = taint, name = key, text = text })
+end
+
+-- source: `blizzard_framexml/securetemplates.lua:752` (forceinsecure taints the rest of the execution). Taints the running
+-- frame with Taint.FORCED and logs it; nothing when no frame is running.
+function M.force(w)
+  local stack = w.taint.stack
+  local depth = #stack
+  if depth == 0 then
+    return
+  end
+  stack[depth] = M.FORCED
+  M.record(w, { kind = "forced", addon = M.FORCED, name = "forceinsecure", text = "execution tainted by forceinsecure" })
 end
 
 return M

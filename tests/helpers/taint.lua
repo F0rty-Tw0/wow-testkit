@@ -34,4 +34,15 @@ function M.probe(w, Taint)
   end)
 end
 
+-- The log entries of kind (every entry when kind is nil), oldest first.
+function M.events(w, kind)
+  local out = {}
+  for _, entry in ipairs(w.taint.log) do
+    if kind == nil or entry.kind == kind then
+      out[#out + 1] = entry
+    end
+  end
+  return out
+end
+
 return M

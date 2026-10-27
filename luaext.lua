@@ -1,6 +1,6 @@
 -- WoW's Lua extensions: the global string/table/math aliases, wipe/strsplit/strjoin/strtrim/tContains,
--- hooksecurefunc, securecall, issecurevariable, forceinsecure, debugstack, the error handler, debugprofilestop, GetTime and
--- C_Timer.
+-- hooksecurefunc, debugstack, the error handler, debugprofilestop, GetTime and C_Timer. The secure-execution APIs
+-- (issecure, securecall, forceinsecure, ...) are taint_api.lua.
 -- Installed into every world by world.lua (gate "none"; C_Timer through gate "api").
 local AddonEnv = require("addon_env")
 local Taint = require("taint")
@@ -114,24 +114,13 @@ local function hooksecurefunc(w, tbl, name, hook)
   if type(original) ~= "function" then
     error("hooksecurefunc(): " .. tostring(name) .. " is not a function", 3)
   end
-  w:rawWrite(tbl, name, function(...)
+  local wrapper = function(...)
     local results = pack(original(...))
     w:callAsAddon(hook, ...)
     return unpack(results, 1, results.n)
-  end)
-end
-
--- securecall(fn | globalName, ...): fn's results; on error, reports it to the error handler and returns nothing.
--- The error behaviour is inferred from the game (securecall never propagates), not from documentation. A global name
--- resolves as addon code sees it, so a host-only one (require, io, ...) is not found.
-local function securecall(w, fn, ...)
-  if type(fn) == "string" then
-    fn = AddonEnv.global(w, fn)
   end
-  local results = w:try(fn, ...)
-  if results[1] then
-    return unpack(results, 2, results.n)
-  end
+  -- source: assumed (row TS7) installing a hook leaves the slot secure; the hook runs after the original with its own taint.
+  Taint.secure(w, w.rawWrite, w, tbl, name, wrapper)
 end
 
 local function installErrorHandler(w)
@@ -172,15 +161,8 @@ function M.install(w)
   w:install("hooksecurefunc", function(tbl, name, hook)
     hooksecurefunc(w, tbl, name, hook)
   end)
-  w:install("securecall", function(fn, ...)
-    return securecall(w, fn, ...)
-  end)
-  w:install("issecurevariable", function()
-    return true, nil
-  end)
-  -- Both are engine functions with no Lua source (row W72, assumed): forceinsecure does nothing, and debugstack answers an
-  -- empty stack because the kit keeps no stack text of its own.
-  w:install("forceinsecure", function() end)
+  -- An engine function with no Lua source (row W72, assumed): debugstack answers an empty stack because the kit keeps no
+  -- stack text of its own.
   w:install("debugstack", function()
     return ""
   end)
