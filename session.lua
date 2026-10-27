@@ -251,6 +251,12 @@ function Session:call(method, req)
     req = {}
   end
   local ok, reply, changed = pcall(run, self, req)
+  -- source: confirmed (row G15) ReloadUI reloads the interface. It runs once the method has returned, so a reload never
+  -- starts while addon code is on the stack; the holder swaps the session, as for /reload.
+  if self.w.reloadRequested then
+    self.w.reloadRequested = nil
+    self.pendingReload = self.pendingReload or {}
+  end
   if not ok then
     return { ok = false, error = tostring(reply) }
   end
