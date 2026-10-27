@@ -2,6 +2,7 @@
 -- clock, all read from w.mock at call time.
 local M = {}
 
+local Combat = require("combat")
 local State = require("game.state")
 local define, ALL = State.define, State.ALL
 
@@ -46,6 +47,9 @@ local function installCvars(w)
       return false
     end
     w.mock.cvars[key] = toCvarValue(value)
+    if w.combat then
+      Combat.emit(w, "cvar", key)
+    end
     return true
   end
   define(w, "GetCVar", get, ALL)

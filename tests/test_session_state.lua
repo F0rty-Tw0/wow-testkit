@@ -133,6 +133,16 @@ local function test_state_shares_the_game_mock_and_its_key_readers()
   end)
 end
 
+-- The combat world sets combat and the group itself, so the state read reports the world's flags, not the last patch.
+local function test_state_read_follows_the_combat_world()
+  H.withSession(nil, function(sess)
+    A.eq(sess:call("combat", { action = "preset", name = "dungeon" }).ok, true)
+    A.eq(sess:call("combat", { action = "pull" }).ok, true)
+    local state = sess:call("state", {}).state
+    A.same({ state.combat, state.group }, { true, "party" })
+  end)
+end
+
 return function()
   test_modifiers_answer_the_key_state()
   test_combat_flag_fires_events_once()
@@ -142,4 +152,5 @@ return function()
   test_empty_state_patch_reads_without_a_change()
   test_events_lists_payload_names()
   test_state_shares_the_game_mock_and_its_key_readers()
+  test_state_read_follows_the_combat_world()
 end

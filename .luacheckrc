@@ -57,6 +57,22 @@ files["tests/fixtures/addons/SessionDemo/*.lua"] = {
   read_globals = { "CreateFrame", "UIParent" },
 }
 
+-- Combat demo fixture: group member frames, nameplate names and a line when combat ends.
+files["tests/fixtures/addons/CombatDemo/*.lua"] = {
+  read_globals = {
+    "CreateFrame",
+    "UIParent",
+    "WorldFrame",
+    "C_NamePlate",
+    "GetNumGroupMembers",
+    "IsInRaid",
+    "UnitName",
+    "UnitHealth",
+    "UnitHealthMax",
+    "print",
+  },
+}
+
 -- Widget demo fixture: one of each widget kind, and a static popup definition.
 files["tests/fixtures/addons/WidgetDemo/*.lua"] = {
   globals = { "StaticPopupDialogs" },

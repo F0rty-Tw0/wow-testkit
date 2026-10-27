@@ -1,5 +1,6 @@
--- Session: one addon logged into one flavor's world and kept alive, driven by wire requests (input, fire, slash, state)
--- and read as render snapshots, inspector views (tree, frame), console lines, the event list and the developer report.
+-- Session: one addon logged into one flavor's world and kept alive, driven by wire requests (input, fire, slash, state,
+-- combat) and read as render snapshots, inspector views (tree, frame), console lines, the event list, the developer
+-- report and the combat log.
 -- call() answers with a table, handle() with JSON; neither raises, so a bad request never ends the session. Only the
 -- holder swaps sessions (Session.reload, or a /reload the slash method leaves in sess.pendingReload); session_host.lua
 -- is that holder.
@@ -11,6 +12,7 @@ local Flavors = require("tools.flavors")
 local Json = require("json")
 local Render = require("render")
 local Scenario = require("scenario")
+local SessionCombat = require("session_combat")
 local SessionConsole = require("session_console")
 local SessionDev = require("session_dev")
 local SessionInput = require("session_input")
@@ -239,6 +241,8 @@ local METHODS = {
     report.ok = true
     return report, false
   end,
+  combat = SessionCombat.combat,
+  combatlog = SessionCombat.log,
 }
 
 -- The reply table for method: { ok = false, error } for an unknown method, a malformed request or a raise.

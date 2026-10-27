@@ -199,12 +199,35 @@ local function installAuras(w, deps)
   end)
 end
 
--- deps: { fixture = Units' fixture(state, token), fieldAnswer = Units' fieldAnswer(w, name, fields), normalize }.
+-- source: confirmed (row C12) UnitThreatSituation(unit, mob?) is nil for a unit off the mob's list; without a mob the
+-- fixture's threat field answers (the highest status over all mobs, as Phase 8's Threat writes it); the status against one
+-- mob is the fixture's threatOn[mob guid]. A fixture with a threat field and no threatOn table answers the field for any mob.
+local function installThreat(w, deps)
+  local fixture, guidOf, normalize = deps.fixture, deps.guidOf, deps.normalize
+  local read = deps.fieldAnswer(w, "UnitThreatSituation", { "threat" })
+  define(w, "UnitThreatSituation", function(unit, mob)
+    local data = fixture(w.unitState, unit)
+    if mob == nil or (data and data.threatOn == nil and data.threat ~= nil) then
+      return read(unit)
+    end
+    if not data then
+      return unknownUnit(w, "UnitThreatSituation")
+    end
+    local guid = guidOf(w.unitState, normalize(mob))
+    return guid and data.threatOn and data.threatOn[guid]
+  end)
+end
+
+M.nthAura = nthAura
+
+-- deps: { fixture = Units' fixture(state, token), fieldAnswer = Units' fieldAnswer(w, name, fields), normalize, guidOf =
+-- Units' guidOf(state, token) }.
 function M.install(w, deps)
   installNames(w, deps)
   installFlags(w, deps)
   installCasts(w, deps)
   installAuras(w, deps)
+  installThreat(w, deps)
 end
 
 return M

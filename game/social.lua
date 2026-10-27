@@ -66,8 +66,14 @@ local function installInstance(w)
   define(w, "IsInGuild", function()
     return w.mock.guild.total > 0
   end)
-  -- source: assumed (row G18) no player is listed, so no guid is in the group.
-  define(w, "C_PartyInfo.IsGUIDInGroup", function()
+  -- source: assumed (row G18) a guid is in the group when a unit fixture with that guid is flagged inParty or inRaid
+  -- (Phase 8's Group.set flags the roster); with no such fixture nobody is listed.
+  define(w, "C_PartyInfo.IsGUIDInGroup", function(guid)
+    for _, data in pairs(w.unitState and w.unitState.byToken or {}) do
+      if data.guid == guid and (data.inParty == true or data.inRaid == true) then
+        return true
+      end
+    end
     return false
   end)
 end

@@ -1,6 +1,7 @@
 // Mock state panel (live mode): a JSON fixture editor per unit token, the mouseover unit, the shift/ctrl/alt keys, the
 // combat flag and the group kind. Each change sends a patch (TK.api('state')) and shows the merged state the session
-// answers; a reload reads the fresh session's state.
+// answers; a reload and a combat action (combat.js) read the session's state afresh, keeping a fixture edit not yet
+// applied.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -10,7 +11,8 @@ window.TK = window.TK || {};
   const MODIFIERS = ['shift', 'ctrl', 'alt'];
   const GROUPS = ['none', 'party', 'raid'];
 
-  const ui = { state: null };
+  // dirty: the fixture editor holds an edit not yet applied, which a re-read must not overwrite.
+  const ui = { state: null, dirty: false };
   const dom = {};
 
   function el(tag, props) {
@@ -36,7 +38,7 @@ window.TK = window.TK || {};
     dom.combat.checked = Boolean(state.combat);
     dom.group.value = state.group || 'none';
     dom.mouseover.value = state.mouseover || '';
-    showUnit();
+    if (!ui.dirty) showUnit();
   }
 
   async function send(patch) {
@@ -58,6 +60,7 @@ window.TK = window.TK || {};
 
       return;
     }
+    ui.dirty = false;
     send({ units: { [dom.token.value]: fixture } });
   }
 
@@ -86,7 +89,13 @@ window.TK = window.TK || {};
     const row = el('div', { className: 'units' });
     row.append(dom.token, apply);
     section.append(row, dom.fixture);
-    dom.token.addEventListener('change', showUnit);
+    dom.token.addEventListener('change', () => {
+      ui.dirty = false;
+      showUnit();
+    });
+    dom.fixture.addEventListener('input', () => {
+      ui.dirty = true;
+    });
     apply.addEventListener('click', applyUnit);
   }
 
@@ -125,8 +134,16 @@ window.TK = window.TK || {};
     panels.hidden = false;
   }
 
+  // A combat action may set the combat flag, the group and the fixtures. A step re-reads only when it flips combat, so
+  // a playing fight does not ask for the state ten times a second.
+  function onCombat(change) {
+    const flipped = Boolean(change.inCombat) !== dom.combat.checked;
+    if (change.action !== 'step' || flipped) send({});
+  }
+
   function start() {
     TK.on('reload', () => send({}));
+    TK.on('combat', onCombat);
     send({});
   }
 

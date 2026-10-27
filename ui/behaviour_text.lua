@@ -5,6 +5,7 @@ local M = {}
 local AddonEnv = require("addon_env")
 local FontChain = require("ui.font_chain")
 local Layout = require("ui.layout")
+local Secret = require("combat_secret_value")
 local TextState = require("ui.text_state")
 
 local unpack = unpack
@@ -31,6 +32,10 @@ local function color(r, g, b, a)
 end
 
 function methods.SetText(_, _, st, text)
+  if Secret.is(text) then
+    st.text = text
+    return
+  end
   st.text = text ~= nil and tostring(text) or nil
 end
 
@@ -106,13 +111,14 @@ function methods.GetStatusBarColor(_, _, st)
   return unpack(st.barColor or WHITE, 1, COLOR_FIELDS)
 end
 
--- The value clamps to the range once one is set.
+-- The value clamps to the range once one is set. A retail secret value is kept as is; a secret bound clamps by the
+-- number it hides.
 local function clamp(st, value)
   local range = st.range
   if not range or type(value) ~= "number" then
     return value
   end
-  return math.max(range[1], math.min(range[2], value))
+  return math.max(Secret.reveal(range[1]), math.min(Secret.reveal(range[2]), value))
 end
 
 -- Stores the clamped value; a change fires OnValueChanged(self, value, userInput = false) like the client.

@@ -36,14 +36,37 @@ end
 
 -- Events ------------------------------------------------------------------------------------------------------
 
+local FORBIDDEN_EVENTS = { COMBAT_LOG_EVENT = true, COMBAT_LOG_EVENT_UNFILTERED = true }
+
+-- source: confirmed (row C1) on retail 12.0.0 an addon registering the combat log events fires ADDON_ACTION_FORBIDDEN
+-- (addon name, function); assumed the call does not raise, registers nothing and the Register call returns false. Blizzard
+-- code registers them as before. Follow-up for the taint phase: the "Interface action failed" console line and taint log.
+local function forbidden(w, event, call)
+  if w.flavor ~= "retail" or not FORBIDDEN_EVENTS[event] or not w:callerIsAddon() then
+    return false
+  end
+  w:run("blizzard", w.fire, w, "ADDON_ACTION_FORBIDDEN", Callsite.addon(w) or "", call .. "()")
+  return true
+end
+
 -- Tail calls keep an unknown-event error pointing at the caller.
 function methods.RegisterEvent(w, obj, _, event)
+  if forbidden(w, event, "RegisterEvent") then
+    return false
+  end
   return w:registerEvent(obj, event)
 end
 
--- ponytail: units are not filtered; the frame receives the event for every unit.
-function methods.RegisterUnitEvent(w, obj, _, event)
-  return w:registerEvent(obj, event)
+-- source: confirmed (row C15) the frame gets the event only for the listed units (up to four), a repeated call or a later
+-- RegisterEvent overwrites the registration, and the call returns registered (true; an unknown event raises in
+-- registerEvent); assumed the unit is the event's first argument.
+function methods.RegisterUnitEvent(w, obj, _, event, ...)
+  if forbidden(w, event, "RegisterUnitEvent") then
+    return false
+  end
+  w:registerEvent(obj, event)
+  w:setUnitFilter(obj, event, { ... })
+  return true
 end
 
 function methods.UnregisterEvent(w, obj, _, event)

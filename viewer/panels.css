@@ -1,5 +1,5 @@
-/* Live mode: the hover and selection outlines, the side panels' grid and the console, command line, events and mock
-   state panels. Loaded after viewer.css, before dev.css and inspector.css. */
+/* Live mode: the hover and selection outlines, the side panels' grid and the console, command line, events, mock
+   state and combat log panels. Loaded after viewer.css, before dev.css and inspector.css. */
 
 /* Live mode: the outline of the frame under the mouse, in #viewport over the scaled stage. */
 #hover {
@@ -32,12 +32,13 @@
 }
 
 /* Side panels (live mode), right of the stage; viewer.js fitScale leaves room for them. The inspector fills the first
-   column above the developer panel; console, command line, events and mock state stack in the second. */
+   column above the developer panel; console, command line, combat log, events and mock state stack in the second, so a
+   fight's log takes the console's room, not the inspector's details. */
 #panels {
   display: grid;
   flex: none;
   grid-template-columns: 320px 320px;
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto auto;
   gap: 8px;
   height: calc(100vh - 80px);
   margin-left: 12px;
@@ -83,23 +84,35 @@
 
 #inspector {
   grid-column: 1;
-  grid-row: 1 / 4;
+  grid-row: 1 / 5;
 }
 
 #dev {
   grid-column: 1;
-  grid-row: 4;
+  grid-row: 5;
   overflow-x: auto;
 }
 
+/* In document order: console, command line, events, mock state (all live mode), then the combat log (combat.js),
+   placed under the command line. */
 #console,
 #cmdline,
+#combatlog,
 #events,
 #state {
   grid-column: 2;
 }
 
-#console .lines {
+#combatlog {
+  grid-row: 3;
+}
+
+#combatlog .lines {
+  max-height: 240px;
+}
+
+#console .lines,
+#combatlog .lines {
   flex: 1 1 auto;
   min-height: 80px;
   margin: 0;
@@ -111,7 +124,8 @@
 }
 
 /* Kind colours on the dark log, after the client's chat: system yellow, errors red, sent lines light blue. */
-#console .line {
+#console .line,
+#combatlog .line {
   color: #e6e8ec;
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -73,6 +73,33 @@ body.bare #errors {
   color: var(--muted);
 }
 
+/* Live mode (combat.js): the combat toolbar under #toolbar. */
+#combat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#combat select,
+#combat button {
+  font: inherit;
+}
+
+#combat-time {
+  min-width: 5em;
+  font-family: Consolas, "Cascadia Mono", monospace;
+}
+
+#combat-status {
+  color: var(--banner-ink);
+}
+
+body.bare #combat {
+  display: none;
+}
+
 #status,
 #skipped,
 #errors {

@@ -6,7 +6,7 @@ import json
 import run51
 import session_host
 import session_http
-from session_selftest import DEV_DEMO, data_of, get_json, item, open_stream, post_json, read_until, request, running
+from session_selftest import COMBAT_DEMO, DEV_DEMO, data_of, get_json, item, open_stream, post_json, read_until, request, running
 
 
 def test_snapshot_over_http(tmp):
@@ -137,6 +137,28 @@ def test_run_reads_no_host_bridge_global(tmp):
         raise AssertionError(f"{reach!r} reached a private attribute")
 
 
+def test_combat_play_pause_and_log(tmp):
+    with running(tmp, COMBAT_DEMO) as live:
+        stream = open_stream(live)
+
+        def combat(req):
+            status, reply = post_json(live, "/call/combat", req)
+            assert status == 200, (status, reply)
+            return reply
+
+        assert combat({"action": "preset", "name": "dungeon"})["ok"] is True
+        assert combat({"action": "pull"})["inCombat"] is True
+        assert combat({"action": "step", "seconds": 3})["time"] == 3
+        _, data = read_until(stream, "event: combatlog")
+        assert data_of(data)["seq"] > 0, data
+        status, log = post_json(live, "/call/combatlog", {"since": 0})
+        assert status == 200 and log["ok"] and log["lines"], log
+        assert combat({"action": "play", "speed": 2})["playing"] is True
+        assert combat({"action": "pause"})["playing"] is False
+        bad = combat({"action": "play", "speed": 3})
+        assert bad["ok"] is False and "speed" in bad["error"], bad
+
+
 TESTS = [
     test_snapshot_over_http,
     test_static_serving_is_confined,
@@ -150,4 +172,5 @@ TESTS = [
     test_state_and_events_endpoints,
     test_dev_endpoint,
     test_run_reads_no_host_bridge_global,
+    test_combat_play_pause_and_log,
 ]

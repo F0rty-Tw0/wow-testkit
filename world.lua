@@ -238,6 +238,7 @@ function World:setGlobal(name, value)
 end
 
 -- impl: function | { returns = {...} } | { byArgs = { ["arg1|arg2"] = {...} }, default = {...} }.
+-- On retail a stub gets the value a secret argument hides, as a kit implementation does (row C16).
 function World:stub(name, impl)
   if not (self.manifest.functions[name] or self.globals.api[name]) then
     error("cannot stub '" .. tostring(name) .. "': not a WoW API function on " .. self.flavor, 2)

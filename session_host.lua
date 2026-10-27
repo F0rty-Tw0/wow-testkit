@@ -95,7 +95,7 @@ function M.new(opts)
     Console.push(sess.w, "system", warning)
   end
   local root = opts.addonDir:gsub("\\", "/"):gsub("/+$", "")
-  local host = { sess = sess, outbox = {}, located = {}, consoleSeq = 0, wtf = opts.wtf, addonRoots = { [sess.folder:lower()] = root } }
+  local host = { sess = sess, outbox = {}, located = {}, consoleSeq = 0, logSeq = 0, wtf = opts.wtf, addonRoots = { [sess.folder:lower()] = root } }
   setmetatable(host, Host)
   host:collectConsole()
   return host
@@ -125,6 +125,17 @@ function Host:collectConsole()
     self:push("console", line)
     self.consoleSeq = line.seq
   end
+end
+
+-- Queues one combatlog { seq } event when the combat log (w.combat.log, from Combat.install) grew since the last call;
+-- the viewer then reads the new lines through the combatlog method. A reloaded world's log counts from 0 again.
+function Host:collectCombatLog()
+  local c = self.sess.w.combat
+  local seq = c and c.log.seq or 0
+  if seq > self.logSeq then
+    self:push("combatlog", { seq = seq })
+  end
+  self.logSeq = seq
 end
 
 -- The one place a session is swapped; req is checked by Session.reload (SessionOptions.reopen). Replies { ok = true,
@@ -223,6 +234,7 @@ end
 function Host:handleJson(method, reqJson)
   local ok, text = pcall(dispatch, self, method, reqJson)
   self:collectConsole()
+  self:collectCombatLog()
   return ok and text or Json.encode({ ok = false, error = tostring(text) })
 end
 
