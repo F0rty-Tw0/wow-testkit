@@ -226,6 +226,7 @@ end
 
 M.fixture = fixture
 M.fieldAnswer = fieldAnswer
+M.tokenRank = tokenRank
 
 function M.install(w)
   w.unitState = { byToken = {}, guids = {}, alias = nil, count = 0 }
