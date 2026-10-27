@@ -3,6 +3,7 @@
 -- an unknown id returns the API's default and counts as unscripted.
 local M = {}
 
+local CombatSpells = require("combat_spells")
 local State = require("game.state")
 local WorldApi = require("world_api")
 local define = State.define
@@ -108,6 +109,11 @@ end
 function M.install(w)
   local function find(ident, name)
     local id, record = State.findRecord(w.mock.spells, ident)
+    -- An id the mock lacks takes its name from the client extract's SpellName table, when the world has an extract.
+    local extracted = not id and type(ident) == "number" and CombatSpells.extractName(w, ident)
+    if extracted then
+      return ident, { name = extracted }
+    end
     if not id then
       WorldApi.markUnscripted(w, name)
     end
