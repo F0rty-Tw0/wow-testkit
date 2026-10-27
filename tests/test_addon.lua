@@ -272,7 +272,16 @@ local function test_unknown_addon_name_is_an_error()
   end)
 end
 
+local function test_info_keeps_the_parsed_toc_metadata()
+  withWorld("retail", function(w)
+    local _, info = load(w, "Multi")
+    A.eq(info.meta.Title, "Multi")
+    A.eq(info.meta.Interface, "120100")
+  end)
+end
+
 return function()
+  test_info_keeps_the_parsed_toc_metadata()
   test_files_run_in_order_sharing_one_namespace()
   test_addon_globals_reach_g_and_go_on_destroy()
   test_require_fallback_fails_like_a_nil_global_on_retail()

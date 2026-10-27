@@ -210,7 +210,43 @@ local function test_addon_name_of_dot_works_while_the_global_os_is_cleared()
   A.contains(message, "found 0 TOC names")
 end
 
+-- source: confirmed (row G16) the three directives list addons that load first; a repeated directive appends; the
+-- list is comma-separated; OptionalDeps is the optional list.
+local function test_dependencies_lists_required_and_optional()
+  local meta = Toc.parse("## Dependencies: A, B\n## RequiredDeps: C\n## OptionalDeps: D,E\nX.lua\n").meta
+  A.same(Toc.dependencies(meta), { required = { "A", "B", "C" }, optional = { "D", "E" } })
+end
+
+-- source: confirmed (row G16) a repeated directive appends its values.
+local function test_a_repeated_dependency_directive_appends()
+  local meta = Toc.parse("## Dependencies: A\n## Title: T\n## Dependencies: B, A\n## Dep1: C\nX.lua\n").meta
+  A.same(Toc.dependencies(meta).required, { "C", "A", "B" })
+end
+
+-- source: confirmed (row G16) any directive beginning Dep lists required addons.
+local function test_a_directive_beginning_dep_lists_required_addons()
+  local meta = Toc.parse("## Dep: Z\n## OptionalDeps: Z, Y\nX.lua\n").meta
+  A.same(Toc.dependencies(meta), { required = { "Z" }, optional = { "Y" } })
+end
+
+local function test_no_dependency_directive_lists_nothing()
+  A.same(Toc.dependencies(Toc.parse("## Title: T\nX.lua\n").meta), { required = {}, optional = {} })
+end
+
+local function test_exists_finds_a_toc_for_any_flavor()
+  local dir = Tmp.dir("tocexists")
+  fs.mkdirp(dir .. "/Only")
+  fs.writeFile(dir .. "/Only/Only_Vanilla.toc", "## Interface: 11509\n")
+  A.eq(Toc.exists(dir .. "/Only", "Only"), true)
+  A.eq(Toc.exists(dir .. "/Only", "Other"), false)
+end
+
 return function()
+  test_dependencies_lists_required_and_optional()
+  test_a_repeated_dependency_directive_appends()
+  test_a_directive_beginning_dep_lists_required_addons()
+  test_no_dependency_directive_lists_nothing()
+  test_exists_finds_a_toc_for_any_flavor()
   test_parse_reads_meta_keys_as_written()
   test_parse_skips_comments_and_blank_lines()
   test_parse_turns_backslashes_into_slashes()

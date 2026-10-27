@@ -53,6 +53,16 @@ function M.select(root, name, flavor)
   return root .. "/" .. name .. ".toc"
 end
 
+-- True when root holds a TOC for name on any flavor (a flavor-suffixed one or the bare <name>.toc).
+function M.exists(root, name)
+  for _, flavor in ipairs(Flavors.list) do
+    if fs.exists(M.select(root, name, flavor)) then
+      return true
+    end
+  end
+  return false
+end
+
 -- The TOC base name with any flavor suffix (_Mainline, _Vanilla, ...) removed.
 local function tocBase(file)
   local base = file:match("^(.+)%.toc$")
@@ -104,12 +114,25 @@ local function parseFileLine(line)
   return { path = (line:gsub("\\", "/")), directives = directives }
 end
 
+-- source: confirmed (row G16) any word beginning Dep, and RequiredDeps, list addons that load first.
+local function isRequiredKey(key)
+  return key:sub(1, 3) == "Dep" or key == "RequiredDeps"
+end
+
+-- source: confirmed (row G16) a dependency directive may repeat, and later instances append to the list.
+local function isListKey(key)
+  return isRequiredKey(key) or key == "OptionalDeps"
+end
+
 function M.parse(text)
   local parsed = { meta = {}, files = {} }
   for raw in (text:gsub(UTF8_BOM, "")):gmatch("[^\r\n]+") do
     local line = trim(raw)
     local key, value = line:match("^##%s*(.-)%s*:%s*(.-)$")
     if key then
+      if isListKey(key) and parsed.meta[key] then
+        value = parsed.meta[key] .. "," .. value
+      end
       parsed.meta[key] = value
     elseif line ~= "" and line:sub(1, 1) ~= "#" then
       parsed.files[#parsed.files + 1] = parseFileLine(line)
@@ -118,6 +141,35 @@ function M.parse(text)
   parsed.savedVariables = splitList(parsed.meta.SavedVariables or "")
   parsed.savedVariablesPerCharacter = splitList(parsed.meta.SavedVariablesPerCharacter or "")
   return parsed
+end
+
+-- Adds the names of list to out, skipping any in seen.
+local function appendNames(out, seen, list)
+  for _, name in ipairs(splitList(list)) do
+    if not seen[name] then
+      seen[name] = true
+      out[#out + 1] = name
+    end
+  end
+end
+
+-- { required = { name, ... }, optional = { name, ... } } from the dependency directives of meta: Dependencies, RequiredDeps
+-- and any directive beginning Dep are required, OptionalDeps optional. Directives are read in key order (the parsed
+-- table keeps none); a name listed twice stays once, as required when it is in both.
+function M.dependencies(meta)
+  local keys = {}
+  for key in pairs(meta) do
+    if isRequiredKey(key) then
+      keys[#keys + 1] = key
+    end
+  end
+  table.sort(keys)
+  local deps, seen = { required = {}, optional = {} }, {}
+  for _, key in ipairs(keys) do
+    appendNames(deps.required, seen, meta[key])
+  end
+  appendNames(deps.optional, seen, meta.OptionalDeps or "")
+  return deps
 end
 
 local function interfaceValues(meta, row)
