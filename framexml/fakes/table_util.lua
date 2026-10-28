@@ -3,7 +3,7 @@
 local M = {}
 
 -- Localized: addon code may assign globals named pairs or type.
-local pairs, type = pairs, type
+local next, pairs, type = next, pairs, type
 local remove = table.remove
 
 local Core = require("framexml.fakes.core")
@@ -67,7 +67,14 @@ end
 -- source: row W71 (confirmed) blizzard_sharedxmlbase/environmentutil.lua:5 does nothing.
 local function nop() end
 
+-- source: assumed the engine's table.isempty is true when the table has no key (blizzard_sharedxmlbase/tableutil.lua:19 aliases
+-- it as TableIsEmpty; the docs give only `table` in and a boolean out). The retail extract has it and the tbc one does not.
+local function isEmpty(tbl)
+  return next(tbl) == nil
+end
+
 function M.install(w)
+  w:install("table.isempty", isEmpty, { gate = "framexml", flavors = { "retail", "forever" } })
   w:install("CopyTable", copyTable, KETHO_GATE)
   -- The row gives no flavor limit and forever lists these four as Lua functions, not FrameXML ones: every flavor gets them.
   w:install("CountTable", countTable, Core.GATE)

@@ -72,7 +72,19 @@ local function test_nop_returns_nothing() -- W71
   end)
 end
 
+-- source: blizzard_sharedxmlbase/tableutil.lua:19 (extract retail 70575): TableIsEmpty is table.isempty, which a Blizzard addon
+-- (UIParentPanelManager.lua:180) calls; the tbc extract has neither. That it is true only without any key is assumed.
+local function test_table_isempty_exists_on_retail_and_forever_only_assumed()
+  withFrameXML("retail", function()
+    A.same({ _G.table.isempty({}), _G.table.isempty({ a = 1 }), _G.table.isempty({ 1 }) }, { true, false, false })
+  end)
+  withFrameXML("tbc", function()
+    A.eq(_G.table.isempty, nil)
+  end)
+end
+
 return function()
+  test_table_isempty_exists_on_retail_and_forever_only_assumed()
   test_copy_table_deep_copies_nested_tables()
   test_copy_table_shallow_shares_the_nested_tables()
   test_copy_table_drops_the_metatable()
