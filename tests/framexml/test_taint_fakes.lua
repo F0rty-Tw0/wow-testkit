@@ -2,8 +2,10 @@
 -- addon's value, and Menu / TooltipDataProcessor callbacks run with their owner's taint. Lua 5.1 only.
 local A = require("assert")
 local H = require("tests.helpers.taint")
+local HC = require("tests.helpers.combat")
 local HF = require("tests.helpers.framexml")
 local HM = require("tests.helpers.menu")
+local Secret = require("combat_secret")
 
 local PLAYER = { name = "Bob", isPlayer = true, classFile = "MAGE", className = "Mage", raceName = "Orc", level = 80, guid = "G" }
 
@@ -72,9 +74,25 @@ local function test_an_addon_callback_registry_callback_runs_with_its_owner_tain
   end)
 end
 
+local function test_a_kit_callback_registry_callback_keeps_the_caller_context()
+  HC.withCombat("retail", function(w)
+    HC.pair(w)
+    Secret.setRestriction(w, "Combat", true)
+    local seen
+    w:run("blizzard", function()
+      _G.EventRegistry:RegisterCallback("TKPing", function()
+        seen = _G.UnitHealth("party1")
+      end, {})
+      _G.EventRegistry:TriggerEvent("TKPing")
+    end)
+    A.eq(seen, 1000) -- read in Blizzard context, so not a secret
+  end)
+end
+
 return function()
   test_tainted_dropdown_global_taints_blizzard_dropdown_code_assumed()
   test_menu_and_tooltip_hooks_run_with_their_owner_taint()
   test_replaced_unit_api_taints_the_tooltip_build_assumed()
   test_an_addon_callback_registry_callback_runs_with_its_owner_taint_assumed()
+  test_a_kit_callback_registry_callback_keeps_the_caller_context()
 end
