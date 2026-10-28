@@ -120,6 +120,7 @@ function Scenario:login(opts)
     end
     self:fireIfKnown(event)
   end
+  self:fireEditMode()
   self:fireIfKnown("PLAYER_ENTERING_WORLD", not reloading, reloading)
 end
 

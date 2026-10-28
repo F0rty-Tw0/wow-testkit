@@ -57,6 +57,27 @@ end)
 ]],
     },
   },
+  blizzard_minieditmode = {
+    toc = "## Interface: 120100\n## Dependencies: Blizzard_MiniBar\nMiniEditMode.lua\n",
+    files = {
+      -- activeLayout counts the two preset layouts the client prepends, so the saved layout is info.layouts[active - 2].
+      ["minieditmode.lua"] = [[
+local f = CreateFrame("Frame")
+f:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
+f:SetScript("OnEvent", function()
+  local info = C_EditMode.GetLayouts()
+  local layout = info.layouts[info.activeLayout - 2]
+  for _, sys in ipairs(layout and layout.systems or {}) do
+    if sys.system == 0 then
+      local a = sys.anchorInfo
+      MiniBar:ClearAllPoints()
+      MiniBar:SetPoint(a.point, UIParent, a.relativePoint, a.offsetX, a.offsetY)
+    end
+  end
+end)
+]],
+    },
+  },
   blizzard_miniunit = { -- no dependencies
     toc = "## Interface: 120100\nMiniUnit.lua\n",
     files = {
