@@ -13,6 +13,8 @@ local Group = require("game.group")
 local Items = require("game.items")
 local Keys = require("game.keys")
 local Macros = require("game.macros")
+local Mail = require("game.mail")
+local Merchant = require("game.merchant")
 local Requests = require("game.requests")
 local Session = require("game.session")
 local Social = require("game.social")
@@ -34,6 +36,8 @@ local AREAS = {
   Group,
   Spells,
   Items,
+  Merchant,
+  Mail,
   Zone,
   WorldMap,
   Addons,

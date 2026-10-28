@@ -25,6 +25,22 @@ local function itemLink(id, record)
   return string.format("|cff%s|Hitem:%d::::::::::::|h[%s]|h|r", color, id, record.name)
 end
 
+M.itemLink = itemLink
+
+-- source: assumed (B10) a window row (merchant stock, a mail attachment) shows its own name and texture, else the item
+-- store's name and icon (nil when neither has it). Returns name, texture, the store record ({} for an unknown id).
+function M.rowFacts(w, row)
+  local record = w.mock.items[row.itemID] or {}
+  return row.name or record.name, row.texture or record.icon, record
+end
+
+-- The link of a window row's item: the store's link, else the client's link shape from the row's or the store's name;
+-- nil when neither names the item.
+function M.rowLink(w, row)
+  local name, _, record = M.rowFacts(w, row)
+  return itemLink(row.itemID, { link = record.link, name = name, quality = record.quality })
+end
+
 -- An item is named by id, by an "item:<id>" link or string, or by its name.
 local function itemIdent(ident)
   if type(ident) == "string" then
@@ -140,6 +156,13 @@ function M.install(w)
   define(w, "GetMoney", function()
     return w.mock.money
   end)
+  -- source: assumed (B10) the money window reads both next to GetMoney (moneyframe.lua:242); the mock has no cursor or trade,
+  -- so each holds no copper.
+  for _, name in ipairs({ "GetCursorMoney", "GetPlayerTradeMoney" }) do
+    define(w, name, function()
+      return 0
+    end)
+  end
 end
 
 return M
