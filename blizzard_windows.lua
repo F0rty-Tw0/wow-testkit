@@ -5,9 +5,11 @@ local M = {}
 local BlizzardUi = require("blizzard_ui")
 local Specs = require("blizzard_window_specs")
 local State = require("game.state")
+local TalentsClassic = require("game.talents_classic")
+local XmlParse = require("ui.xml_parse")
 local fs = require("fs")
 
-M.WINDOWS, M.BASE, M.SHARED = Specs.WINDOWS, Specs.BASE, Specs.SHARED
+M.WINDOWS, M.BASE, M.SHARED, M.FIRST = Specs.WINDOWS, Specs.BASE, Specs.SHARED, Specs.FIRST
 
 local function specsOf(w)
   return w.windowSpecs or M.WINDOWS[w.flavor]
@@ -51,6 +53,17 @@ function M.available(w)
   return found
 end
 
+-- The addons of FIRST the extract has: they load before the layer's default targets (BU16).
+function M.first(w)
+  local names = {}
+  for _, addon in ipairs(M.FIRST[w.flavor]) do
+    if inExtract(w, addon) then
+      names[#names + 1] = addon
+    end
+  end
+  return names
+end
+
 -- Ruling C3: the addons that load with the layer, in order: SHARED, then the addon of every window with lod == false (in
 -- window-name order), each once and only when its folder is in the extract.
 function M.startup(w)
@@ -88,6 +101,54 @@ local function installPanelFallbacks(w)
   end
 end
 
+local ENGINE = "blizzard"
+local UIPARENT_XML = "/code/addons/blizzard_uiparent/classic/uiparent.xml"
+
+-- The first element named tag under node (depth first), or nil.
+local function descend(node, tag, name)
+  for _, child in ipairs(node.children) do
+    local found = child.tag == tag and (name == nil or child.attrs.name == name) and child or descend(child, tag, name)
+    if found then
+      return found
+    end
+  end
+end
+
+-- source: assumed (row BU17) the classic panel manager reads UIParent's attributes (TOP_OFFSET, LEFT_OFFSET, ...,
+-- UIParentPanelManager.lua:586), which the extract's UIParent.xml sets (`<Frame name="UIParent"><Attributes>`) and the layer
+-- never loads (Blizzard_UIParent). A window opened on the classic family copies them from that file, string, number and
+-- boolean typed, unless the world already has them.
+local function installUiParentAttributes(w)
+  local parent = _G.UIParent
+  local text = TalentsClassic.isClassic(w) and w.client and fs.readFile(w.client.dir .. UIPARENT_XML)
+  local root = text and XmlParse.parse(text)
+  local frame = root and descend(root, "frame", "UIParent")
+  local attributes = frame and descend(frame, "attributes")
+  for _, attribute in ipairs(attributes and attributes.children or {}) do
+    local name, kind, value = attribute.attrs.name, attribute.attrs.type, attribute.attrs.value
+    if name and parent:GetAttribute(name) == nil then
+      local typed = value
+      if kind == "number" then
+        typed = tonumber(value)
+      elseif kind == "boolean" then
+        typed = value == "true"
+      end
+      w:run(ENGINE, parent.SetAttributeNoHandler, parent, name, typed)
+    end
+  end
+end
+
+-- source: assumed the kit's OpenAllBags / CloseAllBags when no loaded addon defines them: the bags are not modelled. Retail's
+-- ContainerFrame.lua stops at line 3 (Constants.InventoryConstants.NumBagSlots is in no installed data) and the merchant window
+-- calls both (merchantframe.lua:147, :165; tbc :88, :101); a call that raises would stop its OnShow before the stock is drawn.
+local function installBagFallbacks(w)
+  for _, name in ipairs({ "OpenAllBags", "CloseAllBags" }) do
+    if _G[name] == nil then
+      State.define(w, name, function() end, State.ALL)
+    end
+  end
+end
+
 -- source: assumed a closed StoreFrame when Blizzard_StoreUI defined StoreFrame_IsShown but not the frame: its secure file
 -- stops at Enum.VasServiceType, which no installed data lists, so the frame never loads, and ShowUIPanel
 -- (uiparentpanelmanager.lua:205) reads StoreFrame:GetAttribute("isshown") before it places any panel.
@@ -119,6 +180,8 @@ function M.loadFor(w, window)
     load(addon)
   end
   installPanelFallbacks(w)
+  installUiParentAttributes(w)
+  installBagFallbacks(w)
   installStoreFrame()
   return true
 end

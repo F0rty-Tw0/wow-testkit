@@ -121,6 +121,26 @@ function MiniWindowShow() MiniWindowShownBy = "show-global"; MiniWindowFrame:Sho
 ]],
     },
   },
+  blizzard_minimerchant = { -- Task 12.5: shows on MERCHANT_SHOW and prints the first stock row
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniMerchant.lua\n",
+    files = {
+      ["minimerchant.lua"] = [[
+local f = CreateFrame("Frame", "MiniMerchantFrame", UIParent)
+f:SetSize(300, 200)
+f:SetPoint("CENTER")
+f:Hide()
+f.Row = f:CreateFontString(nil, "OVERLAY")
+f.Row:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+f.Row:SetPoint("TOPLEFT", 10, -20)
+f:RegisterEvent("MERCHANT_SHOW")
+f:SetScript("OnEvent", function(self)
+  OpenAllBags(self, true) -- the real OnShow's first call (merchantframe.lua:147)
+  self.Row:SetText(C_MerchantFrame.GetItemInfo(1).name)
+  ShowUIPanel(self)
+end)
+]],
+    },
+  },
   blizzard_minitalents = { -- Task 12.3: a toggle global that lists the talents the store answers, one FontString each
     toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniTalents.lua\n",
     files = {

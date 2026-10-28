@@ -65,4 +65,12 @@ end
 local SHARED = { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared", "Blizzard_FrameEffects" }
 M.SHARED = { retail = SHARED, forever = SHARED, mists = {}, tbc = {}, vanilla = {} }
 
+-- source: confirmed (row BU16) the classic family: Blizzard_MoneyFrame has no LoadOnDemand line and DefaultState enabled
+-- (tbc 70577 blizzard_moneyframe.toc), and the XML OnLoad of Blizzard_UIPanels_Game's merchant (TBC\MerchantFrame.xml:71,
+-- SmallMoneyFrame_OnLoad) and the classic mail file (Classic\MailFrame.lua:38) call it although that addon's classic TOC does
+-- not depend on it; so it loads before every other layer addon. Assumed for vanilla and mists (one shared classic Interface
+-- tree, Ruling R12-a). Retail lists it as a dependency.
+local CLASSIC_FIRST = { "Blizzard_MoneyFrame" }
+M.FIRST = { retail = {}, forever = {}, mists = CLASSIC_FIRST, tbc = CLASSIC_FIRST, vanilla = CLASSIC_FIRST }
+
 return M

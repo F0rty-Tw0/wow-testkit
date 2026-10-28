@@ -130,7 +130,7 @@ local function test_startup_lists_the_shared_addons_per_flavor()
     A.same(BlizzardWindows.startup(w), { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared", "Blizzard_FrameEffects", "Blizzard_WorldMap" })
   end)
   W.withWindows("tbc", { addons = shared }, function(w)
-    A.same(BlizzardWindows.startup(w), { "Blizzard_WorldMap" }) -- SHARED is retail and forever only
+    A.same(BlizzardWindows.startup(w), { "Blizzard_WorldMap" }) -- the retail names are retail and forever only
   end)
   W.withWindows("retail", { addons = { "Blizzard_WorldMap" } }, function(w) -- a SHARED name the extract lacks is dropped
     A.same(BlizzardWindows.startup(w), { "Blizzard_WorldMap" })

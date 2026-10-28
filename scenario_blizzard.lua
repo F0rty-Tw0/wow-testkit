@@ -30,7 +30,10 @@ function M.extend(Scenario)
     local w = self.w
     local opts = { targets = type(layer) == "table" and layer.targets or nil }
     if not opts.targets then -- Ruling C3: the default list, then the window addons that load at startup
-      opts.targets = { unpack(BlizzardUi.TARGETS) }
+      opts.targets = BlizzardWindows.first(w)
+      for _, addon in ipairs(BlizzardUi.TARGETS) do
+        opts.targets[#opts.targets + 1] = addon
+      end
       for _, addon in ipairs(BlizzardWindows.startup(w)) do
         opts.targets[#opts.targets + 1] = addon
       end
