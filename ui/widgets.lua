@@ -279,7 +279,7 @@ function M.install(w)
     classes = {},
     classMethods = setmetatable({}, { __mode = "k" }),
     intrinsics = {},
-    -- name -> { type, apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
+    -- name -> { type, node, size(), apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
     virtuals = {},
     seq = 0,
     -- seq -> widget, weak-valued: EnumerateFrames walks it in creation order

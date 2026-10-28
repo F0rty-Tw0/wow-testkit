@@ -82,10 +82,35 @@ local PIN = {
 }
 local function test_template_info_answers_the_type_of_an_xml_template_assumed()
   B.run(B.mini(PIN), { targets = { "Blizzard_MiniBase", "Blizzard_MiniPin" } }, function(s)
-    A.same(_G.C_XMLUtil.GetTemplateInfo("MiniBlobTemplate"), { type = "QuestPOIFrame" })
+    A.same(_G.C_XMLUtil.GetTemplateInfo("MiniBlobTemplate"), { type = "QuestPOIFrame", width = 0, height = 0 })
     A.eq(_G.CreateFrame("Frame", nil, nil, "MiniBlobTemplate").SetFillTexture, nil) -- CreateFrame's own type is unchanged
     s.w:setMock({ templateInfo = { MiniBlobTemplate = { type = "Frame" } } })
     A.eq(_G.C_XMLUtil.GetTemplateInfo("MiniBlobTemplate").type, "Frame") -- the scenario's answer wins
+  end)
+end
+
+-- ScrollBoxLinearView.lua:193 compares a row template's height from GetTemplateInfo with 0; with no size no ScrollBox list
+-- built a row. The size comes through the inherits chain in order, the template's own <Size> last, per axis.
+local SIZED = {
+  blizzard_minirow = {
+    toc = "## Interface: 120100\nMiniRow.xml\n",
+    files = {
+      ["minirow.xml"] = '<Ui xmlns="http://www.blizzard.com/wow/ui/">'
+        .. '<Frame name="MiniRowBase" virtual="true"><Size x="100" y="20"/></Frame>'
+        .. '<Button name="MiniRow" inherits="MiniRowBase" virtual="true"><Size><AbsDimension y="24"/></Size></Button>'
+        .. '<Frame name="MiniRowWide" virtual="true"><Size x="300"/></Frame>'
+        .. '<Frame name="MiniRowBoth" inherits="MiniRow, MiniRowWide" virtual="true"/>'
+        .. "</Ui>",
+    },
+  },
+}
+local function test_template_info_answers_the_size_through_the_inherits_chain()
+  B.run(B.mini(SIZED), { targets = { "Blizzard_MiniBase", "Blizzard_MiniRow" } }, function()
+    local info = _G.C_XMLUtil.GetTemplateInfo
+    A.same(info("MiniRowBase"), { type = "Frame", width = 100, height = 20 })
+    A.same(info("MiniRow"), { type = "Button", width = 100, height = 24, inherits = "MiniRowBase" })
+    A.same(info("MiniRowBoth"), { type = "Frame", width = 300, height = 24, inherits = "MiniRow, MiniRowWide" })
+    A.same({ _G.CreateFrame("Frame", nil, nil, "MiniRowBoth"):GetSize() }, { 300, 24 }) -- the size a built frame gets
   end)
 end
 
@@ -131,6 +156,7 @@ return function()
   test_xml_script_by_game_root_path_reads_the_sibling_file_assumed()
   test_window_open_stands_in_a_closed_store_frame_assumed()
   test_template_info_answers_the_type_of_an_xml_template_assumed()
+  test_template_info_answers_the_size_through_the_inherits_chain()
   test_world_map_window_draws_its_tiles()
   test_map_opener_sets_the_zone_and_position()
   test_map_opener_picks_the_flavors_map_id()

@@ -205,6 +205,11 @@ function M.registerVirtual(w, name, node, origin)
   local applying = false
   w.ui.virtuals[name] = {
     type = typeName,
+    node = node,
+    -- width, height from <Size> through the inherits chain (ui/xml_layout.lua requires this module, so it loads late)
+    size = function()
+      return require("ui.xml_layout").templateSize(w, name)
+    end,
     apply = function(_, obj)
       if applying then
         error("template '" .. name .. "' inherits itself, directly or through another template", 0)

@@ -182,10 +182,16 @@ function M.install(w)
   end)
   -- source: confirmed (row G18) a table or nothing; assumed that an unknown template is not an error, that the scenario's
   -- templateInfo wins, and that a template an XML file registered (w.ui.virtuals) answers its type (MapCanvasMixin:
-  -- GetPinTemplateType, blizzard_mapcanvas.lua:315, makes a pin pool of that type) and nothing else.
+  -- GetPinTemplateType, blizzard_mapcanvas.lua:315, makes a pin pool of that type), its <Size> through the inherits
+  -- chain (0 for an axis none names; ScrollBoxLinearView.lua:193 reads the extent) and its inherits attribute (row BU15).
+  -- keyValues and sourceLocation are not modelled.
   define(w, "C_XMLUtil.GetTemplateInfo", function(name)
     local virtual = w.ui.virtuals[name]
-    return w.mock.templateInfo[name] or virtual and { type = virtual.type } or nil
+    if w.mock.templateInfo[name] or not virtual then
+      return w.mock.templateInfo[name]
+    end
+    local width, height = virtual.size()
+    return { type = virtual.type, width = width or 0, height = height or 0, inherits = virtual.node.attrs.inherits }
   end)
 end
 
