@@ -1,0 +1,39 @@
+-- Scenario hooks for the Blizzard UI layer (blizzard_ui.lua): the client extract a layered scenario's world reads, and
+-- the load step s:login runs before the addon under test.
+local M = {}
+
+local BlizzardUi = require("blizzard_ui")
+local Client = require("client")
+
+local ENGINE = "blizzard"
+
+-- The client extract for Scenario.new opts: opts.client, else, with opts.blizzardUi, opts.findClient(flavor) (default
+-- Client.find; tests pass a stub so a developer's own extract never leaks in).
+function M.client(opts)
+  if opts.client or not opts.blizzardUi then
+    return opts.client
+  end
+  return (opts.findClient or Client.find)(opts.flavor)
+end
+
+function M.extend(Scenario)
+  -- Loads the layer s.blizzardUi asks for (true, or { targets }) under engine context; a no-op without it. The layer's
+  -- notes become scenario notes.
+  function Scenario:loadBlizzard()
+    local layer = self.blizzardUi
+    if not layer then
+      return
+    end
+    local w = self.w
+    local opts = { targets = type(layer) == "table" and layer.targets or nil }
+    function opts.fire(...)
+      self:fireIfKnown(...)
+    end
+    local report = w:run(ENGINE, BlizzardUi.load, w, w.client, opts)
+    for _, text in ipairs(report.notes) do
+      self:note(text)
+    end
+  end
+end
+
+return M

@@ -109,7 +109,7 @@ end
 
 -- w.mock.addons[name] after a load: loaded, with the TOC metadata the addon APIs read. A world without the game-state
 -- mock keeps no such record.
-local function record(w, entry)
+function M.record(w, entry)
   if w.mock then
     w.mock.addons = w.mock.addons or {}
     local known = w.mock.addons[entry.name] or {}
@@ -165,7 +165,7 @@ function M.loadAll(w, opts, afterEach)
         entries[#entries + 1] = entry
       end
       if info.status ~= "skipped" then
-        record(w, entry)
+        M.record(w, entry)
         afterEach(entry)
       end
     end

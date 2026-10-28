@@ -51,9 +51,9 @@ local function runChunk(w, ctx, source, chunkName)
   end
 end
 
--- Runs a TOC- or XML-listed Lua file, relative to the addon root.
+-- Runs a TOC- or XML-listed Lua file, relative to the addon root, read through ctx.readFile.
 function M.runFile(w, ctx, relative)
-  local source = readListed(w, ctx, relative)
+  local source = ctx.readFile(relative)
   if not source then
     ctx.report[#ctx.report + 1] = relative .. ": cannot read file; skipped"
     return

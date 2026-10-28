@@ -7,6 +7,7 @@
 local M = {}
 
 local Bindings = require("bindings")
+local BlizzardUi = require("blizzard_ui")
 local Client = require("client")
 local Flavors = require("tools.flavors")
 local Json = require("json")
@@ -79,6 +80,7 @@ local function infoOf(sess)
     loads = sess.loads,
     errors = #w.errors,
     skipped = sess.skipped,
+    blizzard = BlizzardUi.summary(w),
   }
 end
 
@@ -102,7 +104,9 @@ local function open(opts, prior)
   if opts.sessionDir then
     saved, warning = SessionSaved.read(opts.sessionDir)
   end
-  local s = Scenario.new({ addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract, saved = saved })
+  local sopts = { addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract, saved = saved }
+  sopts.blizzardUi = opts.blizzardUi
+  local s = Scenario.new(sopts)
   local folder = folderName(root)
   local sess = setmetatable({ opts = opts, s = s, w = s.w, folder = folder, addon = name or folder, seq = 0, loads = 1 }, Session)
   SessionConsole.install(sess.w, sess)
@@ -128,9 +132,9 @@ local function open(opts, prior)
   return sess
 end
 
--- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state? } (flavor "auto" is
--- Session.autoFlavor's pick from the TOC; extract is a directory of tools/client's output; sessionDir holds
--- saved.lua). Raises only when no world can be built (an unknown flavor, another world still active).
+-- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state?, blizzardUi? } (flavor
+-- "auto" is Session.autoFlavor's pick from the TOC; extract is a directory of tools/client's output; sessionDir holds
+-- saved.lua; blizzardUi as Scenario.new's). Raises only when no world can be built (an unknown flavor, another world still active).
 function M.new(opts)
   return open(opts, nil)
 end

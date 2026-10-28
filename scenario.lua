@@ -8,6 +8,7 @@ local FrameXML = require("framexml.fakes")
 local Game = require("game")
 local Input = require("input")
 local ScenarioAddons = require("scenario_addons")
+local ScenarioBlizzard = require("scenario_blizzard")
 local ScenarioSmoke = require("scenario_smoke")
 local Units = require("units")
 local Widgets = require("ui.widgets")
@@ -27,6 +28,7 @@ require("scenario_preview").extend(Scenario)
 require("scenario_snapshot").extend(Scenario)
 require("scenario_combat").extend(Scenario)
 require("scenario_taint").extend(Scenario)
+ScenarioBlizzard.extend(Scenario)
 
 -- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor
 -- as skipped instead of failed.
@@ -52,11 +54,12 @@ local function installWorld(w)
 end
 
 -- opts: { addon, root, addonsDir?, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario,
--- update } }; addonsDir (the folder that holds the addon and its dependencies) defaults to the parent of root.
+-- update }, client?, blizzardUi? = true | { targets }, findClient? } (scenario_blizzard.lua); addonsDir (the folder
+-- that holds the addon and its dependencies) defaults to the parent of root.
 -- s.ns / s.info / s.deps exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden
 -- mode.
 function M.new(opts)
-  local w = World.new({ flavor = opts.flavor, screen = opts.screen, client = opts.client })
+  local w = World.new({ flavor = opts.flavor, screen = opts.screen, client = ScenarioBlizzard.client(opts) })
   local ok, err = pcall(installWorld, w)
   if not ok then
     w:destroy()
@@ -78,6 +81,7 @@ function M.new(opts)
     scenarioName = golden.scenario,
     update = golden.update,
     notes = {},
+    blizzardUi = opts.blizzardUi,
   }, Scenario)
 end
 
@@ -105,6 +109,7 @@ function Scenario:login(opts)
     self.saved = opts.saved
   end
   local w = self.w
+  self:loadBlizzard()
   self.ns, self.info = ScenarioAddons.load(self)
   if self.info.status == "skipped" then
     error(SKIPPED, 0)

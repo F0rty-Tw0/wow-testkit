@@ -32,7 +32,7 @@ end
 
 -- source: assumed (rows TS1, TS3, TS4) the stack, slot and declared-table model; the engine keeps taint in C.
 function M.install(w)
-  w.taint = { log = {}, stack = {}, slots = weakKeys(), declared = {}, lazy = {}, owners = weakKeys(), listeners = {}, seq = 0 }
+  w.taint = { log = {}, stack = {}, slots = weakKeys(), declared = {}, lazy = {}, owners = weakKeys(), listeners = {}, seq = 0, secureAddons = {} }
   w.taint.write = function(tbl, key, value)
     M.rawset(w, tbl, key, value)
   end
@@ -55,7 +55,8 @@ function M.current(w)
   return stack[#stack] or nil
 end
 
--- The addon whose chunk defined fn (or, for a wrapper Taint.adopt registered, the function it wraps); nil for kit code.
+-- The addon whose chunk defined fn (or, for a wrapper Taint.adopt registered, the function it wraps); nil for kit code
+-- and for an addon in w.taint.secureAddons (the Blizzard UI layer), which inherit the running taint.
 function M.ownerOf(w, fn)
   if type(fn) ~= "function" then
     return nil
@@ -70,7 +71,7 @@ function M.ownerOf(w, fn)
     owner = source:match(ADDON_SOURCE) or MACRO_SOURCES[source] or false
     ownerCache[fn] = owner
   end
-  return owner or nil
+  return owner and not w.taint.secureAddons[owner] and owner or nil
 end
 
 -- The name log text gives a taint: the addon's, or "a macro" for macro taint (the empty string).
