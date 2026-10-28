@@ -233,7 +233,30 @@ local function test_create_texture_applies_its_xml_template_and_counts_an_unknow
   end)
 end
 
+-- row X25: a template root's parentKey / parentArray lands on the inheriting widget's parent; the element's own wins
+local function test_template_root_parent_key_and_array_reach_the_inheriting_widgets_parent()
+  local xml = [[
+<Ui>
+  <Button name="SlotT" parentArray="Slots" virtual="true"/>
+  <Frame name="PaneT" parentKey="Pane" virtual="true"/>
+  <Texture name="GlowT" parentKey="Glow" virtual="true"/>
+  <Frame name="Box"><Frames>
+    <Button name="$parentSlot1" inherits="SlotT"/><Button name="$parentSlot2" inherits="SlotT"/>
+    <Frame name="$parentPane" inherits="PaneT"/><Frame parentKey="Own" inherits="PaneT"/>
+  </Frames><Layers><Layer><Texture name="$parentGlow" inherits="GlowT"/></Layer></Layers></Frame>
+</Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local box = _G.Box
+    A.same(box.Slots, { _G.BoxSlot1, _G.BoxSlot2 })
+    A.same({ box.Pane == _G.BoxPane, box.Own ~= nil, box.Own ~= box.Pane, box.Glow == _G.BoxGlow }, { true, true, true, true })
+    local slot = _G.CreateFrame("Button", nil, box, "SlotT") -- CreateFrame's template list: assumed
+    A.eq(box.Slots[3], slot)
+  end)
+end
+
 return function()
+  test_template_root_parent_key_and_array_reach_the_inheriting_widgets_parent()
   test_hidden_false_shows_what_a_template_hid()
   test_create_texture_applies_its_xml_template_and_counts_an_unknown_one()
   test_virtual_template_builds_through_createframe()
