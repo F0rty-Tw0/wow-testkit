@@ -72,4 +72,31 @@ function M.names(log)
   return out
 end
 
+-- Kit-authored mini Blizzard addons for the window tests; pass one to B.mini(overrides) to add it to an extract.
+M.MINI = {
+  blizzard_miniauction = { -- Task 12.6: shows on AUCTION_HOUSE_SHOW and lists the first browse result's name
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniAuction.lua\n",
+    files = {
+      ["miniauction.lua"] = [[
+local f = CreateFrame("Frame", "MiniAuctionFrame", UIParent)
+f:SetSize(300, 200)
+f:SetPoint("CENTER")
+f:Hide()
+f.Row = f:CreateFontString(nil, "OVERLAY")
+f.Row:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+f.Row:SetPoint("TOPLEFT", 10, -20)
+f:RegisterEvent("AUCTION_HOUSE_SHOW")
+f:RegisterEvent("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+f:SetScript("OnEvent", function(self, event)
+  if event == "AUCTION_HOUSE_SHOW" then
+    ShowUIPanel(self)
+  else
+    self.Row:SetText(C_AuctionHouse.GetItemKeyInfo(C_AuctionHouse.GetBrowseResults()[1].itemKey).itemName)
+  end
+end)
+]],
+    },
+  },
+}
+
 return M

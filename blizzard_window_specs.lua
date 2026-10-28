@@ -28,13 +28,16 @@ local MERCHANT_CLASSIC =
   { addon = "Blizzard_UIPanels_Game", lod = false, show = "MerchantFrame_MerchantShow", open = "MERCHANT_SHOW", frame = "MerchantFrame" }
 local MAIL_CLASSIC = { addon = "Blizzard_UIPanels_Game", lod = false, show = "MailFrame_Show", open = "MAIL_SHOW", frame = "MailFrame" }
 
--- confirmed (B1): the tbc auction window at 2.5.6.70577 is the legacy Blizzard_AuctionUI (the installed TOCs list it).
+-- confirmed (B1): the tbc auction window at 2.5.6.70577 is the legacy Blizzard_AuctionUI (the installed TOCs list it); its
+-- UIParent handles AUCTION_HOUSE_SHOW by loading it and calling AuctionFrame_Show (blizzard_uiparent/tbc/uiparent.lua:789-793),
+-- and the layer never loads UIParent's XML, so the kit calls that global itself (row BU21, assumed as for the merchant).
+local AUCTION_CLASSIC = { addon = "Blizzard_AuctionUI", show = "AuctionFrame_Show", open = "AUCTION_HOUSE_SHOW", frame = "AuctionFrame" }
 local CLASSIC = {
   talents = TALENTS_CLASSIC,
   map = MAP,
   merchant = MERCHANT_CLASSIC,
   mail = MAIL_CLASSIC,
-  auction = { addon = "Blizzard_AuctionUI", open = "AUCTION_HOUSE_SHOW" },
+  auction = AUCTION_CLASSIC,
 }
 
 M.WINDOWS = {
