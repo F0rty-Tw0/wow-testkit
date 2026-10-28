@@ -238,12 +238,10 @@ local function newView(w)
       return value
     end,
     __newindex = function(_, key, value)
-      if Names.KEPT[key] then
+      local handler = answer(overrides, key, true) == nil and globalsHandler(w, "__newindex")
+      if not handler and Names.KEPT[key] then
         Names.write(w, overrides, HOST_VALUES, key, value)
-        return
-      end
-      local handler = globalsHandler(w, "__newindex")
-      if handler == nil or (hostRawget(_G, key) ~= nil and not hidden(overrides, key)) then
+      elseif not handler then
         (w.taint and w.taint.write or hostRawset)(_G, key, value)
       elseif hostType(handler) == "function" then
         callHandler(handler, view, key, value)

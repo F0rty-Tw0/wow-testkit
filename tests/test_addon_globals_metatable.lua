@@ -77,6 +77,27 @@ local function test_addon_globals_metatable_newindex_fires_only_for_new_globals_
   end)
 end
 
+-- A cleared base-library name is absent from the view, so its next write is a new global the handler hears.
+local CLEARED_NEWINDEX = [[
+local _, ns = ...
+type = nil
+ns.seen = {}
+setmetatable(_G, { __newindex = function(t, key, value)
+  ns.seen[#ns.seen + 1] = key
+  rawset(t, key, value)
+end })
+type = 5
+tostring = 6
+ns.type, ns.tostring = type, tostring
+]]
+
+local function test_addon_globals_metatable_newindex_fires_for_a_cleared_base_library_name_assumed()
+  HF.withFrameXML("retail", function(w)
+    local ns = loadSource(w, "MtCleared", CLEARED_NEWINDEX)
+    A.same({ ns.seen, ns.type, ns.tostring, type(rawget(_G, "type")) }, { { "type" }, 5, 6, "function" })
+  end)
+end
+
 local function test_second_addon_sees_the_first_addons_globals_metatable_assumed()
   HF.withFrameXML("retail", function(w)
     loadSource(w, "MtFirst", 'SharedMt = { __index = function() return "first" end }\nsetmetatable(_G, SharedMt)\n')
@@ -278,6 +299,7 @@ end
 return function()
   test_addon_globals_metatable_index_fires_only_for_absent_globals_assumed()
   test_addon_globals_metatable_newindex_fires_only_for_new_globals_assumed()
+  test_addon_globals_metatable_newindex_fires_for_a_cleared_base_library_name_assumed()
   test_second_addon_sees_the_first_addons_globals_metatable_assumed()
   test_setmetatable_on_g_with_a_non_table_errors_at_the_callers_line()
   test_metatable_misuse_errors_like_plain_lua_at_the_addon_line()
