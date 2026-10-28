@@ -56,7 +56,8 @@ function M.report(w, kind, name, addon)
   local t = w.taint
   addon = addon or Taint.current(w) or ""
   local event = "ADDON_ACTION_" .. kind
-  Taint.record(w, { kind = "blocked", addon = addon, name = name, event = event, text = name .. " blocked: execution tainted by " .. addon })
+  local text = name .. " blocked: execution tainted by " .. Taint.who(addon)
+  Taint.record(w, { kind = "blocked", addon = addon, name = name, event = event, text = text })
   if t.reporting then
     return
   end

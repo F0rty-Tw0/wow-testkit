@@ -93,6 +93,23 @@ local function test_console_receives_a_taint_line_per_entry()
   end)
 end
 
+local function test_run_and_dump_chunks_run_with_macro_taint_assumed() -- TS2
+  HS.withSession({ addonDir = HS.TAINT }, function(sess)
+    sess:call("slash", { text = "/run CastSpellByName('Kit Strike'); print('ran', issecure())" })
+    sess:call("slash", { text = "/tdemo taint" })
+    sess:call("slash", { text = "/run UnitName = UnitName; local s, t = issecurevariable('UnitName'); print('after', s, '[' .. tostring(t) .. ']')" })
+    sess:call("slash", { text = "/dump issecure()" })
+    local lines = {}
+    for _, line in ipairs(sess:call("console", { since = 0 }).lines) do
+      if line.kind == "print" or line.kind == "taint" then
+        lines[#lines + 1] = line.text
+      end
+    end
+    local blocked = "taint: CastSpellByName() blocked: execution tainted by a macro"
+    A.same({ lines[1], lines[3], lines[#lines - 1], lines[#lines] }, { blocked, "ran false", "after false []", "false" })
+  end)
+end
+
 local function test_session_snapshot_carries_the_taint_log()
   HS.withSession({ addonDir = HS.TAINT }, function(sess)
     A.eq(sess:call("snapshot").taint, nil)
@@ -118,6 +135,7 @@ return function()
   test_snapshot_log_gives_a_table_key_as_text()
   test_scenario_taint_log_returns_a_copy()
   test_console_receives_a_taint_line_per_entry()
+  test_run_and_dump_chunks_run_with_macro_taint_assumed()
   test_session_snapshot_carries_the_taint_log()
   test_destroy_clears_taint_state()
 end

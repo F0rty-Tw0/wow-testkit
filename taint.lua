@@ -15,6 +15,8 @@ M.LOG_LIMIT = 1000
 M.FORCED = "*** ForceTaint_Strong ***"
 
 local ADDON_SOURCE = "^@addon:([^/\r\n]+)/"
+-- source: assumed (row TS2, "an empty string if tainted by a macro") session /run and /dump chunks run with macro taint.
+local MACRO_SOURCES = { ["=/run"] = "", ["=/dump"] = "" }
 
 -- Function -> owning addon name, or false for a function no addon chunk defined. A function's chunk never changes,
 -- so the cache is shared by every world.
@@ -59,15 +61,21 @@ function M.ownerOf(w, fn)
     return nil
   end
   local adopted = w.taint.owners[fn]
-  if adopted then
+  if adopted ~= nil then
     return adopted
   end
   local owner = ownerCache[fn]
   if owner == nil then
-    owner = getinfo(fn, "S").source:match(ADDON_SOURCE) or false
+    local source = getinfo(fn, "S").source
+    owner = source:match(ADDON_SOURCE) or MACRO_SOURCES[source] or false
     ownerCache[fn] = owner
   end
   return owner or nil
+end
+
+-- The name log text gives a taint: the addon's, or "a macro" for macro taint (the empty string).
+function M.who(taint)
+  return taint == "" and "a macro" or taint
 end
 
 -- Makes wrapper report fn's owner; returns wrapper.
@@ -152,7 +160,7 @@ local function attribute(w, tbl, key, held, taint)
   local label = held and slots[key] == nil and labelOf(t, tbl)
   slots[key] = taint
   if label then
-    local text = (label == "global" and "global " or label .. ".") .. tostring(key) .. " tainted by " .. taint
+    local text = (label == "global" and "global " or label .. ".") .. tostring(key) .. " tainted by " .. M.who(taint)
     M.record(w, { kind = "write", addon = taint, name = key, text = text })
   end
 end
@@ -271,8 +279,7 @@ function M.read(w, tbl, key)
     return
   end
   stack[depth] = taint
-  local text = "execution tainted by " .. taint .. " reading " .. tostring(key)
-  M.record(w, { kind = "read", addon = taint, name = key, text = text })
+  M.record(w, { kind = "read", addon = taint, name = key, text = "execution tainted by " .. M.who(taint) .. " reading " .. tostring(key) })
 end
 
 -- source: `blizzard_framexml/securetemplates.lua:752` (forceinsecure taints the rest of the execution). Taints the running

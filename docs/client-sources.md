@@ -451,7 +451,7 @@ The kit has these known gaps, which may not be the only ones:
 - A direct call from one addon's function into another addon's function keeps the first addon's taint; the client taints by the data and code it reads, the kit by the `callAsAddon` entry.
 - Taint is per `callAsAddon` or `World:run` entry, not per statement: code that reads a tainted value mid-function stays under its own owner's name, not the tainted slot's.
 - TS8: the protected and combat-only lists are the wiki's, not the engine's; a function missing from them is not blocked, and the kit has no list of hardware-event or `noscript` functions.
-- TS1, TS6: a macro or `/run` script taints with the empty string in the client (`API_issecurevariable`); the kit has no macro taint.
+- TS1, TS2: a macro or `/run` script taints with the empty string in the client (`API_issecurevariable`); the kit gives that taint only to the session's `/run`, `/script` and `/dump` chunks and the functions they define (it runs no macros), and its log text names it "a macro".
 
 | Rule | Verdict | Source |
 |---|---|---|
