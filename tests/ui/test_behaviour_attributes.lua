@@ -105,7 +105,21 @@ local function test_nil_attribute_name_raises_at_the_callers_line_assumed()
   end)
 end
 
+-- source: wiki API_Frame_SetAttribute ("triggers the OnAttributeChanged script handler"; SetAttributeNoHandler does not), Task 12.4
+-- real check: blizzard_uiparentpanelmanager sets UIPanelLayout-* with it and ShowUIPanel reads them back.
+local function test_set_attribute_no_handler_stores_without_the_handler()
+  withWidgets("retail", function()
+    local frame, seen = _G.CreateFrame("Frame"), {}
+    frame:SetScript("OnAttributeChanged", function(_, name)
+      seen[#seen + 1] = name
+    end)
+    frame:SetAttributeNoHandler("UIPanelLayout-Area", "left")
+    A.same({ frame:GetAttribute("uipanellayout-area"), seen }, { "left", {} })
+  end)
+end
+
 return function()
+  test_set_attribute_no_handler_stores_without_the_handler()
   test_nil_attribute_name_raises_at_the_callers_line_assumed()
   test_set_attribute_accepts_a_boolean_from_addon_code()
   test_attribute_name_is_still_checked()
