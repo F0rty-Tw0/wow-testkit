@@ -63,5 +63,6 @@ function M.install(w)
 end
 
 M.layoutsOf = layoutsOf
+M.PRESET_COUNT = PRESET_COUNT
 
 return M
