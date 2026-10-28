@@ -121,6 +121,43 @@ function MiniWindowShow() MiniWindowShownBy = "show-global"; MiniWindowFrame:Sho
 ]],
     },
   },
+  blizzard_minitalents = { -- Task 12.3: a toggle global that lists the talents the store answers, one FontString each
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniTalents.lua\n",
+    files = {
+      ["minitalents.lua"] = [[
+local f = CreateFrame("Frame", "MiniTalentFrame", UIParent)
+f:SetSize(300, 200)
+f:SetPoint("CENTER")
+f:Hide()
+f.lines = {}
+local function names()
+  local out = {}
+  if C_ClassTalents and C_ClassTalents.GetActiveConfigID() then
+    local config = C_ClassTalents.GetActiveConfigID()
+    for _, node in ipairs(C_Traits.GetTreeNodes(C_Traits.GetConfigInfo(config).treeIDs[1])) do
+      local entry = C_Traits.GetEntryInfo(config, C_Traits.GetNodeInfo(config, node).entryIDs[1])
+      out[#out + 1] = C_Spell.GetSpellInfo(C_Traits.GetDefinitionInfo(entry.definitionID).spellID).name
+    end
+  else
+    for i = 1, GetNumTalents(1) do
+      out[#out + 1] = (GetTalentInfo(1, i))
+    end
+  end
+  return out
+end
+function MiniToggleTalents()
+  for i, name in ipairs(names()) do
+    local line = f.lines[i] or f:CreateFontString(nil, "OVERLAY")
+    line:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+    line:SetPoint("TOPLEFT", 10, -20 * i)
+    line:SetText(name)
+    f.lines[i] = line
+  end
+  f:Show()
+end
+]],
+    },
+  },
   blizzard_minieager = { -- C3: no LoadOnDemand line, so it loads with the layer
     toc = "## Interface: 120100\nMiniEager.lua\n",
     files = {

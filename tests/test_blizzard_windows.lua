@@ -227,6 +227,56 @@ local function test_open_window_with_a_missing_addon_notes_it_and_still_fires_th
   end)
 end
 
+local TALENTS = { talents = { addon = "Blizzard_MiniTalents", toggle = "MiniToggleTalents", frame = "MiniTalentFrame" } }
+local TRAITS = {
+  configID = 7,
+  configs = { [7] = { name = "Kit Build", type = 1, treeIDs = { 790 } } },
+  trees = { [790] = { nodes = { 101 } } },
+  nodes = { [101] = { entryIDs = { 201 } } },
+  entries = { [201] = { definitionID = 301 } },
+  definitions = { [301] = { spellID = 9001 } },
+}
+-- (B4, B6; Task 12.3) the retail window reads the trait store and the spell store; the classic one reads GetTalentInfo
+local function test_talent_window_lists_the_tree()
+  B.run(B.mini(), {
+    targets = { "Blizzard_MiniBase" },
+    before = function(s)
+      s.w.windowSpecs = TALENTS
+      s.w:setMock({ spells = { [9001] = { name = "Kit Strike" } }, traits = TRAITS })
+    end,
+  }, function(s)
+    s:openWindow("talents")
+    A.same({ _G.MiniTalentFrame:IsShown(), _G.MiniTalentFrame.lines[1]:GetText() }, { true, "Kit Strike" })
+  end)
+  B.run(B.mini(), {
+    flavor = "tbc",
+    targets = { "Blizzard_MiniBase" },
+    before = function(s)
+      s.w.windowSpecs = TALENTS
+      s.w:setMock({ talents = { tabs = { { name = "T", talents = { { name = "Kit Rage", tier = 1, column = 1, maxRank = 1 } } } } } })
+    end,
+  }, function(s)
+    s:openWindow("talents")
+    A.same({ _G.MiniTalentFrame:IsShown(), _G.MiniTalentFrame.lines[1]:GetText() }, { true, "Kit Rage" })
+  end)
+end
+
+-- (Task 12.3) the opener writes the scenario's talent data and the window sees it
+local function test_talents_opener_applies_scenario_data()
+  B.run(B.mini(), {
+    flavor = "tbc",
+    targets = { "Blizzard_MiniBase" },
+    before = function(s)
+      s.w.windowSpecs = TALENTS
+    end,
+  }, function(s)
+    s:openWindow("talents", { unspent = 4, tabs = { { name = "T", talents = { { name = "Kit Bolt", tier = 1, column = 1, maxRank = 1 } } } } })
+    A.same({ _G.UnitCharacterPoints("player"), _G.MiniTalentFrame.lines[1]:GetText() }, { 4, "Kit Bolt" })
+    s:closeWindow("talents")
+    A.eq(_G.MiniTalentFrame:IsShown(), false)
+  end)
+end
+
 return function()
   test_load_on_demand_addon_loads_once_and_fires_addon_loaded_assumed()
   test_load_on_demand_of_an_absent_blizzard_addon_is_missing()
@@ -245,4 +295,6 @@ return function()
   test_explicit_targets_do_not_pull_in_startup_window_addons()
   test_close_window_fires_the_hide_event_or_hides_the_frame_assumed()
   test_open_window_with_a_missing_addon_notes_it_and_still_fires_the_event_assumed()
+  test_talent_window_lists_the_tree()
+  test_talents_opener_applies_scenario_data()
 end
