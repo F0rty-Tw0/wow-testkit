@@ -120,8 +120,13 @@ local function hooksecurefunc(w, tbl, name, hook)
     w:callAsAddon(hook, ...)
     return unpack(results, 1, results.n)
   end
-  -- source: assumed (row TS7) installing a hook leaves the slot secure; the hook runs after the original with its own taint.
+  -- source: assumed (row TS7) installing a hook leaves the slot's taint as it was (a secure slot stays secure, one an addon
+  -- wrote stays that addon's); the hook runs after the original with its own taint.
+  local earlier = Taint.slotOf(w, tbl, name)
   Taint.secure(w, w.rawWrite, w, tbl, name, wrapper)
+  if earlier then
+    w.taint.slots[tbl][name] = earlier
+  end
 end
 
 local function installErrorHandler(w)

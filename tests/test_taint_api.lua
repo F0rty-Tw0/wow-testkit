@@ -73,6 +73,14 @@ local function test_hook_runs_tainted_and_the_original_stays_secure_assumed() --
   end)
 end
 
+local function test_hook_keeps_the_taint_of_an_addon_replaced_slot_assumed() -- TS7
+  H.withTaint("retail", function(w)
+    H.run(w, "Foo", "UnitName = function() return 'x' end")
+    H.run(w, "Bar", "hooksecurefunc('UnitName', function() end)")
+    A.same({ _G.issecurevariable("UnitName") }, { false, "Foo" })
+  end)
+end
+
 local function test_securecall_from_tainted_code_keeps_the_taint_assumed() -- TS5
   H.withTaint("retail", function(w, Taint)
     H.probe(w, Taint)
@@ -145,6 +153,7 @@ return function()
   test_issecurevariable_answers_for_the_index_table_when_the_field_is_nil_assumed()
   test_securecall_restores_the_callers_taint_assumed()
   test_hook_runs_tainted_and_the_original_stays_secure_assumed()
+  test_hook_keeps_the_taint_of_an_addon_replaced_slot_assumed()
   test_securecall_from_tainted_code_keeps_the_taint_assumed()
   test_securecall_by_name_and_securecallfunction_pass_arguments_and_return_results()
   test_secureexecuterange_calls_func_with_key_value_and_extras_through_securecall()
