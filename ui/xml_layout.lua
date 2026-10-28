@@ -165,6 +165,22 @@ end
 
 -- Values ----------------------------------------------------------------------------------------------------------
 
+-- source: confirmed (row X26) a global KeyValue names a dotted path (`MoneyDenominationDisplayType.Copper`, `AuctionHouseFrameDisplayMode.Buy`):
+-- the first part is a global, each later part a field of the table before it; assumed a missing or non-table link gives nil.
+local function globalPath(w, path)
+  local current
+  for part in path:gmatch("[^.]+") do
+    if current == nil then
+      current = AddonEnv.global(w, part, true)
+    elseif type(current) == "table" then
+      current = current[part]
+    else
+      return nil
+    end
+  end
+  return current
+end
+
 -- source: wiki XML/KeyValues, example comments: `boolean` "0" is false and "on" true, `number` "two" is 0, `nil` gives
 -- nil. `global` stores the global the value names (row X11, assumed); `local` is not modelled.
 local KEY_TYPES = {
@@ -179,7 +195,7 @@ local KEY_TYPES = {
   end,
   ["nil"] = function() end,
   global = function(value, w)
-    return AddonEnv.global(w, value, true)
+    return globalPath(w, value)
   end,
 }
 
