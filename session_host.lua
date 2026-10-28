@@ -86,17 +86,24 @@ local function validWtf(wtf)
   return true
 end
 
+-- Whether paths compare ignoring case: only Windows filesystems do. Tests replace this field.
+M.foldCase = package.config:sub(1, 1) == "\\"
+
+local function folded(path)
+  return M.foldCase and path:lower() or path
+end
+
 -- Whether every path of a req.wtf names a file under root (backslashes read as slashes, the prefix compared ignoring
--- case) with no `..` segment. Without a root no path is inside: a reimport could otherwise read any file.
+-- case on Windows) with no `..` segment. Without a root no path is inside: a reimport could otherwise read any file.
 local function insideRoot(wtf, root)
   if wtf == nil then
     return true
   end
-  local prefix = root and root:gsub("\\", "/"):gsub("/+$", ""):lower() .. "/"
+  local prefix = root and folded(root:gsub("\\", "/"):gsub("/+$", "") .. "/")
   for _, path in pairs(wtf) do
     local slashed = path:gsub("\\", "/")
     local climbs = ("/" .. slashed .. "/"):find("/../", 1, true)
-    if not prefix or climbs or slashed:sub(1, #prefix):lower() ~= prefix then
+    if not prefix or climbs or folded(slashed:sub(1, #prefix)) ~= prefix then
       return false
     end
   end

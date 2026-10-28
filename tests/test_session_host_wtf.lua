@@ -3,6 +3,7 @@ local A = require("assert")
 local H = require("tests.helpers.session")
 local Json = require("json")
 local Saved = require("session_saved")
+local SessionHost = require("session_host")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
@@ -133,8 +134,24 @@ local function test_reimport_refuses_paths_outside_the_wtf_folder()
     A.eq(host.wtf.account, inside, "a refused request keeps the paths")
     A.eq(_G.WtfDemoDB.n, 1)
     A.eq(reimportWith(host, { account = (inside:gsub("/", "\\")) }).ok, true, "backslashes")
-    A.eq(reimportWith(host, { account = root:upper() .. "/acc.lua" }).ok, true, "the prefix ignores case")
   end)
+end
+
+-- Windows paths ignore case; elsewhere a sibling folder differing only in case is outside.
+local function test_reimport_prefix_folds_case_only_on_windows()
+  local root = Tmp.dir("wtfcase")
+  local upper = { account = root:upper() .. "/acc.lua" }
+  local real = SessionHost.foldCase
+  H.withHost({ addonDir = H.WTF, wtf = { account = root .. "/acc.lua" }, wtfRoot = root }, function(host)
+    SessionHost.foldCase = false
+    local strict = reimportWith(host, upper)
+    SessionHost.foldCase = true
+    local folded = reimportWith(host, upper)
+    SessionHost.foldCase = real
+    A.same(strict, OUTSIDE)
+    A.eq(folded.ok, true)
+  end)
+  A.eq(real, package.config:sub(1, 1) == "\\")
 end
 
 local function test_reimport_paths_need_a_wtf_root()
@@ -206,7 +223,6 @@ local function test_reimport_without_wtf_replies_an_error()
 end
 
 local function test_reimport_needs_a_session_folder()
-  local SessionHost = require("session_host")
   local host = SessionHost.new({ addonDir = H.WTF, flavor = "retail", wtf = { account = accountFile(1) } })
   local reply = Json.decode(host:handleJson("reimport", "{}"))
   host:shutdown()
@@ -231,6 +247,7 @@ return function()
   test_reimport_takes_the_paths_of_the_request()
   test_reimport_refuses_malformed_paths()
   test_reimport_refuses_paths_outside_the_wtf_folder()
+  test_reimport_prefix_folds_case_only_on_windows()
   test_reimport_paths_need_a_wtf_root()
   test_wtf_dir_applies_before_login_and_on_every_reload()
   test_wtf_dir_that_cannot_open_is_a_console_line()
