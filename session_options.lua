@@ -103,14 +103,17 @@ local function toggleLayer(out, opts, on)
 end
 
 -- The options a reload of a session opened with opts uses: over's flavor ("auto" or a name in Flavors.list) and size
--- (a preset name or { width, height }) or screen, and blizzardUi (true or false: the layer on or off); over's other
--- fields are ignored, so the addon folder, extract and session folder stay the process's. Raises, naming the field, on
--- anything a world would refuse, so a caller can run it before it touches the current world.
+-- (a preset name or { width, height }) or screen, and blizzardUi (true or false: the layer on or off; on needs
+-- opts.extract, so the layer never falls back to Client.find's extract); over's other fields are ignored, so the addon
+-- folder, extract and session folder stay the process's. Raises, naming the field, on anything a world would refuse, so
+-- a caller can run it before it touches the current world.
 function M.reopen(opts, over)
   if over.keepSaved ~= nil and type(over.keepSaved) ~= "boolean" then
     error("reload: keepSaved must be true or false", 0)
   elseif over.blizzardUi ~= nil and type(over.blizzardUi) ~= "boolean" then
     error("reload: blizzardUi must be true or false", 0)
+  elseif over.blizzardUi and not opts.extract then
+    error("reload: blizzardUi needs a session started with --extract", 0)
   end
   if over.size ~= nil and over.screen ~= nil then
     error("reload: give size or screen, not both", 0)

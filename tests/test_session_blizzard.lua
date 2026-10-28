@@ -40,6 +40,17 @@ local function test_reload_toggles_the_layer()
   end)
 end
 
+-- Without --extract the layer would fall back to Client.find and load the developer's own extract.
+local function test_reload_refuses_the_layer_without_an_extract()
+  SessionH.withHost({}, function(host)
+    local refused = reload(host, { blizzardUi = true })
+    A.eq(refused.ok, false)
+    A.contains(refused.error, "extract")
+    A.same({ host.sess.loads, host.sess.s.blizzardUi }, { 1, nil })
+    A.eq(reload(host, { blizzardUi = false }).ok, true, "turning the layer off needs no extract")
+  end)
+end
+
 local function test_state_actions_update_the_button()
   SessionH.withSession(layerOpts({ "Blizzard_MiniButtons" }), function(sess)
     A.eq(sess:call("state", { actions = { [1] = { texture = 136235, count = 3 } } }).ok, true)
@@ -107,6 +118,7 @@ end
 
 return function()
   test_reload_toggles_the_layer()
+  test_reload_refuses_the_layer_without_an_extract()
   test_state_actions_update_the_button()
   test_state_actions_survive_a_reload_and_encode()
   test_state_edit_mode_active_moves_the_frame()
