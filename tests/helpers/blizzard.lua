@@ -37,6 +37,50 @@ f:SetScript("OnEvent", function(_, _, name) MiniLog[#MiniLog + 1] = "adl:" .. na
       ["bindings.xml"] = '<Bindings><Binding name="MINI_TOGGLE">MiniLog[#MiniLog + 1] = "toggle"</Binding></Bindings>',
     },
   },
+  blizzard_minibuttons = {
+    toc = "## Interface: 120100\n## Dependencies: Blizzard_MiniBar\nMiniButtons.xml\n",
+    files = {
+      ["minibuttons.xml"] = '<Ui><CheckButton name="MiniActionButtonTemplate" virtual="true"><Size x="36" y="36"/><Layers><Layer level="ARTWORK"><Texture parentKey="Icon" setAllPoints="true"/></Layer></Layers></CheckButton><Script file="MiniButtons.lua"/></Ui>',
+      ["minibuttons.lua"] = [[
+local button = CreateFrame("CheckButton", "MiniBarButton1", MiniBar, "MiniActionButtonTemplate")
+button:SetID(1)
+button:SetPoint("LEFT")
+button.Count = button:CreateFontString(nil, "OVERLAY")
+button.Count:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+button:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
+button:SetScript("OnEvent", function(self, _, slot)
+  if slot == self:GetID() then
+    self.Icon:SetTexture(C_ActionBar.GetActionTexture(slot))
+    self.Count:SetText(C_ActionBar.GetActionDisplayCount(slot))
+  end
+end)
+]],
+    },
+  },
+  blizzard_miniunit = { -- no dependencies
+    toc = "## Interface: 120100\nMiniUnit.lua\n",
+    files = {
+      ["miniunit.lua"] = [[
+local f = CreateFrame("Frame", "MiniPlayerFrame", UIParent)
+f:SetSize(120, 40)
+f:SetPoint("TOPLEFT", 10, -20)
+f.Portrait = f:CreateTexture(nil, "ARTWORK")
+f.Name = f:CreateFontString(nil, "OVERLAY")
+f.Name:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+f.HealthBar = CreateFrame("StatusBar", nil, f)
+local function update()
+  f.Name:SetText(UnitName("player"))
+  f.HealthBar:SetMinMaxValues(0, UnitHealthMax("player"))
+  f.HealthBar:SetValue(UnitHealth("player"))
+  SetPortraitTexture(f.Portrait, "player")
+  f.Role, f.Mark = UnitGroupRolesAssigned("player"), GetRaidTargetIndex("player")
+end
+f:RegisterEvent("UNIT_HEALTH")
+f:RegisterEvent("PLAYER_ENTERING_WORLD")
+f:SetScript("OnEvent", update)
+]],
+    },
+  },
   blizzard_framexml = { -- not a target: holds the default bindings file only
     toc = "## Interface: 120100\n",
     files = {
