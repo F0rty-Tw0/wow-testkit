@@ -8,6 +8,10 @@ M.SECTIONS = { "functions", "events", "enums", "constants", "structs", "widgets"
 
 local cache = {}
 
+-- Events Blizzard's own code registers that no API doc lists, per flavor (a documented event of the same name wins).
+-- source: row G23, blizzard_moneyframe/mainline/moneyframe.lua:49.
+local EXTRA_EVENTS = { retail = { TRIAL_STATUS_UPDATE = {} } }
+
 -- The generated build versions replace the defaults in tools/flavors.lua (GetBuildInfo, TOC interface checks).
 -- Module code runs once per process; Flavors.load is idempotent anyway.
 Flavors.load(require("api.versions"))
@@ -66,6 +70,9 @@ function M.load(flavor, opts)
   end
   local loadPart = root and fileLoader(root, flavor) or requireLoader(flavor)
   local manifest, globals = loadWith(loadPart)
+  for event, payload in pairs(EXTRA_EVENTS[flavor] or {}) do
+    manifest.events[event] = manifest.events[event] or payload
+  end
   cache[key] = { manifest = manifest, globals = globals }
   return manifest, globals
 end

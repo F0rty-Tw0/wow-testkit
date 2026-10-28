@@ -72,6 +72,12 @@ local function test_loading_the_kit_applies_api_versions_to_every_flavor()
   end
 end
 
+-- source: row G23, Blizzard's retail code registers TRIAL_STATUS_UPDATE; no API doc lists it.
+local function test_retail_knows_events_blizzard_code_registers()
+  A.same(Manifest.load("retail").events.TRIAL_STATUS_UPDATE, {})
+  A.eq(Manifest.load("vanilla").events.TRIAL_STATUS_UPDATE, nil)
+end
+
 return function()
   test_load_merges_functions_from_every_file()
   test_load_merges_other_sections()
@@ -80,4 +86,5 @@ return function()
   test_load_caches_per_flavor_and_root()
   test_load_unknown_flavor_errors_listing_valid_flavors()
   test_loading_the_kit_applies_api_versions_to_every_flavor()
+  test_retail_knows_events_blizzard_code_registers()
 end
