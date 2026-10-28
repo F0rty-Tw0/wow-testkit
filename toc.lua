@@ -153,9 +153,9 @@ local function allowedNames(value, row)
   return table.concat(names, ",")
 end
 
--- source: confirmed (row G16) any word beginning Dep, and RequiredDeps, list addons that load first.
+-- source: confirmed (row G16) any word beginning Dep, and RequiredDeps, list addons that load first; assumed (row BU9) RequiredDep too.
 local function isRequiredKey(key)
-  return key:sub(1, 3) == "Dep" or key == "RequiredDeps"
+  return key:sub(1, 3) == "Dep" or key == "RequiredDeps" or key == "RequiredDep"
 end
 
 -- source: confirmed (row G16) a dependency directive may repeat, and later instances append to the list.
