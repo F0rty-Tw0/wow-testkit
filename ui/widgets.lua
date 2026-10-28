@@ -287,6 +287,7 @@ function M.install(w)
       return create(w, typeName, name, parent)
     end,
   }
+  w.ui.classFor = classFor -- classFor(w, typeName) -> { plan, meta }: game/clientapi.lua's Get<Type>Metatable
   w.input = { mouseFocus = nil, editFocus = nil }
   Layout.install(w)
   w:install("CreateFrame", createFrame(w), { gate = "none" })
