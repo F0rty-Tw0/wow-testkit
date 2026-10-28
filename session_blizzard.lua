@@ -57,8 +57,19 @@ local function isWhole(value, low, high)
   return type(value) == "number" and value % 1 == 0 and value >= low and value <= high
 end
 
+-- Raises unless the slot's texture is a number or string and its count a whole number from 0, each when given: the
+-- action bar fakes compare count and Blizzard's buttons set texture.
+local function checkFields(slot, fields)
+  local texture = fields.texture
+  if texture ~= nil and type(texture) ~= "number" and type(texture) ~= "string" then
+    fail("actions slot " .. slot .. " texture must be a number or a string")
+  elseif fields.count ~= nil and not isWhole(fields.count, 0, math.huge) then
+    fail("actions slot " .. slot .. " count must be a whole number from 0")
+  end
+end
+
 -- actions with each slot key (a number, or the decimal string a JSON object key is) as a number. Raises on a slot
--- outside 1..180 or a value that is neither a fields table nor false.
+-- outside 1..180, a value that is neither a fields table nor false, or a malformed texture or count.
 function M.slots(actions)
   if type(actions) ~= "table" then
     fail("actions must be an object of slot -> fields or false")
@@ -70,6 +81,8 @@ function M.slots(actions)
       fail("actions slot '" .. tostring(key) .. "' must be a whole number from 1 to " .. MAX_SLOT)
     elseif value ~= false and type(value) ~= "table" then
       fail("actions slot " .. slot .. " must be fields or false")
+    elseif value then
+      checkFields(slot, value)
     end
     out[slot] = value
   end
