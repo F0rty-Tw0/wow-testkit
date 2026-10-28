@@ -134,6 +134,7 @@ local function allowedOn(file, row, report)
   report[#report + 1] = file.path .. ": [" .. GAME_TYPE_DIRECTIVE .. "] names no known game type (" .. names .. "); loaded"
   return true
 end
+M.allowedOn = allowedOn
 
 -- source: assumed (row BU2) "A [AllowLoadGameType mainline], B [AllowLoad Glue]" -> "A" on retail: a name whose
 -- game-type list excludes row, or whose AllowLoad list lacks game (a glue-screen addon), is dropped.

@@ -10,6 +10,7 @@ local AddonDeps = require("addon_deps")
 local Bindings = require("bindings")
 local Flavors = require("tools.flavors")
 local Toc = require("toc")
+local TocHeader = require("toc_header")
 local Xml = require("ui.xml")
 local fs = require("fs")
 
@@ -68,8 +69,12 @@ function M.order(extract, targets, flavor)
       skipped[#skipped + 1] = { name = name, reason = "not in extract" }
       return
     end
-    visiting[key] = true
     local parsed = Toc.parse(fs.readFile(toc) or "")
+    if not TocHeader.loadsOn(parsed.meta, flavor) then
+      skipped[#skipped + 1] = { name = name, reason = "game type" }
+      return
+    end
+    visiting[key] = true
     local deps = Toc.dependencies(parsed.meta, flavor)
     for _, list in ipairs({ deps.required, deps.optional }) do
       for _, dep in ipairs(list) do
