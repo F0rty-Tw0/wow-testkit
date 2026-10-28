@@ -482,6 +482,23 @@ local function test_show_and_enter_wraps_pass_their_arguments() -- TS15
   end)
 end
 
+local function test_leave_wrap_post_body_receives_the_message() -- TS15
+  H.withTaint("retail", function(w, _, s)
+    local hdr = _G.CreateFrame("Frame", "TKWrapLHdr", _G.UIParent, "SecureHandlerBaseTemplate")
+    local f = _G.CreateFrame("Frame", "TKWrapL", _G.UIParent)
+    f:SetSize(20, 20)
+    f:SetPoint("CENTER")
+    f:EnableMouse(true)
+    f:SetScript("OnEnter", function() end)
+    f:SetScript("OnLeave", function() end)
+    hdr:WrapScript(f, "OnEnter", "return nil, 'hi'", "self:SetAttribute('postEnter', message)")
+    hdr:WrapScript(f, "OnLeave", "return nil, 'bye'", "self:SetAttribute('postLeave', message)")
+    s:enter(f)
+    s:leave(f)
+    A.same({ f:GetAttribute("postEnter"), f:GetAttribute("postLeave"), #w.errors }, { "hi", "bye", 0 })
+  end)
+end
+
 return function()
   test_click_snippet_shows_a_protected_frame_in_combat()
   test_handler_api_is_refused_in_combat_for_every_caller()
@@ -512,4 +529,5 @@ return function()
   test_unwrap_script_restores_the_handler_and_returns_the_wrap()
   test_wrap_script_checks_its_arguments()
   test_show_and_enter_wraps_pass_their_arguments()
+  test_leave_wrap_post_body_receives_the_message()
 end

@@ -86,8 +86,9 @@ local function wrappedLeave(w, frame, info, motion, ...)
     end
   end
   callOriginal(w, info, frame, motion, ...)
+  -- source: `:326-328` the OnLeave post body gets the message too.
   if message ~= nil then
-    post(w, info, frame, "self,message")
+    post(w, info, frame, "self,message", message)
   end
 end
 
