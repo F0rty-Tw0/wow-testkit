@@ -210,6 +210,11 @@ local function test_preview_leaves_unset_options_to_the_defaults()
   A.same(previewOpts({ "preview", "dir" }), { addonDir = "dir" })
 end
 
+local function test_preview_blizzard_ui_flag_reaches_run()
+  A.same(previewOpts({ "preview", "dir", "--blizzard-ui" }), { addonDir = "dir", blizzardUi = true })
+  A.same(previewOpts({ "preview", "dir", "--blizzard-ui", "--flavor", "mists" }), { addonDir = "dir", blizzardUi = true, flavor = "mists" })
+end
+
 return function()
   test_test_command_passes_the_hover_scenario()
   test_missing_golden_fails_until_update_writes_it()
@@ -229,4 +234,5 @@ return function()
   test_preview_bad_options_exit_2()
   test_preview_passes_the_parsed_options_to_preview_run()
   test_preview_leaves_unset_options_to_the_defaults()
+  test_preview_blizzard_ui_flag_reaches_run()
 end

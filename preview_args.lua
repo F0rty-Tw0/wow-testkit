@@ -1,11 +1,12 @@
--- `tk preview` arguments: `<addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]` parsed
--- into the options Preview.run takes.
+-- `tk preview` arguments: `<addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]
+-- [--blizzard-ui]` parsed into the options Preview.run takes.
 local M = {}
 
 local Flavors = require("tools.flavors")
 
 local MAX_SIDE = 16384
 local PATH_FLAGS = { ["--scenario"] = "scenario", ["--out"] = "out", ["--png"] = "png" }
+local BLIZZARD_UI = "--blizzard-ui"
 
 local function slashes(path)
   return (path:gsub("\\", "/"):gsub("(.)/+$", "%1"))
@@ -39,7 +40,7 @@ local function setFlag(opts, flag, value)
   return nil
 end
 
--- { addonDir, flavor?, scenario?, size?, out?, png? } from argv[2..], or nil plus a message.
+-- { addonDir, flavor?, scenario?, size?, out?, png?, blizzardUi? } from argv[2..], or nil plus a message.
 function M.parse(argv)
   local dir = argv[2]
   if not dir or dir:sub(1, 2) == "--" then
@@ -47,19 +48,19 @@ function M.parse(argv)
   end
   local opts, i = { addonDir = slashes(dir) }, 3
   while i <= #argv do
-    local flag = argv[i]
-    if flag ~= "--flavor" and flag ~= "--size" and not PATH_FLAGS[flag] then
+    local flag, value = argv[i], argv[i + 1]
+    if flag == BLIZZARD_UI then
+      opts.blizzardUi, value = true, nil
+    elseif flag ~= "--flavor" and flag ~= "--size" and not PATH_FLAGS[flag] then
       return nil, "unknown option '" .. flag .. "'"
-    end
-    i = i + 1
-    if not argv[i] then
+    elseif not value then
       return nil, flag .. " needs a value"
     end
-    local err = setFlag(opts, flag, argv[i])
+    local err = value and setFlag(opts, flag, value)
     if err then
       return nil, err
     end
-    i = i + 1
+    i = i + (value and 2 or 1)
   end
   return opts
 end

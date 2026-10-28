@@ -5,8 +5,9 @@
 -- prints failures first, then one line per scenario and flavor, the most common unscripted calls and the totals.
 -- `tk smoke <dir> [flavor...] [--json]` runs every addon folder in <dir> through the built-in smoke scenario and
 -- prints one scoreboard, or with --json a diffable JSON document.
--- `tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]` runs the addon, writes
--- the render snapshot to <out>/snapshot.json and, with --png, a Chrome screenshot of it.
+-- `tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE] [--blizzard-ui]`
+-- runs the addon (with --blizzard-ui, after Blizzard's UI addons from the client extract), writes the render snapshot
+-- to <out>/snapshot.json and, with --png, a Chrome screenshot of it.
 -- `tk client extract|status [args]` extracts data from the installed game client or reports the extract's state
 -- (client_cli.lua).
 local ClientCli = require("client_cli")
@@ -23,7 +24,7 @@ local Cli = {}
 local isModule = (...) == "bin.tk"
 
 local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...] [--json]"
-  .. " | tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE]"
+  .. " | tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE] [--blizzard-ui]"
   .. " | tk client extract|status [args]\n"
 local EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 local UNSCRIPTED_TOP = 10
