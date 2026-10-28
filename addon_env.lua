@@ -1,5 +1,7 @@
 -- The per-addon environment Addon.load runs each file in: a view of _G that hides host-only names, hands out
 -- itself where the host would hand out the real _G, and keeps the metatable addon code gives _G beside it.
+local Fenv = require("addon_env_fenv")
+
 local M = {}
 
 local NIL_REQUIRE = "attempt to call a nil value (global 'require')"
@@ -26,7 +28,7 @@ local hostOs, hostLoadstring, hostGetfenv, hostSetfenv = os, loadstring, getfenv
 local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
 local hostGetmetatable, hostSetmetatable, hostRawMetatable = getmetatable, setmetatable, debug.getmetatable
 local hostType, hostSelect, hostError, hostPcall = type, select, error, pcall
-local hostSub, hostGsub, hostGetinfo, hostTonumber = string.sub, string.gsub, debug.getinfo, tonumber
+local hostSub, hostGetinfo = string.sub, debug.getinfo
 
 local function keptOs()
   local out = {}
@@ -34,48 +36,6 @@ local function keptOs()
     out[name] = hostOs[name]
   end
   return out
-end
-
--- Runs hostFn, the host getfenv or setfenv, for the override name that addon code called with (f, ...): under pcall
--- here, a level counted from the addon's function is three deeper. Errors are re-raised at the addon's line under
--- name, as Lua 5.1's C function raises them. An override called in tail position (`return getfenv()`) has replaced
--- the addon's function, so level 1 reaches nothing: that raises saying so. As a coroutine body the override has no
--- caller at all, and level 1 is an invalid level.
-local function callHostFenv(name, hostFn, ...)
-  local f = ...
-  local level = hostType(f) ~= "function" and hostTonumber(f)
-  local caller = hostGetinfo(3, "S")
-  if level == 1 and caller and caller.what == "tail" then
-    hostError("'" .. name .. "' cannot reach the calling function: a tail call (return " .. name .. "(...)) replaced it", 0)
-  end
-  local ok, result = hostPcall(hostFn, level and level > 0 and level + 3 or f, hostSelect(2, ...))
-  if not ok then
-    result = hostGsub(result, "^bad argument (#%d) to '%?'", "bad argument %1 to '" .. name .. "'")
-    result = level and hostGsub(result, "at level %d+$", "at level " .. level) or result
-    hostError(result, 3)
-  end
-  return result
-end
-
--- setfenv(0, t) sets the world's addon thread environment (w.addonThreadEnv, read by getfenv(0) and loadstring),
--- never the host thread's, so kit code loaded meanwhile keeps the real _G. A function whose environment is the
--- host's _G is kit (or host) code, the client's C functions: refused with Lua 5.1's message for those.
-local function addSetfenv(overrides, w)
-  overrides.setfenv = function(...)
-    local f, env = ...
-    local level = hostType(f) ~= "function" and hostTonumber(f)
-    if level == 0 and hostType(env) == "table" then
-      w.addonThreadEnv = env
-      return
-    end
-    local info = level and level > 0 and hostGetinfo(level + 1, "f")
-    local target = info and info.func or f
-    if hostType(env) == "table" and hostType(target) == "function" and hostGetfenv(target) == _G then
-      hostError("'setfenv' cannot change environment of given object", 2)
-    end
-    local fn = callHostFenv("setfenv", hostSetfenv, ...)
-    return fn
-  end
 end
 
 -- Lua 5.1's loadstring takes a precompiled (binary) chunk when its first byte is ESC, and runs it unchecked.
@@ -102,7 +62,7 @@ local function overridesFor(view, w)
     if f == nil then
       f = 1
     end
-    local env = f == 0 and w.addonThreadEnv or callHostFenv("getfenv", hostGetfenv, f)
+    local env = f == 0 and w.addonThreadEnv or Fenv.call("getfenv", hostGetfenv, f)
     return (env == _G or w.addonEnvs[env]) and view or env
   end
   overrides.loadstring = function(src, chunkName)
@@ -113,7 +73,7 @@ local function overridesFor(view, w)
     local fn, err = hostLoadstring(src, chunkName)
     return fn and (w.taint and w.taint.chunk or hostSetfenv)(fn, w.addonThreadEnv or view), err
   end
-  addSetfenv(overrides, w)
+  Fenv.addSetfenv(overrides, w)
   return overrides
 end
 
