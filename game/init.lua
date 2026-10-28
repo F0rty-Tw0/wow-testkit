@@ -8,6 +8,7 @@ local Addons = require("game.addons")
 local Bindings = require("bindings")
 local Chat = require("game.chat")
 local ClientApi = require("game.clientapi")
+local EditMode = require("game.editmode")
 local Group = require("game.group")
 local Items = require("game.items")
 local Keys = require("game.keys")
@@ -22,7 +23,7 @@ local Zone = require("game.zone")
 M.define = State.define
 M.ALL = State.ALL
 
-local AREAS = { Session, Keys, Group, Spells, Items, Zone, Addons, Macros, Chat, Social, ActionBar, UnitFrame, ClientApi }
+local AREAS = { Session, Keys, Group, Spells, Items, Zone, Addons, Macros, Chat, Social, ActionBar, UnitFrame, EditMode, ClientApi }
 
 -- w.mock is shared with session_state.lua (modifiers, combat, group), so it is created only when absent and each
 -- area's defaults fill the keys not yet set.
