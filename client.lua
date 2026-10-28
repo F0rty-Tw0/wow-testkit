@@ -16,7 +16,7 @@ local IMAGE_EXTENSIONS = { blp = true, tga = true, png = true }
 local caches = setmetatable({}, { __mode = "k" })
 
 local function cacheOf(extract)
-  caches[extract] = caches[extract] or { strings = {}, glyphs = {}, db2 = {} }
+  caches[extract] = caches[extract] or { strings = {}, glyphs = {}, db2 = {}, db2Index = {} }
   return caches[extract]
 end
 
@@ -175,6 +175,22 @@ function M.db2(extract, name)
     local dir = extract.dir .. "/db2/" .. key
     local path = M.path(extract, "db2", key)
     cache[key] = (fs.isdir(dir) and chunkedTable(dir)) or (path and readTable(path)) or false
+  end
+  return cache[key] or nil
+end
+
+-- The lookup { [value] = { rowID, ... } } of a column of DB2 table name (both in any case) that the export wrote to
+-- db2/index/<name>.<column>.lua, or to db2/index/<name>.<column>/<value // 10000>.lua beside a chunked table (loaded
+-- like one, see chunkedTable). Nil when the extract is nil or holds no such index. Only t[value] works on it.
+function M.db2Index(extract, name, column)
+  if not extract then
+    return nil
+  end
+  local cache = cacheOf(extract).db2Index
+  local key = lowerSlashed(name) .. "." .. lowerSlashed(column)
+  if cache[key] == nil then
+    local base = extract.dir .. "/db2/index/" .. key
+    cache[key] = (fs.isdir(base) and chunkedTable(base)) or readTable(base .. ".lua") or false
   end
   return cache[key] or nil
 end
