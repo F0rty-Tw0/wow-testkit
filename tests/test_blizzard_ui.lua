@@ -242,7 +242,23 @@ local function test_session_snapshot_reports_the_layer()
   end)
 end
 
+local function test_xml_script_paths_fall_back_to_the_addon_root_assumed()
+  local addons = B.mini({
+    blizzard_minisub = {
+      toc = "## Interface: 120100\nSub\\Ui.xml\n",
+      files = {
+        ["sub/ui.xml"] = '<Ui><Script file="Sub\\Item.lua"/></Ui>',
+        ["sub/item.lua"] = "MiniSub = (MiniSub or 0) + 1",
+      },
+    },
+  })
+  B.run(addons, { targets = { "Blizzard_MiniSub" } }, function(s)
+    A.same({ _G.MiniSub, #s.w.blizzard.errors }, { 1, 0 })
+  end)
+end
+
 return function()
+  test_xml_script_paths_fall_back_to_the_addon_root_assumed()
   test_dependencies_load_first_and_addon_loaded_fires_per_addon()
   test_mixed_case_paths_resolve_in_a_lowercase_extract()
   test_blizzard_definitions_replace_kit_fakes_and_the_rest_stay()

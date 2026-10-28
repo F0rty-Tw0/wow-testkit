@@ -95,7 +95,54 @@ local function test_a_template_inheriting_itself_through_another_is_reported_and
   end)
 end
 
+-- Loads a temp addon XmlRoot whose TOC lists `listed` and whose other files are `files` (path -> text); returns ns, w.
+local function loadTree(listed, files, fn)
+  local root = Tmp.dir("addon") .. "/XmlRoot"
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/XmlRoot.toc", "## Interface: " .. Flavors.get("retail").tocVersion .. "\n\n" .. listed .. "\n")
+  for path, text in pairs(files) do
+    fs.mkdirp((root .. "/" .. path):match("^(.*)/[^/]*$"))
+    fs.writeFile(root .. "/" .. path, text)
+  end
+  H.withFrameXML("retail", function(w)
+    fn(Addon.load(w, { name = "XmlRoot", root = root }), w)
+  end, { screen = SCREEN })
+end
+
+local function test_script_file_falls_back_to_the_addon_root_assumed()
+  local files = {
+    ["Sub/Ui.xml"] = '<Ui><Script file="Sub\\Code.lua"/><Include file="Sub\\More.xml"/></Ui>',
+    ["Sub/Code.lua"] = "local _, ns = ...; ns.code = true",
+    ["Sub/More.xml"] = '<Ui><Script file="Sub\\Deep.lua"/></Ui>',
+    ["Sub/Deep.lua"] = "local _, ns = ...; ns.deep = true",
+  }
+  loadTree("Sub/Ui.xml", files, function(ns, w)
+    A.same({ ns.code, ns.deep, #w.errors }, { true, true, 0 })
+  end)
+end
+
+local function test_script_file_prefers_the_xml_folder_assumed()
+  local files = {
+    ["Sub/Ui.xml"] = '<Ui><Script file="Code.lua"/></Ui>',
+    ["Sub/Code.lua"] = "local _, ns = ...; ns.where = 'sub'",
+    ["Code.lua"] = "local _, ns = ...; ns.where = 'root'",
+  }
+  loadTree("Sub/Ui.xml", files, function(ns)
+    A.eq(ns.where, "sub")
+  end)
+end
+
+local function test_script_file_missing_from_both_places_is_still_reported_assumed()
+  loadTree("Sub/Ui.xml", { ["Sub/Ui.xml"] = '<Ui><Script file="Gone.lua"/></Ui>' }, function(_, w)
+    A.eq(#w.errors, 1)
+    A.contains(w.errors[1].message, "addon:XmlRoot/Sub/Gone.lua")
+  end)
+end
+
 return function()
+  test_script_file_falls_back_to_the_addon_root_assumed()
+  test_script_file_prefers_the_xml_folder_assumed()
+  test_script_file_missing_from_both_places_is_still_reported_assumed()
   test_a_frame_anchored_to_itself_is_reported_and_the_load_goes_on()
   test_an_anchor_cycle_between_two_frames_is_reported_and_the_load_goes_on()
   test_a_template_inheriting_itself_through_another_is_reported_and_the_load_goes_on()

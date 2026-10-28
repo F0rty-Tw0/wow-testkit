@@ -132,9 +132,13 @@ end
 
 -- ctx.readFile for an extract addon: TOC lines and XML paths are mixed case, the extract is lowercase, and Blizzard
 -- files start with a UTF-8 BOM the client skips. A file the extract lacks is a note, not an error.
+local function lowerPath(relative)
+  return (relative:gsub("\\", "/"):lower())
+end
+
 local function lowerReader(root, name, notes)
   return function(relative)
-    local path = relative:gsub("\\", "/"):lower()
+    local path = lowerPath(relative)
     local text = fs.readFile(root .. "/" .. path)
     if not text then
       notes[#notes + 1] = "Blizzard UI: " .. name .. " lists missing file " .. path
@@ -158,6 +162,9 @@ end
 local function loadEntry(w, entry, report, fire)
   local ctx = Addon.context(w, entry.name, entry.root)
   ctx.readFile = lowerReader(entry.root, entry.name, report.notes)
+  function ctx.exists(relative)
+    return fs.exists(entry.root .. "/" .. lowerPath(relative))
+  end
   for _, listed in ipairs((Toc.filesFor(entry.parsed, w.flavor))) do
     local path = withFolders(listed, w.flavor)
     if path:lower():match("%.xml$") then
