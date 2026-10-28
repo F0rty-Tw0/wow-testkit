@@ -4,6 +4,8 @@ local A = require("assert")
 local Combat = require("tests.helpers.combat")
 local H = require("tests.helpers.taint")
 local HS = require("tests.helpers.session")
+local Json = require("json")
+local Render = require("render")
 
 local DEMO = { addon = "TaintDemo", root = HS.TAINT }
 
@@ -43,6 +45,27 @@ local function test_demo_slashes_produce_the_expected_log() -- TS8, TS10, TS11
   end, DEMO)
 end
 
+local function test_snapshot_carries_the_log_only_when_it_has_entries()
+  H.withTaint("retail", function(w)
+    A.eq(Render.snapshot(w).taint, nil)
+    H.run(w, "Foo", "return CastSpellByName('Fireball')")
+    local snap = Render.snapshot(w)
+    A.eq(snap.taint.log[1].kind, "blocked")
+    A.eq(snap.taint.log[1].addon, "Foo")
+    A.eq(snap.taint.log[1].event, "ADDON_ACTION_FORBIDDEN")
+    A.eq(type(Json.encode(snap)), "string")
+  end)
+end
+
+local function test_snapshot_log_gives_a_table_key_as_text()
+  H.withTaint("retail", function(w, Taint)
+    Taint.record(w, { kind = "write", addon = "Foo", name = {}, text = "x" })
+    local name = Render.snapshot(w).taint.log[1].name
+    A.eq(type(name), "string")
+    A.eq(type(Json.encode(Render.snapshot(w))), "string")
+  end)
+end
+
 local function test_scenario_taint_log_returns_a_copy()
   H.withTaint("retail", function(w, _, s)
     H.run(w, "Foo", "return CastSpellByName('Fireball')")
@@ -54,6 +77,14 @@ local function test_scenario_taint_log_returns_a_copy()
     A.eq(#again, 1)
     A.eq(again[1].text, "CastSpellByName() blocked: execution tainted by Foo")
     A.eq(w.taint.log[1].text, again[1].text)
+  end)
+end
+
+local function test_session_snapshot_carries_the_taint_log()
+  HS.withSession({ addonDir = HS.TAINT }, function(sess)
+    A.eq(sess:call("snapshot").taint, nil)
+    sess:call("slash", { text = "/tdemo cast" })
+    A.eq(sess:call("snapshot").taint.log[1].kind, "blocked")
   end)
 end
 
@@ -70,6 +101,9 @@ end
 
 return function()
   test_demo_slashes_produce_the_expected_log()
+  test_snapshot_carries_the_log_only_when_it_has_entries()
+  test_snapshot_log_gives_a_table_key_as_text()
   test_scenario_taint_log_returns_a_copy()
+  test_session_snapshot_carries_the_taint_log()
   test_destroy_clears_taint_state()
 end
