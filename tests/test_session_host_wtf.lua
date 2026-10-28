@@ -143,11 +143,14 @@ local function test_reimport_prefix_folds_case_only_on_windows()
   local upper = { account = root:upper() .. "/acc.lua" }
   local real = SessionHost.foldCase
   H.withHost({ addonDir = H.WTF, wtf = { account = root .. "/acc.lua" }, wtfRoot = root }, function(host)
-    SessionHost.foldCase = false
-    local strict = reimportWith(host, upper)
-    SessionHost.foldCase = true
-    local folded = reimportWith(host, upper)
+    local ran, strict, folded = pcall(function()
+      SessionHost.foldCase = false
+      local a = reimportWith(host, upper)
+      SessionHost.foldCase = true
+      return a, reimportWith(host, upper)
+    end)
     SessionHost.foldCase = real
+    assert(ran, strict)
     A.same(strict, OUTSIDE)
     A.eq(folded.ok, true)
   end)
