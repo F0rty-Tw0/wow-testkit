@@ -233,10 +233,14 @@ function M.isRegion(node)
 end
 
 -- Builds the frame `node` describes under parent. Nil when the tag is no frame type on this flavor (reported) or the
--- element is virtual (registered as a template instead).
+-- element is virtual or intrinsic (registered as a template or a frame type instead, ui/xml_intrinsic.lua).
 function M.frame(w, node, parent, session)
   if not Widgets.resolveType(w, node.rawTag) then
     unsupportedTag(session, node)
+    return nil
+  end
+  if node.attrs.intrinsic == "true" then
+    require("ui.xml_intrinsic").declare(w, node, session)
     return nil
   end
   if node.attrs.virtual == "true" then

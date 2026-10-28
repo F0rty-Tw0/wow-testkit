@@ -167,34 +167,35 @@ function methods:getScript(obj, scriptName)
   return byName and byName[scriptName] and byName[scriptName].fn
 end
 
--- The widget's intrinsic type's handler for scriptName (plan.intrinsicScripts, ui/widgets.lua), or nil.
-local function intrinsicScript(w, obj, scriptName)
+-- Runs the widget's intrinsic type's handler for scriptName from plan[key] (intrinsicScripts or intrinsicPostScripts,
+-- ui/widgets.lua), if it has one.
+local function runIntrinsic(w, obj, key, scriptName, ...)
   local st = w.ui and w.ui.state[obj]
-  local scripts = st and st.plan.intrinsicScripts
-  return scripts and scripts[scriptName]
+  local scripts = st and st.plan[key]
+  if scripts and scripts[scriptName] then
+    scripts[scriptName](w, obj, st, ...)
+  end
 end
 
--- Runs the intrinsic handler (kit code, fn(w, obj, st, ...), not replaceable), then the script and its hooks in
--- order, each receiving (obj, ...); errors in addon code are recorded, not raised. F3 (assumed, kit choice, no
--- source): the dispatch walks the hook list the script had when it began, live, so a hook added during it runs too;
--- a SetScript during it gives the script a new list, and hooks added to that one first run on the next dispatch.
+-- Runs the intrinsic precall handler (kit code, fn(w, obj, st, ...), not replaceable), then the script and its hooks in
+-- order, each receiving (obj, ...), then the intrinsic postcall handler; errors in addon code are recorded, not raised.
+-- F3 (assumed, kit choice, no source): the dispatch walks the hook list the script had when it began, live, so a hook
+-- added during it runs too; a SetScript during it gives the script a new list, and hooks added to that one first run
+-- on the next dispatch.
 function methods:callScript(obj, scriptName, ...)
-  local intrinsic = intrinsicScript(self, obj, scriptName)
-  if intrinsic then
-    intrinsic(self, obj, self.ui.state[obj], ...)
-  end
+  runIntrinsic(self, obj, "intrinsicScripts", scriptName, ...)
   local byName = self.scripts[obj]
   local entry = byName and byName[scriptName]
-  if not entry then
-    return
+  if entry then
+    local hooks = entry.hooks
+    if entry.fn then
+      self:callAsAddon(entry.fn, obj, ...)
+    end
+    for _, hook in ipairs(hooks) do
+      self:callAsAddon(hook, obj, ...)
+    end
   end
-  local hooks = entry.hooks
-  if entry.fn then
-    self:callAsAddon(entry.fn, obj, ...)
-  end
-  for _, hook in ipairs(hooks) do
-    self:callAsAddon(hook, obj, ...)
-  end
+  runIntrinsic(self, obj, "intrinsicPostScripts", scriptName, ...)
 end
 
 -- Events ------------------------------------------------------------------------------------------------------
