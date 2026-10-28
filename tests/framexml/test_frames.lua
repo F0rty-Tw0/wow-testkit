@@ -29,8 +29,29 @@ local function test_existing_globals_metatable_index_still_answers()
   assert(ok, err)
 end
 
+-- source: row F6, floatingchatframe.xml:540 builds each chat frame's edit box as an EditBox.
+local function test_chat_frame_edit_box_names_resolve_to_edit_boxes()
+  withFrameXML("retail", function(w)
+    local box = _G.ChatFrame1EditBox
+    A.eq(box:GetObjectType(), "EditBox")
+    A.eq(pcall(box.HookScript, box, "OnEditFocusGained", function() end), true)
+    A.eq(_G.ChatFrame10EditBox:GetObjectType(), "EditBox")
+    A.eq(w.unscripted["frame:ChatFrame1EditBox"], 1)
+  end)
+end
+
+local function test_chat_frame_edit_boxes_are_edit_boxes_on_every_flavor_assumed()
+  for _, flavor in ipairs({ "mists", "vanilla", "tbc", "forever" }) do
+    withFrameXML(flavor, function()
+      A.eq(_G.ChatFrame1EditBox:GetObjectType(), "EditBox")
+    end)
+  end
+end
+
 return function()
   test_known_frame_name_resolves_to_frame_counted_unscripted()
   test_unknown_name_stays_nil()
   test_existing_globals_metatable_index_still_answers()
+  test_chat_frame_edit_box_names_resolve_to_edit_boxes()
+  test_chat_frame_edit_boxes_are_edit_boxes_on_every_flavor_assumed()
 end
