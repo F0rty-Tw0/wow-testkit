@@ -11,7 +11,10 @@ cd "$(dirname "$0")/.."
 
 # One private temp folder per run, removed on exit: Tmp.dir and tempfile put their folders here, and nothing else
 # removes them. Windows tools need a C:/ path, so cygpath converts it when present.
-suite_tmp=$(mktemp -d "${TMPDIR:-/tmp}/wow-testkit-suite-XXXXXX")
+suite_tmp=$(mktemp -d "${TMPDIR:-/tmp}/wow-testkit-suite-XXXXXX") || {
+  echo "test.sh: cannot create the suite temp folder" >&2
+  exit 1
+}
 if command -v cygpath >/dev/null; then
   suite_tmp=$(cygpath -m "$suite_tmp")
 fi
