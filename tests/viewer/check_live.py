@@ -127,6 +127,17 @@ def check_combat(root):
     one(element(root, "combatlog"), lambda n: n.tag == "ol", "#combatlog ol")
 
 
+def check_blizzard(root):
+    panel = element(root, "blizzard")
+    toggle = one(panel, lambda n: n.attrs.get("id") == "blizzard-toggle", "#blizzard #blizzard-toggle")
+    if toggle.tag != "input" or toggle.attrs.get("type") != "checkbox" or "disabled" not in toggle.attrs:
+        raise AssertionError("#blizzard-toggle %s %r is not a disabled checkbox" % (toggle.tag, toggle.attrs))
+    one(panel, lambda n: n.tag == "select" and n.attrs.get("id") == "blizzard-layout", "#blizzard select#blizzard-layout")
+    one(panel, lambda n: n.tag == "input" and n.attrs.get("id") == "blizzard-actions", "#blizzard input#blizzard-actions")
+    if "no client extract" not in panel.text():
+        raise AssertionError("no 'no client extract' hint in %r" % panel.text()[:200])
+
+
 # (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
     ("ready flag, live snapshot drawn", check_ready, 0),
@@ -140,6 +151,7 @@ CHECKS = [
     ("toolbar #size lists the presets and custom; the status line names the addon", check_size_picker, 0),
     ("#dev lists SessionDemo under a Memory (estimate) header", check_dev, 0),
     ("#combat has the preset options and the race select; #combatlog exists", check_combat, 0),
+    ("#blizzard has the toggle (disabled, no extract), the layout select and the actions line", check_blizzard, 0),
 ]
 
 
