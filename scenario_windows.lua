@@ -5,6 +5,10 @@ local M = {}
 
 local BlizzardData = require("blizzard_data")
 local BlizzardWindows = require("blizzard_windows")
+local Items = require("game.items")
+local Mail = require("game.mail")
+local Merchant = require("game.merchant")
+local State = require("game.state")
 local TalentsClassic = require("game.talents_classic")
 local TalentsDb2 = require("game.talents_db2")
 
@@ -24,7 +28,8 @@ local function callOn(s, name, frame)
 end
 
 -- source: assumed (B2) the order: the window path first (the interaction event, else the window's show global, else its
--- toggle), then the legacy event addons listen for. The show global and the toggle need the layer.
+-- toggle), then the legacy event addons listen for. The show global and the toggle need the layer; an error they raise
+-- goes to the error handler (w.blizzard.errors), as in the client, and the legacy event still fires.
 function M.show(s, window)
   local w, spec = s.w, BlizzardWindows.spec(s.w, window)
   if w.blizzard then
@@ -37,14 +42,14 @@ function M.show(s, window)
     s:fireIfKnown(SHOW, BlizzardWindows.interaction(spec.interaction))
   end
   if spec.show and w.blizzard and type(_G[spec.show]) == "function" then
-    w:run(ENGINE, _G[spec.show])
+    w:run(ENGINE, w.try, w, _G[spec.show])
   end
   if spec.open then
     s:fireIfKnown(spec.open)
   end
   if spec.toggle and w.blizzard and not (spec.interaction or spec.show or spec.open) then
     if type(_G[spec.toggle]) == "function" then
-      w:run(ENGINE, _G[spec.toggle])
+      w:run(ENGINE, w.try, w, _G[spec.toggle])
     elseif spec.frame and _G[spec.frame] then
       w:run(ENGINE, _G[spec.frame].Show, _G[spec.frame])
     end
@@ -161,6 +166,68 @@ function M.openers.map(s, data)
   if spec.frame and _G[spec.frame] and s.w.ui.state[_G[spec.frame]].shown then
     s.w:run(ENGINE, frameTick, s.w, _G[spec.frame])
   end
+end
+
+-- Replaces w.mock[key] with a copy of data over the area's defaults (a list in a patch merges by index, so a second open
+-- would keep the first one's tail).
+local function replaceStore(w, key, data, defaults)
+  w.mock[key] = State.merge({}, data or {})
+  State.fill(w.mock[key], defaults[key])
+end
+
+-- Copies the item ids of rows into w.mock.items from the extract (B17). source: assumed without an extract a row left
+-- unnamed is called "Kit item <id>", so the demo's id-only rows still read as items.
+local function hydrate(w, rows)
+  local ids = {}
+  for _, row in ipairs(rows) do
+    ids[#ids + 1] = row.itemID
+  end
+  BlizzardData.items(w, ids)
+  for _, row in ipairs(w.client == nil and rows or {}) do
+    if row.itemID and not Items.rowFacts(w, row) then
+      row.name = "Kit item " .. row.itemID
+    end
+  end
+end
+
+-- Opens merchant. data = the w.mock.merchant store (game/merchant.lua); it replaces the last one.
+-- source: assumed (B10) the order: the window path, MERCHANT_SHOW, then MERCHANT_UPDATE; MERCHANT_CLOSED on close.
+function M.openers.merchant(s, data)
+  local w = s.w
+  replaceStore(w, "merchant", data, Merchant.DEFAULTS)
+  local rows = {}
+  for _, list in ipairs({ w.mock.merchant.items, w.mock.merchant.buyback }) do
+    for _, row in ipairs(list) do
+      rows[#rows + 1] = row
+    end
+  end
+  hydrate(w, rows)
+  M.show(s, "merchant")
+  s:fireIfKnown("MERCHANT_UPDATE")
+end
+M.closers.merchant = function(s)
+  M.hide(s, "merchant")
+  s:fireIfKnown("MERCHANT_CLOSED")
+end
+
+-- Opens mail. data = the w.mock.mail store (game/mail.lua); it replaces the last one.
+-- source: confirmed (B12) the classic window handles MAIL_INBOX_UPDATE; assumed MAIL_SHOW before it and MAIL_CLOSED on close.
+function M.openers.mail(s, data)
+  local w = s.w
+  replaceStore(w, "mail", data, Mail.DEFAULTS)
+  local rows = {}
+  for _, mail in ipairs(w.mock.mail.inbox) do
+    for _, item in ipairs(mail.items or {}) do
+      rows[#rows + 1] = item
+    end
+  end
+  hydrate(w, rows)
+  M.show(s, "mail")
+  s:fireIfKnown("MAIL_INBOX_UPDATE")
+end
+M.closers.mail = function(s)
+  M.hide(s, "mail")
+  s:fireIfKnown("MAIL_CLOSED")
 end
 
 function M.extend(Scenario)
