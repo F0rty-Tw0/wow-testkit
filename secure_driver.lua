@@ -134,12 +134,14 @@ end
 
 local arm
 
+-- The next update is armed before this one runs, so an update that raises (the error goes to the handler) does not stop
+-- the driver; an update that removes the last driver releases it, and a reset event re-arms it sooner.
 local function tick(w, state)
   state.ticker = nil
-  secure(w, update, w, state)
-  if wanted(state) and not state.ticker then
+  if wanted(state) then
     arm(w, state, UPDATE_THROTTLE)
   end
+  secure(w, update, w, state)
 end
 
 -- Replaces the pending update with one due after delay seconds of world time.

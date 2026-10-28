@@ -231,6 +231,19 @@ local function test_a_unit_watch_reading_an_addon_replaced_unit_exists_runs_it_t
   end)
 end
 
+local function test_an_update_error_is_reported_and_the_driver_keeps_running() -- TS16
+  H.withTaint("retail", function(w)
+    local f = stateFrame("TKDrvErr")
+    _G.RegisterStateDriver(f, "x", "[exists] a; b")
+    H.run(w, "Foo", "UnitExists = function() error('boom') end")
+    w:advance(0.2)
+    local first = #w.errors
+    w:advance(0.2)
+    A.same({ first > 0, #w.errors > first }, { true, true }) -- each update still runs and reports
+    A.contains(tostring(w.errors[#w.errors].message), "boom")
+  end)
+end
+
 return function()
   test_state_driver_sets_the_state_attribute_and_follows_combat()
   test_visibility_driver_hides_a_protected_frame_in_combat()
@@ -248,4 +261,5 @@ return function()
   test_ticker_runs_only_while_a_driver_exists()
   test_a_driver_reading_an_addon_replaced_unit_global_runs_it_tainted_assumed()
   test_a_unit_watch_reading_an_addon_replaced_unit_exists_runs_it_tainted_assumed()
+  test_an_update_error_is_reported_and_the_driver_keeps_running()
 end
