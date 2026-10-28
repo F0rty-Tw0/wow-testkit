@@ -10,6 +10,8 @@ local Xml = require("ui.xml")
 local fs = require("fs")
 
 local NOT_DECLARED = "not-declared"
+-- source: row L7, the client skips a UTF-8 BOM at the start of a Lua file
+local UTF8_BOM = "^\239\187\191"
 
 -- collectgarbage, held here so addon code assigning the global cannot reach it; a field so tests can watch the pause.
 M.gc = collectgarbage
@@ -58,6 +60,7 @@ function M.runFile(w, ctx, relative)
     ctx.report[#ctx.report + 1] = relative .. ": cannot read file; skipped"
     return
   end
+  source = (source:gsub(UTF8_BOM, ""))
   runChunk(w, ctx, source, "addon:" .. ctx.name .. "/" .. relative)
 end
 

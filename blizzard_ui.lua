@@ -32,7 +32,6 @@ local FIRST_ERRORS = 10
 local ADDON_SOURCE = "^addon:([^/\r\n]+)/"
 -- ADDON_LOADED payload: addOnName, containsBindings.
 local CONTAINS_BINDINGS = false
-local UTF8_BOM = "^\239\187\191"
 
 -- The TOC the client reads for name on flavor in root, whose files are all lowercase; nil when there is none.
 local function tocOf(root, name, flavor)
@@ -130,8 +129,8 @@ local function keepErrors(w, report)
   return w.errorHandler
 end
 
--- ctx.readFile for an extract addon: TOC lines and XML paths are mixed case, the extract is lowercase, and Blizzard
--- files start with a UTF-8 BOM the client skips. A file the extract lacks is a note, not an error.
+-- ctx.readFile for an extract addon: TOC lines and XML paths are mixed case and the extract is lowercase. A file the
+-- extract lacks is a note, not an error. A UTF-8 BOM the client skips is dropped by Addon.runFile and Xml, for every addon.
 local function lowerPath(relative)
   return (relative:gsub("\\", "/"):lower())
 end
@@ -143,7 +142,7 @@ local function lowerReader(root, name, notes)
     if not text then
       notes[#notes + 1] = "Blizzard UI: " .. name .. " lists missing file " .. path
     end
-    return text and (text:gsub(UTF8_BOM, ""))
+    return text
   end
 end
 
