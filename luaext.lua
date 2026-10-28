@@ -129,6 +129,34 @@ local function hooksecurefunc(w, tbl, name, hook)
   end
 end
 
+-- source: assumed (row G21) the client's math extensions (MathUtil.lua aliases them at load; no source gives their bodies):
+-- the usual meanings. round is half away from zero; wrap is the half-open [min, max) interval MathUtil.lua's comment names.
+local function clamp(value, low, high)
+  return math.min(math.max(value, low), high)
+end
+
+local MATH_EXTENSIONS = {
+  clamp = clamp,
+  lerp = function(from, to, amount)
+    return from + (to - from) * amount
+  end,
+  round = function(value)
+    return value < 0 and -math.floor(-value + 0.5) or math.floor(value + 0.5)
+  end,
+  sign = function(value)
+    return value > 0 and 1 or value < 0 and -1 or 0
+  end,
+  saturate = function(value)
+    return clamp(value, 0, 1)
+  end,
+  normalize = function(value, from, to)
+    return (value - from) / (to - from)
+  end,
+  wrap = function(value, low, high)
+    return low + (value - low) % (high - low)
+  end,
+}
+
 local function installErrorHandler(w)
   w:install("geterrorhandler", function()
     return w.errorHandler
@@ -157,6 +185,9 @@ end
 function M.install(w)
   for name, fn in pairs(ALIASES) do
     w:install(name, fn)
+  end
+  for name, fn in pairs(MATH_EXTENSIONS) do
+    w:install("math." .. name, fn)
   end
   if rawget(_G, "unpack") == nil then
     w:install("unpack", rawget(table, "unpack"))

@@ -260,6 +260,26 @@ local function test_c_timer_counted_and_validated_in_addon_context()
   end)
 end
 
+-- source: assumed (row G21) the math extensions MathUtil.lua aliases at load (Clamp, Lerp, Round, Sign, Saturate,
+-- PercentageBetween): the usual meanings; no source in the extract gives their bodies.
+local function test_math_extensions_have_the_usual_meanings_assumed()
+  withWorld("retail", function()
+    A.same({ _G.math.clamp(5, 0, 3), _G.math.clamp(-1, 0, 3), _G.math.clamp(2, 0, 3) }, { 3, 0, 2 })
+    A.same({ _G.math.lerp(10, 20, 0.25), _G.math.lerp(0, 8, 1) }, { 12.5, 8 })
+    A.same({ _G.math.round(2.5), _G.math.round(-2.5), _G.math.round(2.4) }, { 3, -3, 2 })
+    A.same({ _G.math.sign(-4), _G.math.sign(0), _G.math.sign(9) }, { -1, 0, 1 })
+    A.same({ _G.math.saturate(-1), _G.math.saturate(0.5), _G.math.saturate(7) }, { 0, 0.5, 1 })
+    A.eq(_G.math.normalize(15, 10, 20), 0.5)
+    A.eq(_G.math.wrap(7, 0, 5), 2)
+    A.eq(_G.Clamp, nil) -- the global aliases are Blizzard's MathUtil.lua, not the kit's
+  end)
+end
+
+local function test_math_extensions_leave_with_the_world()
+  withWorld("retail", function() end)
+  A.eq(_G.math.clamp, nil)
+end
+
 return function()
   test_strsplit_returns_each_piece()
   test_strsplit_separator_is_a_set_of_chars()
@@ -287,4 +307,6 @@ return function()
   test_gettime_reads_world_clock()
   test_debugprofilestop_returns_milliseconds()
   test_c_timer_counted_and_validated_in_addon_context()
+  test_math_extensions_have_the_usual_meanings_assumed()
+  test_math_extensions_leave_with_the_world()
 end
