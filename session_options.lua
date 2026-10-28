@@ -95,13 +95,22 @@ local function resized(screen, width, height)
   return out
 end
 
+-- The Blizzard UI layer a reload asks for: on is the layer the session first opened with (its targets), else true.
+-- blizzardLayer keeps that first layer across reloads that turn it off.
+local function toggleLayer(out, opts, on)
+  out.blizzardLayer = opts.blizzardLayer or opts.blizzardUi or nil
+  out.blizzardUi = on and (out.blizzardLayer or true)
+end
+
 -- The options a reload of a session opened with opts uses: over's flavor ("auto" or a name in Flavors.list) and size
--- (a preset name or { width, height }) or screen; over's other fields are ignored, so the addon folder, extract and
--- session folder stay the process's. Raises, naming the field, on anything a world would refuse, so a caller can run
--- it before it touches the current world.
+-- (a preset name or { width, height }) or screen, and blizzardUi (true or false: the layer on or off); over's other
+-- fields are ignored, so the addon folder, extract and session folder stay the process's. Raises, naming the field, on
+-- anything a world would refuse, so a caller can run it before it touches the current world.
 function M.reopen(opts, over)
   if over.keepSaved ~= nil and type(over.keepSaved) ~= "boolean" then
     error("reload: keepSaved must be true or false", 0)
+  elseif over.blizzardUi ~= nil and type(over.blizzardUi) ~= "boolean" then
+    error("reload: blizzardUi must be true or false", 0)
   end
   if over.size ~= nil and over.screen ~= nil then
     error("reload: give size or screen, not both", 0)
@@ -123,6 +132,9 @@ function M.reopen(opts, over)
   end
   if over.size ~= nil then
     out.screen = resized(opts.screen, sizeOf(over.size))
+  end
+  if over.blizzardUi ~= nil then
+    toggleLayer(out, opts, over.blizzardUi)
   end
   Screen.normalize(out.screen)
   return out

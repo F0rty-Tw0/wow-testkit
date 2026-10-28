@@ -7,12 +7,12 @@
 local M = {}
 
 local Bindings = require("bindings")
-local BlizzardUi = require("blizzard_ui")
 local Client = require("client")
 local Flavors = require("tools.flavors")
 local Json = require("json")
 local Render = require("render")
 local Scenario = require("scenario")
+local SessionBlizzard = require("session_blizzard")
 local SessionCombat = require("session_combat")
 local SessionConsole = require("session_console")
 local SessionDev = require("session_dev")
@@ -73,7 +73,7 @@ local function infoOf(sess)
     loads = sess.loads,
     errors = #w.errors,
     skipped = sess.skipped,
-    blizzard = BlizzardUi.summary(w),
+    blizzard = SessionBlizzard.info(sess),
   }
 end
 
@@ -136,8 +136,8 @@ function M.new(opts)
   return open(opts, nil)
 end
 
--- A new session over the same options (plus over's flavor and size or screen, SessionOptions.reopen) and the same mock
--- state, counting one more load. The old one logs out first and, unless over.keepSaved, writes its saved variables;
+-- A new session over the same options (plus over's flavor, size or screen and blizzardUi, SessionOptions.reopen) and the
+-- same mock state, counting one more load. The old one logs out first and, unless over.keepSaved, writes its saved variables;
 -- keepSaved loads what saved.lua already holds. A refused option raises before sess is shut down, so it stays whole;
 -- after that nothing raises: a new world that cannot be built reopens sess's own options, returned with why the reload
 -- failed, or nil and "session lost: <why>" when that fails too. seq keeps counting, so a viewer never sees it go back.
