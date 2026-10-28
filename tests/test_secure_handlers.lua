@@ -91,15 +91,48 @@ local function test_execute_checks_its_header_and_body() -- TS15
   end)
 end
 
-local function test_a_tainted_click_cannot_run_a_snippet() -- TS15
+-- Ruling B1: the template's snippet handlers run secure whoever fires the script (securehandlers.lua:427-429).
+local function test_a_tainted_click_runs_the_click_snippet_secure_assumed() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHTaint")
     local target = hiddenTarget("TKHTaintT")
     h:SetFrameRef("p", target)
     h:SetAttribute("_onclick", "self:GetFrameRef('p'):Show()")
     H.run(w, "Foo", "TKHTaint:Click()")
-    A.eq(target:IsShown(), false)
-    A.contains(lastError(w), "Cannot call restricted closure from insecure code")
+    A.eq(target:IsShown(), true)
+    A.eq(#w.errors, 0)
+  end)
+end
+
+local function test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed() -- TS15
+  H.withTaint("retail", function(w)
+    local g = _G.CreateFrame("Frame", "TKHTState", _G.UIParent, "SecureHandlerStateTemplate")
+    g:SetAttribute("_onstate-page", "self:SetAttribute('page', newstate)")
+    local a = _G.CreateFrame("Frame", "TKHTAttr", _G.UIParent, "SecureHandlerAttributeTemplate")
+    a:SetAttribute("_onattributechanged", "if name == 'x' then self:SetAttribute('seen', value) end")
+    H.run(w, "Foo", "TKHTState:SetAttribute('state-page', 3); TKHTAttr:SetAttribute('x', 5)")
+    A.same({ g:GetAttribute("page"), a:GetAttribute("seen"), #w.errors }, { 3, 5, 0 })
+  end)
+end
+
+local function test_a_tainted_show_runs_the_onshow_snippet_assumed() -- TS15
+  H.withTaint("retail", function(w)
+    local f = _G.CreateFrame("Frame", "TKHTShow", _G.UIParent, "SecureHandlerShowHideTemplate")
+    f:Hide()
+    f:SetAttribute("_onshow", "self:SetAttribute('shown', 1)")
+    H.run(w, "Foo", "TKHTShow:Show()")
+    A.same({ f:GetAttribute("shown"), #w.errors }, { 1, 0 })
+  end)
+end
+
+local function test_a_tainted_state_attribute_in_combat_is_blocked_before_the_snippet() -- TS9, TS15
+  H.withTaint("retail", function(w)
+    local g = _G.CreateFrame("Frame", "TKHCState", _G.UIParent, "SecureHandlerStateTemplate")
+    g:SetAttribute("_onstate-page", "self:SetAttribute('page', newstate)")
+    H.setCombat(w, true)
+    H.run(w, "Foo", "TKHCState:SetAttribute('state-page', 3)")
+    A.same({ g:GetAttribute("state-page"), g:GetAttribute("page"), #w.errors }, { nil, nil, 0 })
+    A.eq(H.events(w, "blocked")[1].name, "TKHCState:SetAttribute()")
   end)
 end
 
@@ -422,7 +455,10 @@ return function()
   test_handler_api_is_refused_in_combat_for_every_caller()
   test_execute_runs_secure_for_tainted_callers_out_of_combat()
   test_execute_checks_its_header_and_body()
-  test_a_tainted_click_cannot_run_a_snippet()
+  test_a_tainted_click_runs_the_click_snippet_secure_assumed()
+  test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
+  test_a_tainted_show_runs_the_onshow_snippet_assumed()
+  test_a_tainted_state_attribute_in_combat_is_blocked_before_the_snippet()
   test_restricted_environment_hides_globals()
   test_snippets_refuse_function_and_table_syntax()
   test_environment_variables_persist_per_header()
