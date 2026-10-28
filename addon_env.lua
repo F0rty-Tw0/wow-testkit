@@ -272,6 +272,12 @@ function M.global(w, name, raw)
   return answer(w.addonOverrides, name, raw)
 end
 
+-- Stores value as the view's own `name` (a Names.KEPT name), where kit code reading _G never sees it; taints nothing.
+function M.keep(w, name, value)
+  worldView(w)
+  Names.keep(w.addonOverrides, HOST_VALUES, name, value)
+end
+
 -- The per-addon environment: the world's view plus the require sentinel, raw in the environment so it shadows any host
 -- require. Both are registered in w.addonEnvs, so getfenv in any addon answers the view for them.
 function M.newEnv(w)

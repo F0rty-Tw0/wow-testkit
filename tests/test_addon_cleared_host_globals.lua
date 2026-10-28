@@ -116,10 +116,27 @@ ns.sees = type
   A.same({ errors, ns.wrapped, tostring(ns.sees), ns.timer }, { {}, "type", "nil", true })
 end
 
+-- hooksecurefunc on a base-library name hooks the addon view's value: the addon's calls fire the hook, kit code's don't.
+local function test_a_hooked_base_library_name_fires_for_the_addons_calls_only()
+  local ns, errors = runAddon([[
+local _, ns = ...
+ns.calls, ns.hooks = 0, 0
+local original = type
+type = function(v) ns.calls = ns.calls + 1; return original(v) end
+hooksecurefunc("type", function() ns.hooks = ns.hooks + 1 end)
+hooksecurefunc(_G, "tostring", function() ns.hooks = ns.hooks + 10 end)
+ns.sees = type(1) .. tostring(2)
+tostring = nil
+ns.cleared = tostring
+]] .. CALLS_KIT)
+  A.same({ errors, ns.sees, ns.calls, ns.hooks, tostring(ns.cleared), ns.timer }, { {}, "number2", 1, 11, "nil", true })
+end
+
 return function()
   test_kit_functions_still_work_after_an_addon_clears_select_and_xpcall()
   test_kit_functions_still_work_after_an_addon_clears_type()
   test_kit_functions_still_work_after_an_addon_assigns_a_string_to_type()
   test_a_cleared_name_stays_cleared_for_rawget_and_pairs_assumed()
   test_an_addon_rawset_wrapping_the_original_still_clears_type()
+  test_a_hooked_base_library_name_fires_for_the_addons_calls_only()
 end
