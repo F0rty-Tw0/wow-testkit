@@ -81,11 +81,15 @@ function ColorMixin:IsEqualTo(other)
   return self:IsRGBEqualTo(other) and self.a == other.a
 end
 
--- AARRGGBB in lower case, the form a |c escape takes after the two characters of the prefix.
-function ColorMixin:GenerateHexColor()
-  local r, g, b, a = self:GetRGBAAsBytes()
+-- AARRGGBB in lower case, the form a |c escape takes after the two characters of the prefix. Blizzard's color.lua
+-- builds GenerateHexColor and WrapTextInColorCode on C_ColorUtil, so the engine calls answer the same text.
+-- source: row W76 (confirmed: the |c ... |r wrap; assumed: this hex form for the engine calls too).
+local function textColorCode(color)
+  return format("%02x%02x%02x%02x", byte(color.a or DEFAULT_ALPHA), byte(color.r), byte(color.g), byte(color.b))
+end
 
-  return format("%02x%02x%02x%02x", a, r, g, b)
+function ColorMixin:GenerateHexColor()
+  return textColorCode(self)
 end
 
 function ColorMixin:GenerateHexColorNoAlpha()
@@ -188,6 +192,11 @@ function M.install(w)
   w:install("CreateColorFromBytes", fromBytes, KETHO_GATE)
   w:install("WrapTextInColorCode", M.wrap, KETHO_GATE)
   w:install("WrapTextInColor", wrapInColor, KETHO_GATE)
+  w:install("C_ColorUtil.GenerateTextColorCode", textColorCode, API_GATE)
+  w:install("C_ColorUtil.WrapTextInColorCode", M.wrap, API_GATE)
+  w:install("C_ColorUtil.WrapTextInColor", function(text, color)
+    return M.wrap(text, textColorCode(color))
+  end, API_GATE)
   local classes = rawget(_G, "RAID_CLASS_COLORS") or {}
   w:install("GetClassColor", classColor(classes), KETHO_GATE)
   w:install("C_ClassColor.GetClassColor", classColorObject(classes), API_GATE)

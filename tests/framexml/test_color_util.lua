@@ -128,7 +128,21 @@ local function test_addon_made_globals_stay_absent() -- W69
   end)
 end
 
+-- Blizzard's color.lua builds ColorMixin:WrapTextInColorCode and GenerateHexColor on these, and the retail auction house
+-- names each browse row through them.
+local function test_color_util_wraps_text_in_color_markup_assumed() -- W76
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    withFrameXML(flavor, function()
+      local color = { r = 1, g = 0.5, b = 0 }
+      A.eq(_G.C_ColorUtil.GenerateTextColorCode(color), "ffff8000", flavor)
+      A.eq(_G.C_ColorUtil.WrapTextInColor("Kit Cloth", color), "|cffff8000Kit Cloth|r", flavor)
+      A.eq(_G.C_ColorUtil.WrapTextInColorCode("Kit Cloth", "ff00ff00"), "|cff00ff00Kit Cloth|r", flavor)
+    end)
+  end
+end
+
 return function()
+  test_color_util_wraps_text_in_color_markup_assumed()
   test_font_colour_globals_have_the_recorded_values()
   test_font_colour_hex_and_code_globals_match_the_literals()
   test_the_font_colours_come_from_the_ui_colour_table()
