@@ -40,6 +40,18 @@ function M.session(ctx, file)
   return session
 end
 
+-- err with one position, the one the addon author can act on: an addon position ("addon:...") is kept, a kit file's
+-- leading position is replaced by `where` (the traceback still names it), anything else gets `where` in front. Kit
+-- report format, not client behaviour. No kit-root match: Lua 5.1 shortens long chunk names to "...<tail>".
+local function position(where, err)
+  local text = tostring(err)
+  if text:sub(1, 6) == "addon:" then
+    return text
+  end
+  local _, stop = text:find("^.-%.lua:%d+: ")
+  return where .. text:sub((stop or 0) + 1)
+end
+
 -- Calls fn(...) so an error it raises is reported (w.errors, named by the XML file and `line`) instead of aborting the
 -- addon's load. True when fn did not raise.
 function M.guard(w, session, line, fn, ...)
@@ -48,7 +60,7 @@ function M.guard(w, session, line, fn, ...)
   return (xpcall(function()
     return fn(unpack(args, 1, args.n))
   end, function(err)
-    w:reportError(where .. tostring(err))
+    w:reportError(position(where, err))
   end))
 end
 
