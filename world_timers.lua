@@ -81,8 +81,8 @@ end
 -- After MAX_TIMER_FIRES callbacks within one frame (callbacks that multiply every frame) it stops, leaves the clock at
 -- the last fired timer and reports a "timer loop" error.
 function methods:advance(seconds)
-  if type(seconds) ~= "number" or seconds < 0 then
-    error("advance: seconds must be a non-negative number, got " .. tostring(seconds), 2)
+  if type(seconds) ~= "number" or not (seconds >= 0 and seconds < math.huge) then
+    error("advance: seconds must be a finite non-negative number, got " .. tostring(seconds), 2)
   end
   local limit = self.now + seconds
   local frameEnd, fires = -math.huge, 0

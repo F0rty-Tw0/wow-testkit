@@ -63,10 +63,13 @@ local function reload(sess)
   sess.pendingReload = {}
 end
 
+-- A longer advance runs every per-frame timer it covers in one request, so the server would stall on a huge one.
+local MAX_ADVANCE = 3600
+
 local function advance(sess, arg)
   local seconds = tonumber(arg)
-  if not seconds or seconds < 0 then
-    Console.push(sess.w, "system", "Usage: /advance <seconds>")
+  if not (seconds and seconds >= 0 and seconds <= MAX_ADVANCE) then
+    Console.push(sess.w, "system", "Usage: /advance <seconds> (0 to " .. MAX_ADVANCE .. ")")
     return
   end
   sess.s:advance(seconds)

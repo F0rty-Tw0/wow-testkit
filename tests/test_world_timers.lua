@@ -114,6 +114,19 @@ local function test_advance_rejects_negative_seconds()
   end)
 end
 
+local function test_advance_rejects_non_finite_seconds()
+  withWorld("retail", function(w)
+    local before = w.now
+    A.errors(function()
+      w:advance(math.huge)
+    end, "advance")
+    A.errors(function()
+      w:advance(0 / 0)
+    end, "advance")
+    A.eq(w.now, before)
+  end)
+end
+
 local function test_negative_delay_fires_now_without_moving_clock_back()
   withWorld("retail", function(w)
     local seen
@@ -219,6 +232,7 @@ return function()
   test_timer_scheduled_during_advance_within_window_fires()
   test_timer_callback_runs_in_addon_context()
   test_advance_rejects_negative_seconds()
+  test_advance_rejects_non_finite_seconds()
   test_negative_delay_fires_now_without_moving_clock_back()
   test_zero_interval_ticker_fires_once_per_frame_assumed()
   test_short_interval_ticker_fires_at_most_once_per_frame_assumed()
