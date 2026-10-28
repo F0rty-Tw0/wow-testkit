@@ -1,6 +1,7 @@
 -- The per-addon environment Addon.load runs each file in: a view of _G that hides host-only names, hands out
 -- itself where the host would hand out the real _G, and keeps the metatable addon code gives _G beside it.
 local Fenv = require("addon_env_fenv")
+local Names = require("addon_env_names")
 
 local M = {}
 
@@ -125,6 +126,10 @@ local function addRawAccess(overrides, view, w)
     return hostRawget(t, key)
   end
   overrides.rawset = function(t, key, value)
+    if t == view and Names.KEPT[key] then
+      Names.keep(overrides, HOST_VALUES, key, value)
+      return t
+    end
     (w.taint and w.taint.write or hostRawset)(t == view and _G or t, key, value)
     return t
   end
@@ -214,8 +219,8 @@ local function callHandler(handler, ...)
 end
 
 -- The addon's _G: reads see _G through the overrides; writes land in _G (raw, so w:destroy's snapshot removes
--- them). Kit code keeps its own upvalues, so hiding names here never affects it. Like on any table, the addon
--- metatable's __index runs only for absent globals and its __newindex only for new ones.
+-- them), except writes to Names.KEPT, which stay in the overrides, so kit code reading _G keeps the base library.
+-- Like on any table, the addon metatable's __index runs only for absent globals and its __newindex only for new ones.
 local function newView(w)
   local view = {}
   local overrides = overridesFor(view, w)
@@ -233,6 +238,10 @@ local function newView(w)
       return value
     end,
     __newindex = function(_, key, value)
+      if Names.KEPT[key] then
+        Names.keep(overrides, HOST_VALUES, key, value)
+        return
+      end
       local handler = globalsHandler(w, "__newindex")
       if handler == nil or (hostRawget(_G, key) ~= nil and not hidden(overrides, key)) then
         (w.taint and w.taint.write or hostRawset)(_G, key, value)
