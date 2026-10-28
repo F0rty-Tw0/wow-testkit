@@ -78,6 +78,12 @@ local function test_retail_knows_events_blizzard_code_registers()
   A.eq(Manifest.load("vanilla").events.TRIAL_STATUS_UPDATE, nil)
 end
 
+-- source: row G25, the tbc extract's Blizzard_MoneyFrame registers TRIAL_STATUS_UPDATE on load (classic/moneyframe.lua:17, :39).
+local function test_tbc_knows_the_event_its_money_frame_registers()
+  A.same(Manifest.load("tbc").events.TRIAL_STATUS_UPDATE, {})
+  A.eq(Manifest.load("mists").events.TRIAL_STATUS_UPDATE, nil)
+end
+
 return function()
   test_load_merges_functions_from_every_file()
   test_load_merges_other_sections()
@@ -87,4 +93,5 @@ return function()
   test_load_unknown_flavor_errors_listing_valid_flavors()
   test_loading_the_kit_applies_api_versions_to_every_flavor()
   test_retail_knows_events_blizzard_code_registers()
+  test_tbc_knows_the_event_its_money_frame_registers()
 end
