@@ -80,6 +80,20 @@ local function test_classic_expansion_level_and_constants_answer_per_flavor_assu
   end)
 end
 
+-- The classic UIParent (tbc uiparent.lua:24-28) builds ITEM_QUALITY_COLORS for 0 .. NUM_LE_ITEM_QUALITYS - 1 and the auction
+-- list (Blizzard_AuctionUI.lua:1013) indexes it by quality; with the names nil the table stayed empty.
+local function test_legacy_item_quality_names_alias_enum_item_quality_assumed() -- (G26)
+  for _, flavor in ipairs({ "vanilla", "tbc", "mists" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.LE_ITEM_QUALITY_POOR, _G.LE_ITEM_QUALITY_COMMON, _G.LE_ITEM_QUALITY_UNCOMMON, _G.LE_ITEM_QUALITY_RARE }, { 0, 1, 2, 3 }, flavor)
+      A.same({ _G.LE_ITEM_QUALITY_HEIRLOOM, _G.LE_ITEM_QUALITY_WOW_TOKEN, _G.NUM_LE_ITEM_QUALITYS }, { 7, 8, 9 }, flavor)
+    end)
+  end
+  G.withGame("retail", function() -- no retail-loaded file reads them
+    A.same({ _G.LE_ITEM_QUALITY_COMMON, _G.NUM_LE_ITEM_QUALITYS }, {})
+  end)
+end
+
 local function test_kiosk_mode_is_off_assumed() -- Blizzard_MicroMenu calls Kiosk.IsEnabled() from UpdateMicroButtons
   for _, flavor in ipairs({ "retail", "tbc" }) do
     G.withGame(flavor, function()
@@ -120,6 +134,7 @@ local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
 end
 
 return function()
+  test_legacy_item_quality_names_alias_enum_item_quality_assumed()
   test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
   test_class_info_answers_the_class_list_assumed()
   test_unit_stat_constants_index_the_stat_names()

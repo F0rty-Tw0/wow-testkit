@@ -75,6 +75,24 @@ local UNIT_STATS = {
   LE_UNIT_STAT_SPIRIT = 5,
 }
 
+-- Legacy quality name -> the Enum.ItemQuality member it equals on the classic family, the only Blizzard Lua that reads them
+-- (tbc extract: blizzard_uiparent/<flavor>/uiparent.lua:24-28, blizzard_framexmlbase/<flavor>/constants.lua, ...).
+-- source: confirmed (row G26) the values, each flavor's Enum.ItemQuality and ItemQualityMeta.NumValues
+-- (api/<flavor>/ItemQualities.lua); assumed the alias set, by the wiki's Enum.ItemQuality 9.0.1 note "Renamed Standard,
+-- Good, Superior fields to Common, Uncommon, Rare".
+local LEGACY_QUALITIES = {
+  LE_ITEM_QUALITY_POOR = "Poor",
+  LE_ITEM_QUALITY_COMMON = "Standard",
+  LE_ITEM_QUALITY_UNCOMMON = "Good",
+  LE_ITEM_QUALITY_RARE = "Rare",
+  LE_ITEM_QUALITY_EPIC = "Epic",
+  LE_ITEM_QUALITY_LEGENDARY = "Legendary",
+  LE_ITEM_QUALITY_ARTIFACT = "Artifact",
+  LE_ITEM_QUALITY_HEIRLOOM = "Heirloom",
+  LE_ITEM_QUALITY_WOW_TOKEN = "WoWToken",
+}
+local CLASSIC_FAMILY = { "vanilla", "tbc", "mists" }
+
 -- Get<Type>Metatable name -> the widget type whose class metatable it answers.
 local METATABLES = {
   GetFrameMetatable = "Frame",
@@ -131,6 +149,15 @@ function M.install(w)
   -- Enum.GameRule.<Name> is nil and C_GameRules.IsGameRuleActive(nil) answers nothing, i.e. no rule is active.
   if w.manifest.enums.GameRule == nil then
     define(w, "Enum.GameRule", {}, { "retail", "forever" })
+  end
+  local qualities, meta = w.manifest.enums.ItemQuality or {}, w.manifest.enums.ItemQualityMeta or {}
+  for name, member in pairs(LEGACY_QUALITIES) do
+    if qualities[member] then
+      define(w, name, qualities[member], CLASSIC_FAMILY)
+    end
+  end
+  if meta.NumValues then
+    define(w, "NUM_LE_ITEM_QUALITYS", meta.NumValues, CLASSIC_FAMILY)
   end
   define(w, "C_CurveUtil.CreateCurve", Curve.new)
   define(w, "C_ColorOverrides.GetColorForQuality", function(quality)
