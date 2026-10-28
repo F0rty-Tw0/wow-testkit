@@ -8,6 +8,7 @@ local Flavors = require("tools.flavors")
 local Home = require("home")
 local Json = require("json")
 local Proc = require("proc")
+local ScenarioBlizzard = require("scenario_blizzard")
 local Smoke = require("smoke")
 local SmokeJson = require("smoke_json")
 local fs = require("fs")
@@ -74,10 +75,22 @@ local function listedNames(path)
   return names
 end
 
+-- Whether the Blizzard UI layer had an extract to load from on any of flavors (else it loaded nothing).
+local function layerRan(opts, flavors)
+  for _, flavor in ipairs(flavors) do
+    local found = ScenarioBlizzard.client({ blizzardUi = opts.blizzardUi, findClient = opts.findClient, flavor = flavor })
+    if found then
+      return true
+    end
+  end
+  return false
+end
+
 -- opts: { dir, list?, flavors?, blizzardUi?, findClient?, out?, html?, date? }. Runs Smoke.runAddon for each listed name
--- that is a folder of dir, writes out (default <home>/catalog/latest.json): { ver, kind = "catalog", date, blizzardUi,
--- listed, missing, smoke = SmokeJson.document } and, with html, the page. Returns 0 when it ran, 1 when the page step
--- failed, 2 for a missing dir or a missing or empty list.
+-- that is a folder of dir, writes out (default <home>/catalog/latest.json): { ver, kind = "catalog", date, blizzardUi
+-- (the layer was asked for and found an extract), listed, missing, smoke = SmokeJson.document } and, with html, the
+-- page. Returns 0 when it ran, 1 when out could not be written or the page step failed, 2 for a missing dir or a
+-- missing or empty list.
 function M.run(opts, write)
   local dir = opts.dir
   if not (dir and fs.isdir(dir)) then
@@ -105,14 +118,18 @@ function M.run(opts, write)
     ver = VERSION,
     kind = "catalog",
     date = opts.date or os.date("%Y-%m-%d"),
-    blizzardUi = opts.blizzardUi ~= nil and opts.blizzardUi ~= false,
+    blizzardUi = layerRan(opts, flavors),
     listed = listed,
     missing = missing,
     smoke = SmokeJson.document(results, flavors),
   }
   local out = opts.out or Home.path("catalog", "latest.json")
   fs.mkdirp(parentOf(out))
-  fs.writeFile(out, Json.encode(document, INDENT) .. "\n")
+  local wrote, writeErr = pcall(fs.writeFile, out, Json.encode(document, INDENT) .. "\n")
+  if not wrote then
+    write("catalog: could not write " .. out .. ": " .. tostring(writeErr) .. "\n")
+    return EXIT_FAIL
+  end
   write(string.format("catalog: %d listed, %d missing, wrote %s\n", #listed, #missing, out))
   if opts.html then
     return writePage(out, opts.html, write)

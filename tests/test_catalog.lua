@@ -108,6 +108,25 @@ local function test_blizzard_ui_flag_is_recorded_and_reaches_the_run()
   A.same({ runOf(off, "NeedsBar").status, runOf(on, "NeedsBar").status }, { "fail", "pass" })
 end
 
+-- Without an extract the layer loads nothing, so the document must not claim it ran.
+local function test_blizzard_ui_without_an_extract_is_recorded_off()
+  local doc = runCatalog({
+    list = "Good\n",
+    blizzardUi = true,
+    findClient = function()
+      return nil
+    end,
+  })
+  A.eq(doc.blizzardUi, false)
+end
+
+local function test_unwritable_out_exits_1()
+  local _, code, out = runCatalog({ list = "Good\n", out = Tmp.dir("catro") })
+  A.eq(code, 1)
+  A.contains(out, "catalog: could not write ")
+  A.truthy(not out:find("wrote", 1, true), "no wrote line for a failed write")
+end
+
 local function test_catalog_never_writes_under_the_addons_dir()
   local before = listing(DIR)
   runCatalog({ list = "Good\nBad\nNeedsBar\n" })
@@ -188,6 +207,8 @@ return function()
   test_read_list_skips_blanks_comments_and_duplicates()
   test_only_listed_addons_run_and_missing_ones_are_named()
   test_blizzard_ui_flag_is_recorded_and_reaches_the_run()
+  test_blizzard_ui_without_an_extract_is_recorded_off()
+  test_unwritable_out_exits_1()
   test_catalog_never_writes_under_the_addons_dir()
   test_missing_or_empty_list_is_a_usage_error()
   test_html_step_runs_the_page_tool()
