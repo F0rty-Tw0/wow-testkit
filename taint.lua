@@ -44,6 +44,7 @@ function M.install(w)
   require("secure_actions").install(w)
   require("secure_handlers").install(w)
   require("macro_cond").install(w)
+  require("secure_driver").install(w)
 end
 
 -- The running taint: the addon's name, or nil while execution is secure.
