@@ -42,11 +42,11 @@ local function catalogFor(w)
   return catalog
 end
 
--- Every argument nilable, checked only when passed (no arity check); one in unchecked takes any value.
+-- Every argument nilable, checked only when passed (no arity check); Behaviour.uncheckedArgs names the exceptions.
 local function lenient(signature, unchecked)
   local args = {}
   for i, spec in ipairs(signature.args or {}) do
-    args[i] = { name = spec.name, lua = unchecked[spec.name] and "any" or spec.lua, nilable = true }
+    args[i] = { name = spec.name, lua = spec.lua, also = unchecked[spec.name], nilable = true }
   end
   return { args = args }
 end
