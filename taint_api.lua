@@ -1,6 +1,6 @@
 -- The secure-execution APIs, answered from the taint state (taint.lua): issecure, issecurevariable, securecall,
--- securecallfunction, secureexecuterange and forceinsecure. Installed by Taint.install (gate "none", counted and
--- validated through w:install where the API lists them).
+-- securecallfunction, securecallmethod, secureexecuterange and forceinsecure. Installed by Taint.install (gate "none",
+-- counted and validated through w:install where the API lists them).
 local AddonEnv = require("addon_env")
 local Callsite = require("ui.callsite")
 local Taint = require("taint")
@@ -89,6 +89,12 @@ function M.install(w)
   end)
   w:install("securecallfunction", function(fn, ...)
     return call(w, fn, ...)
+  end)
+  -- source: `api/retail/FrameScript.lua` securecallmethod(object, method, arguments) -> results; retail
+  -- `blizzard_sharedxmlbase/pools.lua:473` (`securecallmethod(pool, "Release", object, canFailToFindObject)` reads the
+  -- method's result); the TS5 rules (taint restore, swallowed error) are assumed to hold as for securecallfunction.
+  w:install("securecallmethod", function(object, method, ...)
+    return call(w, object[method], object, ...)
   end)
   -- source: `blizzard_chatframebase/shared/chatframeutil.lua:790-811` (func(key, value, extra) per pair); an error in
   -- one pair does not stop the loop (assumed, row TS5).
