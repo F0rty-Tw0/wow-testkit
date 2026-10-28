@@ -1,17 +1,20 @@
 -- Item facts, money and the player's specialization, read from w.mock at call time. items = { [id] = { name, link,
 -- quality, itemLevel, minLevel, type, subType, stackCount, equipLoc, icon, sellPrice, classID, subClassID, count } },
 -- money in copper, spec = the current specialization index (false clears it) and specs = { [index] = { id, name,
--- description, icon, role, primaryStat } }. A known id with an absent field returns nothing for that value; an unknown
--- id returns the API's default and counts as unscripted.
+-- description, icon, role, primaryStat } } and itemClasses = { [classID] = { name, subClasses = { [subClassID] = name } } }
+-- (filled from DB2 at install); inventory slot names are the INVTYPE_* global strings. A known id with an absent field
+-- returns nothing for that value; an unknown id returns the API's default and counts as unscripted.
 local M = {}
 
+local AddonEnv = require("addon_env")
+local BlizzardData = require("blizzard_data")
 local State = require("game.state")
 local WorldApi = require("world_api")
 local define = State.define
 
 local unpack = unpack
 
-M.DEFAULTS = { items = {}, money = 0, specs = {} }
+M.DEFAULTS = { items = {}, money = 0, specs = {}, itemClasses = {} }
 
 -- source: assumed (row G13) the client's quality colours; no page lists them (the extract sets them in the engine).
 local QUALITY_COLORS = { [0] = "9d9d9d", "ffffff", "1eff00", "0070dd", "a335ee", "ff8000", "e6cc80", "00ccff", "00ccff" }
@@ -118,6 +121,57 @@ local function installItems(w)
   end)
 end
 
+-- source: confirmed (row BU22) C_Item.GetItemClassInfo(classID) -> name and GetItemSubClassInfo(classID, subClassID) ->
+-- subClassName, subClassUsesInvType (api/<flavor>/Item.lua); assumed: an unknown class or subclass returns nothing and
+-- subClassUsesInvType is false (no installed file names its column).
+local function installItemClasses(w)
+  BlizzardData.fill(w, "itemClasses", BlizzardData.itemClasses)
+  define(w, "C_Item.GetItemClassInfo", function(classID)
+    local class = w.mock.itemClasses[classID]
+    if not class then
+      WorldApi.markUnscripted(w, "C_Item.GetItemClassInfo")
+      return
+    end
+    return class.name
+  end)
+  define(w, "C_Item.GetItemSubClassInfo", function(classID, subClassID)
+    local class = w.mock.itemClasses[classID]
+    local name = class and class.subClasses and class.subClasses[subClassID]
+    if not name then
+      WorldApi.markUnscripted(w, "C_Item.GetItemSubClassInfo")
+      return
+    end
+    return name, false
+  end)
+end
+
+-- The GlobalStrings key of an Enum.InventoryType value: member Index<X>Type gives INVTYPE_<X> with an underscore before each
+-- capital that follows a lowercase letter (IndexNonEquipType -> INVTYPE_NON_EQUIP, Index2HweaponType -> INVTYPE_2HWEAPON).
+local function slotKey(w, inventoryType)
+  local enum = AddonEnv.global(w, "Enum")
+  for name, value in pairs(type(enum) == "table" and enum.InventoryType or {}) do
+    local stem = value == inventoryType and name:match("^Index(.+)Type$")
+    if stem then
+      return "INVTYPE_" .. stem:gsub("(%l)(%u)", "%1_%2"):upper()
+    end
+  end
+  return nil
+end
+
+-- source: assumed (row BU22) the slot name is the INVTYPE_<X> global string of the type's enum member: the pairing holds
+-- for every Enum.InventoryType member in api/retail against the retail strings extract, but no installed file states it.
+local function installInventorySlots(w)
+  define(w, "C_Item.GetItemInventorySlotInfo", function(inventoryType)
+    local key = slotKey(w, inventoryType)
+    local name = key and AddonEnv.global(w, key, true)
+    if type(name) ~= "string" then
+      WorldApi.markUnscripted(w, "C_Item.GetItemInventorySlotInfo")
+      return
+    end
+    return name
+  end)
+end
+
 local SPEC_FIELDS = { "id", "name", "description", "icon", "role", "primaryStat", "pointsSpent", "background", "previewPointsSpent", "isUnlocked" }
 
 -- source: confirmed (row G13) nil without a specialization; the deprecation fallbacks of row G1 forward to the
@@ -151,6 +205,8 @@ end
 
 function M.install(w)
   installItems(w)
+  installItemClasses(w)
+  installInventorySlots(w)
   installSpecialization(w)
   -- source: confirmed (row G13) copper.
   define(w, "GetMoney", function()

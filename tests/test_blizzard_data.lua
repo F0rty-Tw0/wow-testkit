@@ -59,6 +59,28 @@ local function test_fill_merges_without_overwriting_and_no_extract_is_a_noop()
   end)
 end
 
+-- Blizzard_AuctionData.lua:101 (retail) and :238 (classic) assert a non-empty category name from these two. Rows are
+-- keyed by row ID, looked up by ClassID / SubClassID; an empty VerboseName_lang falls back to DisplayName_lang.
+local CLASSES = {
+  itemclass = "return { [3] = { ClassName_lang = 'Kit Weapon', ClassID = 2 } }",
+  itemsubclass = "return { [10] = { DisplayName_lang = 'Kit Sword', VerboseName_lang = 'Kit One-Handed Swords', ClassID = 2, SubClassID = 7 },"
+    .. " [12] = { DisplayName_lang = 'Kit Glaives', VerboseName_lang = '', ClassID = 2, SubClassID = 9 } }",
+}
+local function test_item_class_names_come_from_the_db2_verbose_name_first_assumed()
+  W.withWindows("tbc", { db2 = CLASSES }, function(w)
+    A.eq(_G.C_Item.GetItemClassInfo(2), "Kit Weapon")
+    A.same({ _G.C_Item.GetItemSubClassInfo(2, 7) }, { "Kit One-Handed Swords", false })
+    A.same({ _G.C_Item.GetItemSubClassInfo(2, 9) }, { "Kit Glaives", false })
+    A.same({ _G.C_Item.GetItemClassInfo(3), _G.C_Item.GetItemSubClassInfo(2, 1) }, {})
+    A.eq(w.unscripted["C_Item.GetItemSubClassInfo"], 1)
+    w:setMock({ itemClasses = { [2] = { name = "Scenario Weapon", subClasses = {} } } })
+    A.eq(_G.C_Item.GetItemClassInfo(2), "Scenario Weapon") -- the scenario's answer wins
+  end)
+  W.withWindows("retail", {}, function() -- no extract
+    A.same({ _G.C_Item.GetItemClassInfo(2) }, {})
+  end)
+end
+
 -- (C1)
 local function test_rows_by_reads_the_index_and_never_scans()
   local db2 = { talent = "return { [5] = { TabID = 3 }, [6] = { TabID = 4 }, [7] = { TabID = 3 } }" }
@@ -87,6 +109,7 @@ return function()
   test_scenario_item_data_wins_over_db2()
   test_spells_copy_name_and_icon()
   test_fill_merges_without_overwriting_and_no_extract_is_a_noop()
+  test_item_class_names_come_from_the_db2_verbose_name_first_assumed()
   test_rows_by_reads_the_index_and_never_scans()
   test_requests_record_in_call_order_with_trailing_nils()
 end

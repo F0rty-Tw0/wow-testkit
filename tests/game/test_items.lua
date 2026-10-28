@@ -100,7 +100,24 @@ local function test_specialization_fallbacks_only_on_retail_and_forever() -- (G1
   end
 end
 
+-- Blizzard_AuctionData.lua:86 (retail shared) names an armor slot category by C_Item.GetItemInventorySlotInfo(inventoryType)
+-- and asserts a non-empty name.
+local function test_inventory_slot_info_reads_the_invtype_global_string_assumed() -- (BU22)
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    G.withGame(flavor, function(w)
+      w:setGlobal("INVTYPE_CHEST", "Kit Chest")
+      w:setGlobal("INVTYPE_NON_EQUIP", "Kit None")
+      w:setGlobal("INVTYPE_2HWEAPON", "Kit Two-Hand")
+      local info = _G.C_Item.GetItemInventorySlotInfo
+      A.same({ info(5), info(0), info(17) }, { "Kit Chest", "Kit None", "Kit Two-Hand" }) -- Index{Chest,NonEquip,2Hweapon}Type
+      A.same({ info(1), info(99) }, {}) -- INVTYPE_HEAD unset; no member 99
+      A.eq(w.unscripted["C_Item.GetItemInventorySlotInfo"], 2)
+    end)
+  end
+end
+
 return function()
+  test_inventory_slot_info_reads_the_invtype_global_string_assumed()
   test_item_info_tuple_and_unknown_item()
   test_item_names_absent_on_every_flavor()
   test_item_info_instant_count_and_icon()

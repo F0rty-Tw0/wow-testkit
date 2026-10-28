@@ -57,6 +57,29 @@ function M.items(w, ids)
   end
 end
 
+-- { [classID] = { name, subClasses = { [subClassID] = name } } } from ItemClass and ItemSubClass, both walked whole (a
+-- few hundred rows; rows are keyed by row ID, the API by ClassID and SubClassID), or nil without ItemClass.
+-- source: assumed (row BU22) a subclass is named by VerboseName_lang ("One-Handed Axes"), by DisplayName_lang ("Axe") when
+-- that is empty; no installed file shows which column the engine reads.
+function M.itemClasses(w)
+  local classes, subClasses = M.table(w, "ItemClass"), M.table(w, "ItemSubClass")
+  if not classes then
+    return nil
+  end
+  local out = {}
+  for _, row in pairs(classes) do
+    out[row.ClassID] = { name = row.ClassName_lang, subClasses = {} }
+  end
+  for _, row in pairs(subClasses or {}) do
+    local class = out[row.ClassID]
+    if class then
+      local verbose = row.VerboseName_lang
+      class.subClasses[row.SubClassID] = verbose ~= nil and verbose ~= "" and verbose or row.DisplayName_lang
+    end
+  end
+  return out
+end
+
 -- Copies each id absent from w.mock.spells as { name, icon } from SpellName and SpellMisc (keyed by SpellID); an id in
 -- neither stays absent.
 function M.spells(w, ids)
