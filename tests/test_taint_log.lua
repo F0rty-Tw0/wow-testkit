@@ -80,6 +80,19 @@ local function test_scenario_taint_log_returns_a_copy()
   end)
 end
 
+local function test_console_receives_a_taint_line_per_entry()
+  HS.withSession({ addonDir = HS.TAINT }, function(sess)
+    sess:call("slash", { text = "/tdemo cast" })
+    local taintLines = {}
+    for _, line in ipairs(sess:call("console", { since = 0 }).lines) do
+      if line.kind == "taint" then
+        taintLines[#taintLines + 1] = line.text
+      end
+    end
+    A.same(taintLines, { "taint: CastSpellByName() blocked: execution tainted by TaintDemo" })
+  end)
+end
+
 local function test_session_snapshot_carries_the_taint_log()
   HS.withSession({ addonDir = HS.TAINT }, function(sess)
     A.eq(sess:call("snapshot").taint, nil)
@@ -104,6 +117,7 @@ return function()
   test_snapshot_carries_the_log_only_when_it_has_entries()
   test_snapshot_log_gives_a_table_key_as_text()
   test_scenario_taint_log_returns_a_copy()
+  test_console_receives_a_taint_line_per_entry()
   test_session_snapshot_carries_the_taint_log()
   test_destroy_clears_taint_state()
 end

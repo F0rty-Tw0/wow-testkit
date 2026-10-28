@@ -140,6 +140,10 @@
   color: #ff6f61;
 }
 
+#console .line.taint {
+  color: #c9a0ff;
+}
+
 #console .line.send {
   color: #8fc9ff;
 }
