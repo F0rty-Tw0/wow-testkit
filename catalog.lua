@@ -149,10 +149,11 @@ local function parse(argv)
     local arg, field = argv[i], OPTION_FIELDS[argv[i]]
     if field then
       i = i + 1
-      opts[field] = argv[i]
-      if not opts[field] then
+      if not argv[i] then
         return nil, arg .. " needs a path"
       end
+      -- Slashes like dir's, so parentOf finds out's folder for the page log.
+      opts[field] = argv[i]:gsub("\\", "/")
     elseif arg == "--blizzard-ui" then
       opts.blizzardUi = true
     elseif not pcall(Flavors.get, arg) then

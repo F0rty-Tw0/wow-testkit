@@ -195,6 +195,12 @@ local function test_main_parses_flavors_and_flags()
   A.same(mainOpts({ "dir" }), { dir = "dir" })
 end
 
+-- A Windows path keeps the page log beside out, not in the working directory (which may be the addons folder).
+local function test_backslash_out_and_html_are_normalized()
+  local opts = mainOpts({ "dir", "--out", "C:\\cat\\x.json", "--html", "C:\\cat\\p.html", "--list", "C:\\l.txt" })
+  A.same({ opts.out, opts.html, opts.list }, { "C:/cat/x.json", "C:/cat/p.html", "C:/l.txt" })
+end
+
 local function test_main_usage_errors_exit_2()
   for _, argv in ipairs({ {}, { "dir", "pandaria" }, { "dir", "--list" }, { "dir", "--frob" } }) do
     local opts, code, out = mainOpts(argv)
@@ -214,5 +220,6 @@ return function()
   test_html_step_runs_the_page_tool()
   test_failed_page_tool_exits_1()
   test_main_parses_flavors_and_flags()
+  test_backslash_out_and_html_are_normalized()
   test_main_usage_errors_exit_2()
 end
