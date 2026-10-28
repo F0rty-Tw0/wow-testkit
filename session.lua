@@ -23,6 +23,7 @@ local SessionSlash = require("session_slash")
 local SessionState = require("session_state")
 local SessionView = require("session_view")
 local Toc = require("toc")
+local Wtf = require("session_wtf")
 
 local unpack = unpack
 -- Localized: addon code may assign a global named debug.
@@ -33,14 +34,6 @@ M.PRESETS = SessionOptions.PRESETS
 
 local Session = {}
 Session.__index = Session
-
-local function copyList(list)
-  local out = {}
-  for i, v in ipairs(list) do
-    out[i] = v
-  end
-  return out
-end
 
 local function folderName(root)
   return root:gsub("\\", "/"):match("([^/]+)/*$") or root
@@ -74,7 +67,7 @@ local function infoOf(sess)
   return {
     addon = sess.addon,
     flavor = w.flavor,
-    flavors = copyList(Flavors.list),
+    flavors = { unpack(Flavors.list) },
     screen = { width = w.screen.width, height = w.screen.height },
     seq = sess.seq,
     loads = sess.loads,
@@ -84,10 +77,14 @@ local function infoOf(sess)
   }
 end
 
--- The binding API and the user's bindings file go in before the addon runs; its Bindings.xml loads after it.
-local function loadBindings(sess, file)
+-- The binding API, the WTF import (opts.wtfData, session_host.lua: CVars, bindings, layouts) and the user's bindings file
+-- go in before the addon runs; its Bindings.xml loads after it.
+local function loadBindings(sess, opts)
   Bindings.install(sess.w)
-  local ok, err = Bindings.loadFile(sess.w, file)
+  if opts.wtfData then
+    Wtf.apply(sess.w, opts.wtfData)
+  end
+  local ok, err = Bindings.loadFile(sess.w, opts.bindingsFile)
   if not ok then
     SessionConsole.push(sess.w, "system", "bindings ignored: " .. err)
   end
@@ -120,7 +117,7 @@ local function open(opts, prior)
   if opts.state then
     SessionState.apply(sess, opts.state)
   end
-  loadBindings(sess, opts.bindingsFile)
+  loadBindings(sess, opts)
   if name then
     login(sess, prior ~= nil)
     if not sess.skipped then

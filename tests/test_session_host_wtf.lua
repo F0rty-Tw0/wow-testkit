@@ -145,6 +145,58 @@ local function test_reimport_paths_need_a_wtf_root()
   end)
 end
 
+-- A WTF folder whose one account holds files (path under Account/ACC -> text); returns its path.
+local function wtfDir(files)
+  local dir = Tmp.dir("wtfdir")
+  for path, text in pairs(files) do
+    local full = dir .. "/Account/ACC/" .. path
+    fs.mkdirp(full:match("^(.*)/[^/]*$"))
+    fs.writeFile(full, text)
+  end
+  return dir
+end
+
+-- A temp addon WtfProbe that saves WtfProbeDB and copies the CVar wtfProbe into WtfProbeSeen when it loads.
+local function probeAddon()
+  local root = Tmp.dir("wtfprobe") .. "/WtfProbe"
+  fs.mkdirp(root)
+  fs.writeFile(root .. "/WtfProbe.toc", "## Interface: 120100\n## SavedVariables: WtfProbeDB\nMain.lua\n")
+  fs.writeFile(root .. "/Main.lua", 'WtfProbeSeen = GetCVar("wtfProbe")\n')
+  return root
+end
+
+local function test_wtf_dir_applies_before_login_and_on_every_reload()
+  local dir = wtfDir({
+    ["config-cache.wtf"] = 'SET wtfProbe "on"\n',
+    ["bindings-cache.wtf"] = "bind K PROBE_TOGGLE\n",
+    ["SavedVariables/WtfProbe.lua"] = "WtfProbeDB = { n = 2 }\n",
+  })
+  H.withHost({ addonDir = probeAddon(), wtfDir = dir }, function(host)
+    A.eq(host.wtf.account, dir .. "/Account/ACC/SavedVariables/WtfProbe.lua")
+    A.eq(_G.WtfProbeSeen, "on", "the addon reads the CVar while it loads")
+    A.same(_G.WtfProbeDB, { n = 2 })
+    A.eq(_G.GetBindingAction("K"), "PROBE_TOGGLE")
+    rawset(_G, "WtfProbeSeen", nil)
+    A.eq(Json.decode(host:handleJson("reload", "{}")).ok, true)
+    A.eq(_G.WtfProbeSeen, "on", "a reload applies the import again")
+    A.eq(_G.GetBindingAction("K"), "PROBE_TOGGLE")
+  end)
+end
+
+local function test_wtf_dir_that_cannot_open_is_a_console_line()
+  local dir = wtfDir({ ["config-cache.wtf"] = 'SET wtfProbe "on"\n' })
+  fs.mkdirp(dir .. "/Account/ACC2")
+  H.withHost({ addonDir = probeAddon(), wtfDir = dir }, function(host)
+    local lines = consoleLines(host)
+    A.eq(contains(lines, "wtf: several accounts: ACC, ACC2; pass --wtf-account"), true)
+    A.eq(_G.WtfProbeSeen, nil)
+    A.eq(host.wtf, nil)
+  end)
+  H.withHost({ addonDir = probeAddon(), wtfDir = dir, wtfAccount = "ACC" }, function()
+    A.eq(_G.WtfProbeSeen, "on")
+  end)
+end
+
 local function test_reimport_without_wtf_replies_an_error()
   H.withHost(nil, function(host)
     A.same(Json.decode(host:handleJson("reimport", "{}")), { ok = false, error = "no WTF folder picked" })
@@ -180,6 +232,8 @@ return function()
   test_reimport_refuses_malformed_paths()
   test_reimport_refuses_paths_outside_the_wtf_folder()
   test_reimport_paths_need_a_wtf_root()
+  test_wtf_dir_applies_before_login_and_on_every_reload()
+  test_wtf_dir_that_cannot_open_is_a_console_line()
   test_reimport_without_wtf_replies_an_error()
   test_reimport_needs_a_session_folder()
   test_wtf_warnings_reach_the_console()

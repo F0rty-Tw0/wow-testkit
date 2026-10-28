@@ -106,18 +106,21 @@ end
 
 local WTF_OUTSIDE = "malformed request: wtf paths must stay inside the WTF folder"
 
--- opts: Session.new's, plus wtf = { account?, character? } paths of WTF SavedVariables files (Wtf.read) and wtfRoot, the
--- folder a reimport's paths must stay in. Starts the session; the outbox starts with the console lines the login printed
--- and the warnings of the WTF import.
+-- opts: Session.new's, plus wtf = { account?, character? } paths of WTF SavedVariables files (Wtf.read), or wtfDir
+-- (Wtf.openOptions); wtfRoot, else wtfDir, is the folder a reimport's paths must stay in. Starts the session; the
+-- outbox starts with the console lines the login printed and the warnings of the WTF import.
 function M.new(opts)
-  local warnings = importWtf(opts)
+  local warnings = Wtf.openOptions(opts)
+  for _, warning in ipairs(importWtf(opts)) do
+    warnings[#warnings + 1] = warning
+  end
   local sess = Session.new(opts)
   for _, warning in ipairs(warnings) do
     Console.push(sess.w, "system", warning)
   end
   local root = opts.addonDir:gsub("\\", "/"):gsub("/+$", "")
   local host = { sess = sess, outbox = {}, located = {}, consoleSeq = 0, logSeq = 0, wtf = opts.wtf, addonRoots = { [sess.folder:lower()] = root } }
-  host.wtfRoot = opts.wtfRoot
+  host.wtfRoot = opts.wtfRoot or opts.wtfDir
   setmetatable(host, Host)
   host:collectConsole()
   return host
