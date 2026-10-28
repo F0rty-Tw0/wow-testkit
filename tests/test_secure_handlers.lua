@@ -103,6 +103,42 @@ local function test_a_tainted_click_cannot_run_a_snippet() -- TS15
   end)
 end
 
+-- Every template script except the State and Attribute ones keeps the caller's taint (the client's behaviour): firing it from
+-- addon code errors before the snippet runs. A secure firing of the same script runs the snippet (the control).
+local TAINTED_SCRIPTS = {
+  { "OnClick", "Button", "SecureHandlerClickTemplate", "_onclick", "LeftButton", false },
+  { "OnDoubleClick", "Button", "SecureHandlerDoubleClickTemplate", "_ondoubleclick", "LeftButton" },
+  { "OnShow", "Frame", "SecureHandlerShowHideTemplate", "_onshow" },
+  { "OnHide", "Frame", "SecureHandlerShowHideTemplate", "_onhide" },
+  { "OnDragStart", "Frame", "SecureHandlerDragTemplate", "_ondragstart", "LeftButton" },
+  { "OnReceiveDrag", "Frame", "SecureHandlerDragTemplate", "_onreceivedrag" },
+  { "OnMouseUp", "Frame", "SecureHandlerMouseUpDownTemplate", "_onmouseup", "LeftButton" },
+  { "OnMouseDown", "Frame", "SecureHandlerMouseUpDownTemplate", "_onmousedown", "LeftButton" },
+  { "OnMouseWheel", "Frame", "SecureHandlerMouseWheelTemplate", "_onmousewheel", 1 },
+  { "OnEnter", "Frame", "SecureHandlerEnterLeaveTemplate", "_onenter", true },
+  { "OnLeave", "Frame", "SecureHandlerEnterLeaveTemplate", "_onleave", true },
+}
+
+local function test_a_tainted_firing_of_any_non_attribute_script_cannot_run_its_snippet() -- TS15
+  H.withTaint("retail", function(w)
+    for _, row in ipairs(TAINTED_SCRIPTS) do
+      local name, type_, template, attribute = row[1], row[2], row[3], row[4]
+      local f = _G.CreateFrame(type_, "TKHAll" .. name, _G.UIParent, template)
+      f:SetAttribute(attribute, "self:SetAttribute('ran', 1)")
+      local script = f:GetScript(name)
+      f:SetAttribute("_entered", true) -- OnLeave only runs after an OnEnter
+      script(f, unpack(row, 5)) -- secure firing: the snippet runs
+      A.eq(f:GetAttribute("ran"), 1, name .. " control")
+      f:SetAttribute("ran", nil)
+      f:SetAttribute("_entered", true)
+      local before = #w.errors
+      H.run(w, "Foo", "local f, script = ...; script(f, select(3, ...))", f, script, unpack(row, 5))
+      A.same({ #w.errors, f:GetAttribute("ran") }, { before + 1, nil }, name)
+      A.contains(lastError(w), "Cannot call restricted closure from insecure code")
+    end
+  end)
+end
+
 local function test_a_tainted_click_in_combat_changes_no_protected_frame() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHCTaint")
@@ -213,6 +249,15 @@ local function test_snippet_globals_ignore_an_addon_replacement_made_before_the_
     H.run(w, "Foo", "strsplit = function() TK_Called = true end")
     local r = SecureEnv.run(w, h, "return strsplit(',', 'a,b')")
     A.same({ r[2], r[3], _G.TK_Called }, { "a", "b", nil })
+  end)
+end
+
+local function test_snippet_globals_ignore_an_addon_replacement_of_a_luaapi_name() -- TS15
+  H.withTaint("retail", function(w)
+    local h = handler("TKHBaseApi", "SecureHandlerBaseTemplate")
+    H.run(w, "Foo", "gsub = function() TK_Called = true end; strcmputf8i = function() TK_Called = true end")
+    local r = SecureEnv.run(w, h, "strcmputf8i('a', 'A'); return gsub('abc', 'b', 'x')")
+    A.same({ r[2], _G.TK_Called }, { "axc", nil })
   end)
 end
 
@@ -552,6 +597,7 @@ return function()
   test_execute_runs_secure_for_tainted_callers_out_of_combat()
   test_execute_checks_its_header_and_body()
   test_a_tainted_click_cannot_run_a_snippet()
+  test_a_tainted_firing_of_any_non_attribute_script_cannot_run_its_snippet()
   test_a_tainted_click_in_combat_changes_no_protected_frame()
   test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
   test_a_tainted_show_errors_in_the_onshow_snippet_as_the_client_does()
@@ -562,6 +608,7 @@ return function()
   test_a_handle_calls_the_class_method_not_an_addon_field()
   test_a_handle_ignores_an_addon_edit_of_the_class_method_table()
   test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet()
+  test_snippet_globals_ignore_an_addon_replacement_of_a_luaapi_name()
   test_snippets_see_a_string_name_the_kit_only_stubs()
   test_snippets_refuse_function_and_table_syntax()
   test_environment_variables_persist_per_header()

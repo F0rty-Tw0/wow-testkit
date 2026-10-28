@@ -149,6 +149,11 @@ local function test_a_loadstring_chunk_runs_with_its_builder_taint_assumed() -- 
     local load = H.chunk(w, "Foo", "return loadstring")()
     local secureBuilt = w:run("blizzard", load, "return 1")
     A.eq(Taint.ownerOf(w, secureBuilt), nil) -- a secure builder leaves the chunk unowned
+    local forcedBuilt = w:run("blizzard", function()
+      _G.forceinsecure()
+      return load("return 1")
+    end)
+    A.eq(Taint.ownerOf(w, forcedBuilt), nil) -- forceinsecure is not an addon: a chunk built after it stays unowned
   end)
 end
 
