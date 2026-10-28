@@ -98,8 +98,10 @@ local function onDragEvent(w, frame, attribute, button)
 end
 
 -- source: extract retail 70575 blizzard_restrictedaddonenvironment/securehandlers.lua:427-429 (the API runs "via attribute
--- sets so as to allow secure execution") and :697-698 (SecureHandlerExecute is two SetAttribute calls): a template's
--- snippet handler runs as secure execution, whoever fired its script. Assumed (ruling B1) for every script below.
+-- sets so as to allow secure execution") and :697-698 (SecureHandlerExecute is two SetAttribute calls): the attribute-set
+-- route lets insecure code drive secure execution, so the State and Attribute templates' OnAttributeChanged runs its
+-- snippet as secure whoever set the attribute (assumed). Every other script keeps the caller's taint, so a snippet it runs
+-- from tainted execution errors (row TS15, `restrictedexecution.lua:469-470`).
 local function secure(fn)
   return function(w, self, ...)
     return Taint.secure(w, fn, w, self, ...)
@@ -115,60 +117,60 @@ M.scripts = {
     OnAttributeChanged = secure(onAttributeChanged),
   },
   click = {
-    OnClick = secure(function(w, self, button, down)
+    OnClick = function(w, self, button, down)
       onClick(w, self, "_onclick", button, down)
-    end),
+    end,
   },
   doubleClick = {
-    OnDoubleClick = secure(function(w, self, button)
+    OnDoubleClick = function(w, self, button)
       onClick(w, self, "_ondoubleclick", button)
-    end),
+    end,
   },
   drag = {
-    OnDragStart = secure(function(w, self, button)
+    OnDragStart = function(w, self, button)
       onDragEvent(w, self, "_ondragstart", button)
-    end),
-    OnReceiveDrag = secure(function(w, self)
+    end,
+    OnReceiveDrag = function(w, self)
       onDragEvent(w, self, "_onreceivedrag")
-    end),
+    end,
   },
   showHide = {
-    OnShow = secure(function(w, self)
+    OnShow = function(w, self)
       onSimpleEvent(w, self, "_onshow")
-    end),
-    OnHide = secure(function(w, self)
+    end,
+    OnHide = function(w, self)
       onSimpleEvent(w, self, "_onhide")
-    end),
+    end,
   },
   mouseUpDown = {
-    OnMouseUp = secure(function(w, self, button)
+    OnMouseUp = function(w, self, button)
       onMouseUpDown(w, self, "_onmouseup", button)
-    end),
-    OnMouseDown = secure(function(w, self, button)
+    end,
+    OnMouseDown = function(w, self, button)
       onMouseUpDown(w, self, "_onmousedown", button)
-    end),
+    end,
   },
   mouseWheel = {
     OnLoad = function(_, self)
       self:EnableMouseWheel(true)
     end,
-    OnMouseWheel = secure(function(w, self, delta)
+    OnMouseWheel = function(w, self, delta)
       onMouseWheel(w, self, "_onmousewheel", delta)
-    end),
+    end,
   },
   enterLeave = {
-    OnEnter = secure(function(w, self, motion)
+    OnEnter = function(w, self, motion)
       if motion then
         self:SetAttribute("_entered", true)
         onSimpleEvent(w, self, "_onenter")
       end
-    end),
-    OnLeave = secure(function(w, self, motion)
+    end,
+    OnLeave = function(w, self, motion)
       if motion and self:GetAttribute("_entered") then
         self:SetAttribute("_entered", nil)
         onSimpleEvent(w, self, "_onleave")
       end
-    end),
+    end,
   },
 }
 

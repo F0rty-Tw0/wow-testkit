@@ -91,16 +91,28 @@ local function test_execute_checks_its_header_and_body() -- TS15
   end)
 end
 
--- Ruling B1: the template's snippet handlers run secure whoever fires the script (securehandlers.lua:427-429).
-local function test_a_tainted_click_runs_the_click_snippet_secure_assumed() -- TS15
+local function test_a_tainted_click_cannot_run_a_snippet() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHTaint")
     local target = hiddenTarget("TKHTaintT")
     h:SetFrameRef("p", target)
     h:SetAttribute("_onclick", "self:GetFrameRef('p'):Show()")
     H.run(w, "Foo", "TKHTaint:Click()")
-    A.eq(target:IsShown(), true)
-    A.eq(#w.errors, 0)
+    A.eq(target:IsShown(), false)
+    A.contains(lastError(w), "Cannot call restricted closure from insecure code")
+  end)
+end
+
+local function test_a_tainted_click_in_combat_changes_no_protected_frame() -- TS15
+  H.withTaint("retail", function(w)
+    local h = handler("TKHCTaint")
+    local target = hiddenTarget("TKHCTaintT")
+    h:SetFrameRef("p", target)
+    h:SetAttribute("_onclick", "self:GetFrameRef('p'):Show()")
+    H.setCombat(w, true)
+    H.run(w, "Foo", "TKHCTaint:Click()")
+    A.eq(target:IsShown(), false)
+    A.contains(lastError(w), "Cannot call restricted closure from insecure code")
   end)
 end
 
@@ -115,13 +127,15 @@ local function test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
   end)
 end
 
-local function test_a_tainted_show_runs_the_onshow_snippet_assumed() -- TS15
+-- The client's behaviour, not a regression: only the attribute-set route runs a snippet secure for tainted callers.
+local function test_a_tainted_show_errors_in_the_onshow_snippet_as_the_client_does() -- TS15
   H.withTaint("retail", function(w)
     local f = _G.CreateFrame("Frame", "TKHTShow", _G.UIParent, "SecureHandlerShowHideTemplate")
     f:Hide()
     f:SetAttribute("_onshow", "self:SetAttribute('shown', 1)")
     H.run(w, "Foo", "TKHTShow:Show()")
-    A.same({ f:GetAttribute("shown"), #w.errors }, { 1, 0 })
+    A.same({ f:IsShown(), f:GetAttribute("shown") }, { true, nil })
+    A.contains(lastError(w), "Cannot call restricted closure from insecure code")
   end)
 end
 
@@ -504,9 +518,10 @@ return function()
   test_handler_api_is_refused_in_combat_for_every_caller()
   test_execute_runs_secure_for_tainted_callers_out_of_combat()
   test_execute_checks_its_header_and_body()
-  test_a_tainted_click_runs_the_click_snippet_secure_assumed()
+  test_a_tainted_click_cannot_run_a_snippet()
+  test_a_tainted_click_in_combat_changes_no_protected_frame()
   test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
-  test_a_tainted_show_runs_the_onshow_snippet_assumed()
+  test_a_tainted_show_errors_in_the_onshow_snippet_as_the_client_does()
   test_a_tainted_state_attribute_in_combat_is_blocked_before_the_snippet()
   test_restricted_environment_hides_globals()
   test_a_snippet_calling_an_addon_replaced_global_runs_it_tainted_assumed()
