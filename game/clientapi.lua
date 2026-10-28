@@ -53,6 +53,17 @@ local INVENTORY_SLOTS = {
   TabardSlot = 19,
 }
 
+-- source: assumed (row G21) the engine's LE_EXPANSION_* values (classic 0 up to mists 4) and the expansion level each classic
+-- flavor runs at; retail and forever are not modelled.
+local EXPANSIONS = {
+  LE_EXPANSION_CLASSIC = 0,
+  LE_EXPANSION_BURNING_CRUSADE = 1,
+  LE_EXPANSION_WRATH_OF_THE_LICH_KING = 2,
+  LE_EXPANSION_CATACLYSM = 3,
+  LE_EXPANSION_MISTS_OF_PANDARIA = 4,
+}
+local EXPANSION_LEVEL = { vanilla = 0, tbc = 1, mists = 4 }
+
 -- Get<Type>Metatable name -> the widget type whose class metatable it answers.
 local METATABLES = {
   GetFrameMetatable = "Frame",
@@ -75,6 +86,25 @@ function M.install(w)
   define(w, "C_PaperDollInfo.GetInventorySlotInfo", function(slotName)
     return INVENTORY_SLOTS[slotName]
   end)
+  local level = EXPANSION_LEVEL[w.flavor]
+  if level then
+    for name, value in pairs(EXPANSIONS) do
+      define(w, name, value, State.ALL)
+    end
+    define(w, "GetClassicExpansionLevel", function()
+      return level
+    end)
+    define(w, "ClassicExpansionAtLeast", function(expansionLevel)
+      return level >= expansionLevel
+    end)
+  end
+  -- source: assumed (row G21) Kiosk is an engine table; Blizzard_MicroMenu asks Kiosk.IsEnabled() on every open, false is a normal client
+  define(w, "Kiosk.IsEnabled", function()
+    return false
+  end, State.ALL)
+  define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
+    return false
+  end, State.ALL)
   define(w, "C_CurveUtil.CreateCurve", Curve.new)
   define(w, "C_ColorOverrides.GetColorForQuality", function(quality)
     return color(QUALITY_COLORS[quality] or QUALITY_COLORS[1])

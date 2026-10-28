@@ -66,7 +66,31 @@ local function test_inventory_slot_names_answer_their_ids_assumed()
   end)
 end
 
+-- Blizzard_TalentUI (Classic/Blizzard_TalentUI.lua:159) calls ClassicExpansionAtLeast(LE_EXPANSION_WRATH_OF_THE_LICH_KING) in its
+-- OnLoad; with the constant nil the call raised a bad-argument error and the talent frame never finished loading.
+local function test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
+  for flavor, level in pairs({ vanilla = 0, tbc = 1, mists = 4 }) do
+    G.withGame(flavor, function()
+      A.same({ _G.LE_EXPANSION_BURNING_CRUSADE, _G.LE_EXPANSION_MISTS_OF_PANDARIA, _G.GetClassicExpansionLevel() }, { 1, 4, level }, flavor)
+      A.eq(_G.ClassicExpansionAtLeast(_G.LE_EXPANSION_WRATH_OF_THE_LICH_KING), level >= 2, flavor)
+    end)
+  end
+  G.withGame("retail", function()
+    A.eq(_G.LE_EXPANSION_BURNING_CRUSADE, nil)
+  end)
+end
+
+local function test_kiosk_mode_is_off_assumed() -- Blizzard_MicroMenu calls Kiosk.IsEnabled() from UpdateMicroButtons
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.Kiosk.IsEnabled(), false, flavor)
+    end)
+  end
+end
+
 return function()
+  test_kiosk_mode_is_off_assumed()
+  test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
   test_inventory_slot_names_answer_their_ids_assumed()
   test_metatable_getters_answer_the_widget_class_metatable_assumed()
   test_quality_colors_carry_the_color_mixin_assumed()
