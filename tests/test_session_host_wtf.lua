@@ -81,10 +81,12 @@ local function test_reimport_overwrites_and_discards_live_changes()
 end
 
 local function test_reimport_takes_the_paths_of_the_request()
-  local acc = accountFile(1)
-  local char = Tmp.dir("wtfchar") .. "/char.lua"
+  local root = Tmp.dir("wtfroot")
+  local acc, char = root .. "/acc.lua", root .. "/Realm/Char/char.lua"
+  fs.writeFile(acc, "WtfDemoDB = { n = 1 }")
+  fs.mkdirp(root .. "/Realm/Char")
   fs.writeFile(char, "WtfDemoCharDB = { c = 4 }")
-  H.withHost({ addonDir = H.WTF, wtf = { account = acc } }, function(host)
+  H.withHost({ addonDir = H.WTF, wtf = { account = acc }, wtfRoot = root }, function(host)
     A.eq(_G.WtfDemoCharDB, nil)
     local req = Json.encode({ wtf = { account = acc, character = char } })
     A.eq(Json.decode(host:handleJson("reimport", req)).ok, true)
@@ -101,6 +103,45 @@ local function test_reimport_refuses_malformed_paths()
     A.same(Json.decode(host:handleJson("reimport", '{"wtf":"x"}')), want)
     A.same(Json.decode(host:handleJson("reimport", '{"wtf":{"other":"x"}}')), want)
     A.same(Json.decode(host:handleJson("reimport", '{"wtf":{"account":1}}')), want)
+  end)
+end
+
+local OUTSIDE = { ok = false, error = "malformed request: wtf paths must stay inside the WTF folder" }
+
+local function reimportWith(host, wtf)
+  return Json.decode(host:handleJson("reimport", Json.encode({ wtf = wtf })))
+end
+
+local function test_reimport_refuses_paths_outside_the_wtf_folder()
+  local root = Tmp.dir("wtfroot")
+  local inside, outside = root .. "/acc.lua", accountFile(5)
+  fs.writeFile(inside, "WtfDemoDB = { n = 1 }")
+  local escapes = {
+    outside,
+    root .. "/../" .. outside:match("([^/]+/[^/]+)$"),
+    (root .. "\\..\\x\\acc.lua"),
+    root .. "x/acc.lua",
+    "../acc.lua",
+    root .. "/a/../../acc.lua",
+    root .. "/..",
+  }
+  H.withHost({ addonDir = H.WTF, wtf = { account = inside }, wtfRoot = root }, function(host)
+    for _, path in ipairs(escapes) do
+      A.same(reimportWith(host, { account = path }), OUTSIDE, path)
+      A.same(reimportWith(host, { account = inside, character = path }), OUTSIDE, path)
+    end
+    A.eq(host.wtf.account, inside, "a refused request keeps the paths")
+    A.eq(_G.WtfDemoDB.n, 1)
+    A.eq(reimportWith(host, { account = (inside:gsub("/", "\\")) }).ok, true, "backslashes")
+    A.eq(reimportWith(host, { account = root:upper() .. "/acc.lua" }).ok, true, "the prefix ignores case")
+  end)
+end
+
+local function test_reimport_paths_need_a_wtf_root()
+  local acc = accountFile(1)
+  H.withHost({ addonDir = H.WTF, wtf = { account = acc } }, function(host)
+    A.same(reimportWith(host, { account = acc }), OUTSIDE)
+    A.eq(Json.decode(host:handleJson("reimport", "{}")).ok, true, "the paths the host opened with still work")
   end)
 end
 
@@ -137,6 +178,8 @@ return function()
   test_reimport_overwrites_and_discards_live_changes()
   test_reimport_takes_the_paths_of_the_request()
   test_reimport_refuses_malformed_paths()
+  test_reimport_refuses_paths_outside_the_wtf_folder()
+  test_reimport_paths_need_a_wtf_root()
   test_reimport_without_wtf_replies_an_error()
   test_reimport_needs_a_session_folder()
   test_wtf_warnings_reach_the_console()

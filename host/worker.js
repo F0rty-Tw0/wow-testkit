@@ -200,7 +200,7 @@
       await syncfs(true);
       const opts = { addonDir: '/addon/' + msg.addonFolder, sessionDir: dir, flavor: 'auto' };
       if (msg.extract) opts.extract = '/extract';
-      if (msg.wtf) opts.wtf = wtfPaths(msg.wtf, addonFolder);
+      if (msg.wtf) Object.assign(opts, { wtf: wtfPaths(msg.wtf, addonFolder), wtfRoot: '/wtf' }); // reimport paths stay in /wtf
       const json = ccall('tk_open', [JSON.stringify(opts)]);
       const events = drained();
 
