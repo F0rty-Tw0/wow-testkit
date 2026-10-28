@@ -5,6 +5,7 @@
 local M = {}
 
 local AddonDeps = require("addon_deps")
+local BlizzardUi = require("blizzard_ui")
 local State = require("game.state")
 local Toc = require("toc")
 local WorldApi = require("world_api")
@@ -153,7 +154,12 @@ end
 local function installLoad(w, catalog)
   -- source: assumed (row G15) true once loaded, or nil and MISSING (not installed), DISABLED or a loadFailure code; a
   -- loaded addon answers true without loading again; an addon the mock holds without a folder is loaded as it stands.
+  -- A Blizzard_ addon the catalog does not hold as loaded goes to the Blizzard UI layer when it is on: it loads from the
+  -- extract with its dependencies (B3; assumed), or comes back MISSING.
   define(w, "C_AddOns.LoadAddOn", function(ident)
+    if w.blizzard and type(ident) == "string" and ident:match("^[Bb]lizzard_") and not catalog.state(ident).loaded then
+      return BlizzardUi.loadOne(w, ident)
+    end
     local name = catalog.resolve(ident, "C_AddOns.LoadAddOn")
     if not name then
       return nil, "MISSING"

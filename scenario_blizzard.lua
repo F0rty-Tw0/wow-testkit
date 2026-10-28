@@ -3,6 +3,7 @@
 local M = {}
 
 local BlizzardUi = require("blizzard_ui")
+local BlizzardWindows = require("blizzard_windows")
 local Client = require("client")
 local EditMode = require("game.editmode")
 
@@ -28,6 +29,12 @@ function M.extend(Scenario)
     self.blizzardLoaded = true
     local w = self.w
     local opts = { targets = type(layer) == "table" and layer.targets or nil }
+    if not opts.targets then -- Ruling C3: the default list, then the window addons that load at startup
+      opts.targets = { unpack(BlizzardUi.TARGETS) }
+      for _, addon in ipairs(BlizzardWindows.startup(w)) do
+        opts.targets[#opts.targets + 1] = addon
+      end
+    end
     function opts.fire(...)
       self:fireIfKnown(...)
     end

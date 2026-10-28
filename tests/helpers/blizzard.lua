@@ -102,6 +102,37 @@ f:SetScript("OnEvent", update)
 ]],
     },
   },
+  blizzard_miniwindow = {
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniWindow.lua\n",
+    files = {
+      ["miniwindow.lua"] = [[
+MiniWindowLoads = (MiniWindowLoads or 0) + 1
+local f = CreateFrame("Frame", "MiniWindowFrame", UIParent)
+f:SetSize(300, 200)
+f:SetPoint("CENTER")
+f:Hide()
+f:RegisterEvent("MAIL_SHOW")
+f:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+f:SetScript("OnEvent", function(self, event, ...)
+  MiniWindowShownBy = event .. ":" .. tostring((...)) -- the trigger the test reads
+  ShowUIPanel(self)
+end)
+function MiniWindowShow() MiniWindowShownBy = "show-global"; MiniWindowFrame:Show() end -- stands in for MailFrame_Show
+]],
+    },
+  },
+  blizzard_minieager = { -- C3: no LoadOnDemand line, so it loads with the layer
+    toc = "## Interface: 120100\nMiniEager.lua\n",
+    files = {
+      ["minieager.lua"] = [[
+MiniEagerLoads = (MiniEagerLoads or 0) + 1
+local f = CreateFrame("Frame", "MiniEagerFrame", UIParent)
+f:Hide()
+f:RegisterEvent("MAIL_SHOW")
+f:SetScript("OnEvent", function(self) ShowUIPanel(self) end)
+]],
+    },
+  },
   blizzard_framexml = { -- not a target: holds the default bindings file only
     toc = "## Interface: 120100\n",
     files = {
@@ -136,9 +167,9 @@ function M.mini(overrides)
   return addons
 end
 
--- Writes addons under root as a retail extract (each TOC as <name>.toc unless tocFile names it) and returns the extract
--- Client.find would answer for it.
-function M.extract(root, addons)
+-- Writes addons under root as an extract of flavor (default retail; each TOC as <name>.toc unless tocFile names it) and
+-- returns the extract Client.find would answer for it.
+function M.extract(root, addons, flavor)
   local files = {}
   for name, addon in pairs(addons) do
     local dir = "code/addons/" .. name .. "/"
@@ -147,38 +178,39 @@ function M.extract(root, addons)
       files[dir .. path] = text
     end
   end
-  return H.extract(root, "retail", BUILD, files)
+  return H.extract(root, flavor or "retail", BUILD, files)
 end
 
--- A temp addon folder Probe (Probe.toc, Probe.lua = lua or ""); returns its root.
-function M.probe(lua)
+-- A temp addon folder Probe (Probe.toc = "## <header>", default "Interface: 120100"; Probe.lua = lua or ""); returns its root.
+function M.probe(lua, header)
   local root = Tmp.dir("bzprobe") .. "/Probe"
   fs.mkdirp(root)
-  fs.writeFile(root .. "/Probe.toc", "## Interface: 120100\nProbe.lua\n")
+  fs.writeFile(root .. "/Probe.toc", "## " .. (header or "Interface: 120100") .. "\nProbe.lua\n")
   fs.writeFile(root .. "/Probe.lua", lua or "")
   return root
 end
 
--- Runs a retail scenario of Probe with the layer on addons: opts = { targets?, lua?, before?, screen? }. Calls
--- opts.before(s) before s:login() and fn(s) after it, destroys the world and rethrows the report's first error when it
--- failed (so assertions inside fn fail the test). Returns the report.
+-- Runs a scenario of Probe with the layer on addons: opts = { targets?, lua?, header?, before?, screen?, flavor? = "retail" }.
+-- Calls opts.before(s) before s:login() and fn(s) after it, destroys the world and rethrows the report's first error when
+-- it failed (so assertions inside fn fail the test). Returns the report.
 function M.run(addons, opts, fn)
-  local extract = M.extract(Tmp.dir("bzx"), addons)
+  local flavor = opts.flavor or "retail"
+  local extract = M.extract(Tmp.dir("bzx"), addons, flavor)
   local matrixOpts = {
     addon = "Probe",
-    root = M.probe(opts.lua),
+    root = M.probe(opts.lua, opts.header),
     blizzardUi = { targets = opts.targets },
     client = extract,
     findClient = function() end,
     screen = opts.screen or { width = 1000, height = 800 },
   }
-  local report = Scenario.matrix({ "retail" }, function(s)
+  local report = Scenario.matrix({ flavor }, function(s)
     if opts.before then
       opts.before(s)
     end
     s:login()
     fn(s)
-  end, matrixOpts).retail
+  end, matrixOpts)[flavor]
   if report.status == "fail" then
     error(tostring(report.errors[1].message), 0)
   end

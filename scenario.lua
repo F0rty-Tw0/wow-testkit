@@ -28,6 +28,7 @@ require("scenario_preview").extend(Scenario)
 require("scenario_snapshot").extend(Scenario)
 require("scenario_combat").extend(Scenario)
 require("scenario_taint").extend(Scenario)
+require("scenario_windows").extend(Scenario)
 ScenarioBlizzard.extend(Scenario)
 
 -- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor

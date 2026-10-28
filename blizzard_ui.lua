@@ -25,6 +25,7 @@ M.BINDINGS_FILES = {
   mists = "addons/blizzard_framexml/bindings_mists.xml",
 }
 
+local ENGINE = "blizzard"
 local FRAMEXML = "Blizzard_FrameXML"
 local NO_EXTRACT = "Blizzard UI: no client extract; kit fakes only"
 local NO_BINDINGS = "Blizzard UI: no default Bindings.xml"
@@ -215,13 +216,59 @@ function M.load(w, extract, opts)
   for _, entry in ipairs(entries) do
     secure[entry.name] = true
   end
-  local handler = keepErrors(w, report)
+  report.handler = keepErrors(w, report)
   loadDefaultBindings(w, extract, report)
   for _, entry in ipairs(entries) do
     loadEntry(w, entry, report, fire)
-    w.errorHandler = handler
+    w.errorHandler = report.handler
   end
   return report
+end
+
+local function append(target, list)
+  for _, item in ipairs(list) do
+    target[#target + 1] = item
+  end
+end
+
+local function isLoaded(report, name)
+  local key = name:lower()
+  for _, loaded in ipairs(report.loaded) do
+    if loaded:lower() == key then
+      return true
+    end
+  end
+  return false
+end
+
+-- Loads name (and the dependencies M.order puts first, those already loaded skipped) into w after M.load ran, fires
+-- ADDON_LOADED(<name as the caller spelled it>, false) for each addon it loads, and sends its errors to w.blizzard.errors.
+-- Returns true, also when name was already loaded (B3: nothing reloads); nil, "MISSING" when the extract has no such
+-- addon or the layer is off.
+function M.loadOne(w, name)
+  local report, extract = w.blizzard, w.client
+  if not (report and extract) then
+    return nil, "MISSING"
+  elseif isLoaded(report, name) then
+    return true
+  end
+  local entries, skipped, notes = M.order(extract, { name }, w.flavor)
+  local last = entries[#entries]
+  if not (last and last.name == name) then
+    return nil, "MISSING"
+  end
+  append(report.skipped, skipped)
+  append(report.notes, notes)
+  for _, entry in ipairs(entries) do
+    if not isLoaded(report, entry.name) then
+      w.taint.secureAddons[entry.name] = true
+      loadEntry(w, entry, report, function(...)
+        w:run(ENGINE, w.fire, w, ...)
+      end)
+      w.errorHandler = report.handler
+    end
+  end
+  return true
 end
 
 -- { enabled, loaded, errors = <count>, firstErrors = { { addon, message }... up to 10 }, notes }; enabled is false
