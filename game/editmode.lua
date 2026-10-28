@@ -13,6 +13,8 @@ M.DEFAULTS = { editMode = { layouts = {}, active = 1 } }
 local ENGINE = "blizzard"
 -- source: assumed (row BU5) the client prepends two preset layouts (Modern, Classic) to the saved ones.
 local PRESET_COUNT = 2
+-- Enum.EditModeLayoutType.Preset (api/retail/EditModeManagerConstants.lua).
+local PRESET_TYPE = 0
 
 -- C_EditMode.GetLayouts answers a fresh table each call, so an addon editing it never edits the mock.
 local function layoutsOf(w)
@@ -28,11 +30,17 @@ local function installLayouts(w)
   define(w, "C_EditMode.GetLayouts", function()
     return layoutsOf(w)
   end)
-  -- source: assumed (row G22) a save replaces the stored layouts (and the active one when given) and fires
-  -- EDIT_MODE_LAYOUTS_UPDATED(layouts, false).
+  -- source: assumed (row G22) a save replaces the stored layouts with the non-preset ones it is given (and the active
+  -- one when given) and fires EDIT_MODE_LAYOUTS_UPDATED(layouts, false).
   define(w, "C_EditMode.SaveLayouts", function(info)
     local mock = w.mock.editMode
-    mock.layouts = State.merge({}, info.layouts or {})
+    local saved = {}
+    for _, layout in ipairs(info.layouts or {}) do
+      if layout.layoutType ~= PRESET_TYPE then
+        saved[#saved + 1] = layout
+      end
+    end
+    mock.layouts = State.merge({}, saved)
     mock.active = info.activeLayout or mock.active
     fireUpdated(w, layoutsOf(w))
   end)

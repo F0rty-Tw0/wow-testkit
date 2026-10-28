@@ -47,6 +47,17 @@ local function test_save_layouts_stores_and_fires_updated_assumed()
   end)
 end
 
+-- Blizzard saves self.layoutInfo, whose layouts list starts with the presets (layoutType 0); activeLayout keeps
+-- counting them.
+local function test_save_layouts_drops_the_presets_assumed()
+  G.withGame("retail", function(w)
+    local preset = { layoutName = "Modern", layoutType = 0, systems = {} }
+    w:setMock({ editMode = { layouts = { LAYOUT_A }, active = 1 } })
+    _G.C_EditMode.SaveLayouts({ layouts = { preset, preset, LAYOUT_B }, activeLayout = 3 })
+    A.same(_G.C_EditMode.GetLayouts(), { layouts = { LAYOUT_B }, activeLayout = 3 })
+  end)
+end
+
 local function test_set_active_layout_fires_and_ignores_bad_indexes_assumed()
   G.withGame("retail", function(w)
     local seen = recordUpdates()
@@ -87,6 +98,7 @@ return function()
   test_get_layouts_returns_the_mock_assumed()
   test_get_layouts_answers_a_copy_assumed()
   test_save_layouts_stores_and_fires_updated_assumed()
+  test_save_layouts_drops_the_presets_assumed()
   test_set_active_layout_fires_and_ignores_bad_indexes_assumed()
   test_layout_name_validity_assumed()
   test_profile_strings_stay_unscripted_assumed()
