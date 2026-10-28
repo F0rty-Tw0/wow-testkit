@@ -44,7 +44,7 @@ end
 
 local function test_trial_status_update_fires_on_retail()
   withWorld("retail", function(w)
-    w:fire("TRIAL_STATUS_UPDATE")
+    A.eq(pcall(w.fire, w, "TRIAL_STATUS_UPDATE"), true)
   end)
 end
 
