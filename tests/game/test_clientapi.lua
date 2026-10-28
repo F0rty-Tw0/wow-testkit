@@ -88,7 +88,28 @@ local function test_kiosk_mode_is_off_assumed() -- Blizzard_MicroMenu calls Kios
   end
 end
 
+-- confirmed: paperdollframe.lua:617 reads _G["SPELL_STAT" .. statIndex .. "_NAME"] for statIndex = LE_UNIT_STAT_*, and
+-- the retail strings name SPELL_STAT1..5 Strength, Agility, Stamina, Intellect, Spirit.
+local function test_unit_stat_constants_index_the_stat_names()
+  G.withGame("retail", function()
+    A.same(
+      { _G.LE_UNIT_STAT_STRENGTH, _G.LE_UNIT_STAT_AGILITY, _G.LE_UNIT_STAT_STAMINA, _G.LE_UNIT_STAT_INTELLECT, _G.LE_UNIT_STAT_SPIRIT },
+      { 1, 2, 3, 4, 5 }
+    )
+  end)
+end
+
+local function test_class_info_answers_the_class_list_assumed() -- Blizzard_PlayerSpellsFrame.lua:340 reads .classFile of it
+  G.withGame("retail", function()
+    A.same(_G.C_CreatureInfo.GetClassInfo(1), { className = "Warrior", classFile = "WARRIOR", classID = 1 })
+    A.same(_G.C_CreatureInfo.GetClassInfo(13), { className = "Evoker", classFile = "EVOKER", classID = 13 })
+    A.eq(_G.C_CreatureInfo.GetClassInfo(99), nil)
+  end)
+end
+
 return function()
+  test_class_info_answers_the_class_list_assumed()
+  test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
   test_inventory_slot_names_answer_their_ids_assumed()

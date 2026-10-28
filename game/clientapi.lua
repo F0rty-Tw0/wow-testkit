@@ -4,6 +4,7 @@ local M = {}
 
 local AddonEnv = require("addon_env")
 local Curve = require("game.curve")
+local Roster = require("combat_roster_data")
 local State = require("game.state")
 local define = State.define
 
@@ -64,6 +65,16 @@ local EXPANSIONS = {
 }
 local EXPANSION_LEVEL = { vanilla = 0, tbc = 1, mists = 4 }
 
+-- source: confirmed (row G21) paperdollframe.lua:617 reads _G["SPELL_STAT" .. statIndex .. "_NAME"] with statIndex =
+-- LE_UNIT_STAT_*; the strings name SPELL_STAT1..5 Strength, Agility, Stamina, Intellect, Spirit.
+local UNIT_STATS = {
+  LE_UNIT_STAT_STRENGTH = 1,
+  LE_UNIT_STAT_AGILITY = 2,
+  LE_UNIT_STAT_STAMINA = 3,
+  LE_UNIT_STAT_INTELLECT = 4,
+  LE_UNIT_STAT_SPIRIT = 5,
+}
+
 -- Get<Type>Metatable name -> the widget type whose class metatable it answers.
 local METATABLES = {
   GetFrameMetatable = "Frame",
@@ -86,6 +97,9 @@ function M.install(w)
   define(w, "C_PaperDollInfo.GetInventorySlotInfo", function(slotName)
     return INVENTORY_SLOTS[slotName]
   end)
+  for name, value in pairs(UNIT_STATS) do
+    define(w, name, value, State.ALL)
+  end
   local level = EXPANSION_LEVEL[w.flavor]
   if level then
     for name, value in pairs(EXPANSIONS) do
@@ -102,6 +116,14 @@ function M.install(w)
   define(w, "Kiosk.IsEnabled", function()
     return false
   end, State.ALL)
+  -- source: confirmed (row G21) ClassInfo is className, classFile, classID (api/retail/CreatureInfo.lua); assumed the ids and
+  -- names are the kit's retail class list (the same order UnitClass's classID follows).
+  define(w, "C_CreatureInfo.GetClassInfo", function(classID)
+    local classFile = Roster.CLASSES.retail[classID]
+    if classFile then
+      return { className = Roster.CLASS_NAMES[classFile], classFile = classFile, classID = classID }
+    end
+  end)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)
