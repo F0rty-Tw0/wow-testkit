@@ -270,6 +270,33 @@ local function test_inherit_none_replaces_the_existing_handler_assumed()
   A.same(clickAfter(""), { "new" })
 end
 
+-- Like clickAfter, but both handlers log and then raise; returns the log and the number of recorded errors.
+local function clickAfterBothRaise(inheritAttr)
+  local result
+  H.withXml({}, function(w, ctx)
+    local log = logTo(w)
+    local button = _G.CreateFrame("Button", "Cmb")
+    button:SetScript("OnClick", function()
+      log[#log + 1] = "old"
+      error("old failed")
+    end)
+    local body = 'Mark("new"); error("new failed")'
+    local scripts = XmlParse.parse("<Scripts><OnClick " .. inheritAttr .. ">" .. body .. "</OnClick></Scripts>")
+    XmlBuild.handlers.scripts(w, button, w.ui.state[button], scripts, XmlBuild.session(ctx))
+    w:callScript(button, "OnClick")
+    result = { log, #w.errors }
+  end)
+  return result
+end
+
+local function test_inherit_prepend_runs_both_handlers_when_the_first_raises_assumed()
+  A.same(clickAfterBothRaise('inherit="prepend"'), { { "new", "old" }, 2 })
+end
+
+local function test_inherit_append_runs_both_handlers_when_the_first_raises_assumed()
+  A.same(clickAfterBothRaise('inherit="append"'), { { "old", "new" }, 2 })
+end
+
 local function test_a_body_that_closes_its_handler_early_is_reported_and_the_load_goes_on()
   local xml = [[<Ui>
 <Frame name="BrkA"><Scripts><OnShow>end, (function() BrkRan = true; error("boom") end)(), function(self)</OnShow></Scripts></Frame>
@@ -313,4 +340,6 @@ return function()
   test_inherit_prepend_runs_the_new_handler_first_assumed()
   test_inherit_append_runs_the_new_handler_last_assumed()
   test_inherit_none_replaces_the_existing_handler_assumed()
+  test_inherit_prepend_runs_both_handlers_when_the_first_raises_assumed()
+  test_inherit_append_runs_both_handlers_when_the_first_raises_assumed()
 end
