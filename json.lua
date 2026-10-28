@@ -8,7 +8,7 @@ local format, concat, sort, schar, floor = string.format, table.concat, table.so
 
 local EMPTY_OBJECTS = setmetatable({}, { __mode = "k" })
 
-local ESCAPES = { ['"'] = '\\"', ["\\"] = "\\\\", ["\n"] = "\\n", ["\r"] = "\\r", ["\t"] = "\\t", ["\b"] = "\\b", ["\f"] = "\\f" }
+local encodeString = require("json_string").encode
 
 M.null = {}
 
@@ -16,14 +16,6 @@ M.null = {}
 function M.object(t)
   EMPTY_OBJECTS[t] = true
   return t
-end
-
-local function escapeChar(char)
-  return ESCAPES[char] or format("\\u%04x", char:byte())
-end
-
-local function encodeString(s)
-  return '"' .. s:gsub('[%c"\\]', escapeChar) .. '"'
 end
 
 local function encodeNumber(n)

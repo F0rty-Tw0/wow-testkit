@@ -4,6 +4,7 @@
 local A = require("assert")
 local B = require("tests.helpers.blizzard")
 local Bindings = require("bindings")
+local Json = require("json")
 local Scenario = require("scenario")
 local SessionH = require("tests.helpers.session")
 local Tmp = require("tests.helpers.tmp")
@@ -257,7 +258,19 @@ local function test_xml_script_paths_fall_back_to_the_addon_root_assumed()
   end)
 end
 
+local function test_invalid_utf8_in_a_blizzard_error_still_encodes_a_snapshot()
+  local addons = B.mini({ blizzard_minibar = { files = { ["minimore.lua"] = 'error("bad \\187 byte")' } } })
+  local ex = B.extract(Tmp.dir("bzu"), addons)
+  SessionH.withSession({ blizzardUi = { targets = { "Blizzard_MiniBar" } }, extract = ex.dir }, function(sess)
+    local text = sess:handle("snapshot", {})
+    A.eq(text:find("\187", 1, true), nil) -- the raw byte is gone: JSON text is UTF-8
+    local first = Json.decode(text).session.blizzard.firstErrors[1]
+    A.contains(first.message, "bad \239\191\189 byte")
+  end)
+end
+
 return function()
+  test_invalid_utf8_in_a_blizzard_error_still_encodes_a_snapshot()
   test_xml_script_paths_fall_back_to_the_addon_root_assumed()
   test_dependencies_load_first_and_addon_loaded_fires_per_addon()
   test_mixed_case_paths_resolve_in_a_lowercase_extract()
