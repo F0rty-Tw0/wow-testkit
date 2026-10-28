@@ -25,6 +25,7 @@ local State = require("game.state")
 local TalentsClassic = require("game.talents_classic")
 local TalentsSpecInfo = require("game.talents_specinfo")
 local TalentsTraits = require("game.talents_traits")
+local Transmog = require("game.transmog")
 local UnitFrame = require("game.unitframe")
 local WorldMap = require("game.worldmap")
 local Zone = require("game.zone")
@@ -56,6 +57,7 @@ local AREAS = {
   TalentsClassic,
   TalentsSpecInfo,
   TalentsTraits,
+  Transmog,
 }
 
 -- w.mock is shared with session_state.lua (modifiers, combat, group), so it is created only when absent and each
