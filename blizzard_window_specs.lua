@@ -60,7 +60,9 @@ for flavor in pairs(M.WINDOWS) do
 end
 
 -- source: confirmed (B1) retail; assumed forever. Addons that load at startup without being a window's own (Ruling C3).
-local SHARED = { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared" }
+-- Blizzard_FrameEffects has no LoadOnDemand line (blizzard_frameeffects.toc) and Blizzard_ClassTalentsFrame.lua:1302 calls its
+-- GlowEmitterFactory, so it loads at startup too.
+local SHARED = { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared", "Blizzard_FrameEffects" }
 M.SHARED = { retail = SHARED, forever = SHARED, mists = {}, tbc = {}, vanilla = {} }
 
 return M

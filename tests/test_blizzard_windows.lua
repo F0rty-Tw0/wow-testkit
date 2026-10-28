@@ -125,9 +125,9 @@ end
 
 -- (B1, C3)
 local function test_startup_lists_the_shared_addons_per_flavor()
-  local shared = { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared", "Blizzard_WorldMap" }
+  local shared = { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared", "Blizzard_FrameEffects", "Blizzard_WorldMap" }
   W.withWindows("retail", { addons = shared }, function(w)
-    A.same(BlizzardWindows.startup(w), { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared", "Blizzard_WorldMap" })
+    A.same(BlizzardWindows.startup(w), { "Blizzard_SharedTalentUI", "Blizzard_TransmogShared", "Blizzard_FrameEffects", "Blizzard_WorldMap" })
   end)
   W.withWindows("tbc", { addons = shared }, function(w)
     A.same(BlizzardWindows.startup(w), { "Blizzard_WorldMap" }) -- SHARED is retail and forever only
