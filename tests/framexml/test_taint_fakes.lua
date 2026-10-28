@@ -52,8 +52,29 @@ local function test_replaced_unit_api_taints_the_tooltip_build_assumed() -- TS4
   end)
 end
 
+local function test_an_addon_callback_registry_callback_runs_with_its_owner_taint_assumed() -- TS1
+  H.withTaint("retail", function(w)
+    local cast = 0
+    w:stub("CastSpellByName", function()
+      cast = cast + 1
+    end)
+    local src = [[
+      TKReg = CreateFromMixins(CallbackRegistryMixin)
+      TKReg:OnLoad()
+      TKReg:SetUndefinedEventsAllowed(true)
+      TKReg:RegisterCallback("Ping", function() TK_Sec = issecure(); CastSpellByName("Fireball") end, {})
+    ]]
+    H.run(w, "Foo", src)
+    w:run("blizzard", function()
+      _G.TKReg:TriggerEvent("Ping")
+    end)
+    A.same({ _G.TK_Sec, cast, #H.events(w, "blocked") }, { false, 0, 1 })
+  end)
+end
+
 return function()
   test_tainted_dropdown_global_taints_blizzard_dropdown_code_assumed()
   test_menu_and_tooltip_hooks_run_with_their_owner_taint()
   test_replaced_unit_api_taints_the_tooltip_build_assumed()
+  test_an_addon_callback_registry_callback_runs_with_its_owner_taint_assumed()
 end
