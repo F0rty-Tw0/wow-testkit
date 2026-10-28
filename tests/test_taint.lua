@@ -128,6 +128,30 @@ local function test_timer_after_callback_keeps_the_scheduling_owner()
   end)
 end
 
+local function test_a_loadstring_chunk_runs_with_its_builder_taint_assumed() -- TS1
+  H.withTaint("retail", function(w, Taint)
+    local cast = 0
+    w:stub("CastSpellByName", function()
+      cast = cast + 1
+    end)
+    local src = [[
+      C_Timer.After(0, loadstring("TK_L = issecure(); CastSpellByName('Fireball')"))
+      local f = CreateFrame("Frame")
+      f:SetScript("OnEvent", loadstring("TK_E = issecure(); CastSpellByName('Fireball')"))
+      f:RegisterEvent("PLAYER_ENTERING_WORLD")
+    ]]
+    H.run(w, "Foo", src)
+    w:advance(0.1)
+    w:fire("PLAYER_ENTERING_WORLD")
+    local blocked = H.events(w, "blocked")
+    local owners = { blocked[1] and blocked[1].addon, blocked[2] and blocked[2].addon }
+    A.same({ _G.TK_L, _G.TK_E, cast, #blocked, owners }, { false, false, 0, 2, { "Foo", "Foo" } })
+    local load = H.chunk(w, "Foo", "return loadstring")()
+    local secureBuilt = w:run("blizzard", load, "return 1")
+    A.eq(Taint.ownerOf(w, secureBuilt), nil) -- a secure builder leaves the chunk unowned
+  end)
+end
+
 local function test_log_is_capped_and_listeners_hear_each_entry()
   H.withTaint("retail", function(w, Taint)
     local heard = 0
@@ -194,6 +218,7 @@ return function()
   test_taint_is_restored_after_an_error()
   test_rawset_on_the_addon_view_taints_the_slot()
   test_timer_after_callback_keeps_the_scheduling_owner()
+  test_a_loadstring_chunk_runs_with_its_builder_taint_assumed()
   test_log_is_capped_and_listeners_hear_each_entry()
   test_nested_frame_does_not_take_the_outer_frames_table_changes()
   test_secret_args_still_follow_context_after_taint()

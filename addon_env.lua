@@ -111,7 +111,7 @@ local function overridesFor(view, w)
       return nil, refusal
     end
     local fn, err = hostLoadstring(src, chunkName)
-    return fn and hostSetfenv(fn, w.addonThreadEnv or view), err
+    return fn and (w.taint and w.taint.chunk or hostSetfenv)(fn, w.addonThreadEnv or view), err
   end
   addSetfenv(overrides, w)
   return overrides

@@ -8,7 +8,7 @@ local Taint = require("taint")
 local M = {}
 
 -- Localized: addon code may assign globals of the same names.
-local type, tostring, pairs, rawget, unpack = type, tostring, pairs, rawget, unpack
+local type, tostring, pairs, rawget, unpack, setfenv = type, tostring, pairs, rawget, unpack, setfenv
 local getmetatable = debug.getmetatable
 
 -- Longest __index chain issecurevariable follows for a nil field.
@@ -61,6 +61,16 @@ local function issecurevariable(w, tbl, name)
 end
 
 function M.install(w)
+  -- source: assumed (row TS1, "execution becomes 'tainted' as soon as it reads data or code introduced by a third party")
+  -- the addon view's loadstring calls this: a chunk built by tainted execution (an addon's or a macro's, not
+  -- forceinsecure's) keeps that taint when it runs later as a callback; a secure builder leaves it unowned.
+  w.taint.chunk = function(fn, env)
+    local taint = Taint.current(w)
+    if taint and taint ~= Taint.FORCED then
+      w.taint.owners[fn] = taint
+    end
+    return setfenv(fn, env)
+  end
   -- source: assumed (row TS1) secure while no addon code runs.
   w:install("issecure", function()
     return Taint.current(w) == nil
