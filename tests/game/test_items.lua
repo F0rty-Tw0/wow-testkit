@@ -81,6 +81,14 @@ local function test_money_and_specialization() -- (G13)
   end)
 end
 
+local function test_num_specializations_counts_the_spec_records_assumed() -- (G13) SpellBookCategory:198 adds it to an index
+  G.withGame("retail", function(w)
+    A.eq(_G.GetNumSpecializations(false, false), 0)
+    w:setMock({ specs = { { id = 71, name = "Arms" }, { id = 72, name = "Fury" }, { id = 73, name = "Protection" } } })
+    A.eq(_G.GetNumSpecializations(false, false), 3)
+  end)
+end
+
 local function test_specialization_fallbacks_only_on_retail_and_forever() -- (G1)
   for _, flavor in ipairs(Flavors.list) do
     G.withGame(flavor, function()
@@ -98,5 +106,6 @@ return function()
   test_item_info_instant_count_and_icon()
   test_default_link_names_the_item_assumed()
   test_money_and_specialization()
+  test_num_specializations_counts_the_spec_records_assumed()
   test_specialization_fallbacks_only_on_retail_and_forever()
 end

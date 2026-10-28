@@ -118,6 +118,15 @@ local function installSpecialization(w)
     end
     return unpack(fieldList(index, record, SPEC_FIELDS), 1, #SPEC_FIELDS)
   end
+  -- source: confirmed (row G13) the name, retail call site blizzard_spellbookcategory.lua:198; assumed it counts the spec records.
+  local function numSpecializations()
+    local count = 0
+    for index in pairs(w.mock.specs) do
+      count = type(index) == "number" and math.max(count, index) or count
+    end
+    return count
+  end
+  define(w, "GetNumSpecializations", numSpecializations, { "retail", "forever" })
   define(w, "C_SpecializationInfo.GetSpecialization", specialization)
   define(w, "C_SpecializationInfo.GetSpecializationInfo", specializationInfo)
   define(w, "GetSpecialization", specialization, { "retail", "forever" })
