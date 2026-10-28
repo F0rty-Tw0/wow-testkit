@@ -130,7 +130,7 @@ local function slotsOf(t, tbl)
 end
 
 -- Taints tbl[key] with taint (nil/false clears it). The first taint of a key that held a value is logged.
-local function attribute(w, tbl, key, held, taint)
+function M.attribute(w, tbl, key, held, taint)
   local t = w.taint
   if not taint then
     local slots = t.slots[tbl]
@@ -153,7 +153,7 @@ end
 function M.rawset(w, tbl, key, value)
   local held = type(tbl) == "table" and rawget(tbl, key) ~= nil
   rawset(tbl, key, value)
-  attribute(w, tbl, key, held, M.current(w))
+  M.attribute(w, tbl, key, held, M.current(w))
 end
 
 -- Starts sweeping tbl when it was declared lazy; its changes until now are not attributed.
@@ -197,7 +197,7 @@ local function sweepKeys(w, entry, taint)
     local k = keys[i]
     local old, v = shadow[k], rawget(tbl, k)
     if not rawequal(old, v) then
-      attribute(w, tbl, k, old ~= nil, taint)
+      M.attribute(w, tbl, k, old ~= nil, taint)
       shadow[k] = v
     end
   end
@@ -214,7 +214,7 @@ local function sweepTable(w, entry, taint)
     local old = shadow[k]
     if not rawequal(old, v) then
       added = old == nil and added + 1 or added
-      attribute(w, tbl, k, old ~= nil, taint)
+      M.attribute(w, tbl, k, old ~= nil, taint)
       shadow[k] = v
     end
   end
@@ -222,7 +222,7 @@ local function sweepTable(w, entry, taint)
   if entry.count + added ~= count then
     for k in pairs(shadow) do
       if rawget(tbl, k) == nil then
-        attribute(w, tbl, k, true, taint)
+        M.attribute(w, tbl, k, true, taint)
         shadow[k] = nil
       end
     end

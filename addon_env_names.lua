@@ -1,4 +1,6 @@
 -- The base-library names of the per-addon environment (addon_env.lua), kept apart for its 300-line cap.
+local Taint = require("taint")
+
 local M = {}
 
 local hostRawget = rawget
@@ -17,6 +19,19 @@ function M.keep(overrides, hostValues, key, value)
   overrides[key] = value or false
   if not value then
     hostValues[key] = hostRawget(_G, key)
+  end
+end
+
+-- An addon write to a KEPT name: kept in the view, and _G's slot tainted as the write there would have (Taint.rawset),
+-- so issecurevariable and the taint log see it although _G still holds the host value.
+function M.write(w, overrides, hostValues, key, value)
+  local held = overrides[key]
+  if held == nil then
+    held = hostRawget(_G, key)
+  end
+  M.keep(overrides, hostValues, key, value)
+  if w.taint then
+    Taint.attribute(w, _G, key, held ~= nil and held ~= false, Taint.current(w))
   end
 end
 

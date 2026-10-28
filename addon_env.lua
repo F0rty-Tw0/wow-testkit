@@ -127,7 +127,7 @@ local function addRawAccess(overrides, view, w)
   end
   overrides.rawset = function(t, key, value)
     if t == view and Names.KEPT[key] then
-      Names.keep(overrides, HOST_VALUES, key, value)
+      Names.write(w, overrides, HOST_VALUES, key, value)
       return t
     end
     (w.taint and w.taint.write or hostRawset)(t == view and _G or t, key, value)
@@ -239,7 +239,7 @@ local function newView(w)
     end,
     __newindex = function(_, key, value)
       if Names.KEPT[key] then
-        Names.keep(overrides, HOST_VALUES, key, value)
+        Names.write(w, overrides, HOST_VALUES, key, value)
         return
       end
       local handler = globalsHandler(w, "__newindex")
