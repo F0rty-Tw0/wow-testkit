@@ -43,6 +43,7 @@ function M.install(w)
   require("taint_frames").install(w)
   require("secure_actions").install(w)
   require("secure_handlers").install(w)
+  require("macro_cond").install(w)
 end
 
 -- The running taint: the addon's name, or nil while execution is secure.
