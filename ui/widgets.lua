@@ -155,10 +155,13 @@ local function classFor(w, typeName)
   local class = w.ui.classes[typeName]
   if not class then
     local plan = planFor(w, typeName)
-    local methods = {}
+    local methods, own = {}, {}
     for name, entry in pairs(plan.methods) do
       methods[name] = bind(w, plan, name, entry.impl or implFor(plan, name, entry.signature), entry.check, entry.protected)
+      own[name] = methods[name]
     end
+    -- The methods as built, apart from the __index table addon code can edit: secure kit code calls these.
+    w.ui.classMethods[plan] = own
     class = { plan = plan, meta = { __index = methods } }
     w.ui.classes[typeName] = class
   end
@@ -273,6 +276,7 @@ function M.install(w)
   w.ui = {
     state = setmetatable({}, { __mode = "k" }),
     classes = {},
+    classMethods = setmetatable({}, { __mode = "k" }),
     intrinsics = {},
     -- name -> { type, apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
     virtuals = {},

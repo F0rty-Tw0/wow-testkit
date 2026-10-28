@@ -197,6 +197,16 @@ local function test_a_handle_calls_the_class_method_not_an_addon_field() -- TS15
   end)
 end
 
+local function test_a_handle_ignores_an_addon_edit_of_the_class_method_table() -- TS15
+  H.withTaint("retail", function(w)
+    local h = handler("TKHMeta", "SecureHandlerBaseTemplate")
+    h:Hide()
+    H.run(w, "Foo", "getmetatable(TKHMeta).__index.Show = function() TK_Called = true end")
+    H.run(w, "Foo", "SecureHandlerExecute(TKHMeta, 'self:Show()')")
+    A.same({ _G.TK_Called, h:IsShown(), #w.errors }, { nil, true, 0 })
+  end)
+end
+
 local function test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHBase", "SecureHandlerBaseTemplate")
@@ -541,6 +551,7 @@ return function()
   test_a_snippet_calling_an_addon_replaced_global_runs_it_tainted_assumed()
   test_a_snippet_calling_an_addon_replaced_namespace_function_runs_it_tainted_assumed()
   test_a_handle_calls_the_class_method_not_an_addon_field()
+  test_a_handle_ignores_an_addon_edit_of_the_class_method_table()
   test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet()
   test_snippets_refuse_function_and_table_syntax()
   test_environment_variables_persist_per_header()
