@@ -185,6 +185,11 @@ function methods.IsObjectType(_, _, st, typeName)
   return type(typeName) == "string" and st.plan.isA[typeName:lower()] == true
 end
 
+-- source: assumed the kit reads every asset from disk, so an object is loaded the moment it exists.
+function methods.IsObjectLoaded()
+  return true
+end
+
 -- BehaviourInput goes last: its SetScript wraps BehaviourScripts's.
 local MODULES = {
   BehaviourLayout,

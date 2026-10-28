@@ -178,6 +178,15 @@ local function test_object_type_checks_ancestors()
   end)
 end
 
+-- source: assumed the kit's assets are read from disk, so every texture, font string and frame is loaded at once; the tbc map
+-- (blizzard_mapcanvasdetaillayer.lua RefreshAlpha keeps a layer at alpha 0 until it) stayed blank while the answer was false.
+local function test_objects_are_loaded_at_once_assumed()
+  withWidgets("tbc", function()
+    local frame = _G.CreateFrame("Frame")
+    A.same({ frame:IsObjectLoaded(), frame:CreateTexture():IsObjectLoaded(), frame:CreateFontString():IsObjectLoaded() }, { true, true, true })
+  end)
+end
+
 local function test_mouse_flags_round_trip()
   withWidgets("retail", function()
     local f = _G.CreateFrame("Frame")
@@ -216,6 +225,7 @@ return function()
   test_children_follow_set_parent()
   test_set_parent_to_self_or_a_descendant_errors_and_keeps_the_parent_assumed()
   test_object_type_checks_ancestors()
+  test_objects_are_loaded_at_once_assumed()
   test_mouse_flags_round_trip()
   test_moving_a_movable_frame_is_scripted()
 end
