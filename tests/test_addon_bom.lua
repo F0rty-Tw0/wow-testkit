@@ -36,7 +36,9 @@ end
 
 local function test_a_bom_inside_the_file_is_still_a_syntax_error_assumed()
   local errors = loadBom("local a = 1\n" .. BOM .. "local b = 2\n")
-  A.contains(errors[1], "addon:Bom/Core.lua:2: '=' expected near")
+  -- The lexer's wording depends on the C library's ctype ("'=' expected" on Windows, "unexpected symbol" on Linux).
+  A.contains(errors[1], "addon:Bom/Core.lua:2: ")
+  A.contains(errors[1], " near ")
 end
 
 return function()
