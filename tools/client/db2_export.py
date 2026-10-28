@@ -56,6 +56,8 @@ WINDOW_TABLES = {
     ),
     "ItemModifiedAppearance": window("ID ItemID ItemAppearanceModifierID ItemAppearanceID", index="ItemID", chunked=True),
     "ItemAppearance": window("ID DefaultIconFileDataID", chunked=True),
+    "ItemClass": window("ID ClassName_lang ClassID"),
+    "ItemSubClass": window("ID DisplayName_lang VerboseName_lang ClassID SubClassID"),
 }
 
 

@@ -84,6 +84,7 @@ def test_window_tables_name_no_layout_absent_columns(tmp):
             assert column not in spec["columns"], (name, column)
     assert "Index" in tables["TraitNodeXTraitNodeEntry"]["columns"]
     assert "Stackable" in db2_export.R5_COLUMNS["ItemSparse"]
+    assert {"ClassID", "SubClassID", "VerboseName_lang"} <= set(tables["ItemSubClass"]["columns"])  # GetItemSubClassInfo
     for name, spec in tables.items():  # an index column is a column the table keeps
         assert set(spec.get("index", ())) <= set(spec["columns"]), name
 
