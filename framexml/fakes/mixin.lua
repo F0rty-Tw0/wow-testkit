@@ -4,6 +4,7 @@
 -- copied in order onto the object, which is returned.
 local M = {}
 
+local Callsite = require("ui.callsite")
 local TemplateApply = require("ui.template_apply")
 
 -- Localized: addon code may assign a global named select.
@@ -13,27 +14,39 @@ local API_GATE = { gate = "api" }
 -- Ketho's FrameXML list decides which flavors get it.
 local KETHO_GATE = { gate = "framexml", flavors = {} }
 
-local function mixin(object, ...)
+-- The doc gives mixins Nilable = false (framescriptdocumentation.lua:322-336); the client's message text is not
+-- documented, so the kit's argument format stands in. offset counts the arguments before the mixins.
+-- source: assumed (row F7)
+local function copyAll(w, name, offset, object, ...)
   for i = 1, select("#", ...) do
-    TemplateApply.copyMixin(object, (select(i, ...)))
+    local mixinTable = (select(i, ...))
+    if type(mixinTable) ~= "table" then
+      local message = "%s: bad argument #%d 'mixins' (table expected, got %s) on %s"
+      error(message:format(name, i + offset, type(mixinTable), w.flavor), Callsite.level())
+    end
+    TemplateApply.copyMixin(object, mixinTable)
   end
 
   return object
 end
 
-local function createFromMixins(...)
-  return mixin({}, ...)
-end
-
--- Mixin.lua:8-12 calls the CreateFromMixins it captured at load, not the global an addon may replace.
-local function createAndInitFromMixin(source, ...)
-  local object = createFromMixins(source)
-  object:Init(...)
-
-  return object
-end
-
 function M.install(w)
+  local function mixin(object, ...)
+    return copyAll(w, "Mixin", 1, object, ...)
+  end
+
+  local function createFromMixins(...)
+    return copyAll(w, "CreateFromMixins", 0, {}, ...)
+  end
+
+  -- Mixin.lua:8-12 calls the CreateFromMixins it captured at load, not the global an addon may replace.
+  local function createAndInitFromMixin(source, ...)
+    local object = createFromMixins(source)
+    object:Init(...)
+
+    return object
+  end
+
   w:install("Mixin", mixin, API_GATE)
   w:install("CreateFromMixins", createFromMixins, API_GATE)
   w:install("CreateAndInitFromMixin", createAndInitFromMixin, KETHO_GATE)

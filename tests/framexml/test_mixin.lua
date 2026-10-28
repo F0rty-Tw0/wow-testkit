@@ -37,8 +37,49 @@ local function test_create_and_init_from_mixin_calls_init_with_the_arguments()
   end
 end
 
+-- source: assumed (row F7); the doc gives mixins Nilable = false, the message text is the kit's argument format.
+local function test_mixin_with_a_nil_mixin_raises_at_the_callers_line_assumed()
+  local message
+  withFrameXML("retail", function()
+    local ok, err = pcall(function()
+      _G.Mixin({}, { a = 1 }, nil)
+    end)
+    A.eq(ok, false)
+    message = err
+  end)
+  A.contains(message, "test_mixin.lua:")
+  A.contains(message, "Mixin: bad argument #3 'mixins' (table expected, got nil) on retail")
+end
+
+local function test_create_from_mixins_names_its_own_argument_assumed()
+  local message
+  withFrameXML("vanilla", function()
+    local _, err = pcall(function()
+      _G.CreateFromMixins("BoxMixin")
+    end)
+    message = err
+  end)
+  A.contains(message, "test_mixin.lua:")
+  A.contains(message, "CreateFromMixins: bad argument #1 'mixins' (table expected, got string) on vanilla")
+end
+
+local function test_create_and_init_from_mixin_reports_the_create_from_mixins_argument_assumed()
+  local message
+  withFrameXML("retail", function()
+    local _, err = pcall(function()
+      _G.CreateAndInitFromMixin(nil)
+    end)
+    message = err
+  end)
+  A.contains(message, "test_mixin.lua:")
+  A.contains(message, "CreateFromMixins: bad argument #1 'mixins' (table expected, got nil) on retail")
+end
+
 return function()
   test_mixin_copies_each_mixin_onto_the_object_and_returns_it()
   test_create_from_mixins_returns_a_new_table_with_their_fields()
   test_create_and_init_from_mixin_calls_init_with_the_arguments()
+  test_mixin_with_a_nil_mixin_raises_at_the_callers_line_assumed()
+  test_create_from_mixins_names_its_own_argument_assumed()
+  test_create_and_init_from_mixin_reports_the_create_from_mixins_argument_assumed()
 end
