@@ -3,18 +3,21 @@
 -- CallRestrictedClosure does). The handle methods live in secure_handle.lua, which fills M.handleMethods.
 -- source: extract retail 70575 blizzard_restrictedaddonenvironment/restrictedenvironment.lua:24-78 (the names) and
 -- restrictedexecution.lua:444-482 (the call). The names are facts; the code is the kit's.
+local LuaApi = require("luaapi")
+local Luaext = require("luaext")
 local Taint = require("taint")
 
 local M = {}
 
 -- Localized: addon code may assign globals of the same names.
 local rawget, pairs, ipairs, type, tostring, select, pcall, error = rawget, pairs, ipairs, type, tostring, select, pcall, error
-local setmetatable, loadstring, setfenv, unpack, next = setmetatable, loadstring, setfenv, unpack, next
-local remove = table.remove
+local setmetatable, loadstring, setfenv, unpack, next, tonumber = setmetatable, loadstring, setfenv, unpack, next, tonumber
+local remove, insert, maxn, sort, concat, gsub = table.remove, table.insert, table.maxn, table.sort, table.concat, string.gsub
 
 M.handleMethods = {}
 
--- Names copied from the global environment when a header first runs a snippet; one the flavour lacks stays nil.
+-- The kit's own functions for these names, taken when this module loads, so a global an addon replaced never reaches a
+-- snippet (source: restrictedenvironment.lua:24-78 copies them when the file loads); one the flavour lacks stays nil.
 local GLOBAL_NAMES = [[
   format gmatch gsub strbyte strchar strcmputf8i strconcat strfind strjoin strlen strlenutf8 strlower strmatch strrep strrev
   strsplit strsub strtrim strupper abs acos asin atan atan2 ceil cos deg exp floor frexp ldexp log log10 max min mod rad random
@@ -50,13 +53,15 @@ local function pack(...)
   return { n = select("#", ...), ... }
 end
 
--- The value at a dotted global path ("C_Item.IsHarmfulItem"), or nil.
-function M.resolve(path)
+-- The value at a dotted global path ("C_Item.IsHarmfulItem"), or nil. Each slot read goes through Taint.read, so a value an
+-- addon wrote taints the running execution (row TS4, assumed).
+function M.resolve(w, path)
   local value = _G
   for part in path:gmatch("[^.]+") do
     if type(value) ~= "table" then
       return nil
     end
+    Taint.read(w, value, part)
     value = value[part]
   end
   return value
@@ -131,9 +136,14 @@ local function copyTable(tbl)
   return out
 end
 
+local MATH, STRING, CAPTURED = copyTable(math), copyTable(string), {}
+for name in GLOBAL_NAMES:gmatch("%S+") do
+  CAPTURED[name] = Luaext.ALIASES[name] or Luaext[name] or LuaApi.implementation(name)
+end
+
 local function forward(w, path, withHandle)
   return function(...)
-    local fn = M.resolve(path)
+    local fn = M.resolve(w, path)
     if not fn then
       return nil
     end
@@ -141,15 +151,16 @@ local function forward(w, path, withHandle)
   end
 end
 
--- The names every header's environment sees (built once per world, from the globals of that time).
+-- The names every header's environment sees (built once per world): the values captured at load, for the names the world
+-- defines.
 local function baseEnv(w, s)
   if s.base then
     return s.base
   end
-  local base = { math = copyTable(math), string = copyTable(string), select = select, tonumber = tonumber, tostring = tostring }
+  local base = { math = copyTable(MATH), string = copyTable(STRING), select = select, tonumber = tonumber, tostring = tostring }
   base.rawtype = type
   for name in GLOBAL_NAMES:gmatch("%S+") do
-    base[name] = rawget(_G, name)
+    base[name] = rawget(_G, name) ~= nil and CAPTURED[name] or nil
   end
   local handleFirst = {}
   for name in HANDLE_FIRST:gmatch("%S+") do
@@ -165,9 +176,8 @@ local function baseEnv(w, s)
   end
   base.copytable = copyTable
   base.pairs, base.ipairs, base.next, base.unpack, base.type, base.wipe = pairs, ipairs, next, unpack, type, wipe
-  base.tinsert, base.tremove, base.rtgsub = table.insert, remove, string.gsub
-  base.table =
-    { maxn = table.maxn, insert = table.insert, remove = remove, sort = table.sort, concat = table.concat, wipe = wipe, new = base.newtable }
+  base.tinsert, base.tremove, base.rtgsub = insert, remove, gsub
+  base.table = { maxn = maxn, insert = insert, remove = remove, sort = sort, concat = concat, wipe = wipe, new = base.newtable }
   base.PlayerCanAttack = function(unit)
     return forward(w, "UnitCanAttack")("player", unit)
   end

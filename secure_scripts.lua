@@ -69,22 +69,22 @@ local PICKUP = {
 
 -- source: `:128-166` (PickupAny, SecureHandler_OnDragEvent) what a drag snippet returns is what the cursor picks up: a kind and its arguments, "clear" first
 -- to empty the cursor.
-local function pickupAny(kind, target, detail, ...)
+local function pickupAny(w, kind, target, detail, ...)
   if kind == "clear" then
-    local clear = SecureEnv.resolve("ClearCursor")
+    local clear = SecureEnv.resolve(w, "ClearCursor")
     if clear then
       clear()
     end
     kind, target, detail = target, detail, ...
   end
-  local pickup = PICKUP[kind] and SecureEnv.resolve(PICKUP[kind])
+  local pickup = PICKUP[kind] and SecureEnv.resolve(w, PICKUP[kind])
   if pickup then
     pickup(target, detail)
   end
 end
 
-local function cursorInfo()
-  local fn = SecureEnv.resolve("GetCursorInfo")
+local function cursorInfo(w)
+  local fn = SecureEnv.resolve(w, "GetCursorInfo")
   if fn then
     return fn()
   end
@@ -93,7 +93,7 @@ end
 local function onDragEvent(w, frame, attribute, button)
   local body = frame:GetAttribute(attribute)
   if body then
-    pickupAny(selfExecute(w, frame, "self,button,kind,value,...", body, button, cursorInfo()))
+    pickupAny(w, selfExecute(w, frame, "self,button,kind,value,...", body, button, cursorInfo(w)))
   end
 end
 

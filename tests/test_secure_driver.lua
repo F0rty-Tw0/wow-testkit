@@ -201,6 +201,36 @@ local function test_ticker_runs_only_while_a_driver_exists() -- TS16
   end)
 end
 
+local function addonUnitExists(w)
+  local cast = { n = 0 }
+  w:stub("CastSpellByName", function()
+    cast.n = cast.n + 1
+  end)
+  H.run(w, "Foo", "UnitExists = function() TK_Drv = issecure(); CastSpellByName('Fireball'); return true end")
+  return cast
+end
+
+local function test_a_driver_reading_an_addon_replaced_unit_global_runs_it_tainted_assumed() -- TS4, TS16
+  H.withTaint("retail", function(w)
+    local f = stateFrame("TKDrvT")
+    local cast = addonUnitExists(w)
+    H.run(w, "Foo", "RegisterStateDriver(TKDrvT, 'x', '[@target,exists] a; b')")
+    w:advance(0.2)
+    A.same({ _G.TK_Drv, cast.n, #H.events(w, "blocked") > 0, f:GetAttribute("state-x") }, { false, 0, true, "a" })
+  end)
+end
+
+local function test_a_unit_watch_reading_an_addon_replaced_unit_exists_runs_it_tainted_assumed() -- TS4, TS16
+  H.withTaint("retail", function(w)
+    local f = _G.CreateFrame("Button", "TKWatchT", _G.UIParent, "SecureUnitButtonTemplate")
+    f:SetAttribute("unit", "focus")
+    local cast = addonUnitExists(w)
+    _G.RegisterUnitWatch(f)
+    w:advance(0.2)
+    A.same({ _G.TK_Drv, cast.n, #H.events(w, "blocked") > 0 }, { false, 0, true })
+  end)
+end
+
 return function()
   test_state_driver_sets_the_state_attribute_and_follows_combat()
   test_visibility_driver_hides_a_protected_frame_in_combat()
@@ -216,4 +246,6 @@ return function()
   test_event_resets_the_throttle()
   test_unlisted_event_does_not_reset_the_throttle()
   test_ticker_runs_only_while_a_driver_exists()
+  test_a_driver_reading_an_addon_replaced_unit_global_runs_it_tainted_assumed()
+  test_a_unit_watch_reading_an_addon_replaced_unit_exists_runs_it_tainted_assumed()
 end

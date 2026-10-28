@@ -11,7 +11,7 @@ local Taint = require("taint")
 local M = {}
 
 -- Localized: addon code may assign globals of the same names.
-local type, tostring, error, ipairs, select, unpack = type, tostring, error, ipairs, select, unpack
+local type, tostring, error, ipairs, select, unpack, getmetatable = type, tostring, error, ipairs, select, unpack, getmetatable
 
 local methods = SecureEnv.handleMethods
 
@@ -26,6 +26,12 @@ local FORWARDED = [[
 
 local function inCombat(w)
   return w.mock ~= nil and w.mock.combat == true
+end
+
+-- source: `:56` (LOCAL_CHECK_Frame, a copy of the frame metatable's __index) the widget class's own method, so a field an
+-- addon set on the frame is never called by secure code.
+local function method(frame, name)
+  return getmetatable(frame).__index[name]
 end
 
 -- source: `:58-102` the frame a handle stands for when a snippet may act on it: any frame out of combat, a protected one in
@@ -59,7 +65,7 @@ end
 for name in FORWARDED:gmatch("%S+") do
   methods[name] = function(w, handle, ...)
     local frame = frameOf(w, handle)
-    local fn = frame[name]
+    local fn = method(frame, name)
     if fn then
       return fn(frame, SecureEnv.toFrames(w, ...))
     end
@@ -78,14 +84,16 @@ function methods.GetAttribute(w, handle, name)
   if type(name) ~= "string" or name:match("^_") then
     return nil
   end
-  return scrub(w, frameOf(w, handle):GetAttribute(name))
+  local frame = frameOf(w, handle)
+  return scrub(w, method(frame, "GetAttribute")(frame, name))
 end
 
 function methods.GetFrameRef(w, handle, label)
   if type(label) ~= "string" then
     return nil
   end
-  local value = frameOf(w, handle):GetAttribute("frameref-" .. label)
+  local frame = frameOf(w, handle)
+  local value = method(frame, "GetAttribute")(frame, "frameref-" .. label)
   return SecureEnv.frameOf(w, value) and value or nil
 end
 
@@ -109,7 +117,8 @@ function methods.SetAttribute(w, handle, name, value)
   if kind ~= "string" and kind ~= "nil" and kind ~= "number" and kind ~= "boolean" and not SecureEnv.frameOf(w, value) then
     error("Invalid attribute value", 0)
   end
-  frameOf(w, handle):SetAttribute(name, value)
+  local frame = frameOf(w, handle)
+  method(frame, "SetAttribute")(frame, name, value)
 end
 
 local function handlesOf(w, ...)
@@ -124,13 +133,18 @@ local function handlesOf(w, ...)
   return out, n
 end
 
+local function children(w, handle)
+  local frame = frameOf(w, handle)
+  return method(frame, "GetChildren")(frame)
+end
+
 function methods.GetChildren(w, handle)
-  local out, n = handlesOf(w, frameOf(w, handle):GetChildren())
+  local out, n = handlesOf(w, children(w, handle))
   return unpack(out, 1, n)
 end
 
 function methods.GetChildList(w, handle, tbl)
-  local out, n = handlesOf(w, frameOf(w, handle):GetChildren())
+  local out, n = handlesOf(w, children(w, handle))
   for i = 1, n do
     tbl[#tbl + 1] = out[i]
   end
@@ -138,11 +152,13 @@ function methods.GetChildList(w, handle, tbl)
 end
 
 function methods.GetParent(w, handle)
-  return handleFor(w, frameOf(w, handle):GetParent())
+  local frame = frameOf(w, handle)
+  return handleFor(w, method(frame, "GetParent")(frame))
 end
 
 function methods.GetPoint(w, handle, i)
-  local point, relative, relativePoint, x, y = frameOf(w, handle):GetPoint(i)
+  local frame = frameOf(w, handle)
+  local point, relative, relativePoint, x, y = method(frame, "GetPoint")(frame, i)
   local relativeHandle = relative and handleFor(w, relative)
   if relativeHandle or not relative then
     return point, relativeHandle, relativePoint, x, y
@@ -153,17 +169,17 @@ end
 -- source: `:394-408` Show and Hide record the intent in `statehidden` unless skipAttr is given.
 function methods.Show(w, handle, skipAttr)
   local frame = frameOf(w, handle)
-  frame:Show()
+  method(frame, "Show")(frame)
   if not skipAttr then
-    frame:SetAttribute("statehidden", nil)
+    method(frame, "SetAttribute")(frame, "statehidden", nil)
   end
 end
 
 function methods.Hide(w, handle, skipAttr)
   local frame = frameOf(w, handle)
-  frame:Hide()
+  method(frame, "Hide")(frame)
   if not skipAttr then
-    frame:SetAttribute("statehidden", true)
+    method(frame, "SetAttribute")(frame, "statehidden", true)
   end
 end
 
@@ -190,7 +206,7 @@ function methods.RunAttribute(w, handle, attribute, ...)
   if type(attribute) ~= "string" then
     error("Invalid snippet attribute", 0)
   end
-  local body = frame:GetAttribute(attribute)
+  local body = method(frame, "GetAttribute")(frame, attribute)
   if type(body) ~= "string" then
     error("Invalid snippet body", 0)
   end
@@ -201,9 +217,10 @@ end
 function methods.ChildUpdate(w, handle, scriptid, message)
   local frame = frameOf(w, handle)
   local attribute = scriptid ~= nil and "_childupdate-" .. tostring(scriptid)
-  for _, child in ipairs({ frame:GetChildren() }) do
+  for _, child in ipairs({ method(frame, "GetChildren")(frame) }) do
     if w.taint.isProtected(w, child) then
-      local body = attribute and child:GetAttribute(attribute) or child:GetAttribute("_childupdate")
+      local get = method(child, "GetAttribute")
+      local body = attribute and get(child, attribute) or get(child, "_childupdate")
       if type(body) == "string" then
         SecureEnv.call(w, child, frame, "self,scriptid,message", body, scriptid, message)
       end
@@ -221,11 +238,11 @@ function methods.CallMethod(w, handle, name, ...)
   Taint.secure(w, function(...)
     w:try(function(...)
       Taint.force(w)
-      local method = frame[name]
-      if type(method) ~= "function" then
+      local fn = frame[name]
+      if type(fn) ~= "function" then
         error("Invalid method '" .. name .. "'", 0)
       end
-      method(frame, ...)
+      fn(frame, ...)
     end, ...)
   end, ...)
 end

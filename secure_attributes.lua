@@ -17,18 +17,18 @@ local function attributes(w, frame)
 end
 
 -- The result of the global at path called with args, or nil when the flavour lacks it.
-function M.query(path, ...)
-  local fn = SecureEnv.resolve(path)
+function M.query(w, path, ...)
+  local fn = SecureEnv.resolve(w, path)
   return fn and fn(...)
 end
 local query = M.query
 
 -- source: `:33-68` (ParseSplitModifierString, SecureButton_ParseModifierString): the first "MODIFIER" or "MODIFIER:prefix" clause whose modified click is
 -- held gives its prefix (or the lowercased modifier).
-function M.parseModifierString(msg)
+function M.parseModifierString(w, msg)
   for clause in tostring(msg):gmatch("[^,]+") do
     local mod, rep = clause:match("^([^:]*):?(.*)$")
-    if query("IsModifiedClick", mod) then
+    if query(w, "IsModifiedClick", mod) then
       return rep ~= "" and rep or mod:lower()
     end
   end
@@ -39,19 +39,19 @@ end
 function M.modifierPrefix(w, frame)
   local list = attributes(w, frame) and attributes(w, frame).modifiers
   if list then
-    local prefix = M.parseModifierString(list)
+    local prefix = M.parseModifierString(w, list)
     if prefix then
       return prefix .. "-"
     end
   end
   local prefix = ""
-  if query("IsShiftKeyDown") then
+  if query(w, "IsShiftKeyDown") then
     prefix = "shift-" .. prefix
   end
-  if query("IsControlKeyDown") then
+  if query(w, "IsControlKeyDown") then
     prefix = "ctrl-" .. prefix
   end
-  if query("IsAltKeyDown") then
+  if query(w, "IsAltKeyDown") then
     prefix = "alt-" .. prefix
   end
   return prefix
@@ -107,9 +107,9 @@ function M.modifiedUnit(w, frame, button)
       unit = gsub(unit, "^[pP][lL][aA][yY][eE][rR][pP][eE][tT]", "pet")
     end
     return unit
-  elseif M.modifiedAttribute(w, frame, "checkselfcast", button) and query("IsModifiedClick", "SELFCAST") then
+  elseif M.modifiedAttribute(w, frame, "checkselfcast", button) and query(w, "IsModifiedClick", "SELFCAST") then
     return "player"
-  elseif M.modifiedAttribute(w, frame, "checkfocuscast", button) and query("IsModifiedClick", "FOCUSCAST") then
+  elseif M.modifiedAttribute(w, frame, "checkfocuscast", button) and query(w, "IsModifiedClick", "FOCUSCAST") then
     return "focus"
   end
   return nil
@@ -137,7 +137,7 @@ function M.install(w)
   define("SecureButton_GetModifiedUnit", M.modifiedUnit)
   define("SecureButton_GetUnit", M.unitOf)
   w:install("SecureButton_GetButtonSuffix", M.buttonSuffix, FRAMEXML)
-  w:install("SecureButton_ParseModifierString", M.parseModifierString, FRAMEXML)
+  define("SecureButton_ParseModifierString", M.parseModifierString)
 end
 
 return M

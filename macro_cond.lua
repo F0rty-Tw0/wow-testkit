@@ -4,6 +4,7 @@
 -- group) and the unit fixtures; a name the kit does not model is false and counted in w.unscripted["macro:<name>"].
 -- source: row TS17 (clause, group and `no` grammar; `@unit` and `target=unit`), the kit's code. Assumed there: OR between
 -- bracket groups, slash alternatives after a colon, and [help] as exists and not canAttack (the kit has no UnitCanAssist).
+local Taint = require("taint")
 local WorldApi = require("world_api")
 
 local M = {}
@@ -99,12 +100,19 @@ local function anyModifier(w)
   return false
 end
 
-local function canAttack(unit)
-  return _G.UnitCanAttack("player", unit) == true
+-- Calls the unit global `name`; the read goes through Taint.read, so an addon's replacement taints the running execution
+-- (row TS4, assumed).
+local function unitQuery(w, name, ...)
+  Taint.read(w, _G, name)
+  return _G[name](...)
 end
 
-local function exists(unit)
-  return _G.UnitExists(unit) == true
+local function canAttack(w, unit)
+  return unitQuery(w, "UnitCanAttack", "player", unit) == true
+end
+
+local function exists(w, unit)
+  return unitQuery(w, "UnitExists", unit) == true
 end
 
 -- name -> function(w, arg, unit, opts) -> boolean
@@ -112,17 +120,17 @@ local CONDITIONS = {
   combat = function(w)
     return w.mock and w.mock.combat == true
   end,
-  exists = function(_, _, unit)
-    return exists(unit)
+  exists = function(w, _, unit)
+    return exists(w, unit)
   end,
-  harm = function(_, _, unit)
-    return exists(unit) and canAttack(unit)
+  harm = function(w, _, unit)
+    return exists(w, unit) and canAttack(w, unit)
   end,
-  help = function(_, _, unit)
-    return exists(unit) and not canAttack(unit)
+  help = function(w, _, unit)
+    return exists(w, unit) and not canAttack(w, unit)
   end,
-  dead = function(_, _, unit)
-    return exists(unit) and _G.UnitIsDead(unit) == true
+  dead = function(w, _, unit)
+    return exists(w, unit) and unitQuery(w, "UnitIsDead", unit) == true
   end,
   mod = function(w, arg)
     if not arg then

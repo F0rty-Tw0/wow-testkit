@@ -113,13 +113,13 @@ end
 local function wrappedDrag(w, frame, info, button, ...)
   local message
   if eligible(w, frame) then
-    local kind, target, x1, x2, x3 = SecureEnv.call(w, frame, info.header, "self,button,kind,value,...", info.preBody, button, cursorInfo())
+    local kind, target, x1, x2, x3 = SecureEnv.call(w, frame, info.header, "self,button,kind,value,...", info.preBody, button, cursorInfo(w))
     if kind == false then
       return
     elseif kind == "message" then
       message = target
     elseif kind then
-      return pickupAny(kind, target, x1, x2, x3)
+      return pickupAny(w, kind, target, x1, x2, x3)
     end
   end
   callOriginal(w, info, frame, button, ...)

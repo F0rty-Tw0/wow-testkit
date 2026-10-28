@@ -146,6 +146,38 @@ local function test_restricted_environment_hides_globals() -- TS15
   end)
 end
 
+local function test_a_snippet_calling_an_addon_replaced_global_runs_it_tainted_assumed() -- TS4
+  H.withTaint("retail", function(w)
+    handler("TKHFwd", "SecureHandlerBaseTemplate")
+    local cast = 0
+    w:stub("CastSpellByName", function()
+      cast = cast + 1
+    end)
+    H.run(w, "Foo", "UnitExists = function() TK_Sec = issecure(); CastSpellByName('Fireball'); return true end")
+    H.run(w, "Foo", "SecureHandlerExecute(TKHFwd, \"UnitExists('target')\")")
+    A.same({ _G.TK_Sec, cast, #H.events(w, "blocked") }, { false, 0, 1 })
+  end)
+end
+
+local function test_a_handle_calls_the_class_method_not_an_addon_field() -- TS15
+  H.withTaint("retail", function(w)
+    local h = handler("TKHMeth", "SecureHandlerBaseTemplate")
+    h:Hide()
+    H.run(w, "Foo", "TKHMeth.Show = function() TK_Called = true end")
+    H.run(w, "Foo", "SecureHandlerExecute(TKHMeth, 'self:Show()')")
+    A.same({ _G.TK_Called, h:IsShown(), #w.errors }, { nil, true, 0 })
+  end)
+end
+
+local function test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet() -- TS15
+  H.withTaint("retail", function(w)
+    local h = handler("TKHBase", "SecureHandlerBaseTemplate")
+    H.run(w, "Foo", "strsplit = function() TK_Called = true end")
+    local r = SecureEnv.run(w, h, "return strsplit(',', 'a,b')")
+    A.same({ r[2], r[3], _G.TK_Called }, { "a", "b", nil })
+  end)
+end
+
 local function test_snippets_refuse_function_and_table_syntax() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHSyn", "SecureHandlerBaseTemplate")
@@ -460,6 +492,9 @@ return function()
   test_a_tainted_show_runs_the_onshow_snippet_assumed()
   test_a_tainted_state_attribute_in_combat_is_blocked_before_the_snippet()
   test_restricted_environment_hides_globals()
+  test_a_snippet_calling_an_addon_replaced_global_runs_it_tainted_assumed()
+  test_a_handle_calls_the_class_method_not_an_addon_field()
+  test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet()
   test_snippets_refuse_function_and_table_syntax()
   test_environment_variables_persist_per_header()
   test_attribute_template_runs__onattributechanged_snippet()

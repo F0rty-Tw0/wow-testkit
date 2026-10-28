@@ -39,6 +39,7 @@ local ALIASES = {
   time = os.time,
   date = os.date,
 }
+M.ALIASES = ALIASES
 
 local function escapeClass(chars)
   return (chars:gsub("[%%%]%^%-]", "%%%0"))

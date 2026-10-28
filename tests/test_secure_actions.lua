@@ -278,6 +278,20 @@ local function test_addon_click_follows_use_on_key_down_assumed() -- TS14
   end)
 end
 
+local function test_a_click_reading_an_addon_replaced_action_global_runs_it_tainted_assumed() -- TS4, TS14
+  H.withTaint("retail", function(w, _, s)
+    w:unit("target", { name = "Kit Dummy" })
+    local b = actionButton("TKActRep")
+    b:SetAttribute("type", "spell")
+    b:SetAttribute("spell", "Kit Strike")
+    b:SetAttribute("unit", "target")
+    local cast = recorder(w, "CastSpellByName")
+    H.run(w, "Foo", "local orig = CastSpellByName; CastSpellByName = function(...) TK_Sec = issecure(); orig(...) end")
+    s:click(b)
+    A.same({ _G.TK_Sec, #cast, #H.events(w, "blocked") }, { false, 0, 1 })
+  end)
+end
+
 return function()
   test_hardware_click_casts_but_an_addon_click_is_blocked()
   test_modifier_prefix_and_button_suffix_pick_the_attribute()
@@ -293,4 +307,5 @@ return function()
   test_secure_unit_button_defaults_assumed()
   test_click_on_disabled_or_unregistered_button_does_nothing()
   test_addon_click_follows_use_on_key_down_assumed()
+  test_a_click_reading_an_addon_replaced_action_global_runs_it_tainted_assumed()
 end

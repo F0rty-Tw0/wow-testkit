@@ -165,9 +165,11 @@ local HELPERS = {
   end,
 }
 
+-- The kit's function for a Ketho LuaAPI name, or nil when it has none.
 local function implementation(name)
   return BIT[name] or DEGREES[name] or ALIASES[name] or HELPERS[name]
 end
+M.implementation = implementation
 
 -- True when the kit implements this Ketho LuaAPI name (string.trim, table.count, ...).
 function M.implements(name)

@@ -71,9 +71,10 @@ local function resolveDriver(w, frame, attribute, values)
   end
 end
 
--- UnitExists per unit, remembered for one update pass.
-local function unitExists(cache, unit)
+-- UnitExists per unit, remembered for one update pass; the global is read through Taint.read (row TS4, assumed).
+local function unitExists(w, cache, unit)
   if cache[unit] == nil then
+    Taint.read(w, _G, "UnitExists")
     cache[unit] = _G.UnitExists(unit) == true
   end
 
@@ -82,7 +83,7 @@ end
 
 local function updateWatch(w, frame, asState, cache)
   local unit = SecureAttributes.unitOf(w, frame)
-  local present = unit ~= nil and unitExists(cache, unit)
+  local present = unit ~= nil and unitExists(w, cache, unit)
   if asState then
     if frame:GetAttribute("state-unitexists") ~= present then
       frame:SetAttribute("state-unitexists", present)

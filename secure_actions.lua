@@ -30,7 +30,7 @@ local CANCELABLE_SLOTS = { [16] = true, [17] = true, [18] = true }
 
 -- Calls the global at path with args; counts w.unscripted["secure:<kind>"] and returns nothing when the flavour lacks it.
 local function call(w, kind, path, ...)
-  local fn = resolve(path)
+  local fn = resolve(w, path)
   if not fn then
     WorldApi.markUnscripted(w, "secure:" .. kind)
     return nil
@@ -78,7 +78,7 @@ function ACTIONS.item(w, frame, unit, button)
   end
   if item then
     local name, bag, slot = parseItem(item)
-    if name and query("C_Item.IsEquippableItem", name) and not query("C_Item.IsEquippedItem", name) then
+    if name and query(w, "C_Item.IsEquippableItem", name) and not query(w, "C_Item.IsEquippedItem", name) then
       call(w, "item", "C_Item.EquipItemByName", name)
     else
       call(w, "item", "SecureCmdUseItem", name, bag, slot, unit)
@@ -103,9 +103,9 @@ function ACTIONS.target(w, _, unit)
     return
   elseif unit == "none" then
     call(w, "target", "ClearTarget")
-  elseif query("SpellIsTargeting") then
+  elseif query(w, "SpellIsTargeting") then
     call(w, "target", "SpellTargetUnit", unit)
-  elseif query("CursorHasItem") then
+  elseif query(w, "CursorHasItem") then
     call(w, "target", "C_Item.DropItemOnUnit", unit)
   else
     call(w, "target", "TargetUnit", unit)
@@ -121,7 +121,7 @@ function ACTIONS.assist(w, _, unit)
 end
 
 function ACTIONS.stop(w)
-  if query("SpellIsTargeting") then
+  if query(w, "SpellIsTargeting") then
     call(w, "stop", "SpellStopTargeting")
   end
 end
@@ -183,16 +183,16 @@ local function convert(w, frame, button, pressType)
   local unit = SecureAttributes.modifiedUnit(w, frame, button)
   if unit then
     local original = button
-    if query("UnitCanAttack", "player", unit) then
+    if query(w, "UnitCanAttack", "player", unit) then
       button = modifiedAttribute(w, frame, "harmbutton", button) or button
-    elseif query("UnitCanAssist", "player", unit) then
+    elseif query(w, "UnitCanAssist", "player", unit) then
       button = modifiedAttribute(w, frame, "helpbutton", button) or button
     end
     if button ~= original then
       unit = SecureAttributes.modifiedUnit(w, frame, button)
     end
   end
-  if type(button) ~= "string" or (unit and unit ~= "none" and not query("UnitExists", unit)) then
+  if type(button) ~= "string" or (unit and unit ~= "none" and not query(w, "UnitExists", unit)) then
     return nil
   end
   return button, unit, modifiedAttribute(w, frame, pressType == HOLD_RELEASE and "typerelease" or "type", button)
@@ -229,7 +229,7 @@ end
 function M.shouldUseOnKeyDown(w, frame)
   local use = SecureAttributes.attribute(w, frame, "useOnKeyDown")
   if use == nil then
-    use = query("GetCVarBool", "ActionButtonUseKeyDown")
+    use = query(w, "GetCVarBool", "ActionButtonUseKeyDown")
   end
   return use
 end
@@ -244,7 +244,7 @@ function M.click(w, frame, inputButton, down, isKeyPress, isSecureAction)
   if (down and useDown) or (not down and not useDown) then
     click(w, frame, inputButton, down, down and isKeyPress)
     return true
-  elseif not down and (holdAction or query("GetCVarBool", "ActionButtonUseKeyHeldSpell")) then
+  elseif not down and (holdAction or query(w, "GetCVarBool", "ActionButtonUseKeyHeldSpell")) then
     local button, unit, actionType = convert(w, frame, inputButton, HOLD_RELEASE)
     perform(w, frame, button, unit, actionType, false)
     return true
@@ -261,7 +261,7 @@ end
 -- source: `:844-889` (SecureUnitButton_OnClick), minus the click-binding branch (C_ClickBindings is not modelled).
 function M.unitButtonOnClick(w, frame, button, down)
   local actionType = modifiedAttribute(w, frame, "type", button)
-  if (actionType == "menu" or actionType == "togglemenu") and query("SpellIsTargeting") then
+  if (actionType == "menu" or actionType == "togglemenu") and query(w, "SpellIsTargeting") then
     call(w, "stop", "SpellStopTargeting")
     return
   end
