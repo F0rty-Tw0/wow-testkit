@@ -8,6 +8,7 @@ local BlizzardWindows = require("blizzard_windows")
 local Items = require("game.items")
 local Mail = require("game.mail")
 local Merchant = require("game.merchant")
+local ScenarioAuction = require("scenario_auction")
 local State = require("game.state")
 local TalentsClassic = require("game.talents_classic")
 local TalentsDb2 = require("game.talents_db2")
@@ -231,6 +232,7 @@ M.closers.mail = function(s)
 end
 
 function M.extend(Scenario)
+  ScenarioAuction.extend(Scenario, M)
   -- Opens window (the flavor's name for it: talents, map, merchant, mail, auction, transmog) with the data its opener
   -- takes; raises for a window the flavor has no spec for.
   function Scenario:openWindow(window, data)

@@ -5,6 +5,8 @@ local M = {}
 
 local ActionBar = require("game.actionbar")
 local Addons = require("game.addons")
+local Auction = require("game.auction")
+local AuctionLegacy = require("game.auction_legacy")
 local Bindings = require("bindings")
 local Chat = require("game.chat")
 local ClientApi = require("game.clientapi")
@@ -38,6 +40,8 @@ local AREAS = {
   Items,
   Merchant,
   Mail,
+  AuctionLegacy,
+  Auction,
   Zone,
   WorldMap,
   Addons,
