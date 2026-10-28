@@ -8,8 +8,11 @@
 -- `tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE] [--blizzard-ui]`
 -- runs the addon (with --blizzard-ui, after Blizzard's UI addons from the client extract), writes the render snapshot
 -- to <out>/snapshot.json and, with --png, a Chrome screenshot of it.
+-- `tk catalog <addons-dir> [flavor...] [--list FILE] [--out FILE] [--html FILE] [--blizzard-ui]` runs the addons the
+-- user lists through the smoke scenario and writes the compatibility catalog (catalog.lua).
 -- `tk client extract|status [args]` extracts data from the installed game client or reports the extract's state
 -- (client_cli.lua).
+local Catalog = require("catalog")
 local ClientCli = require("client_cli")
 local fs = require("fs")
 local Flavors = require("tools.flavors")
@@ -25,6 +28,7 @@ local isModule = (...) == "bin.tk"
 
 local USAGE = "usage: tk test [flavor...] [--update] [--addon <path>] | tk smoke <dir> [flavor...] [--json]"
   .. " | tk preview <addon-dir> [--flavor F] [--scenario FILE] [--size WxH] [--out DIR] [--png FILE] [--blizzard-ui]"
+  .. " | tk catalog <addons-dir> [flavor...] [--list FILE] [--out FILE] [--html FILE] [--blizzard-ui]"
   .. " | tk client extract|status [args]\n"
 local EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 local UNSCRIPTED_TOP = 10
@@ -228,6 +232,8 @@ function Cli.main(argv, write)
     return smokeCommand(argv, write)
   elseif argv[1] == "preview" then
     return previewCommand(argv, write)
+  elseif argv[1] == "catalog" then
+    return Catalog.main({ unpack(argv, 2) }, write)
   elseif argv[1] == "client" then
     return clientCommand(argv, write)
   end

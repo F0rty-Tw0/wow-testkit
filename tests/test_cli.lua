@@ -215,6 +215,12 @@ local function test_preview_blizzard_ui_flag_reaches_run()
   A.same(previewOpts({ "preview", "dir", "--blizzard-ui", "--flavor", "mists" }), { addonDir = "dir", blizzardUi = true, flavor = "mists" })
 end
 
+local function test_catalog_without_a_directory_exits_2()
+  local code, out = run({ "catalog" })
+  A.contains(out, "usage: tk catalog")
+  A.eq(code, 2)
+end
+
 return function()
   test_test_command_passes_the_hover_scenario()
   test_missing_golden_fails_until_update_writes_it()
@@ -235,4 +241,5 @@ return function()
   test_preview_passes_the_parsed_options_to_preview_run()
   test_preview_leaves_unset_options_to_the_defaults()
   test_preview_blizzard_ui_flag_reaches_run()
+  test_catalog_without_a_directory_exits_2()
 end
