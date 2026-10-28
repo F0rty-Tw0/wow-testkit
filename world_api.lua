@@ -1,7 +1,7 @@
--- Builds the installed function for a WoW API name: call counting and argument validation in addon context,
--- then a w:stub override, then the kit implementation (both take the arguments through w.revealArgs(name, packed) when one
--- is set; the implementation's results pass through w.returnFilter(name, signature, packed) when one is set and the caller
--- is addon code), then signature-derived defaults.
+-- Builds the installed function for a WoW API name: call counting and argument validation in addon context, then the
+-- taint gate (w.callGate: a refused call returns nothing), then a w:stub override, then the kit implementation (both
+-- take the arguments through w.revealArgs(name, packed) when one is set; the implementation's results pass through
+-- w.returnFilter(name, signature, packed) when one is set and the caller is addon code), then signature-derived defaults.
 local M = {}
 
 local Callsite = require("ui.callsite")
@@ -90,6 +90,9 @@ function M.wrap(w, name, signature, impl)
       if message then
         error(message, 2)
       end
+    end
+    if w.callGate and w.callGate(name, signature, args) then
+      return
     end
     local real = w.revealArgs and w.revealArgs(name, args) or args
     local stub = w.stubs[name]

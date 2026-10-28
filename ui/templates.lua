@@ -176,15 +176,6 @@ M.TEMPLATES = {
     mixins = { "NarrationEditBoxMixin", "NarrationSearchBoxMixin" },
     protected = false,
   },
-  -- Blizzard_FrameXML/SecureTemplatesBase.xml: SecureFrameTemplate
-  -- Blizzard_FrameXML/SecureTemplates.xml: SecureActionButtonTemplate
-  SecureActionButtonTemplate = {
-    type = "Button",
-    inherits = { "SecureFrameTemplate" },
-    children = {},
-    mixins = { "SecureActionButtonMixin" },
-    protected = true,
-  },
   -- Blizzard_SharedXML/SharedTooltipTemplates.xml: TooltipBackdropTemplate
   TooltipBackdropTemplate = {
     type = "Frame",
@@ -262,7 +253,7 @@ M.TEMPLATES = {
 }
 
 -- The button and panel families live in their own files (this file's size); names are unique across the three.
-for _, group in ipairs({ require("ui.templates_buttons"), require("ui.templates_panels") }) do
+for _, group in ipairs({ require("ui.templates_buttons"), require("ui.templates_panels"), require("ui.templates_secure") }) do
   for name, entry in pairs(group.TEMPLATES) do
     M.TEMPLATES[name] = entry
   end

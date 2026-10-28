@@ -5,6 +5,7 @@
 local M = {}
 
 local Core = require("framexml.fakes.core")
+local Taint = require("taint")
 
 -- Localized: addon code may assign globals named error, ipairs, pairs, select, type or unpack.
 local error, ipairs, pairs, select, type, unpack = error, ipairs, pairs, select, type, unpack
@@ -117,9 +118,10 @@ local function joined(entry, triggered)
 end
 
 -- source: row W72 (confirmed) an undefined event errors unless undefined events are allowed; a callback is called as
--- func(owner, ...). Each call goes through the world's try, so a failing callback reaches the error handler and the next
--- one still runs (assumed: the client calls them with securecallfunction). The registrants are copied first, so a callback
--- registered meanwhile waits for the next trigger.
+-- func(owner, ...). An addon's callback goes through the world's callAsAddon, so it runs with its owner's taint (row TS1,
+-- assumed); a kit callback goes through try and keeps the caller's context and taint. Either way a failing callback
+-- reaches the error handler and the next one still runs (assumed: the client calls them with securecallfunction). The
+-- registrants are copied first, so a callback registered meanwhile waits for the next trigger.
 local function triggerEvent(w)
   return function(self, event, ...)
     if type(event) ~= "string" then
@@ -135,7 +137,8 @@ local function triggerEvent(w)
     local triggered = pack(...)
     for i = 1, snapshot.n do
       local entry = snapshot[i]
-      w:try(entry.func, unpack(joined(entry, triggered), 1, entry.extra.n + triggered.n + 1))
+      local call = Taint.ownerOf(w, entry.func) and w.callAsAddon or w.try
+      call(w, entry.func, unpack(joined(entry, triggered), 1, entry.extra.n + triggered.n + 1))
     end
   end
 end

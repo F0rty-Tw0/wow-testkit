@@ -9,6 +9,7 @@ local Json = require("json")
 local Layout = require("ui.layout")
 local Order = require("render_order")
 local Read = require("render_read")
+local TaintLog = require("taint_log")
 
 local SNAPSHOT_VERSION = 1
 
@@ -75,9 +76,13 @@ end
 
 -- The render snapshot of w. It reads kit state directly, never an addon-facing method, so w.unscripted stays as it
 -- was (tests/test_render.lua and test_render_widgets.lua pin that). Json.encode accepts the result whatever numbers the
--- addon stored.
+-- addon stored. The taint log rides along under taint.log, only once it holds an entry.
 function M.snapshot(w)
-  return Finite.scrub(build(w))
+  local snap = build(w)
+  if w.taint and #w.taint.log > 0 then
+    snap.taint = { log = TaintLog.copyLog(w) }
+  end
+  return Finite.scrub(snap)
 end
 
 return M

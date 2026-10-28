@@ -7,6 +7,7 @@ local M = {}
 local MenuDescription = require("framexml.fakes.menu_description")
 local MenuFrames = require("framexml.fakes.menu_frames")
 local MenuPick = require("framexml.fakes.menu_pick")
+local Taint = require("taint")
 
 -- Localized: addon code may assign a global named select.
 local select = select
@@ -190,9 +191,10 @@ local function modifyMenu(w, tag, fn)
   local list = w.menuApi.modifiers[tag] or {}
   w.menuApi.modifiers[tag] = list
   -- Wrapped so a nil fn is kept too (storing nil would drop it); its call then fails when the menu opens.
-  list[#list + 1] = function(...)
+  -- Taint.adopt: the wrapper runs with fn's owner, so the hook is tainted by its addon (row TS1, assumed).
+  list[#list + 1] = Taint.adopt(w, function(...)
     return fn(...)
-  end
+  end, fn)
 end
 
 function M.install(w)

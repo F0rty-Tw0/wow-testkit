@@ -26,6 +26,7 @@ local BehaviourEdit = require("ui.behaviour_edit")
 local BehaviourRange = require("ui.behaviour_range")
 local BehaviourScroll = require("ui.behaviour_scroll")
 local BehaviourFrameExtras = require("ui.behaviour_frame_extras")
+local TaintFrames = require("taint_frames")
 
 local unpack = unpack
 
@@ -203,6 +204,7 @@ local MODULES = {
   BehaviourRange,
   BehaviourScroll,
   BehaviourFrameExtras,
+  TaintFrames,
 }
 for _, module in ipairs(MODULES) do
   for name, fn in pairs(module.methods) do

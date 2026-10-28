@@ -30,9 +30,21 @@ local function test_cleu_register_is_forbidden_on_retail_assumed()
     A.same({ result[1], result[2] }, { true, false })
     A.same({ forbidden[1].event, forbidden[1][3], forbidden[1][4] }, { "ADDON_ACTION_FORBIDDEN", "T", "RegisterEvent()" })
     A.eq(frame:IsEventRegistered(CLEU), false)
+    local entry = w.taint.log[1]
+    A.same({ entry.kind, entry.addon, entry.name, entry.event }, { "blocked", "T", "RegisterEvent()", "ADDON_ACTION_FORBIDDEN" })
     w:fire(CLEU)
     A.eq(seen.n, 0)
     A.eq(#w.errors, 0)
+  end)
+end
+
+-- A tail call drops the addon's chunk from the stack; the event still names the addon whose code is running.
+local function test_tail_called_register_names_the_running_addon()
+  H.withScenario("retail", function(w)
+    local forbidden = H.watch(w, { "ADDON_ACTION_FORBIDDEN" })
+    local frame = _G.CreateFrame("Frame")
+    inAddon(w, frame, "return frame:RegisterEvent('" .. CLEU .. "')")
+    A.same({ forbidden[1][3], forbidden[1][4] }, { "T", "RegisterEvent()" })
   end)
 end
 
@@ -81,6 +93,7 @@ end
 
 return function()
   test_cleu_register_is_forbidden_on_retail_assumed()
+  test_tail_called_register_names_the_running_addon()
   test_combat_log_event_and_unit_event_are_forbidden_on_retail_assumed()
   test_cleu_registers_normally_on_classic()
   test_blizzard_code_may_register_cleu_on_retail()

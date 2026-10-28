@@ -3,13 +3,15 @@
 -- addon error into an error line; Console.push is the one way a line gets in, so the chat fakes call it.
 local M = {}
 
+local Taint = require("taint")
+
 M.SIZE = 500
 
 -- Localized: addon code may assign globals named select or tostring.
 local select, tostring = select, tostring
 
 -- Line kinds: print, chat (DEFAULT_CHAT_FRAME), error-frame (UIErrorsFrame), send (SendChatMessage, pushed by game/chat.lua),
--- error (a recorded addon error) and system (the session's own notes, such as an unknown slash command).
+-- error (a recorded addon error), taint (a taint log entry) and system (the session's own notes, such as an unknown slash command).
 function M.push(w, kind, text, r, g, b)
   local ring = w.console
   ring.seq = ring.seq + 1
@@ -57,6 +59,13 @@ local function echoErrors(w)
   end
 end
 
+-- Each taint log entry also becomes a taint line (source: assumed, row TS18: the kit records always and words the line itself).
+local function echoTaint(w)
+  Taint.listen(w, function(entry)
+    M.push(w, "taint", "taint: " .. entry.text)
+  end)
+end
+
 -- Copies the ring of an earlier session into w's, so a reload keeps the lines and their seq numbers.
 function M.carry(w, from)
   w.console.seq = from.seq
@@ -78,6 +87,7 @@ function M.install(w, sess)
     end
   end
   echoErrors(w)
+  echoTaint(w)
 end
 
 return M

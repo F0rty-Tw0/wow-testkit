@@ -12,6 +12,7 @@ local TESTS_DIR = debug.getinfo(1, "S").source:sub(2):gsub("\\", "/"):match("^(.
 M.DEMO = TESTS_DIR .. "/fixtures/addons/SessionDemo"
 M.CLICKY = TESTS_DIR .. "/fixtures/addons/Clicky"
 M.WTF = TESTS_DIR .. "/fixtures/addons/WtfDemo"
+M.TAINT = TESTS_DIR .. "/fixtures/addons/TaintDemo"
 
 -- The options a session starts with: SessionDemo on retail with a temp sessionDir, overridden by opts.
 local function options(opts)

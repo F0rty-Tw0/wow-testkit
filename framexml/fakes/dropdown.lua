@@ -6,12 +6,20 @@ local M = {}
 local Callsite = require("ui.callsite")
 local DropdownEntry = require("framexml.fakes.dropdown_entry")
 local MenuFrames = require("framexml.fakes.menu_frames")
+local Taint = require("taint")
 
 local LIST_NAME = "DropDownList"
 local DEFAULT_WIDTH_PADDING = 50
 local MAINLINE = DropdownEntry.MAINLINE
 -- Ketho's FrameXML list decides which flavors get these.
 local KETHO_GATE = { gate = "framexml", flavors = {} }
+
+-- Kit fakes carry taint (inventory F): reading a global an addon wrote taints the running Blizzard code (row TS4, assumed).
+local function readGlobal(w, name)
+  Taint.read(w, _G, name)
+
+  return rawget(_G, name)
+end
 
 local function newLevel(w, depth, owner)
   local level = {
@@ -52,11 +60,11 @@ end
 -- Only DropDownList levels hide: an open Menu API menu (levels without namePrefix, from depth 1 up) stays, and a
 -- list above it still hides.
 local function hideForInitialize(w, frame)
-  if frame ~= rawget(_G, "UIDROPDOWNMENU_OPEN_MENU") then
+  if frame ~= readGlobal(w, "UIDROPDOWNMENU_OPEN_MENU") then
     w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", 1)
   end
   w:setGlobal("UIDROPDOWNMENU_INIT_MENU", frame)
-  local depth = rawget(_G, "UIDROPDOWNMENU_MENU_LEVEL")
+  local depth = readGlobal(w, "UIDROPDOWNMENU_MENU_LEVEL")
   while w.menus[depth] and not w.menus[depth].namePrefix do
     depth = depth + 1
   end
@@ -141,17 +149,17 @@ end
 
 -- S1 (Mainline :1064-1071, Classic :1003-1010): at any level, a shown DropDownList<level> whose open menu is frame, or
 -- button's parent without one, hides. The client indexes a nil button; the kit reads that as no match.
-local function closesShown(level, frame, button)
+local function closesShown(w, level, frame, button)
   local owner = frame or (button and button:GetParent())
-  local open = rawget(_G, "UIDROPDOWNMENU_OPEN_MENU")
+  local open = readGlobal(w, "UIDROPDOWNMENU_OPEN_MENU")
 
   return owner ~= nil and open == owner and _G[LIST_NAME .. level]:IsShown()
 end
 
 -- S6 (Mainline :1163-1165, Classic :1102-1104): level 2+ without a frame uses the open menu.
-local function frameFor(level, frame)
+local function frameFor(w, level, frame)
   if level > 1 then
-    return frame or rawget(_G, "UIDROPDOWNMENU_OPEN_MENU")
+    return frame or readGlobal(w, "UIDROPDOWNMENU_OPEN_MENU")
   end
 
   return frame
@@ -177,12 +185,12 @@ local function toggle(w, level, value, frame, menuList, button)
   createLists(w, level)
   w:setGlobal("UIDROPDOWNMENU_MENU_LEVEL", level)
   w:setGlobal("UIDROPDOWNMENU_MENU_VALUE", value)
-  if closesShown(level, frame, button) then
+  if closesShown(w, level, frame, button) then
     MenuFrames.close(w, level)
 
     return
   end
-  frame = frameFor(level, frame)
+  frame = frameFor(w, level, frame)
   checkToggle(frame)
   MenuFrames.close(w, level)
   if level == 1 then
