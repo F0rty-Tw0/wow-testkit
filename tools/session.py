@@ -2,7 +2,7 @@
 """A long-running local session of one addon, served to the browser viewer.
 
     python tools/session.py <addon-dir> [--flavor F|auto] [--size WxH] [--port N] [--bind 127.0.0.1]
-                            [--extract DIR] [--bindings FILE] [--no-watch]
+                            [--extract DIR] [--bindings FILE] [--no-watch] [--blizzard-ui]
     python tools/session.py --selftest
 
 Prints `session: http://127.0.0.1:<port>/?token=<token>` (the token every request but the viewer's files needs, kept
@@ -48,8 +48,10 @@ class Running:
         self.host.shutdown()
 
 
-def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, extract=None, bindings=None):
+def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, extract=None, bindings=None, blizzard_ui=False):
     """Loads the addon, starts serving on 127.0.0.1:port (0 picks a free port) and returns the Running session.
+
+    With blizzard_ui, Blizzard's own UI addons from the extract load before the addon (blizzard_ui.lua).
 
     With watch, a save under addon_dir reloads the addon through the host; a reload that fails is reported on stderr.
     """
@@ -62,7 +64,7 @@ def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, ex
     import session_watch
 
     bus = session_bus.Bus()
-    host = session_host.LuaHost(bus, os.path.abspath(addon_dir), flavor, size, extract, bindings)
+    host = session_host.LuaHost(bus, os.path.abspath(addon_dir), flavor, size, extract, bindings, blizzard_ui=blizzard_ui)
     try:
         token = session_files.session_token(host.session_dir)
         server = session_http.Server(port, host, bus, VIEWER_DIR, host.assets_dir, token)
@@ -101,6 +103,7 @@ def _parser():
     parser.add_argument("--extract", metavar="DIR")
     parser.add_argument("--bindings", metavar="FILE")
     parser.add_argument("--no-watch", action="store_true")
+    parser.add_argument("--blizzard-ui", action="store_true")
     return parser
 
 
@@ -121,6 +124,8 @@ def _check(args):
         return f"no such directory: {args.extract}"
     if args.bindings and not os.path.isfile(args.bindings):
         return f"no such file: {args.bindings}"
+    if args.blizzard_ui and not args.extract:
+        return "--blizzard-ui needs --extract: the Blizzard UI addons come from the client extract"
     return None
 
 
@@ -152,7 +157,7 @@ def main(argv, wait=wait_for_interrupt):
     if problem:
         return _usage_error(problem)
     try:
-        running = start(args.addon_dir, args.port, args.flavor, args.size, not args.no_watch, args.extract, args.bindings)
+        running = start(args.addon_dir, args.port, args.flavor, args.size, not args.no_watch, args.extract, args.bindings, args.blizzard_ui)
     except OSError as err:
         return _usage_error(f"cannot listen on {LOOPBACK}:{args.port}: {err.strerror or err}")
     print(f"session: {running.url}", flush=True)

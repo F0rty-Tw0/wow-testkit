@@ -141,7 +141,7 @@ def session_dir_for(addon_dir):
 class LuaHost:
     """One SessionHost in its own Lua runtime; every call holds one lock and publishes the events it queued on bus."""
 
-    def __init__(self, bus, addon_dir, flavor="retail", size=(1920, 1080), extract=None, bindings=None, session_dir=None):
+    def __init__(self, bus, addon_dir, flavor="retail", size=(1920, 1080), extract=None, bindings=None, session_dir=None, blizzard_ui=False):
         self.bus = bus
         self.lock = threading.RLock()
         self.cache = {}
@@ -160,6 +160,7 @@ class LuaHost:
             "sessionDir": session_dir.as_posix(),
             "extract": Path(extract).as_posix() if extract else None,
             "bindingsFile": Path(bindings).as_posix() if bindings else None,
+            "blizzardUi": True if blizzard_ui else None,
         }
         text = json.dumps({key: value for key, value in options.items() if value is not None})
         with self.lock:

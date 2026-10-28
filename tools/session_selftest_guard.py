@@ -12,7 +12,7 @@ import time
 import session
 import session_files
 import session_http
-from session_selftest import DEMO, STREAM_WAIT, data_of, open_stream, read_until, request, running, testkit_home, wait_for
+from session_selftest import DEMO, STREAM_WAIT, data_of, get_json, open_stream, read_until, request, running, testkit_home, wait_for
 
 
 def test_foreign_host_header_is_refused(tmp):
@@ -172,6 +172,31 @@ def test_connections_past_the_cap_are_closed_unanswered(tmp):
         session_http.MAX_CONNECTIONS = old
 
 
+def test_blizzard_flag_is_accepted_and_needs_an_extract(tmp):
+    assert session._parser().parse_args(["--blizzard-ui", str(DEMO)]).blizzard_ui is True
+    assert session._parser().parse_args([str(DEMO)]).blizzard_ui is False
+    with testkit_home(tmp), contextlib.redirect_stderr(io.StringIO()) as err:
+        assert session.main(["--blizzard-ui", str(DEMO)], wait=lambda running: None) == 2
+    assert "--blizzard-ui needs --extract" in err.getvalue()
+
+
+def test_blizzard_flag_loads_the_layer_from_the_extract(tmp):
+    """A kit-authored mini extract: one "Blizzard" addon under a default target's folder name."""
+    extract = tmp / "client" / "retail" / "70575"
+    addon = extract / "code" / "addons" / "blizzard_actionbar"
+    addon.mkdir(parents=True)
+    (extract / "manifest.lua").write_text('return { product = "wow", flavor = "retail", build = "70575", locales = { "enUS" } }')
+    (addon / "blizzard_actionbar.toc").write_text("MiniPy.lua\n")
+    (addon / "minipy.lua").write_text('CreateFrame("Frame", "MiniPy", UIParent)\n')
+    with testkit_home(tmp):
+        live = session.start(str(DEMO), port=0, extract=str(extract), blizzard_ui=True)
+        try:
+            layer = get_json(live, "/snapshot")["session"]["blizzard"]
+        finally:
+            live.stop()
+    assert layer["enabled"] is True and layer["loaded"] == ["Blizzard_ActionBar"], layer
+
+
 TESTS = [
     test_foreign_host_header_is_refused,
     test_cross_origin_and_wrong_content_type_are_refused,
@@ -182,4 +207,6 @@ TESTS = [
     test_a_refused_request_with_the_token_sets_no_cookie,
     test_every_reply_says_no_referrer,
     test_connections_past_the_cap_are_closed_unanswered,
+    test_blizzard_flag_is_accepted_and_needs_an_extract,
+    test_blizzard_flag_loads_the_layer_from_the_extract,
 ]
