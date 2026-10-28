@@ -9,7 +9,7 @@ local Json = require("json")
 local Layout = require("ui.layout")
 local Order = require("render_order")
 local Read = require("render_read")
-local Taint = require("taint")
+local TaintLog = require("taint_log")
 
 local SNAPSHOT_VERSION = 1
 
@@ -80,7 +80,7 @@ end
 function M.snapshot(w)
   local snap = build(w)
   if w.taint and #w.taint.log > 0 then
-    snap.taint = { log = Taint.copyLog(w) }
+    snap.taint = { log = TaintLog.copyLog(w) }
   end
   return Finite.scrub(snap)
 end

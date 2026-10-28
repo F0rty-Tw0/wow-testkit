@@ -100,24 +100,6 @@ function M.record(w, entry)
   return entry
 end
 
--- A copy of the log, oldest first, each entry copied one level; a name that is not a string or number (a table key) is
--- given as its tostring, so the copy is plain data.
-function M.copyLog(w)
-  local out = {}
-  for i, entry in ipairs(w.taint.log) do
-    local copy = {}
-    for key, value in pairs(entry) do
-      copy[key] = value
-    end
-    local name = copy.name
-    if name ~= nil and type(name) ~= "string" and type(name) ~= "number" then
-      copy.name = tostring(name)
-    end
-    out[i] = copy
-  end
-  return out
-end
-
 -- Calls fn(entry) with each entry logged from now on.
 function M.listen(w, fn)
   local listeners = w.taint.listeners

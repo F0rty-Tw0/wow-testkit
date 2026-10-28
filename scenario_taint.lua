@@ -2,12 +2,12 @@
 -- recorded) as plain data.
 local M = {}
 
-local Taint = require("taint")
+local TaintLog = require("taint_log")
 
 function M.extend(Scenario)
   -- A copy of the log, oldest first: each entry { seq, time, kind, addon, name?, event?, text }; changing it changes nothing.
   function Scenario:taintLog()
-    return Taint.copyLog(self.w)
+    return TaintLog.copyLog(self.w)
   end
 end
 
