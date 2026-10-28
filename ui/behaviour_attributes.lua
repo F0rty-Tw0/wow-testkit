@@ -30,8 +30,31 @@ function methods.SetAttribute(w, obj, st, name, value)
   end
 end
 
-function methods.GetAttribute(_, _, st, name)
-  local key = keyOf("GetAttribute", name)
+-- source: row TS14, wiki API_Frame_GetAttribute ("this function attempts to return attributes in the following order"):
+-- prefix..name..suffix, "*"..name..suffix, prefix..name.."*", "*"..name.."*", then name. The first one set wins, so an
+-- empty string (ATTRIBUTE_NOOP) wins too. The engine's order is the wiki's (assumed).
+function M.modified(attributes, prefix, name, suffix)
+  if not attributes then
+    return nil
+  end
+  prefix, suffix = prefix:lower(), suffix:lower()
+  name = name:lower()
+  local keys = { prefix .. name .. suffix, "*" .. name .. suffix, prefix .. name .. "*", "*" .. name .. "*", name }
+  for _, key in ipairs(keys) do
+    local value = attributes[key]
+    if value ~= nil then
+      return value
+    end
+  end
+  return nil
+end
+
+-- GetAttribute(name), or GetAttribute(prefix, name, suffix) for the modified lookup.
+function methods.GetAttribute(_, _, st, a, b, c)
+  if b ~= nil then
+    return M.modified(st.attributes, tostring(a), tostring(b), tostring(c or ""))
+  end
+  local key = keyOf("GetAttribute", a)
   return st.attributes and st.attributes[key]
 end
 
