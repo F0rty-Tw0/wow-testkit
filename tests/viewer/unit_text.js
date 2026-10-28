@@ -1,4 +1,5 @@
-// FontString text (viewer/viewer_text.js): Viewer.parseEscapes picks the |4 plural form (row V14).
+// FontString text (viewer/viewer_text.js, viewer/viewer_font.js): Viewer.parseEscapes picks the |4 plural form, and a
+// FontString shorter than one line still draws that line (rows V14, V15).
 (function () {
   'use strict';
 
@@ -28,6 +29,21 @@
       A.eq(segments.length, 1);
       A.eq(segments[0].text, '12 Days ');
       A.same(segments[0].color, [0x19 / 255, 1, 0x19 / 255, 1]);
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'fontString draws one line in a rect shorter than the line',
+    fn() {
+      const node = document.createElement('div');
+      node.className = 'item fontstring';
+      node.style.cssText = 'left: 0; top: 0; width: 200px; height: 1px;';
+      document.body.append(node);
+      const ctx = { families: new Map(), assets: {}, baseUrl: location.href };
+      V.fontString(node, { text: '|cffffffffLinen Cloth|r', size: 14, justifyH: 'LEFT' }, ctx);
+      const height = node.querySelector('.lines').getBoundingClientRect().height;
+      node.remove();
+      A.eq(height, 14, 'lines height');
     },
   });
 })();
