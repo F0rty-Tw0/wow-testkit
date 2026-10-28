@@ -233,6 +233,16 @@ local function test_no_dependency_directive_lists_nothing()
   A.same(Toc.dependencies(Toc.parse("## Title: T\nX.lua\n").meta), { required = {}, optional = {} })
 end
 
+-- source: assumed (row BU2) a dependency's [AllowLoadGameType] list drops it on other game types, and an [AllowLoad]
+-- list without game drops a glue-screen dependency; without a flavor the directives are read as before.
+local function test_dependencies_on_a_flavor_drop_other_game_types_and_glue_assumed()
+  local text = "## Dep: A [AllowLoadGameType mainline]\n## Dep: B [AllowLoadGameType wrath, cata]\n"
+    .. "## Dep: C [AllowLoad Glue]\n## Dep: D [AllowLoad game]\n## OptionalDeps: E [AllowLoadGameType classic], F\nX.lua\n"
+  local meta = Toc.parse(text).meta
+  A.same(Toc.dependencies(meta, "retail"), { required = { "A", "D" }, optional = { "F" } })
+  A.same(Toc.dependencies(meta, "mists"), { required = { "D" }, optional = { "E", "F" } })
+end
+
 local function test_exists_finds_a_toc_for_any_flavor()
   local dir = Tmp.dir("tocexists")
   fs.mkdirp(dir .. "/Only")
@@ -243,6 +253,7 @@ end
 
 return function()
   test_dependencies_lists_required_and_optional()
+  test_dependencies_on_a_flavor_drop_other_game_types_and_glue_assumed()
   test_a_repeated_dependency_directive_appends()
   test_a_directive_beginning_dep_lists_required_addons()
   test_no_dependency_directive_lists_nothing()

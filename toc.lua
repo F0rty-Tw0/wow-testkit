@@ -114,6 +114,44 @@ local function parseFileLine(line)
   return { path = (line:gsub("\\", "/")), directives = directives }
 end
 
+-- A game-type list loads the file when it shares a type with the flavor, or names no known type at all.
+local function allowedOn(file, row, report)
+  local gameTypes = file.directives[GAME_TYPE_DIRECTIVE]
+  if not gameTypes then
+    return true
+  end
+  local namesKnownType = false
+  for name in pairs(gameTypes) do
+    if row.gameTypes[name] then
+      return true
+    end
+    namesKnownType = namesKnownType or KNOWN_GAME_TYPES[name] == true
+  end
+  if namesKnownType then
+    return false
+  end
+  local names = table.concat(sortedKeys(gameTypes), ", ")
+  report[#report + 1] = file.path .. ": [" .. GAME_TYPE_DIRECTIVE .. "] names no known game type (" .. names .. "); loaded"
+  return true
+end
+
+-- source: assumed (row BU2) "A [AllowLoadGameType mainline], B [AllowLoad Glue]" -> "A" on retail: a name whose
+-- game-type list excludes row, or whose AllowLoad list lacks game (a glue-screen addon), is dropped.
+local function allowedNames(value, row)
+  local names = {}
+  local guarded = value:gsub("%b[]", function(bracket)
+    return (bracket:gsub(",", "\1"))
+  end)
+  for item in guarded:gmatch("[^,]+") do
+    local dep = parseFileLine(trim((item:gsub("\1", ","))))
+    local allowLoad = dep.directives.AllowLoad
+    if dep.path ~= "" and allowedOn(dep, row, {}) and not (allowLoad and not allowLoad.game) then
+      names[#names + 1] = dep.path
+    end
+  end
+  return table.concat(names, ",")
+end
+
 -- source: confirmed (row G16) any word beginning Dep, and RequiredDeps, list addons that load first.
 local function isRequiredKey(key)
   return key:sub(1, 3) == "Dep" or key == "RequiredDeps"
@@ -155,8 +193,10 @@ end
 
 -- { required = { name, ... }, optional = { name, ... } } from the dependency directives of meta: Dependencies, RequiredDeps
 -- and any directive beginning Dep are required, OptionalDeps optional. Directives are read in key order (the parsed
--- table keeps none); a name listed twice stays once, as required when it is in both.
-function M.dependencies(meta)
+-- table keeps none); a name listed twice stays once, as required when it is in both. With flavor, each name's bracketed
+-- directives are read and a name the flavor does not load is left out (allowedNames).
+function M.dependencies(meta, flavor)
+  local row = flavor and Flavors.get(flavor)
   local keys = {}
   for key in pairs(meta) do
     if isRequiredKey(key) then
@@ -166,9 +206,10 @@ function M.dependencies(meta)
   table.sort(keys)
   local deps, seen = { required = {}, optional = {} }, {}
   for _, key in ipairs(keys) do
-    appendNames(deps.required, seen, meta[key])
+    appendNames(deps.required, seen, row and allowedNames(meta[key], row) or meta[key])
   end
-  appendNames(deps.optional, seen, meta.OptionalDeps or "")
+  local optional = meta.OptionalDeps or ""
+  appendNames(deps.optional, seen, row and allowedNames(optional, row) or optional)
   return deps
 end
 
@@ -231,27 +272,6 @@ local function reportIgnoredDirectives(file, report)
       report[#report + 1] = file.path .. ": ignored directive [" .. name .. "]"
     end
   end
-end
-
--- A game-type list loads the file when it shares a type with the flavor, or names no known type at all.
-local function allowedOn(file, row, report)
-  local gameTypes = file.directives[GAME_TYPE_DIRECTIVE]
-  if not gameTypes then
-    return true
-  end
-  local namesKnownType = false
-  for name in pairs(gameTypes) do
-    if row.gameTypes[name] then
-      return true
-    end
-    namesKnownType = namesKnownType or KNOWN_GAME_TYPES[name] == true
-  end
-  if namesKnownType then
-    return false
-  end
-  local names = table.concat(sortedKeys(gameTypes), ", ")
-  report[#report + 1] = file.path .. ": [" .. GAME_TYPE_DIRECTIVE .. "] names no known game type (" .. names .. "); loaded"
-  return true
 end
 
 local function addFile(path, files, report)
