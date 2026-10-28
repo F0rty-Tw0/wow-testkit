@@ -22,6 +22,7 @@ local TalentsClassic = require("game.talents_classic")
 local TalentsSpecInfo = require("game.talents_specinfo")
 local TalentsTraits = require("game.talents_traits")
 local UnitFrame = require("game.unitframe")
+local WorldMap = require("game.worldmap")
 local Zone = require("game.zone")
 
 M.define = State.define
@@ -34,6 +35,7 @@ local AREAS = {
   Spells,
   Items,
   Zone,
+  WorldMap,
   Addons,
   Macros,
   Chat,
