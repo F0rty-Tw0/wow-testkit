@@ -41,6 +41,18 @@ def test_id_list_and_copy_table(tmp):
     assert list(db2.read(data, NONINLINE)) == [row, {**row, "ID": 8}]
 
 
+def test_truncated_field_storage_info_is_a_value_error(tmp):
+    data = make_wdc5(FIELDS, [{"ID": 7, "A": 1, "B": 2, "Name_lang": "x"}])
+    head = db2.header(data)
+    cut = data[: head.tables_at + 4 * head.total_field_count + 8]  # a stub file: header, then part of one info
+    try:
+        list(db2.read(cut, FIELDS))
+    except ValueError as err:
+        assert str(err) == "DB2 field storage info runs past the end of the file"
+    else:
+        raise AssertionError("expected ValueError")
+
+
 def test_dbd_block_picked_by_layout_hash(tmp):
     text = (
         "COLUMNS\nint ID\nint A\nint B\n\n"
@@ -116,6 +128,7 @@ TESTS = [
     test_pallet_and_common_fields,
     test_string_table_strings,
     test_id_list_and_copy_table,
+    test_truncated_field_storage_info_is_a_value_error,
     test_dbd_block_picked_by_layout_hash,
     test_atlas_names_join_member_to_sheet_coords,
     test_atlas_crop_writes_the_member_rect_png,
