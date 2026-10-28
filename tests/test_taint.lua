@@ -49,6 +49,17 @@ local function test_declared_table_fields_are_attributed_without_a_proxy() -- R6
 end
 
 -- Enum (and Constants) are swept only from the first query on; a change before it is not attributed (known gap).
+local function test_a_table_declared_with_keys_tracks_only_those_keys() -- R6
+  H.withTaint("retail", function(w, Taint)
+    local t = { watched = 1, other = 1 }
+    w:setGlobal("KitK", t)
+    Taint.declare(w, t, "KitK", false, { "watched" })
+    H.run(w, "Foo", "KitK.watched = 2; KitK.other = 2")
+    A.same({ Taint.slotOf(w, t, "watched"), Taint.slotOf(w, t, "other") }, { "Foo", nil })
+    A.eq(w.taint.log[#w.taint.log].text, "KitK.watched tainted by Foo")
+  end)
+end
+
 local function test_enum_is_declared_lazily_from_the_first_query()
   H.withTaint("retail", function(w, Taint)
     local before = next(_G.Enum)
@@ -176,6 +187,7 @@ return function()
   test_addon_chunk_taints_the_execution_with_its_addon_name_assumed()
   test_addon_global_overwrite_taints_the_slot_and_logs_once_assumed()
   test_declared_table_fields_are_attributed_without_a_proxy()
+  test_a_table_declared_with_keys_tracks_only_those_keys()
   test_enum_is_declared_lazily_from_the_first_query()
   test_reading_a_tainted_slot_taints_the_running_execution_assumed()
   test_kit_function_inherits_the_running_taint()

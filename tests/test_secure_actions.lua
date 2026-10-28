@@ -292,6 +292,19 @@ local function test_a_click_reading_an_addon_replaced_action_global_runs_it_tain
   end)
 end
 
+local function test_a_click_reading_an_addon_replaced_namespace_function_runs_it_tainted_assumed() -- TS4, TS14
+  H.withTaint("retail", function(w, _, s)
+    local b = actionButton("TKActNs")
+    b:SetAttribute("type", "macro")
+    b:SetAttribute("macrotext", "/cast Kit Strike")
+    local cast = recorder(w, "CastSpellByName")
+    H.run(w, "Foo", "C_Macro.RunMacroText = function() TK_Sec = issecure(); CastSpellByName('Kit Strike') end")
+    s:click(b)
+    local blocked = H.events(w, "blocked")
+    A.same({ _G.TK_Sec, #cast, #blocked, blocked[1] and blocked[1].addon }, { false, 0, 1, "Foo" })
+  end)
+end
+
 return function()
   test_hardware_click_casts_but_an_addon_click_is_blocked()
   test_modifier_prefix_and_button_suffix_pick_the_attribute()
@@ -308,4 +321,5 @@ return function()
   test_click_on_disabled_or_unregistered_button_does_nothing()
   test_addon_click_follows_use_on_key_down_assumed()
   test_a_click_reading_an_addon_replaced_action_global_runs_it_tainted_assumed()
+  test_a_click_reading_an_addon_replaced_namespace_function_runs_it_tainted_assumed()
 end

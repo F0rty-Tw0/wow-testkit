@@ -41,6 +41,18 @@ local FORWARDED = [[
   IsHarmfulItem=C_Item.IsHarmfulItem IsHelpfulItem=C_Item.IsHelpfulItem IsSpellHarmful=C_Spell.IsSpellHarmful
   IsSpellHelpful=C_Spell.IsSpellHelpful IsPressHoldReleaseSpell=C_Spell.IsPressHoldReleaseSpell
 ]]
+-- The namespace functions secure kit code calls: the forwards above, plus secure_actions.lua's actions and
+-- secure_scripts.lua's pickups (keep in step with those). M.install declares them, so an addon's write to one of them
+-- taints that slot (row TS4, assumed).
+local NAMESPACE_PATHS = FORWARDED
+  .. [[ C_Container.PickupContainerItem C_EquipmentSet.PickupEquipmentSet C_Item.DropItemOnUnit C_Item.EquipItemByName
+  C_Item.IsEquippableItem C_Item.IsEquippedItem C_Item.PickupItem C_Macro.RunMacroText
+  C_PaperDollInfo.CancelTemporaryEnchantment C_Spell.PickupSpell ]]
+local NAMESPACE_KEYS = {}
+for namespace, key in NAMESPACE_PATHS:gmatch("(C_%w+)%.(%w+)") do
+  local keys = NAMESPACE_KEYS[namespace] or {}
+  keys[#keys + 1], NAMESPACE_KEYS[namespace] = key, keys
+end
 -- Forwarded names whose first argument is a frame handle (the driver and unit-watch calls).
 local HANDLE_FIRST = [[RegisterStateDriver UnregisterStateDriver RegisterAttributeDriver UnregisterAttributeDriver
   RegisterUnitWatch UnregisterUnitWatch UnitWatchRegistered]]
@@ -246,6 +258,15 @@ function M.call(w, owner, header, signature, body, ...)
     error("Call failed: " .. tostring(results[2]), 0)
   end
   return unpack(results, 2, results.n)
+end
+
+-- Declares those keys with Taint.declare when the world installs, not lazily: the shadow holds the kit's functions, so a
+-- later addon write is attributed to that addon rather than taken as the baseline. Only the keys are swept, as every
+-- push and pop sweeps (the whole namespaces cost each addon callback about 30 times more).
+function M.install(w)
+  for namespace, keys in pairs(NAMESPACE_KEYS) do
+    Taint.declare(w, rawget(_G, namespace), namespace, false, keys)
+  end
 end
 
 -- Runs body on frame (self = its handle, control = its handle) as secure execution, whoever asks; an error goes to the

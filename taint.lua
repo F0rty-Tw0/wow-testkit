@@ -171,9 +171,10 @@ function M.slotOf(w, tbl, key)
   return slots and slots[key] or nil
 end
 
--- Tracks tbl's fields under label: changes are found by Taint.sweep. A lazy table is swept only once Taint.slotOf or
--- Taint.read first asks about it. A table declared twice keeps its first label.
-function M.declare(w, tbl, label, lazy)
+-- Tracks tbl's fields under label (only the keys in the array keys, when given, so a sweep costs those keys alone): changes
+-- are found by Taint.sweep. A lazy table is swept only once Taint.slotOf or Taint.read first asks about it. A table
+-- declared twice keeps its first label.
+function M.declare(w, tbl, label, lazy, keys)
   if type(tbl) ~= "table" or labelOf(w.taint, tbl) then
     return
   elseif lazy then
@@ -185,10 +186,26 @@ function M.declare(w, tbl, label, lazy)
     shadow[k], count = v, count + 1
   end
   local declared = w.taint.declared
-  declared[#declared + 1] = { tbl = tbl, label = label, shadow = shadow, count = count }
+  declared[#declared + 1] = { tbl = tbl, label = label, shadow = shadow, count = count, keys = keys }
+end
+
+local function sweepKeys(w, entry, taint)
+  local tbl, shadow = entry.tbl, entry.shadow
+  local keys = entry.keys
+  for i = 1, #keys do
+    local k = keys[i]
+    local old, v = shadow[k], rawget(tbl, k)
+    if not rawequal(old, v) then
+      attribute(w, tbl, k, old ~= nil, taint)
+      shadow[k] = v
+    end
+  end
 end
 
 local function sweepTable(w, entry, taint)
+  if entry.keys then
+    return sweepKeys(w, entry, taint)
+  end
   local tbl, shadow = entry.tbl, entry.shadow
   local count, added = 0, 0
   for k, v in pairs(tbl) do

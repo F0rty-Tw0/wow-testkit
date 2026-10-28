@@ -173,6 +173,20 @@ local function test_a_snippet_calling_an_addon_replaced_global_runs_it_tainted_a
   end)
 end
 
+local function test_a_snippet_calling_an_addon_replaced_namespace_function_runs_it_tainted_assumed() -- TS4
+  H.withTaint("retail", function(w)
+    handler("TKHNs", "SecureHandlerBaseTemplate")
+    local cast = 0
+    w:stub("CastSpellByName", function()
+      cast = cast + 1
+    end)
+    H.run(w, "Foo", "C_ActionBar.GetActionBarPage = function() TK_Sec = issecure(); CastSpellByName('Fireball'); return 1 end")
+    H.run(w, "Foo", "SecureHandlerExecute(TKHNs, 'GetActionBarPage()')")
+    local blocked = H.events(w, "blocked")
+    A.same({ _G.TK_Sec, cast, #blocked, blocked[1] and blocked[1].addon }, { false, 0, 1, "Foo" })
+  end)
+end
+
 local function test_a_handle_calls_the_class_method_not_an_addon_field() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHMeth", "SecureHandlerBaseTemplate")
@@ -525,6 +539,7 @@ return function()
   test_a_tainted_state_attribute_in_combat_is_blocked_before_the_snippet()
   test_restricted_environment_hides_globals()
   test_a_snippet_calling_an_addon_replaced_global_runs_it_tainted_assumed()
+  test_a_snippet_calling_an_addon_replaced_namespace_function_runs_it_tainted_assumed()
   test_a_handle_calls_the_class_method_not_an_addon_field()
   test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet()
   test_snippets_refuse_function_and_table_syntax()

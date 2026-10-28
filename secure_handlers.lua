@@ -161,6 +161,7 @@ M.methods = {
 }
 
 function M.install(w)
+  SecureEnv.install(w)
   SecureEnv.state(w).wraps = setmetatable({}, { __mode = "k" })
   local function define(name, fn)
     w:install(name, function(...)

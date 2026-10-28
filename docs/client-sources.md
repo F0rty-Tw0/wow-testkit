@@ -447,7 +447,7 @@ Wiki pages read 2026-10-27 (`warcraft.wiki.gg`, fetched through a summarising re
 
 The kit has these known gaps, which may not be the only ones:
 
-- TS4: a read of a tainted slot taints the execution only where kit code calls `Taint.read` (the dropdown globals, the tooltip unit APIs, and the globals secure kit code calls: snippet forwards, action-button actions, macro-conditional and unit-watch unit queries); a read of an undeclared table or of any other global does not taint.
+- TS4: a read of a tainted slot taints the execution only where kit code calls `Taint.read` (the dropdown globals, the tooltip unit APIs, and the globals secure kit code calls: snippet forwards, action-button actions, macro-conditional and unit-watch unit queries, plus the functions in the `C_` namespaces those reach, which are declared when the world installs); a read of an undeclared table or of any other global does not taint.
 - A direct call from one addon's function into another addon's function keeps the first addon's taint; the client taints by the data and code it reads, the kit by the `callAsAddon` entry.
 - Taint is per `callAsAddon` or `World:run` entry, not per statement: code that reads a tainted value mid-function stays under its own owner's name, not the tainted slot's.
 - TS8: the protected and combat-only lists are the wiki's, not the engine's; a function missing from them is not blocked, and the kit has no list of hardware-event or `noscript` functions.
