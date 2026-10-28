@@ -180,9 +180,12 @@ function M.install(w)
   define(w, "C_RestrictedActions.IsAddOnRestrictionActive", function(restrictionType)
     return w.mock.restrictions[restrictionType] == RESTRICTION_ACTIVE
   end)
-  -- source: confirmed (row G18) a table or nothing; assumed that an unknown template is not an error.
+  -- source: confirmed (row G18) a table or nothing; assumed that an unknown template is not an error, that the scenario's
+  -- templateInfo wins, and that a template an XML file registered (w.ui.virtuals) answers its type (MapCanvasMixin:
+  -- GetPinTemplateType, blizzard_mapcanvas.lua:315, makes a pin pool of that type) and nothing else.
   define(w, "C_XMLUtil.GetTemplateInfo", function(name)
-    return w.mock.templateInfo[name]
+    local virtual = w.ui.virtuals[name]
+    return w.mock.templateInfo[name] or virtual and { type = virtual.type } or nil
   end)
 end
 

@@ -137,8 +137,10 @@ end
 
 -- ctx.readFile for an extract addon: TOC lines and XML paths are mixed case and the extract is lowercase. A file the
 -- extract lacks is a note, not an error. A UTF-8 BOM the client skips is dropped by Addon.runFile and Xml, for every addon.
+-- source: assumed (row BU11) "..\..\..\Interface\AddOns\<Addon>\X" is the client's game-root path to an addon folder (tbc
+-- Blizzard_MapCanvas.xml:3); the extract keeps addons side by side, so it reads "../<addon>/X".
 local function lowerPath(relative)
-  return (relative:gsub("\\", "/"):lower())
+  return (relative:gsub("\\", "/"):lower():gsub("^%.%./%.%./%.%./interface/addons/", "../"))
 end
 
 local function lowerReader(root, name, notes)

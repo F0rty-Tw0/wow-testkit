@@ -9,6 +9,7 @@ local TalentsClassic = require("game.talents_classic")
 local TalentsDb2 = require("game.talents_db2")
 
 local ENGINE = "blizzard"
+local FRAME = 1 / 60 -- seconds of one frame (assumed, 60 fps)
 local SHOW, HIDE = "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE"
 
 -- openers[window](s, data) and closers[window](s)
@@ -134,6 +135,32 @@ function M.openers.talents(s, data)
 end
 M.closers.talents = function(s)
   M.hide(s, "talents")
+end
+
+-- Fires OnUpdate once (elapsed FRAME) on frame and its shown descendants, in child order.
+local function frameTick(w, frame)
+  w:callScript(frame, "OnUpdate", FRAME)
+  for _, child in ipairs(w.ui.state[frame].children) do
+    if w.ui.state[child].shown then
+      frameTick(w, child)
+    end
+  end
+end
+
+-- Opens map. data = { mapID? | mapIDs? = { [flavor] = uiMapID }, position? = { x, y }, maps? }: the map the player stands on
+-- (a mapIDs entry for the flavor when mapID is unset; none leaves the zone as it was), the player's place on it (0-1) and
+-- scenario map records. The extract's map list and art fill at world install and on first read, so scenario maps win.
+function M.openers.map(s, data)
+  data = data or {}
+  local mapID = data.mapID or data.mapIDs and data.mapIDs[s.w.flavor]
+  s.w:setMock({ maps = data.maps, zone = { mapID = mapID, position = data.position } })
+  M.show(s, "map")
+  -- source: assumed (B2) the client's first frame after the window shows: the kit has no frame loop, and a tbc detail layer
+  -- keeps alpha 0 until its OnUpdate sees its tiles loaded (blizzard_mapcanvasdetaillayer.lua OnUpdate).
+  local spec = BlizzardWindows.spec(s.w, "map")
+  if spec.frame and _G[spec.frame] and s.w.ui.state[_G[spec.frame]].shown then
+    s.w:run(ENGINE, frameTick, s.w, _G[spec.frame])
+  end
 end
 
 function M.extend(Scenario)

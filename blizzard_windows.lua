@@ -88,6 +88,15 @@ local function installPanelFallbacks(w)
   end
 end
 
+-- source: assumed a closed StoreFrame when Blizzard_StoreUI defined StoreFrame_IsShown but not the frame: its secure file
+-- stops at Enum.VasServiceType, which no installed data lists, so the frame never loads, and ShowUIPanel
+-- (uiparentpanelmanager.lua:205) reads StoreFrame:GetAttribute("isshown") before it places any panel.
+local function installStoreFrame()
+  if type(_G.StoreFrame_IsShown) == "function" and _G.StoreFrame == nil then
+    _G.CreateFrame("Frame", "StoreFrame", _G.UIParent):Hide()
+  end
+end
+
 -- Loads BASE, then the window's addon and its `also` addons (an addon already loaded stays, B3). A BASE or `also` addon
 -- the extract lacks is skipped with a note; only the window's own addon missing returns nil, "MISSING".
 function M.loadFor(w, window)
@@ -110,6 +119,7 @@ function M.loadFor(w, window)
     load(addon)
   end
   installPanelFallbacks(w)
+  installStoreFrame()
   return true
 end
 

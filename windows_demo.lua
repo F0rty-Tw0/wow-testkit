@@ -33,4 +33,9 @@ return {
       },
     },
   },
+  -- The zone the player stands in, by flavor (ids of the installed extracts' UiMap rows; the map art comes from the extract).
+  map = {
+    mapIDs = { retail = 37, tbc = 1429 },
+    position = { x = 0.4, y = 0.6 },
+  },
 }

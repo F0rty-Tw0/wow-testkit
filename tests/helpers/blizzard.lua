@@ -158,6 +158,27 @@ end
 ]],
     },
   },
+  blizzard_miniworldmap = { -- Task 12.4: a toggle global that draws one texture per art tile of the player's map
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniWorldMap.lua\n",
+    files = {
+      ["miniworldmap.lua"] = [[
+local f = CreateFrame("Frame", "MiniMapFrame", UIParent)
+f:SetSize(400, 300)
+f:SetPoint("CENTER")
+f:Hide()
+CreateFrame("Frame", nil, f):SetScript("OnUpdate", function() f.ticks = (f.ticks or 0) + 1 end) -- a detail layer's OnUpdate
+function MiniToggleWorldMap()
+  for i, fileID in ipairs(C_Map.GetMapArtLayerTextures(C_Map.GetBestMapForUnit("player"), 1)) do
+    local tile = f:CreateTexture(nil, "ARTWORK")
+    tile:SetSize(64, 64)
+    tile:SetPoint("TOPLEFT", ((i - 1) % 4) * 64, -math.floor((i - 1) / 4) * 64)
+    tile:SetTexture(fileID)
+  end
+  f:Show()
+end
+]],
+    },
+  },
   blizzard_minieager = { -- C3: no LoadOnDemand line, so it loads with the layer
     toc = "## Interface: 120100\nMiniEager.lua\n",
     files = {
