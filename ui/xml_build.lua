@@ -9,6 +9,7 @@ local AddonEnv = require("addon_env")
 local Layout = require("ui.layout")
 local Widgets = require("ui.widgets")
 local XmlAttrs = require("ui.xml_attrs")
+local WorldEvents = require("world_events")
 
 -- handlers[tag] = fn(w, obj, st, node, session) for a child element of a frame or region (obj).
 M.handlers = {}
@@ -42,13 +43,17 @@ end
 
 -- err with one position, the one the addon author can act on: an addon position ("addon:...") is kept, a kit file's
 -- leading position is replaced by `where` (the traceback still names it), anything else gets `where` in front. Kit
--- report format, not client behaviour. No kit-root match: Lua 5.1 shortens long chunk names to "...<tail>".
-local function position(where, err)
+-- report format, not client behaviour. No kit-root match: Lua 5.1 shortens long chunk names to "...<tail>", so a
+-- shortened position is kept when its tail names one registered addon chunk (WorldEvents.resolveTail).
+local function position(w, where, err)
   local text = tostring(err)
   if text:sub(1, 6) == "addon:" then
     return text
   end
-  local _, stop = text:find("^.-%.lua:%d+: ")
+  local _, stop, chunk = text:find("^([^\n]-%.lua):%d+: ")
+  if chunk and chunk:sub(1, 3) == "..." and WorldEvents.resolveTail(w.chunks, chunk:sub(4)) then
+    return text
+  end
   return where .. text:sub((stop or 0) + 1)
 end
 
@@ -60,7 +65,7 @@ function M.guard(w, session, line, fn, ...)
   return (xpcall(function()
     return fn(unpack(args, 1, args.n))
   end, function(err)
-    w:reportError(position(where, err))
+    w:reportError(position(w, where, err))
   end))
 end
 

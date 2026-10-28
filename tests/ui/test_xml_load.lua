@@ -193,6 +193,29 @@ local function test_guard_prefixes_a_message_without_a_position()
   )
 end
 
+local function test_guard_keeps_a_kit_position_on_a_later_line()
+  A.same(
+    guarded(function()
+      error("boom\nat E:/kit/ui/x.lua:3: detail", 0)
+    end),
+    { "addon:XmlT/Ui.xml:7: boom\nat E:/kit/ui/x.lua:3: detail" }
+  )
+end
+
+-- Lua 5.1 shortens a chunk name over 60 characters to "...<tail>", so the addon position has no "addon:" in front.
+local LONG = "Some/Very/Deeply/Nested/Folder/Structure/For/Mixins"
+local function test_guard_keeps_a_shortened_addon_position_from_an_overridden_set_point()
+  H.withXml({
+    ["Ui.xml"] = '<Ui><Script file="'
+      .. LONG
+      .. '/LongMixin.lua"/><Frame name="LongF" mixin="LongMixin"><Anchors><Anchor point="CENTER"/></Anchors></Frame></Ui>',
+    [LONG .. "/LongMixin.lua"] = 'LongMixin = {}\nfunction LongMixin:SetPoint() error("boom") end',
+  }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ #w.errors, tostring(w.errors[1].message) }, { 1, "...ply/Nested/Folder/Structure/For/Mixins/LongMixin.lua:2: boom" })
+  end)
+end
+
 return function()
   test_script_files_run_in_document_order_relative_to_the_xml_assumed()
   test_a_backslash_path_to_the_xml_loads()
@@ -210,4 +233,6 @@ return function()
   test_guard_keeps_an_addon_position()
   test_guard_puts_the_xml_position_in_place_of_a_kit_position()
   test_guard_prefixes_a_message_without_a_position()
+  test_guard_keeps_a_kit_position_on_a_later_line()
+  test_guard_keeps_a_shortened_addon_position_from_an_overridden_set_point()
 end
