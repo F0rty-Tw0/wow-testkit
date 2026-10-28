@@ -3,6 +3,7 @@
 local M = {}
 
 local Classic = require("game.talents_classic")
+local define = require("game.state").define
 
 local NUM_COLUMNS = 3
 
@@ -119,7 +120,18 @@ local function mistsWrappers(w)
   end)
 end
 
+-- source: assumed (B4) the kit's player may use the talent and specialization UIs; the names are in the retail and forever
+-- API data.
+local function installRetail(w)
+  local function yes()
+    return true
+  end
+  define(w, "C_SpecializationInfo.CanPlayerUseTalentUI", yes)
+  define(w, "C_SpecializationInfo.CanPlayerUseTalentSpecUI", yes)
+end
+
 function M.install(w)
+  installRetail(w)
   installSpecialization(w)
   if w.flavor == "mists" then
     mistsWrappers(w)

@@ -97,7 +97,16 @@ local function test_retail_specialization_info_is_not_replaced() -- (B4: the ret
   end)
 end
 
+-- (B4, assumed) the retail window asks whether the talent UI is usable before it selects a tab
+-- (blizzard_playerspellsframe.lua:187, unitutil.lua:106).
+local function test_retail_talent_ui_is_usable_assumed()
+  G.withGame("retail", function()
+    A.same({ _G.C_SpecializationInfo.CanPlayerUseTalentUI(), _G.C_SpecializationInfo.CanPlayerUseTalentSpecUI() }, { true, true })
+  end)
+end
+
 return function()
+  test_retail_talent_ui_is_usable_assumed()
   test_legacy_wrappers_return_the_specialization_readers_fields()
   test_talent_info_query_by_tier_and_column_in_a_tab_assumed()
   test_mists_legacy_names_follow_the_55_fallback_shape()
