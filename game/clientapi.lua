@@ -127,6 +127,11 @@ function M.install(w)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)
+  -- source: assumed (row BU10) no installed data lists the members of Enum.GameRule, so none is invented: the table is empty,
+  -- Enum.GameRule.<Name> is nil and C_GameRules.IsGameRuleActive(nil) answers nothing, i.e. no rule is active.
+  if w.manifest.enums.GameRule == nil then
+    define(w, "Enum.GameRule", {}, { "retail", "forever" })
+  end
   define(w, "C_CurveUtil.CreateCurve", Curve.new)
   define(w, "C_ColorOverrides.GetColorForQuality", function(quality)
     return color(QUALITY_COLORS[quality] or QUALITY_COLORS[1])
