@@ -92,7 +92,7 @@ end
 local function test_fixture_fields_answer_their_apis()
   withUnits("retail", function(w)
     w:unit("target", { classFile = "MAGE", className = "Mage", level = 80, health = 5, healthMax = 9, guild = "G", guildRank = "Officer" })
-    A.same({ _G.UnitClass("target") }, { "Mage", "MAGE" })
+    A.same({ _G.UnitClass("target") }, { "Mage", "MAGE", 8 }) -- classID follows classFile (WARRIOR 1 .. EVOKER 13)
     A.eq(_G.UnitLevel("target"), 80)
     A.same({ _G.UnitHealth("target"), _G.UnitHealthMax("target") }, { 5, 9 })
     A.same({ _G.GetGuildInfo("target") }, { "G", "Officer", 0 })

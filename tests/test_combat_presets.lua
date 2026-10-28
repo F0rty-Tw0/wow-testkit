@@ -52,7 +52,7 @@ local function test_faction_race_class_pick()
     s:preset("solo", { faction = "Horde", race = "Orc", class = "WARLOCK" })
     A.same({ _G.UnitFactionGroup("player") }, { "Horde", "Horde" })
     A.same({ _G.UnitRace("player") }, { "Orc", "Orc" })
-    A.same({ _G.UnitClass("player") }, { "Warlock", "WARLOCK" })
+    A.same({ _G.UnitClass("player") }, { "Warlock", "WARLOCK", 9 })
   end)
 end
 
@@ -61,7 +61,7 @@ local function test_defaults_are_alliance_human_warrior_damager()
     s:preset("solo")
     A.same({ _G.UnitFactionGroup("player") }, { "Alliance", "Alliance" })
     A.same({ _G.UnitRace("player") }, { "Human", "Human" })
-    A.same({ _G.UnitClass("player") }, { "Warrior", "WARRIOR" })
+    A.same({ _G.UnitClass("player") }, { "Warrior", "WARRIOR", 1 })
     A.eq(_G.UnitGroupRolesAssigned("player"), "DAMAGER")
   end)
 end

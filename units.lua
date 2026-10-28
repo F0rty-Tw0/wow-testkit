@@ -5,6 +5,7 @@ local M = {}
 
 local UnitsExtra = require("units_extra")
 local WorldApi = require("world_api")
+local ClassRoster = require("combat_roster_data")
 
 local unpack = unpack
 
@@ -41,7 +42,7 @@ local INDEX_SPAN = 1000
 -- API name -> the fixture fields it returns, in return order.
 local FIELD_ANSWERS = {
   UnitName = { "name", "realm" },
-  UnitClass = { "className", "classFile" },
+  UnitClass = { "className", "classFile", "classID" },
   UnitRace = { "raceName", "raceFile" },
   UnitLevel = { "level" },
   UnitEffectiveLevel = { "effectiveLevel" },
@@ -81,10 +82,20 @@ local KIT_DEFAULTS = { isConnected = true, isVisible = true, tapDenied = false }
 
 -- Fields that answer nil when unset instead of the manifest default (UnitName's realm is nil for same-realm units, an
 -- unmarked unit has no raid target).
-local NIL_WHEN_UNSET = { realm = true, raidTarget = true }
+local NIL_WHEN_UNSET = { realm = true, raidTarget = true, classID = true }
 
 -- Field -> the field it falls back to when unset (an unscaled unit's effective level is its level).
 local FALLBACK_FIELD = { effectiveLevel = "level" }
+
+-- source: confirmed (row G21) api/retail/Unit.lua lists classID as UnitClass's third return; assumed the ids follow the retail
+-- class list (WARRIOR 1 .. EVOKER 13) on every flavor; an unknown classFile gives no classID.
+local function classID(data)
+  for id, file in ipairs(ClassRoster.CLASSES.retail) do
+    if file == data.classFile then
+      return id
+    end
+  end
+end
 
 -- Unit tokens are case-insensitive in the client; non-strings (unvalidated calls) pass through and match nothing.
 local function normalize(token)
@@ -145,6 +156,9 @@ local function fieldAnswer(w, name, fields)
       local value = data[field]
       if value == nil and FALLBACK_FIELD[field] then
         value = data[FALLBACK_FIELD[field]]
+      end
+      if value == nil and field == "classID" then
+        value = classID(data)
       end
       if value == nil then
         value = KIT_DEFAULTS[field]
