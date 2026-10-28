@@ -36,6 +36,17 @@ local function textureWidth(params, size)
   return height > 0 and width or width * size
 end
 
+-- source: row V14, wiki UI_escape_sequences: `number |4singular:plural;` "assigns the singular or plural form depending
+-- on the number" ("1 |4car:cars;" is "1 car", "2 |4car:cars;" "2 cars"). forms is "singular:plural"; before is the text
+-- shown ahead of the escape on its line. Assumed: the number is the last one in before, singular only when it is 1, the
+-- plural with no number; the ruRU third form is not chosen.
+function M.pluralForm(forms, before)
+  local singular, plural = forms:match("^([^:]*):?([^:]*)")
+  local number = tonumber(before:match("(%d+)%D*$"))
+
+  return number == 1 and singular or plural
+end
+
 -- Estimated width of a run of visible text: each character at AVERAGE_ADVANCE * size.
 local function estimateRun(text, size)
   return charCount(text) * M.AVERAGE_ADVANCE * size
@@ -46,13 +57,14 @@ end
 -- atlas markup (the page gives no sizing rule for it, so its height and width fields are read like |T's: assumed);
 -- wiki Hyperlinks: `|cffxxxxxx|Htype:payload|h[text]|h|r`, where only `[text]` is shown, so `|H...|h` and the closing `|h`
 -- take no room. Width of the visible part of line: textures at their own width, the text between them (colour and
--- link escapes removed, "||" folded to one pipe) through runWidth(text, size). An unknown `|x` counts as the pipe and
--- the letter.
+-- link escapes removed, "||" folded to one pipe, `|4singular:plural;` replaced by M.pluralForm) through
+-- runWidth(text, size). An unknown `|x` counts as the pipe and the letter.
 local function visibleWidth(line, size, runWidth)
-  local run, width, pos = {}, 0, 1
+  local run, shown, width, pos = {}, {}, 0, 1
   while true do
     local bar = line:find("|", pos, true)
-    run[#run + 1] = line:sub(pos, (bar or #line + 1) - 1)
+    local piece = line:sub(pos, (bar or #line + 1) - 1)
+    run[#run + 1], shown[#shown + 1] = piece, piece
     if not bar then
       return width + runWidth(table.concat(run), size)
     end
@@ -62,9 +74,13 @@ local function visibleWidth(line, size, runWidth)
     if not params then
       params, textureEnd = line:match("^|A:([^|]*)|a()", bar)
     end
+    local forms, pluralEnd = line:match("^|4([^;|]*);()", bar)
     if params then
       width = width + runWidth(table.concat(run), size) + textureWidth(params, size)
       run, nextPos = {}, textureEnd
+    elseif forms then
+      local form = M.pluralForm(forms, table.concat(shown))
+      run[#run + 1], shown[#shown + 1], nextPos = form, form, pluralEnd
     elseif not nextPos then
       run[#run + 1] = "|" -- "||" is one pipe; any other "|" stands for itself
       nextPos = line:sub(bar + 1, bar + 1) == "|" and bar + 2 or bar + 1
