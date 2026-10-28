@@ -264,6 +264,19 @@ local function test_blizzard_ui_layer_loads_outside_the_budget()
   A.eq(debug.gethook(), nil)
 end
 
+-- Blizzard's SmoothStatusBar.lua runs C_Timer.NewTicker(0, ...) at load; once per frame, the smoke advance fits the
+-- default budget.
+local function test_blizzard_ui_zero_interval_ticker_fits_default_budget_assumed()
+  local ticker = "MiniTicks = 0\nC_Timer.NewTicker(0, function()\n"
+    .. "  local sum = 0\n  for i = 1, 50 do sum = sum + i end\n  MiniTicks = MiniTicks + 1\nend)\n"
+  local toc = "## Interface: 120100\nMiniBase.lua\nTicker.lua\n"
+  local addons = B.mini({ blizzard_minibase = { toc = toc, files = { ["ticker.lua"] = ticker } } })
+  local extract = B.extract(Tmp.dir("smokebzt"), addons)
+  local extra = { blizzardUi = { targets = { "Blizzard_MiniBase" } }, client = extract }
+  local report = Smoke.runAddon(B.probe(), { "retail" }, nil, extra).results.retail
+  A.eq(report.status, "pass", report.errors[1] and tostring(report.errors[1].message))
+end
+
 return function()
   test_one_row_per_addon_folder()
   test_skips_blizzard_folders()
@@ -287,4 +300,5 @@ return function()
   test_missing_dir_exits_2()
   test_dir_without_addon_folders_exits_2()
   test_blizzard_ui_layer_loads_outside_the_budget()
+  test_blizzard_ui_zero_interval_ticker_fits_default_budget_assumed()
 end
