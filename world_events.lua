@@ -91,7 +91,7 @@ function methods:registerChunk(name)
 end
 
 -- The one registered chunk name ending in tail; nil when none or several do.
-local function resolveTail(chunks, tail)
+function M.resolveTail(chunks, tail)
   local found
   for name in pairs(chunks) do
     if name:sub(-#tail) == tail then
@@ -114,7 +114,7 @@ local function sourceIn(w, text)
     return source
   end
   for tail in text:gmatch(TRUNCATED_SOURCE_PATTERN) do
-    source = resolveTail(w.chunks, tail)
+    source = M.resolveTail(w.chunks, tail)
     if source then
       return source
     end

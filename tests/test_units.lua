@@ -222,6 +222,34 @@ local function test_pvp_field_answers_unit_is_pvp()
   end)
 end
 
+-- source: row G24, wiki UnitId: a party or raid member's name is a unit id, matched ignoring case.
+local function test_unit_apis_take_a_group_members_name()
+  withUnits("retail", function(w)
+    w:unit("party1", { name = "Bob", guid = "G1" })
+    A.eq(_G.UnitExists("Bob"), true)
+    A.eq(_G.UnitExists("bob"), true)
+    A.eq(_G.UnitGUID("Bob"), "G1")
+    A.eq(_G.UnitIsUnit("Bob", "party1"), true)
+    A.eq(_G.UnitName("Bob"), "Bob")
+    A.eq(_G.UnitExists("Nobody"), false)
+  end)
+end
+
+local function test_a_name_outside_the_group_is_not_a_unit()
+  withUnits("retail", function(w)
+    w:unit("target", { name = "Stranger" })
+    A.eq(_G.UnitExists("Stranger"), false)
+  end)
+end
+
+-- source: assumed (row G24), the player's own name is a unit id when solo.
+local function test_the_players_own_name_is_a_unit_assumed()
+  withUnits("retail", function(w)
+    w:unit("player", { name = "Me" })
+    A.eq(_G.UnitExists("Me"), true)
+  end)
+end
+
 return function()
   test_mouseover_aliases_registered_unit()
   test_unit_name_returns_name_and_realm()
@@ -245,4 +273,7 @@ return function()
   test_tokens_are_case_insensitive()
   test_effective_level_falls_back_to_level()
   test_pvp_field_answers_unit_is_pvp()
+  test_unit_apis_take_a_group_members_name()
+  test_a_name_outside_the_group_is_not_a_unit()
+  test_the_players_own_name_is_a_unit_assumed()
 end

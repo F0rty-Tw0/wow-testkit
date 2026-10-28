@@ -9,6 +9,23 @@ set -uo pipefail
 shopt -s globstar nullglob
 cd "$(dirname "$0")/.."
 
+# One private temp folder per run, removed on exit: Tmp.dir and tempfile put their folders here, and nothing else
+# removes them. Windows tools need a C:/ path, so cygpath converts it when present.
+suite_tmp=$(mktemp -d "${TMPDIR:-/tmp}/wow-testkit-suite-XXXXXX") || {
+  echo "test.sh: cannot create the suite temp folder" >&2
+  exit 1
+}
+if command -v cygpath >/dev/null; then
+  suite_tmp=$(cygpath -m "$suite_tmp")
+fi
+export TEMP=$suite_tmp TMP=$suite_tmp TMPDIR=$suite_tmp
+cleanup_tmp() {
+  if [[ -n $suite_tmp && $suite_tmp == */wow-testkit-suite-* ]]; then
+    rm -rf -- "$suite_tmp"
+  fi
+}
+trap cleanup_tmp EXIT
+
 read -r -a RUN51 <<<"${LUA51:-python tools/run51.py}"
 passed=0
 failed=0

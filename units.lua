@@ -91,13 +91,39 @@ local function normalize(token)
   return type(token) == "string" and token:lower() or token
 end
 
--- The fixture for a token ("mouseover" follows the alias) and the token it resolved to.
+-- The tokens a unit name can stand for: the player, then party and raid members.
+local GROUP_TOKENS = { "player" }
+for i = 1, 4 do
+  GROUP_TOKENS[#GROUP_TOKENS + 1] = "party" .. i
+end
+for i = 1, 40 do
+  GROUP_TOKENS[#GROUP_TOKENS + 1] = "raid" .. i
+end
+
+-- The first group token whose fixture has this name, ignoring case; nil for a name outside the group.
+-- source: row G24, wiki UnitId (a party or raid member's name is a unit id); the player's own name is assumed.
+local function byName(state, name)
+  for _, token in ipairs(GROUP_TOKENS) do
+    local data = state.byToken[token]
+    if data and type(data.name) == "string" and data.name:lower() == name then
+      return data, token
+    end
+  end
+  return nil
+end
+
+-- The fixture for a token ("mouseover" follows the alias, a group member's name stands for their token) and the
+-- token it resolved to.
 local function fixture(state, token)
   token = normalize(token)
   if token == MOUSEOVER and state.alias then
     token = state.alias
   end
-  return state.byToken[token], token
+  local data = state.byToken[token]
+  if data == nil and type(token) == "string" then
+    return byName(state, token)
+  end
+  return data, token
 end
 
 local function guidOf(state, token)

@@ -5,6 +5,7 @@ local H = require("tests.helpers.xml")
 local Tmp = require("tests.helpers.tmp")
 local World = require("tests.helpers.world")
 local Xml = require("ui.xml")
+local XmlBuild = require("ui.xml_build")
 local fs = require("fs")
 
 local function reportText(ctx)
@@ -84,6 +85,18 @@ local function test_missing_files_are_reported_and_loading_continues()
   end)
 end
 
+-- source: assumed (row X23) inline directives are a TOC feature; XML file= is read as written.
+local function test_script_file_reads_a_bracketed_suffix_as_part_of_the_path_assumed()
+  H.withXml({
+    ["Ui.xml"] = '<Ui><Script file="A.lua [AllowLoadGameType cata]"/></Ui>',
+    ["A.lua"] = "local _, ns = ...; ns.ran = true",
+  }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.contains(w.errors[1].message, "addon:XmlT/A.lua [AllowLoadGameType cata]")
+    A.eq(ctx.ns.ran, nil)
+  end)
+end
+
 local function test_malformed_xml_is_one_error_and_returns_false()
   H.withXml({ ["Ui.xml"] = "<Ui><Frame></Ui>" }, function(w, ctx)
     A.eq(H.load(w, ctx, "Ui.xml"), false)
@@ -139,6 +152,70 @@ local function test_a_file_without_frames_loads_into_a_world_without_widgets()
   end)
 end
 
+-- Runs fn under XmlBuild.guard as Ui.xml line 7; returns the reported messages.
+local function guarded(fn)
+  local messages = {}
+  H.withXml({}, function(w, ctx)
+    local session = XmlBuild.session(ctx)
+    session.file = { path = "Ui.xml" }
+    XmlBuild.guard(w, session, 7, fn)
+    for i, entry in ipairs(w.errors) do
+      messages[i] = tostring(entry.message)
+    end
+  end)
+  return messages
+end
+
+local function test_guard_keeps_an_addon_position()
+  A.same(
+    guarded(function()
+      error("addon:XmlT/Core.lua:3: boom", 0)
+    end),
+    { "addon:XmlT/Core.lua:3: boom" }
+  )
+end
+
+local function test_guard_puts_the_xml_position_in_place_of_a_kit_position()
+  A.same(
+    guarded(function()
+      XmlBuild.substituteParent("$parentX", {})
+    end),
+    { "addon:XmlT/Ui.xml:7: attempt to call method 'GetName' (a nil value)" }
+  )
+end
+
+local function test_guard_prefixes_a_message_without_a_position()
+  A.same(
+    guarded(function()
+      error("plain", 0)
+    end),
+    { "addon:XmlT/Ui.xml:7: plain" }
+  )
+end
+
+local function test_guard_keeps_a_kit_position_on_a_later_line()
+  A.same(
+    guarded(function()
+      error("boom\nat E:/kit/ui/x.lua:3: detail", 0)
+    end),
+    { "addon:XmlT/Ui.xml:7: boom\nat E:/kit/ui/x.lua:3: detail" }
+  )
+end
+
+-- Lua 5.1 shortens a chunk name over 60 characters to "...<tail>", so the addon position has no "addon:" in front.
+local LONG = "Some/Very/Deeply/Nested/Folder/Structure/For/Mixins"
+local function test_guard_keeps_a_shortened_addon_position_from_an_overridden_set_point()
+  H.withXml({
+    ["Ui.xml"] = '<Ui><Script file="'
+      .. LONG
+      .. '/LongMixin.lua"/><Frame name="LongF" mixin="LongMixin"><Anchors><Anchor point="CENTER"/></Anchors></Frame></Ui>',
+    [LONG .. "/LongMixin.lua"] = 'LongMixin = {}\nfunction LongMixin:SetPoint() error("boom") end',
+  }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ #w.errors, tostring(w.errors[1].message) }, { 1, "...ply/Nested/Folder/Structure/For/Mixins/LongMixin.lua:2: boom" })
+  end)
+end
+
 return function()
   test_script_files_run_in_document_order_relative_to_the_xml_assumed()
   test_a_backslash_path_to_the_xml_loads()
@@ -146,10 +223,16 @@ return function()
   test_inline_script_runs_and_errors_name_the_xml_line()
   test_inline_script_that_does_not_compile_is_reported_not_raised()
   test_missing_files_are_reported_and_loading_continues()
+  test_script_file_reads_a_bracketed_suffix_as_part_of_the_path_assumed()
   test_malformed_xml_is_one_error_and_returns_false()
   test_unknown_element_is_reported_once_per_file_assumed()
   test_a_file_that_includes_itself_stops_at_the_cycle()
   test_include_cycle_through_a_parent_folder_path_stops()
   test_include_cycle_through_a_different_case_stops_at_the_first_repeat()
   test_a_file_without_frames_loads_into_a_world_without_widgets()
+  test_guard_keeps_an_addon_position()
+  test_guard_puts_the_xml_position_in_place_of_a_kit_position()
+  test_guard_prefixes_a_message_without_a_position()
+  test_guard_keeps_a_kit_position_on_a_later_line()
+  test_guard_keeps_a_shortened_addon_position_from_an_overridden_set_point()
 end

@@ -22,6 +22,18 @@ local function test_issecurevariable_answers_from_the_slots_assumed() -- TS2
   end)
 end
 
+-- Base-library names stay in the addon view (addon_env_names.lua), but the write still taints _G's slot as on main.
+local function test_an_addon_write_to_a_base_library_name_taints_its_global_slot_assumed() -- TS2, TS3
+  H.withTaint("retail", function(w)
+    H.run(w, "Foo", "type = function() end; tostring = nil; a, b = issecurevariable('type'); c, d = issecurevariable('tostring')")
+    local texts = {}
+    for i, entry in ipairs(H.events(w, "write")) do
+      texts[i] = entry.text
+    end
+    A.same({ _G.a, _G.b, _G.c, _G.d, texts }, { false, "Foo", false, "Foo", { "global type tainted by Foo", "global tostring tainted by Foo" } })
+  end)
+end
+
 local function test_issecurevariable_turns_a_number_key_into_a_string_and_refuses_other_keys_assumed() -- TS2
   H.withTaint("retail", function(w, Taint)
     local t = {}
@@ -149,6 +161,7 @@ end
 return function()
   test_issecure_follows_the_running_code_assumed()
   test_issecurevariable_answers_from_the_slots_assumed()
+  test_an_addon_write_to_a_base_library_name_taints_its_global_slot_assumed()
   test_issecurevariable_turns_a_number_key_into_a_string_and_refuses_other_keys_assumed()
   test_issecurevariable_answers_for_the_index_table_when_the_field_is_nil_assumed()
   test_securecall_restores_the_callers_taint_assumed()

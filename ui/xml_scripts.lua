@@ -79,16 +79,17 @@ local function inlineBody(w, node, session)
 end
 
 -- source: wiki XML/Scripts, `inherit` "Hooks (prepend, append) other scripts inherited through an XML virtual
--- template" (row X4); which order each gives is assumed: prepend runs the new handler first, append last.
-local function combine(new, inherited, mode)
+-- template" (row X4); which order each gives is assumed: prepend runs the new handler first, append last. (row X22,
+-- assumed) an error in the first handler is recorded and the second still runs.
+local function combine(w, new, inherited, mode)
   if mode == "prepend" then
     return function(self, ...)
-      new(self, ...)
+      w:callAsAddon(new, self, ...)
       return inherited(self, ...)
     end
   elseif mode == "append" then
     return function(self, ...)
-      inherited(self, ...)
+      w:callAsAddon(inherited, self, ...)
       return new(self, ...)
     end
   end
@@ -108,7 +109,7 @@ function M.handlerFunction(w, node, session, inherited)
     fn = inlineBody(w, node, session)
   end
   if fn and inherited then
-    return combine(fn, inherited, node.attrs.inherit)
+    return combine(w, fn, inherited, node.attrs.inherit)
   end
   return fn
 end

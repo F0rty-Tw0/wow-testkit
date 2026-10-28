@@ -131,6 +131,21 @@ local function test_missing_mixin_is_reported_assumed()
   end)
 end
 
+-- source: row X21, ui.xsd LayoutFrameAttributes give regions mixin and secureMixin.
+local function test_mixin_on_a_layer_region_copies_the_global_table()
+  local xml = '<Ui><Frame name="Rg"><Layers><Layer><FontString parentKey="Text" mixin="BoxMixin"/>'
+    .. '<Texture parentKey="Tex" secureMixin="BoxMixin"/></Layer></Layers></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    local hello = function() end
+    w:setGlobal("BoxMixin", { Hello = hello })
+    H.load(w, ctx, "Ui.xml")
+    A.eq(_G.Rg.Text.Hello, hello)
+    A.eq(_G.Rg.Tex.Hello, hello)
+    A.same(w.ui.state[_G.Rg.Text].mixins, { "BoxMixin" })
+    A.eq(reportText(ctx):find("unsupported XML attribute", 1, true), nil)
+  end)
+end
+
 local function test_template_inherits_apply_kit_templates()
   H.withXml({ ["Ui.xml"] = '<Ui><Button name="Pb" inherits="UIPanelButtonTemplate"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -218,6 +233,7 @@ return function()
   test_mixin_copies_the_global_table_and_records_its_name()
   test_inherits_applies_before_the_elements_own_mixin_assumed()
   test_missing_mixin_is_reported_assumed()
+  test_mixin_on_a_layer_region_copies_the_global_table()
   test_template_inherits_apply_kit_templates()
   test_texture_region_attributes()
   test_region_defaults_to_artwork_sublevel_zero()

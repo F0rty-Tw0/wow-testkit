@@ -3,6 +3,7 @@
 -- (issecure, securecall, forceinsecure, ...) are taint_api.lua.
 -- Installed into every world by world.lua (gate "none"; C_Timer through gate "api").
 local AddonEnv = require("addon_env")
+local Names = require("addon_env_names")
 local Taint = require("taint")
 
 local M = {}
@@ -102,8 +103,9 @@ end
 
 -- hooksecurefunc([tbl,] name, hook): tbl[name] becomes original-then-hook; the hook runs in "addon" context and
 -- its errors go to the error handler, so the original's results still return. A global name must exist as addon code
--- sees it (AddonEnv.global), so a host-only global (require, io, ...) is refused and never rewritten; the host value is
--- what gets wrapped, so kit code reading a hooked global (setfenv, loadstring, ...) keeps the host function's behaviour.
+-- sees it (AddonEnv.global), so a host-only global (require, io, ...) is refused and never rewritten. A base-library
+-- name (Names.KEPT: type, setfenv, ...) hooked on _G or the addon view wraps the view's value and stays in the view, so
+-- the addon's calls fire the hook and kit code reading _G keeps the host function.
 local function hooksecurefunc(w, tbl, name, hook)
   local original
   if type(tbl) == "table" then
@@ -112,6 +114,10 @@ local function hooksecurefunc(w, tbl, name, hook)
     tbl, name, hook = _G, tbl, name
     original = AddonEnv.global(w, name) ~= nil and _G[name] or nil
   end
+  local kept = Names.KEPT[name] and (tbl == _G or w.addonEnvs and w.addonEnvs[tbl])
+  if kept then
+    original = AddonEnv.global(w, name)
+  end
   if type(original) ~= "function" then
     error("hooksecurefunc(): " .. tostring(name) .. " is not a function", 3)
   end
@@ -119,6 +125,9 @@ local function hooksecurefunc(w, tbl, name, hook)
     local results = pack(original(...))
     w:callAsAddon(hook, ...)
     return unpack(results, 1, results.n)
+  end
+  if kept then
+    return AddonEnv.keep(w, name, wrapper)
   end
   -- source: assumed (row TS7) installing a hook leaves the slot's taint as it was (a secure slot stays secure, one an addon
   -- wrote stays that addon's); the hook runs after the original with its own taint.

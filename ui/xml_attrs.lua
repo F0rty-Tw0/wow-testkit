@@ -105,6 +105,9 @@ M.region = {
   hidden = hidden,
   setallpoints = setAllPoints,
   alpha = numberSetter("SetAlpha"),
+  -- source: row X21 (ui.xsd LayoutFrameAttributes): regions take mixin and secureMixin as frames do; they have no OnLoad
+  mixin = mixin,
+  securemixin = mixin,
   virtual = skip, -- XmlBuild.region registers a virtual element as a template; its body carries the attribute
   -- source: wiki XML/Texture, "Lua Equivalent": file is SetTexture, atlas and useAtlasSize are SetAtlas
   file = stringSetter("SetTexture"),

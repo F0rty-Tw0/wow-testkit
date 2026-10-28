@@ -42,6 +42,12 @@ local function test_fire_unknown_event_names_event_and_flavor()
   end)
 end
 
+local function test_trial_status_update_fires_on_retail()
+  withWorld("retail", function(w)
+    A.eq(pcall(w.fire, w, "TRIAL_STATUS_UPDATE"), true)
+  end)
+end
+
 local function test_register_unknown_event_errors()
   withWorld("vanilla", function(w)
     A.errors(function()
@@ -347,6 +353,7 @@ return function()
   test_handler_errors_are_still_recorded_after_an_addon_clears_select()
   test_handler_errors_are_still_recorded_after_an_addon_clears_xpcall()
   test_fire_unknown_event_names_event_and_flavor()
+  test_trial_status_update_fires_on_retail()
   test_register_unknown_event_errors()
   test_script_error_recorded_and_dispatch_continues()
   test_frame_unregistered_during_dispatch_is_skipped()
