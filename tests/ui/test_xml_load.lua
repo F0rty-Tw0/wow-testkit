@@ -84,6 +84,18 @@ local function test_missing_files_are_reported_and_loading_continues()
   end)
 end
 
+-- source: assumed (row X23) inline directives are a TOC feature; XML file= is read as written.
+local function test_script_file_reads_a_bracketed_suffix_as_part_of_the_path_assumed()
+  H.withXml({
+    ["Ui.xml"] = '<Ui><Script file="A.lua [AllowLoadGameType cata]"/></Ui>',
+    ["A.lua"] = "local _, ns = ...; ns.ran = true",
+  }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.contains(w.errors[1].message, "addon:XmlT/A.lua [AllowLoadGameType cata]")
+    A.eq(ctx.ns.ran, nil)
+  end)
+end
+
 local function test_malformed_xml_is_one_error_and_returns_false()
   H.withXml({ ["Ui.xml"] = "<Ui><Frame></Ui>" }, function(w, ctx)
     A.eq(H.load(w, ctx, "Ui.xml"), false)
@@ -146,6 +158,7 @@ return function()
   test_inline_script_runs_and_errors_name_the_xml_line()
   test_inline_script_that_does_not_compile_is_reported_not_raised()
   test_missing_files_are_reported_and_loading_continues()
+  test_script_file_reads_a_bracketed_suffix_as_part_of_the_path_assumed()
   test_malformed_xml_is_one_error_and_returns_false()
   test_unknown_element_is_reported_once_per_file_assumed()
   test_a_file_that_includes_itself_stops_at_the_cycle()
