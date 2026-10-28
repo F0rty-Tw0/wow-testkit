@@ -216,6 +216,15 @@ local function test_snippet_globals_ignore_an_addon_replacement_made_before_the_
   end)
 end
 
+local function test_snippets_see_a_string_name_the_kit_only_stubs() -- TS15
+  H.withTaint("retail", function(w)
+    local h = handler("TKHUtf", "SecureHandlerBaseTemplate")
+    local r = SecureEnv.run(w, h, "return strcmputf8i('a', 'A')")
+    A.same({ r[1], r.n, #w.errors }, { true, select("#", _G.strcmputf8i("a", "A")) + 1, 0 })
+    A.eq(w.unscripted["strcmputf8i"], 2)
+  end)
+end
+
 local function test_snippets_refuse_function_and_table_syntax() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHSyn", "SecureHandlerBaseTemplate")
@@ -553,6 +562,7 @@ return function()
   test_a_handle_calls_the_class_method_not_an_addon_field()
   test_a_handle_ignores_an_addon_edit_of_the_class_method_table()
   test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet()
+  test_snippets_see_a_string_name_the_kit_only_stubs()
   test_snippets_refuse_function_and_table_syntax()
   test_environment_variables_persist_per_header()
   test_attribute_template_runs__onattributechanged_snippet()

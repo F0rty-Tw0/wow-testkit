@@ -182,10 +182,15 @@ local function unscriptedStub(w, name)
   end
 end
 
+-- What the world installs for name: the kit's function, else a stub that records the call as unscripted.
+function M.of(w, name)
+  return implementation(name) or unscriptedStub(w, name)
+end
+
 function M.install(w)
   for name in pairs(w.globals.lua) do
     if not w:hostHas(name) then
-      w:install(name, implementation(name) or unscriptedStub(w, name))
+      w:install(name, M.of(w, name))
     end
   end
 end

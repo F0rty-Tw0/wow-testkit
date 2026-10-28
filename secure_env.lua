@@ -150,7 +150,7 @@ end
 
 local MATH, STRING, CAPTURED = copyTable(math), copyTable(string), {}
 for name in GLOBAL_NAMES:gmatch("%S+") do
-  CAPTURED[name] = Luaext.ALIASES[name] or Luaext[name] or LuaApi.implementation(name)
+  CAPTURED[name] = Luaext.ALIASES[name] or Luaext[name]
 end
 
 local function forward(w, path, withHandle)
@@ -163,8 +163,8 @@ local function forward(w, path, withHandle)
   end
 end
 
--- The names every header's environment sees (built once per world): the values captured at load, for the names the world
--- defines.
+-- The names every header's environment sees (built once per world): for the names the world defines, the values captured
+-- at load, else what LuaApi installs (the kit's function or its unscripted stub), never the live global.
 local function baseEnv(w, s)
   if s.base then
     return s.base
@@ -172,7 +172,7 @@ local function baseEnv(w, s)
   local base = { math = copyTable(MATH), string = copyTable(STRING), select = select, tonumber = tonumber, tostring = tostring }
   base.rawtype = type
   for name in GLOBAL_NAMES:gmatch("%S+") do
-    base[name] = rawget(_G, name) ~= nil and CAPTURED[name] or nil
+    base[name] = rawget(_G, name) ~= nil and (CAPTURED[name] or LuaApi.of(w, name)) or nil
   end
   local handleFirst = {}
   for name in HANDLE_FIRST:gmatch("%S+") do
