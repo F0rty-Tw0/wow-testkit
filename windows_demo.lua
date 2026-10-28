@@ -66,4 +66,25 @@ return {
       { sender = "Kit Friend", subject = "Hello", daysLeft = 12, wasRead = true, body = "See you in the city." },
     },
   },
+  -- Item ids only: the names and icons come from the extract's DB2 (a run with no extract calls them "Kit item <id>"). One
+  -- entry holds both families' results: the classic window reads list, the retail window browse, items and commodities.
+  -- Prices and quantities are kit-authored.
+  auction = {
+    list = {
+      { itemID = 2589, count = 20, quality = 1, minBid = 100, minIncrement = 5, buyout = 400, owner = "Kit Seller", timeLeft = 3 },
+      { itemID = 159, count = 5, quality = 1, minBid = 25, minIncrement = 1, buyout = 60, owner = "Kit Seller", timeLeft = 2 },
+      { itemID = 25, quality = 1, minBid = 90, minIncrement = 4, buyout = 150, owner = "Kit Friend", timeLeft = 4 },
+    },
+    browse = {
+      { itemKey = { itemID = 2589 }, totalQuantity = 40, minPrice = 20, containsOwnerItem = false },
+      { itemKey = { itemID = 159 }, totalQuantity = 12, minPrice = 12, containsOwnerItem = false },
+      { itemKey = { itemID = 25 }, totalQuantity = 1, minPrice = 150, containsOwnerItem = false },
+    },
+    commodities = {
+      [2589] = {
+        { itemID = 2589, quantity = 30, unitPrice = 20, auctionID = 1, numOwnerItems = 0 },
+        { itemID = 2589, quantity = 10, unitPrice = 25, auctionID = 2, numOwnerItems = 0 },
+      },
+    },
+  },
 }
