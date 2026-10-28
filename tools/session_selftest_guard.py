@@ -5,6 +5,7 @@ restart), the bind address, the Referrer-Policy header and the connection cap. R
 import contextlib
 import http.client
 import io
+import json
 import os
 import socket
 import time
@@ -197,6 +198,44 @@ def test_blizzard_flag_loads_the_layer_from_the_extract(tmp):
     assert layer["enabled"] is True and layer["loaded"] == ["Blizzard_ActionBar"], layer
 
 
+def test_wtf_flags_are_usage_checked(tmp):
+    cases = [
+        (["--wtf", str(tmp / "missing")], "--wtf: no such directory"),
+        (["--wtf-account", "A"], "--wtf-account needs --wtf"),
+        (["--wtf", str(tmp), "--wtf-character", "NoRealm"], "--wtf-character must be REALM/CHARACTER"),
+    ]
+    for flags, needle in cases:
+        with testkit_home(tmp), contextlib.redirect_stderr(io.StringIO()) as err:
+            assert session.main(flags + [str(DEMO)], wait=lambda running: None) == 2, flags
+        assert needle in err.getvalue(), (flags, err.getvalue())
+
+
+def test_wtf_flag_imports_and_confines_reimport(tmp):
+    """A synthetic WTF folder: its SessionDemo file seeds the session; a reimport path outside the folder is refused."""
+    wtf = tmp / "WTF"
+    saved = wtf / "Account" / "ACC" / "SavedVariables"
+    saved.mkdir(parents=True)
+    (saved / "SessionDemo.lua").write_text("SessionDemoDB = { runs = 40 }\n")
+    outside = tmp / "outside.lua"
+    outside.write_text("SessionDemoDB = { runs = 1 }\n")
+    with testkit_home(tmp):
+        live = session.start(str(DEMO), port=0, wtf=str(wtf))
+        try:
+            status, _, body = request(live, "POST", "/call/reimport", {"wtf": {"account": str(outside)}})
+            refused = json.loads(body)
+            status2, _, body2 = request(live, "POST", "/call/reimport", {"wtf": {"account": str(wtf / ".." / "outside.lua")}})
+            climbed = json.loads(body2)
+            live.host.call("slash", {"text": "/dump SessionDemoDB.runs"})
+            last = live.host.call("console", {"since": 0})["lines"][-1]["text"]
+        finally:
+            live.stop()
+    assert status == 200 and refused == {"ok": False, "error": "malformed request: wtf paths must stay inside the WTF folder"}, refused
+    assert status2 == 200 and climbed["ok"] is False, climbed
+    assert last == "41", last
+    assert sorted(p.name for p in wtf.rglob("*")) == ["ACC", "Account", "SavedVariables", "SessionDemo.lua"]
+    assert (saved / "SessionDemo.lua").read_text() == "SessionDemoDB = { runs = 40 }\n"
+
+
 TESTS = [
     test_foreign_host_header_is_refused,
     test_cross_origin_and_wrong_content_type_are_refused,
@@ -209,4 +248,6 @@ TESTS = [
     test_connections_past_the_cap_are_closed_unanswered,
     test_blizzard_flag_is_accepted_and_needs_an_extract,
     test_blizzard_flag_loads_the_layer_from_the_extract,
+    test_wtf_flags_are_usage_checked,
+    test_wtf_flag_imports_and_confines_reimport,
 ]

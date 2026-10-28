@@ -141,7 +141,7 @@ def session_dir_for(addon_dir):
 class LuaHost:
     """One SessionHost in its own Lua runtime; every call holds one lock and publishes the events it queued on bus."""
 
-    def __init__(self, bus, addon_dir, flavor="retail", size=(1920, 1080), extract=None, bindings=None, session_dir=None, blizzard_ui=False):
+    def __init__(self, bus, addon_dir, flavor="retail", size=(1920, 1080), extract=None, bindings=None, session_dir=None, blizzard_ui=False, wtf=None):
         self.bus = bus
         self.lock = threading.RLock()
         self.cache = {}
@@ -162,6 +162,8 @@ class LuaHost:
             "bindingsFile": Path(bindings).as_posix() if bindings else None,
             "blizzardUi": True if blizzard_ui else None,
         }
+        if wtf:  # the resolved folder is also the root every reimport path must stay in (session_host.lua)
+            options.update(wtfDir=Path(wtf["dir"]).resolve().as_posix(), wtfAccount=wtf.get("account"), wtfCharacter=wtf.get("character"))
         text = json.dumps({key: value for key, value in options.items() if value is not None})
         with self.lock:
             self.host = lua.execute(START)(text)
