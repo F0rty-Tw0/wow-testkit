@@ -50,6 +50,15 @@ local function test_modifier_prefix_and_button_suffix_pick_the_attribute() -- TS
   end)
 end
 
+-- Blizzard_ActionBar's ActionButton.lua calls it on every click and update; Blizzard_FrameXML's own copy is not loaded by
+-- the Blizzard UI layer. Blizzard's version is a stub: securetemplates.lua:214-217 "We will be returning to implement this
+-- later" and returns "LeftButton".
+local function test_effective_button_is_left_button()
+  H.withTaint("retail", function()
+    A.eq(_G.SecureButton_GetEffectiveButton(actionButton("TKAct0")), "LeftButton")
+  end)
+end
+
 local function test_attribute_lookup_tries_the_five_names_in_order() -- TS14
   H.withTaint("retail", function()
     local b = actionButton("TKAct3")
@@ -308,6 +317,7 @@ end
 return function()
   test_hardware_click_casts_but_an_addon_click_is_blocked()
   test_modifier_prefix_and_button_suffix_pick_the_attribute()
+  test_effective_button_is_left_button()
   test_attribute_lookup_tries_the_five_names_in_order()
   test_noop_value_and_useparent_pick_the_attribute()
   test_each_action_type_calls_its_global()

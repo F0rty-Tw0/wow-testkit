@@ -162,7 +162,6 @@ function M.addonFolders(dir)
 end
 
 local function drive(s)
-  s:unit("player", VIEWER)
   s:login()
   s:unit("mouseover", OTHER)
   s:hover("mouseover")
@@ -170,9 +169,13 @@ local function drive(s)
 end
 
 -- The guard is disarmed on every exit path; err is rethrown unchanged so Scenario's SKIPPED sentinel keeps its
--- identity. sethook() runs first thing after pcall to keep the window where a stray hook could fire small.
+-- identity. sethook() runs first thing after pcall to keep the window where a stray hook could fire small. The Blizzard UI
+-- layer (opts.blizzardUi) loads before the guard arms: its closure of dozens of addons is not the addon under test, and
+-- s:login skips a layer already loaded.
 local function smokeScenario(budget)
   return function(s)
+    s:unit("player", VIEWER)
+    s:loadBlizzard()
     arm(budget)
     local ok, err = pcall(drive, s)
     sethook()
@@ -196,13 +199,18 @@ local function failedEverywhere(flavors, message)
 end
 
 -- Runs the smoke scenario for the addon at root on each flavor. Returns { name, results = { [flavor] = report } };
--- a folder whose addon name cannot be told fails every flavor with the name rule's message.
-function M.runAddon(root, flavors, budget)
+-- a folder whose addon name cannot be told fails every flavor with the name rule's message. extra: more Scenario.matrix
+-- opts (blizzardUi, findClient, client).
+function M.runAddon(root, flavors, budget, extra)
   local name, message = Toc.addonName(root)
   if not name then
     return { name = folderName(root), results = failedEverywhere(flavors, message) }
   end
-  local results = Scenario.matrix(flavors, smokeScenario(budget or M.BUDGET), { addon = name, root = root, silencePrint = true })
+  local opts = { addon = name, root = root, silencePrint = true }
+  for key, value in pairs(extra or {}) do
+    opts[key] = value
+  end
+  local results = Scenario.matrix(flavors, smokeScenario(budget or M.BUDGET), opts)
   return { name = name, results = results }
 end
 

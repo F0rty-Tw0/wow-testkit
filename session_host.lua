@@ -86,16 +86,48 @@ local function validWtf(wtf)
   return true
 end
 
--- opts: Session.new's, plus wtf = { account?, character? } paths of WTF SavedVariables files (Wtf.read). Starts the
--- session; the outbox starts with the console lines the login printed and the warnings of the WTF import.
+-- Whether paths compare ignoring case: only Windows filesystems do. Tests replace this field.
+M.foldCase = package.config:sub(1, 1) == "\\"
+
+local function folded(path)
+  return M.foldCase and path:lower() or path
+end
+
+-- Whether every path of a req.wtf names a file under root (backslashes read as slashes, the prefix compared ignoring
+-- case on Windows) with no `..` segment. Without a root no path is inside: a reimport could otherwise read any file.
+local function insideRoot(wtf, root)
+  if wtf == nil then
+    return true
+  end
+  local prefix = root and folded(root:gsub("\\", "/"):gsub("/+$", "") .. "/")
+  for _, path in pairs(wtf) do
+    local slashed = path:gsub("\\", "/")
+    local climbs = ("/" .. slashed .. "/"):find("/../", 1, true)
+    if not prefix or climbs or folded(slashed:sub(1, #prefix)) ~= prefix then
+      return false
+    end
+  end
+
+  return true
+end
+
+local WTF_OUTSIDE = "malformed request: wtf paths must stay inside the WTF folder"
+
+-- opts: Session.new's, plus wtf = { account?, character? } paths of WTF SavedVariables files (Wtf.read), or wtfDir
+-- (Wtf.openOptions); wtfRoot, else wtfDir, is the folder a reimport's paths must stay in. Starts the session; the
+-- outbox starts with the console lines the login printed and the warnings of the WTF import.
 function M.new(opts)
-  local warnings = importWtf(opts)
+  local warnings = Wtf.openOptions(opts)
+  for _, warning in ipairs(importWtf(opts)) do
+    warnings[#warnings + 1] = warning
+  end
   local sess = Session.new(opts)
   for _, warning in ipairs(warnings) do
     Console.push(sess.w, "system", warning)
   end
   local root = opts.addonDir:gsub("\\", "/"):gsub("/+$", "")
   local host = { sess = sess, outbox = {}, located = {}, consoleSeq = 0, logSeq = 0, wtf = opts.wtf, addonRoots = { [sess.folder:lower()] = root } }
+  host.wtfRoot = opts.wtfRoot or opts.wtfDir
   setmetatable(host, Host)
   host:collectConsole()
   return host
@@ -172,8 +204,8 @@ end
 
 -- Replaces the session folder's saved.lua with a fresh read of the WTF files, then reloads without writing the live
 -- variables, so the import is a strict copy: what the addon changed since is discarded. req.wtf, when given, replaces
--- the paths the host opened with (the browser host lists the WTF folder again first); a host opened without WTF refuses
--- it too. Replies as reload does, plus warnings (a count); the files' own warnings go to the console.
+-- the paths the host opened with (the browser host lists the WTF folder again first) and must stay inside the WTF folder
+-- (insideRoot); a host opened without WTF refuses it too. Replies as reload does, plus warnings (a count); the files' own warnings go to the console.
 function Host:reimport(req)
   local opts = self.sess.opts
   if not self.wtf then
@@ -182,6 +214,8 @@ function Host:reimport(req)
     return { ok = false, error = "no session folder" }
   elseif not validWtf(req.wtf) then
     return { ok = false, error = "malformed request: wtf must be { account?, character? } paths" }
+  elseif not insideRoot(req.wtf, self.wtfRoot) then
+    return { ok = false, error = WTF_OUTSIDE }
   end
   self.wtf = req.wtf or self.wtf
   local warnings = Wtf.seed(opts, self.wtf)

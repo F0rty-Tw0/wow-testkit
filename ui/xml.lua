@@ -30,6 +30,18 @@ local function join(includer, relative)
   return clean((dir and dir .. "/" or "") .. relative)
 end
 
+-- source: assumed (row BU4) a `file=` path is tried relative to the including XML file's folder first, then, when no
+-- such file exists, relative to the addon root: Blizzard's own XML names root-relative files. Returns the path to load
+-- (the folder-relative one when neither exists, so the missing-file report names it).
+local function resolve(ctx, includer, relative)
+  local path = join(includer, relative)
+  if ctx.exists and not ctx.exists(path) then
+    local fromRoot = clean(relative)
+    return ctx.exists(fromRoot) and fromRoot or path
+  end
+  return path
+end
+
 -- Registers the virtual element `node` as template `name` (a FontString or Texture too): CreateFrame's template list and
 -- `inherits` find it there. origin is the session of the file that holds it.
 M.registerVirtual = XmlBuild.registerVirtual
@@ -47,7 +59,7 @@ end
 local loadInto
 
 local function include(w, node, ctx, file, loading)
-  local target = join(file.path, node.attrs.file)
+  local target = resolve(ctx, file.path, node.attrs.file)
   if target:lower():match("%.lua$") then
     ctx.runFile(target)
   elseif loading[target:lower()] then
@@ -63,7 +75,7 @@ local function walk(w, root, ctx, file, loading, session)
     if node.tag == "include" and node.attrs.file then
       include(w, node, ctx, file, loading)
     elseif node.tag == "script" and node.attrs.file then
-      ctx.runFile(join(file.path, node.attrs.file))
+      ctx.runFile(resolve(ctx, file.path, node.attrs.file))
     elseif node.tag == "script" then
       ctx.runSource(node.text, "addon:" .. ctx.name .. "/" .. file.path, node.textLine)
     else

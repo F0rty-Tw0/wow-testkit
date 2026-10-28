@@ -1,5 +1,5 @@
 /* Live mode: the hover and selection outlines, the side panels' grid and the console, command line, events, mock
-   state and combat log panels. Loaded after viewer.css, before dev.css and inspector.css. */
+   state, combat log and Blizzard UI panels. Loaded after viewer.css, before dev.css and inspector.css. */
 
 /* Live mode: the outline of the frame under the mouse, in #viewport over the scaled stage. */
 #hover {
@@ -32,13 +32,13 @@
 }
 
 /* Side panels (live mode), right of the stage; viewer.js fitScale leaves room for them. The inspector fills the first
-   column above the developer panel; console, command line, combat log, events and mock state stack in the second, so a
-   fight's log takes the console's room, not the inspector's details. */
+   column above the developer and Blizzard UI panels; console, command line, combat log, events and mock state stack in
+   the second, so a fight's log takes the console's room, not the inspector's details. */
 #panels {
   display: grid;
   flex: none;
   grid-template-columns: 320px 320px;
-  grid-template-rows: minmax(0, 1fr) auto auto auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto auto auto;
   gap: 8px;
   height: calc(100vh - 80px);
   margin-left: 12px;
@@ -91,6 +91,28 @@
   grid-column: 1;
   grid-row: 5;
   overflow-x: auto;
+}
+
+#blizzard {
+  grid-column: 1;
+  grid-row: 6;
+}
+
+#blizzard p {
+  margin: 0;
+}
+
+#blizzard .errors {
+  max-height: 120px;
+  margin: 0;
+  padding-left: 16px;
+  overflow: auto;
+  font: 12px/1.35 Consolas, "Cascadia Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+#blizzard-actions {
+  font-family: Consolas, "Cascadia Mono", monospace;
 }
 
 /* In document order: console, command line, events, mock state (all live mode), then the combat log (combat.js),

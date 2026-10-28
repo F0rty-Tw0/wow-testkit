@@ -12,6 +12,7 @@ local Flavors = require("tools.flavors")
 local Json = require("json")
 local Render = require("render")
 local Scenario = require("scenario")
+local SessionBlizzard = require("session_blizzard")
 local SessionCombat = require("session_combat")
 local SessionConsole = require("session_console")
 local SessionDev = require("session_dev")
@@ -22,6 +23,7 @@ local SessionSlash = require("session_slash")
 local SessionState = require("session_state")
 local SessionView = require("session_view")
 local Toc = require("toc")
+local Wtf = require("session_wtf")
 
 local unpack = unpack
 -- Localized: addon code may assign a global named debug.
@@ -32,14 +34,6 @@ M.PRESETS = SessionOptions.PRESETS
 
 local Session = {}
 Session.__index = Session
-
-local function copyList(list)
-  local out = {}
-  for i, v in ipairs(list) do
-    out[i] = v
-  end
-  return out
-end
 
 local function folderName(root)
   return root:gsub("\\", "/"):match("([^/]+)/*$") or root
@@ -73,19 +67,24 @@ local function infoOf(sess)
   return {
     addon = sess.addon,
     flavor = w.flavor,
-    flavors = copyList(Flavors.list),
+    flavors = { unpack(Flavors.list) },
     screen = { width = w.screen.width, height = w.screen.height },
     seq = sess.seq,
     loads = sess.loads,
     errors = #w.errors,
     skipped = sess.skipped,
+    blizzard = SessionBlizzard.info(sess),
   }
 end
 
--- The binding API and the user's bindings file go in before the addon runs; its Bindings.xml loads after it.
-local function loadBindings(sess, file)
+-- The binding API, the WTF import (opts.wtfData, session_host.lua: CVars, bindings, layouts) and the user's bindings file
+-- go in before the addon runs; its Bindings.xml loads after it.
+local function loadBindings(sess, opts)
   Bindings.install(sess.w)
-  local ok, err = Bindings.loadFile(sess.w, file)
+  if opts.wtfData then
+    Wtf.apply(sess.w, opts.wtfData)
+  end
+  local ok, err = Bindings.loadFile(sess.w, opts.bindingsFile)
   if not ok then
     SessionConsole.push(sess.w, "system", "bindings ignored: " .. err)
   end
@@ -102,7 +101,9 @@ local function open(opts, prior)
   if opts.sessionDir then
     saved, warning = SessionSaved.read(opts.sessionDir)
   end
-  local s = Scenario.new({ addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract, saved = saved })
+  local sopts = { addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract, saved = saved }
+  sopts.blizzardUi = opts.blizzardUi
+  local s = Scenario.new(sopts)
   local folder = folderName(root)
   local sess = setmetatable({ opts = opts, s = s, w = s.w, folder = folder, addon = name or folder, seq = 0, loads = 1 }, Session)
   SessionConsole.install(sess.w, sess)
@@ -116,7 +117,7 @@ local function open(opts, prior)
   if opts.state then
     SessionState.apply(sess, opts.state)
   end
-  loadBindings(sess, opts.bindingsFile)
+  loadBindings(sess, opts)
   if name then
     login(sess, prior ~= nil)
     if not sess.skipped then
@@ -128,15 +129,15 @@ local function open(opts, prior)
   return sess
 end
 
--- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state? } (flavor "auto" is
--- Session.autoFlavor's pick from the TOC; extract is a directory of tools/client's output; sessionDir holds
--- saved.lua). Raises only when no world can be built (an unknown flavor, another world still active).
+-- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state?, blizzardUi? } (flavor
+-- "auto" is Session.autoFlavor's pick from the TOC; extract is a directory of tools/client's output; sessionDir holds
+-- saved.lua; blizzardUi as Scenario.new's). Raises only when no world can be built (an unknown flavor, another world still active).
 function M.new(opts)
   return open(opts, nil)
 end
 
--- A new session over the same options (plus over's flavor and size or screen, SessionOptions.reopen) and the same mock
--- state, counting one more load. The old one logs out first and, unless over.keepSaved, writes its saved variables;
+-- A new session over the same options (plus over's flavor, size or screen and blizzardUi, SessionOptions.reopen) and the
+-- same mock state, counting one more load. The old one logs out first and, unless over.keepSaved, writes its saved variables;
 -- keepSaved loads what saved.lua already holds. A refused option raises before sess is shut down, so it stays whole;
 -- after that nothing raises: a new world that cannot be built reopens sess's own options, returned with why the reload
 -- failed, or nil and "session lost: <why>" when that fails too. seq keeps counting, so a viewer never sees it go back.

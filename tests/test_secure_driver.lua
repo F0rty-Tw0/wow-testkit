@@ -174,6 +174,23 @@ local function test_event_resets_the_throttle() -- TS16
   end)
 end
 
+-- BU7: a reset fired from inside a timer callback re-arms the update for the next frame, not the current one.
+local function test_event_reset_inside_a_timer_waits_a_frame_assumed() -- TS16, BU7
+  H.withTaint("retail", function(w)
+    local f = stateFrame("TKTimerReset")
+    _G.RegisterStateDriver(f, "combat", "[combat] fight; calm")
+    w:advance(0.2)
+    w:schedule(0.05, function()
+      H.setCombat(w, true)
+      w:fire("PLAYER_REGEN_DISABLED")
+    end, 1)
+    w:advance(0.05)
+    A.eq(f:GetAttribute("state-combat"), "calm")
+    w:advance(0.02)
+    A.eq(f:GetAttribute("state-combat"), "fight")
+  end)
+end
+
 local function test_unlisted_event_does_not_reset_the_throttle() -- TS16
   H.withTaint("retail", function(w)
     local f = stateFrame("TKNoEvent")
@@ -257,6 +274,7 @@ return function()
   test_registration_from_addon_code_acts_secure_in_combat()
   test_underscore_attribute_is_refused()
   test_event_resets_the_throttle()
+  test_event_reset_inside_a_timer_waits_a_frame_assumed()
   test_unlisted_event_does_not_reset_the_throttle()
   test_ticker_runs_only_while_a_driver_exists()
   test_a_driver_reading_an_addon_replaced_unit_global_runs_it_tainted_assumed()

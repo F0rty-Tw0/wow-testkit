@@ -1,6 +1,7 @@
 -- Preview.run: loads an addon, runs a scenario, writes the render snapshot (even when the addon errors), then runs
 -- the resolve and PNG steps through Preview.exec, which these tests replace with a recorder.
 local A = require("assert")
+local B = require("tests.helpers.blizzard")
 local H = require("tests.helpers.client")
 local Home = require("home")
 local Preview = require("preview")
@@ -123,6 +124,17 @@ local function test_world_receives_the_client_extract()
     local path = scenarioFile('s:login(); s.w:recordError("client build " .. tostring(s.w.client and s.w.client.build))')
     local _, text = run({ addonDir = tempAddon(FRAME_ADDON), out = Tmp.dir("previewout"), scenario = path })
     A.contains(text, "error: client build 70575")
+  end, ex)
+end
+
+local function test_blizzard_ui_option_loads_the_default_targets_from_the_extract()
+  local addons = B.mini({ blizzard_actionbar = { toc = "## Dependencies: Blizzard_MiniBar\n" } })
+  local ex = B.extract(Tmp.dir("previewbz"), addons)
+  withExec(nil, function()
+    local out = Tmp.dir("previewout")
+    local code = run({ addonDir = tempAddon(FRAME_ADDON), out = out, blizzardUi = true })
+    A.eq(code, 0)
+    A.contains(assert(fs.readFile(out .. "/snapshot.json")), '"name": "MiniBar"')
   end, ex)
 end
 
@@ -437,6 +449,7 @@ return function()
   test_no_client_extract_leaves_the_resolve_argv_and_output_alone()
   test_client_extract_is_looked_up_for_the_run_flavor()
   test_world_receives_the_client_extract()
+  test_blizzard_ui_option_loads_the_default_targets_from_the_extract()
   test_png_flag_runs_the_png_step()
   test_failed_step_exits_1_with_its_log()
   test_resolve_log_is_echoed()

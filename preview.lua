@@ -117,7 +117,16 @@ local function context(opts)
     return nil, outErr
   end
   local client = M.findClient(flavor)
-  local matrixOpts = { addon = name, root = root, screen = size, preview = { out = out }, saved = file.saved, config = file.config, client = client }
+  local matrixOpts = {
+    addon = name,
+    root = root,
+    screen = size,
+    preview = { out = out },
+    saved = file.saved,
+    config = file.config,
+    client = client,
+    blizzardUi = opts.blizzardUi,
+  }
   return { flavor = flavor, file = file, out = out, size = size, png = opts.png, client = client, matrixOpts = matrixOpts }
 end
 
@@ -231,7 +240,8 @@ local function clearStale(ctx)
   end
 end
 
--- opts: { addonDir, flavor?, scenario?, size? = { width, height }, out?, png? }; all output goes through write.
+-- opts: { addonDir, flavor?, scenario?, size? = { width, height }, out?, png?, blizzardUi? }; all output goes through
+-- write.
 function M.run(opts, write)
   local ctx, message = context(opts)
   if not ctx then

@@ -1,15 +1,16 @@
 -- Session mock state, set from the viewer's state panel: unit fixtures, the mouseover unit, modifier keys, the combat
--- flag and the group kind. The world reads the last three from w.mock through game/keys.lua (IsShiftKeyDown and its
+-- flag and the group kind; the Blizzard panel's action slots and active Edit Mode layout go through session_blizzard.lua. The world reads the last three from w.mock through game/keys.lua (IsShiftKeyDown and its
 -- siblings) and game/group.lua (InCombatLockdown, IsInGroup and theirs); a changed flag fires the event the client
 -- fires for it.
 local M = {}
 
 local Json = require("json")
+local SessionBlizzard = require("session_blizzard")
 
 local GROUPS = { none = true, party = true, raid = true }
 local MODIFIERS = { shift = true, ctrl = true, alt = true }
 local DEFAULT_MODIFIERS = { shift = false, ctrl = false, alt = false }
-local FIELDS = { units = true, mouseover = true, modifiers = true, combat = true, group = true }
+local FIELDS = { units = true, mouseover = true, modifiers = true, combat = true, group = true, actions = true, editMode = true }
 
 local function sortedKeys(t)
   local keys = {}
@@ -38,10 +39,10 @@ local function checkModifiers(modifiers)
 end
 
 -- Raises on the first malformed field, before anything is applied.
-local function check(patch)
+local function check(sess, patch)
   for key in pairs(patch) do
     if not FIELDS[key] then
-      fail("unknown field '" .. tostring(key) .. "'; valid: units, mouseover, modifiers, combat, group")
+      fail("unknown field '" .. tostring(key) .. "'; valid: units, mouseover, modifiers, combat, group, actions, editMode")
     end
   end
   if patch.units ~= nil and type(patch.units) ~= "table" then
@@ -56,6 +57,7 @@ local function check(patch)
   if patch.modifiers ~= nil then
     checkModifiers(patch.modifiers)
   end
+  SessionBlizzard.check(sess, patch)
 end
 
 local function copy(t)
@@ -99,7 +101,7 @@ end
 -- Checks patch, merges it into sess.state and applies it to the world. Returns sess.state, its combat and group read from
 -- w.mock, which the combat world also sets.
 function M.apply(sess, patch)
-  check(patch)
+  check(sess, patch)
   if patch.units then
     applyUnits(sess, patch.units)
   end
@@ -113,6 +115,7 @@ function M.apply(sess, patch)
   toggle(sess, "combat", patch.combat, patch.combat and "PLAYER_REGEN_DISABLED" or "PLAYER_REGEN_ENABLED")
   toggle(sess, "group", patch.group, "GROUP_ROSTER_UPDATE")
   sess.state.combat, sess.state.group = sess.w.mock.combat, sess.w.mock.group
+  SessionBlizzard.apply(sess, patch)
   return sess.state
 end
 

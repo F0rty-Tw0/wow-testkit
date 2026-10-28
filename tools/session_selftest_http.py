@@ -159,6 +159,20 @@ def test_combat_play_pause_and_log(tmp):
         assert bad["ok"] is False and "speed" in bad["error"], bad
 
 
+def test_blizzard_reload_and_state_fields_are_checked(tmp):
+    with running(tmp) as live:
+        status, reply = post_json(live, "/reload", {"blizzardUi": "yes"})
+        assert status == 400 and "blizzardUi" in reply["error"], (status, reply)
+        assert get_json(live, "/snapshot")["session"]["loads"] == 1
+        status, reply = post_json(live, "/state", {"actions": {"x": {}}})
+        assert status == 400 and "'x'" in reply["error"], (status, reply)
+        status, reply = post_json(live, "/state", {"editMode": {"active": 9}})
+        assert status == 400 and "active" in reply["error"], (status, reply)
+        status, reply = post_json(live, "/state", {"actions": {"3": {"texture": 7}}})
+        assert status == 200 and reply["state"]["actions"] == {"3": {"texture": 7}}, (status, reply)
+        assert get_json(live, "/snapshot")["session"]["blizzard"]["available"] is False
+
+
 TESTS = [
     test_snapshot_over_http,
     test_static_serving_is_confined,
@@ -173,4 +187,5 @@ TESTS = [
     test_dev_endpoint,
     test_run_reads_no_host_bridge_global,
     test_combat_play_pause_and_log,
+    test_blizzard_reload_and_state_fields_are_checked,
 ]

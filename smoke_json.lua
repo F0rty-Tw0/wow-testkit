@@ -28,8 +28,8 @@ local function runEntry(report)
   }
 end
 
--- The JSON text for runAddon results (any order) and the requested flavors, ending in a newline.
-function M.format(results, flavors)
+-- The document for runAddon results (any order) and the requested flavors: { ver, flavors, addons, totals }.
+function M.document(results, flavors)
   local rows = {}
   for i, result in ipairs(results) do
     rows[i] = result
@@ -48,8 +48,12 @@ function M.format(results, flavors)
     end
     addons[i] = { name = row.name, runs = runs }
   end
-  local document = { ver = VERSION, flavors = flavors, addons = addons, totals = totals }
-  return Json.encode(document, INDENT) .. "\n"
+  return { ver = VERSION, flavors = flavors, addons = addons, totals = totals }
+end
+
+-- The document as JSON text, ending in a newline.
+function M.format(results, flavors)
+  return Json.encode(M.document(results, flavors), INDENT) .. "\n"
 end
 
 return M

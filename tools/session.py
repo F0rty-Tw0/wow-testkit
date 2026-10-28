@@ -2,14 +2,17 @@
 """A long-running local session of one addon, served to the browser viewer.
 
     python tools/session.py <addon-dir> [--flavor F|auto] [--size WxH] [--port N] [--bind 127.0.0.1]
-                            [--extract DIR] [--bindings FILE] [--no-watch]
+                            [--extract DIR] [--bindings FILE] [--no-watch] [--blizzard-ui]
+                            [--wtf DIR [--wtf-account NAME] [--wtf-character REALM/CHARACTER]]
     python tools/session.py --selftest
 
 Prints `session: http://127.0.0.1:<port>/?token=<token>` (the token every request but the viewer's files needs, kept
 in the session folder so a restart on the same addon accepts the viewer's cookie) and serves until Ctrl-C (exit 0).
 Exit 2 on a usage error or a --bind that is not 127.0.0.1: the session answers only the local machine. A save of a
 .lua, .xml or .toc file under the addon folder reloads the addon (--no-watch turns that off; a failed reload prints on
-stderr); SavedVariables are written at a reload and at shutdown.
+stderr); SavedVariables are written at a reload and at shutdown. --wtf reads a client's WTF folder (never writes it):
+its CVars, key bindings and Edit Mode layouts go in before each login, and its SavedVariables seed a session that has
+none yet.
 """
 
 import argparse
@@ -48,8 +51,12 @@ class Running:
         self.host.shutdown()
 
 
-def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, extract=None, bindings=None):
+def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, extract=None, bindings=None, blizzard_ui=False, wtf=None):
     """Loads the addon, starts serving on 127.0.0.1:port (0 picks a free port) and returns the Running session.
+
+    With blizzard_ui, Blizzard's own UI addons from the extract load before the addon (blizzard_ui.lua).
+
+    wtf is {"dir", "account"?, "character"?} or a WTF folder path (session_wtf.lua imports it, read only).
 
     With watch, a save under addon_dir reloads the addon through the host; a reload that fails is reported on stderr.
     """
@@ -62,7 +69,8 @@ def start(addon_dir, port=0, flavor="retail", size=DEFAULT_SIZE, watch=False, ex
     import session_watch
 
     bus = session_bus.Bus()
-    host = session_host.LuaHost(bus, os.path.abspath(addon_dir), flavor, size, extract, bindings)
+    wtf = {"dir": wtf} if isinstance(wtf, str) else wtf
+    host = session_host.LuaHost(bus, os.path.abspath(addon_dir), flavor, size, extract, bindings, blizzard_ui=blizzard_ui, wtf=wtf)
     try:
         token = session_files.session_token(host.session_dir)
         server = session_http.Server(port, host, bus, VIEWER_DIR, host.assets_dir, token)
@@ -101,6 +109,10 @@ def _parser():
     parser.add_argument("--extract", metavar="DIR")
     parser.add_argument("--bindings", metavar="FILE")
     parser.add_argument("--no-watch", action="store_true")
+    parser.add_argument("--blizzard-ui", action="store_true")
+    parser.add_argument("--wtf", metavar="DIR")
+    parser.add_argument("--wtf-account", metavar="NAME")
+    parser.add_argument("--wtf-character", metavar="REALM/CHARACTER")
     return parser
 
 
@@ -121,6 +133,18 @@ def _check(args):
         return f"no such directory: {args.extract}"
     if args.bindings and not os.path.isfile(args.bindings):
         return f"no such file: {args.bindings}"
+    if args.blizzard_ui and not args.extract:
+        return "--blizzard-ui needs --extract: the Blizzard UI addons come from the client extract"
+    return _check_wtf(args)
+
+
+def _check_wtf(args):
+    if args.wtf and not os.path.isdir(args.wtf):
+        return f"--wtf: no such directory: {args.wtf}"
+    if (args.wtf_account or args.wtf_character) and not args.wtf:
+        return "--wtf-account needs --wtf" if args.wtf_account else "--wtf-character needs --wtf"
+    if args.wtf_character and "/" not in args.wtf_character.strip("/"):
+        return "--wtf-character must be REALM/CHARACTER"
     return None
 
 
@@ -152,7 +176,8 @@ def main(argv, wait=wait_for_interrupt):
     if problem:
         return _usage_error(problem)
     try:
-        running = start(args.addon_dir, args.port, args.flavor, args.size, not args.no_watch, args.extract, args.bindings)
+        wtf = {"dir": args.wtf, "account": args.wtf_account, "character": args.wtf_character} if args.wtf else None
+        running = start(args.addon_dir, args.port, args.flavor, args.size, not args.no_watch, args.extract, args.bindings, args.blizzard_ui, wtf)
     except OSError as err:
         return _usage_error(f"cannot listen on {LOOPBACK}:{args.port}: {err.strerror or err}")
     print(f"session: {running.url}", flush=True)

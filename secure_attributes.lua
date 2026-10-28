@@ -137,6 +137,10 @@ function M.install(w)
   define("SecureButton_GetModifiedUnit", M.modifiedUnit)
   define("SecureButton_GetUnit", M.unitOf)
   w:install("SecureButton_GetButtonSuffix", M.buttonSuffix, FRAMEXML)
+  -- source: `securetemplates.lua:214-217` (SecureButton_GetEffectiveButton) a stub in the client: always "LeftButton".
+  w:install("SecureButton_GetEffectiveButton", function()
+    return "LeftButton"
+  end, FRAMEXML)
   define("SecureButton_ParseModifierString", M.parseModifierString)
 end
 

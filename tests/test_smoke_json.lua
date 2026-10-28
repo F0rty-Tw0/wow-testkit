@@ -2,6 +2,7 @@
 local TEST_BUDGET = 100000
 
 local A = require("assert")
+local Json = require("json")
 local Smoke = require("smoke")
 local SmokeJson = require("smoke_json")
 local Tmp = require("tests.helpers.tmp")
@@ -89,8 +90,16 @@ local function test_print_is_silenced_and_counted()
   A.eq(restored, spy) -- the world's destroy restores the spy, not the real print
 end
 
+local function test_document_is_the_table_format_encodes()
+  local results = { { name = "A", results = { retail = { status = "fail", errors = { { message = "boom" } }, unscripted = {} } } } }
+  local document = SmokeJson.document(results, { "retail" })
+  A.same({ document.ver, document.totals.fail, document.addons[1].runs.retail.errors }, { 1, 1, { { message = "boom" } } })
+  A.textEq(SmokeJson.format(results, { "retail" }), Json.encode(document, 2) .. "\n")
+end
+
 return function()
   test_document_matches_the_schema()
+  test_document_is_the_table_format_encodes()
   test_failed_run_keeps_only_message_and_sorted_unscripted()
   test_addons_and_unscripted_names_are_sorted()
   test_print_is_silenced_and_counted()

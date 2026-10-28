@@ -98,6 +98,20 @@ local function test_advance_runs_timers()
   end)
 end
 
+-- A longer advance runs every per-frame timer it covers in one request, so /advance caps it like combat step.
+local function test_advance_rejects_non_finite_and_over_cap()
+  H.withSession(nil, function(sess)
+    local before = sess.w.now
+    for _, arg in ipairs({ "inf", "nan", "1e999", "3601" }) do
+      slash(sess, "/advance " .. arg)
+      A.same({ last(sess).kind, last(sess).text }, { "system", "Usage: /advance <seconds> (0 to 3600)" })
+    end
+    A.eq(sess.w.now, before)
+    slash(sess, "/advance 3600")
+    A.eq(sess.w.now, before + 3600)
+  end)
+end
+
 local function test_unknown_command_is_a_system_line()
   H.withSession(nil, function(sess)
     A.same(slash(sess, "/nope"), { ok = true, handled = false })
@@ -136,6 +150,7 @@ return function()
   test_run_executes_lua_and_reports_errors()
   test_dump_prints_values()
   test_advance_runs_timers()
+  test_advance_rejects_non_finite_and_over_cap()
   test_unknown_command_is_a_system_line()
   test_ring_keeps_the_newest_500()
   test_console_since_returns_only_new_lines()
