@@ -64,6 +64,38 @@ local function test_viewed_slot_is_the_scenarios_record_by_slot_type_and_option(
   end)
 end
 
+local function test_npc_flag_follows_the_window()
+  W.scenario("retail", {}, function(s)
+    local log = W.watch(s.w, { "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE" })
+    A.eq(_G.C_Transmog.IsAtTransmogNPC(), false)
+    s:openWindow("transmog", TM)
+    A.eq(_G.C_Transmog.IsAtTransmogNPC(), true)
+    s:closeWindow("transmog")
+    A.same({ W.names(log), _G.C_Transmog.IsAtTransmogNPC() }, { { "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE" }, false })
+  end)
+end
+
+local function test_reopen_replaces_the_store()
+  W.scenario("retail", {}, function(s)
+    s:openWindow("transmog", TM)
+    s:openWindow("transmog", { categories = { [2] = { name = "Kit Back" } } })
+    A.same({ _G.C_TransmogCollection.GetCategoryInfo(1), (_G.C_TransmogCollection.GetCategoryInfo(2)) }, { nil, "Kit Back" })
+  end)
+end
+
+local function test_retail_opens_on_the_transmogrifier_interaction_first_and_mists_on_the_legacy_event_only_assumed() -- (B2)
+  for flavor, names in pairs({ retail = { "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "TRANSMOGRIFY_OPEN" }, mists = { "TRANSMOGRIFY_OPEN" } }) do
+    W.scenario(flavor, {}, function(s)
+      local log = W.watch(s.w, { "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "TRANSMOGRIFY_OPEN" })
+      s:openWindow("transmog", TM)
+      A.same(W.names(log), names, flavor)
+      if flavor == "retail" then
+        A.eq(log[1][3], 24) -- Enum.PlayerInteractionType.Transmogrifier
+      end
+    end)
+  end
+end
+
 local function test_apis_answer_on_tbc_but_the_window_does_not_exist() -- (B1, B16)
   W.scenario("tbc", {}, function(s)
     s.w:setMock({ transmog = TM })
@@ -87,6 +119,9 @@ return function()
   test_sources_and_has_transmog()
   test_outfits_and_active_outfit()
   test_viewed_slot_is_the_scenarios_record_by_slot_type_and_option()
+  test_npc_flag_follows_the_window()
+  test_reopen_replaces_the_store()
+  test_retail_opens_on_the_transmogrifier_interaction_first_and_mists_on_the_legacy_event_only_assumed()
   test_apis_answer_on_tbc_but_the_window_does_not_exist()
   test_appearances_take_a_category_and_an_ignored_location()
 end

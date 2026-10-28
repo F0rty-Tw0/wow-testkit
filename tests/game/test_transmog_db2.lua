@@ -57,9 +57,19 @@ local function test_icon_fills_the_item_store_only_when_absent()
   end)
 end
 
+local function test_open_expands_the_named_items_from_the_extract()
+  W.scenario("retail", OPTS, function(s)
+    s:openWindow("transmog", { items = { 900200 }, sourceInfo = { [7001] = { isCollected = true } } })
+    local info = _G.C_TransmogCollection.GetSourceInfo(7001)
+    A.same({ info.visualID, info.isCollected, _G.C_TransmogCollection.GetSourceInfo(7002) }, { 501, true, nil }) -- only the named item
+    A.eq(s.w.mock.items[900200].icon, 135001)
+  end)
+end
+
 return function()
   test_sources_build_from_item_modified_appearance()
   test_no_extract_builds_nothing()
   test_collected_flags_stay_scenario_data_assumed()
   test_icon_fills_the_item_store_only_when_absent()
+  test_open_expands_the_named_items_from_the_extract()
 end

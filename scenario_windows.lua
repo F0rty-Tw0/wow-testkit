@@ -12,6 +12,8 @@ local ScenarioAuction = require("scenario_auction")
 local State = require("game.state")
 local TalentsClassic = require("game.talents_classic")
 local TalentsDb2 = require("game.talents_db2")
+local Transmog = require("game.transmog")
+local TransmogDb2 = require("game.transmog_db2")
 
 local ENGINE = "blizzard"
 local FRAME = 1 / 60 -- seconds of one frame (assumed, 60 fps)
@@ -229,6 +231,34 @@ end
 M.closers.mail = function(s)
   M.hide(s, "mail")
   s:fireIfKnown("MAIL_CLOSED")
+end
+
+-- Opens transmog (retail, forever, mists). data = the w.mock.transmog store (game/transmog.lua); it replaces the last one.
+-- items = { itemID } names the items whose sources the extract adds (scenario sources win); every item the store names is
+-- hydrated. source: assumed (B2) the order: the window path (which on retail fires the Transmogrifier interaction, then
+-- TRANSMOGRIFY_OPEN), TRANSMOGRIFY_CLOSE after the hide on close.
+function M.openers.transmog(s, data)
+  local w = s.w
+  replaceStore(w, "transmog", data, Transmog.DEFAULTS)
+  local store = w.mock.transmog
+  local ids = {}
+  for _, id in ipairs(store.items) do
+    ids[#ids + 1] = id
+  end
+  for _, record in pairs(store.sourceInfo) do
+    ids[#ids + 1] = record.itemID
+  end
+  BlizzardData.items(w, ids)
+  BlizzardData.fill(w, "transmog", function()
+    return TransmogDb2.sources(w, store.items)
+  end)
+  store.atNPC = true
+  M.show(s, "transmog")
+end
+M.closers.transmog = function(s)
+  s.w.mock.transmog.atNPC = false
+  M.hide(s, "transmog")
+  s:fireIfKnown("TRANSMOGRIFY_CLOSE")
 end
 
 function M.extend(Scenario)

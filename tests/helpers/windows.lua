@@ -97,6 +97,25 @@ end)
 ]],
     },
   },
+  blizzard_minitransmog = { -- Task 12.7: shows on TRANSMOGRIFY_OPEN and counts category 1's collected appearances
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniTransmog.lua\n",
+    files = {
+      ["minitransmog.lua"] = [[
+local f = CreateFrame("Frame", "MiniTransmogFrame", UIParent)
+f:SetSize(300, 200)
+f:SetPoint("CENTER")
+f:Hide()
+f.Count = f:CreateFontString(nil, "OVERLAY")
+f.Count:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+f.Count:SetPoint("TOPLEFT", 10, -20)
+f:RegisterEvent("TRANSMOGRIFY_OPEN")
+f:SetScript("OnEvent", function(self)
+  ShowUIPanel(self)
+  self.Count:SetText(C_TransmogCollection.GetCategoryCollectedCount(1) .. "/" .. C_TransmogCollection.GetCategoryTotal(1))
+end)
+]],
+    },
+  },
 }
 
 return M
