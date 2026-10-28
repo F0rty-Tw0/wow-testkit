@@ -71,14 +71,17 @@ local FIELD_ANSWERS = {
   UnitClassification = { "classification" },
   UnitGetTotalAbsorbs = { "absorbs" },
   UnitGetIncomingHeals = { "incomingHeals" },
+  GetRaidTargetIndex = { "raidTarget" },
+  UnitIsTapDenied = { "tapDenied" },
 }
 
--- source: assumed (row G11) a fixture unit is connected and visible unless its fixture says otherwise. Applied before
--- the manifest default and not counted as unscripted.
-local KIT_DEFAULTS = { isConnected = true, isVisible = true }
+-- source: assumed (row G11) a fixture unit is connected and visible unless its fixture says otherwise, (row G20) and
+-- not tap denied. Applied before the manifest default and not counted as unscripted.
+local KIT_DEFAULTS = { isConnected = true, isVisible = true, tapDenied = false }
 
--- Fields that answer nil when unset instead of the manifest default (UnitName's realm is nil for same-realm units).
-local NIL_WHEN_UNSET = { realm = true }
+-- Fields that answer nil when unset instead of the manifest default (UnitName's realm is nil for same-realm units, an
+-- unmarked unit has no raid target).
+local NIL_WHEN_UNSET = { realm = true, raidTarget = true }
 
 -- Field -> the field it falls back to when unset (an unscaled unit's effective level is its level).
 local FALLBACK_FIELD = { effectiveLevel = "level" }
