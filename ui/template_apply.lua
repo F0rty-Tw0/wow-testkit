@@ -81,10 +81,20 @@ function M.apply(w, frame, st, entry)
     end
   end
   -- A template script is the frame's own handler: SetScript replaces it, HookScript runs after it.
+  -- A script given as a function is the kit's own (fn(w, self, ...)); a string names a method of the frame.
   for scriptName, method in pairs(entry.scripts or {}) do
-    w:setScript(frame, scriptName, function(self)
-      self[method](self)
+    w:setScript(frame, scriptName, function(self, ...)
+      if type(method) == "function" then
+        return method(w, self, ...)
+      end
+      self[method](self, ...)
     end)
+  end
+  -- entry.methods = { Name = fn(w, self, ...) } become methods of the frame.
+  for name, fn in pairs(entry.methods or {}) do
+    frame[name] = function(self, ...)
+      return fn(w, self, ...)
+    end
   end
 end
 

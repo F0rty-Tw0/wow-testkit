@@ -41,6 +41,8 @@ function M.install(w)
   require("taint_api").install(w)
   require("taint_protected").install(w)
   require("taint_frames").install(w)
+  require("secure_actions").install(w)
+  require("secure_handlers").install(w)
 end
 
 -- The running taint: the addon's name, or nil while execution is secure.
