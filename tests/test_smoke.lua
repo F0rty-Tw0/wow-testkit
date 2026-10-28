@@ -2,6 +2,7 @@
 local TEST_BUDGET = 100000
 
 local A = require("assert")
+local B = require("tests.helpers.blizzard")
 local Flavors = require("tools.flavors")
 local Smoke = require("smoke")
 local Tmp = require("tests.helpers.tmp")
@@ -249,6 +250,20 @@ local function test_dir_without_addon_folders_exits_2()
   A.contains(text, "no addon folders")
 end
 
+-- The Blizzard UI layer loads before the guard arms: its closure is far bigger than one addon, so loading it under the
+-- budget would fail every --blizzard-ui cell. The layer's code still runs: MiniBar exists for the addon.
+local function test_blizzard_ui_layer_loads_outside_the_budget()
+  local heavy = "HeavyDone = 0\nfor i = 1, 200000 do HeavyDone = HeavyDone + i end\n"
+  local toc = "## Interface: 120100\nMiniBase.lua\nHeavy.lua\n"
+  local addons = B.mini({ blizzard_minibase = { toc = toc, files = { ["heavy.lua"] = heavy } } })
+  local extract = B.extract(Tmp.dir("smokebz"), addons)
+  local root = B.probe('if not MiniBar then error("no MiniBar") end')
+  local extra = { blizzardUi = { targets = { "Blizzard_MiniBar" } }, client = extract }
+  local report = Smoke.runAddon(root, { "retail" }, TEST_BUDGET, extra).results.retail
+  A.eq(report.status, "pass", report.errors[1] and tostring(report.errors[1].message))
+  A.eq(debug.gethook(), nil)
+end
+
 return function()
   test_one_row_per_addon_folder()
   test_skips_blizzard_folders()
@@ -271,4 +286,5 @@ return function()
   test_totals_line()
   test_missing_dir_exits_2()
   test_dir_without_addon_folders_exits_2()
+  test_blizzard_ui_layer_loads_outside_the_budget()
 end

@@ -18,13 +18,14 @@ function M.client(opts)
 end
 
 function M.extend(Scenario)
-  -- Loads the layer s.blizzardUi asks for (true, or { targets }) under engine context; a no-op without it. The layer's
-  -- notes become scenario notes.
+  -- Loads the layer s.blizzardUi asks for (true, or { targets }) under engine context; a no-op without it and once it
+  -- loaded (smoke loads it before s:login does). The layer's notes become scenario notes.
   function Scenario:loadBlizzard()
     local layer = self.blizzardUi
-    if not layer then
+    if not layer or self.blizzardLoaded then
       return
     end
+    self.blizzardLoaded = true
     local w = self.w
     local opts = { targets = type(layer) == "table" and layer.targets or nil }
     function opts.fire(...)
