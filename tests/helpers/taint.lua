@@ -5,9 +5,13 @@ local Scenario = require("scenario")
 
 local M = {}
 
--- Runs fn(w, Taint, s) on a fresh Scenario world, always destroyed.
-function M.withTaint(flavor, fn)
-  local s = Scenario.new({ addon = "T", root = "T", flavor = flavor })
+-- Runs fn(w, Taint, s) on a fresh Scenario world, always destroyed. opts overrides the Scenario.new options (addon, root).
+function M.withTaint(flavor, fn, opts)
+  local options = { addon = "T", root = "T", flavor = flavor }
+  for key, value in pairs(opts or {}) do
+    options[key] = value
+  end
+  local s = Scenario.new(options)
   local Taint = require("taint")
   local ok, err = pcall(fn, s.w, Taint, s)
   s.w:destroy()

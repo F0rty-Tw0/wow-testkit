@@ -57,6 +57,12 @@ files["tests/fixtures/addons/SessionDemo/*.lua"] = {
   read_globals = { "CreateFrame", "UIParent" },
 }
 
+-- Taint fixture addon: slash commands that trip the taint log, written like a real addon.
+files["tests/fixtures/addons/TaintDemo/*.lua"] = {
+  globals = { "SLASH_TDEMO1", "SlashCmdList", "UnitName" },
+  read_globals = { "CreateFrame", "UIParent", "CastSpellByName", "issecurevariable", "print", "TaintDemoPanel" },
+}
+
 -- Combat demo fixture: group member frames, nameplate names and a line when combat ends.
 files["tests/fixtures/addons/CombatDemo/*.lua"] = {
   read_globals = {
