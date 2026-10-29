@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds host/worker_bundle.js: stock Lua 5.1.5 plus wasm/tk_host.c compiled to one JS file by emcc, then bundled with
 # the kit and host/worker.js (wasm/bundle.py). Needs emcc on PATH (source $EMSDK/emsdk_env.sh).
-# Env: TK_WASM_CACHE (tarball and build output, default wasm/.cache), TK_LUA_SHA256 (the tarball's expected sha256).
+# Env: TK_WASM_CACHE (tarball and build output, default wasm/.cache), TK_LUA_SHA256 (the tarball's expected sha256),
+# TK_EMCC_ANY=1 (build with an emcc other than EMCC_PINNED, which otherwise stops the build with exit 3).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -36,7 +37,11 @@ if ! command -v emcc > /dev/null; then
 fi
 VERSION="$(emcc --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
 if [[ $VERSION != "$EMCC_PINNED" ]]; then
-  echo "warning: emcc $VERSION, pinned $EMCC_PINNED"
+  if [[ ${TK_EMCC_ANY:-} != 1 ]]; then
+    echo "emcc $VERSION, pinned $EMCC_PINNED: install the pinned emsdk, or set TK_EMCC_ANY=1 to build anyway"
+    exit 3
+  fi
+  echo "warning: emcc $VERSION, pinned $EMCC_PINNED (TK_EMCC_ANY=1)"
 fi
 
 rm -rf "$CACHE/lua-5.1.5"

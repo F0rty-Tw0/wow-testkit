@@ -46,4 +46,16 @@ after=$(stat -c %Y "$BUNDLE" 2>/dev/null)
 grep -q 'sha256 mismatch' "$OUT/build3.log" && ! grep -q 'emcc' "$OUT/build3.log" && [[ $code -eq 1 && $before == "$after" ]]
 verdict 3 $? "exit $code, mtime $before -> $after: $(head -3 "$OUT/build3.log" | tr '\n' ' ')"
 
+# An emcc other than the pinned one stops the build before it compiles (TK_EMCC_ANY=1 would let it through).
+FAKE="$OUT/fake-emcc"
+mkdir -p "$FAKE"
+printf '#!/usr/bin/env bash\necho "emcc (Emscripten gcc/clang-like replacement) 1.0.0"\n' > "$FAKE/emcc"
+chmod +x "$FAKE/emcc"
+before=$(stat -c %Y "$BUNDLE" 2>/dev/null)
+PATH="$FAKE:$PATH" TK_WASM_CACHE="$CACHE" bash wasm/build.sh > "$OUT/build4.log" 2>&1
+code=$?
+after=$(stat -c %Y "$BUNDLE" 2>/dev/null)
+grep -q 'emcc 1.0.0, pinned' "$OUT/build4.log" && [[ $code -eq 3 && $before == "$after" ]]
+verdict 4 $? "exit $code, mtime $before -> $after: $(head -3 "$OUT/build4.log" | tr '\n' ' ')"
+
 exit $status
