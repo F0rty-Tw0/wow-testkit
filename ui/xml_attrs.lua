@@ -42,6 +42,20 @@ end
 
 local function skip() end
 
+-- source: confirmed (row X27) Blizzard_SharedXML/UI.xsd:18-30 FRAMESTRATA, the type of frameStrata (:836); assumed:
+-- another value, in any case, is reported and ignored, so the frame keeps its strata.
+local FRAMESTRATA = {}
+for _, strata in ipairs({ "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP", "BLIZZARD" }) do
+  FRAMESTRATA[strata] = true
+end
+
+local function frameStrata(_, frame, _, value, node, session)
+  if FRAMESTRATA[value:upper()] then
+    return callIfPresent(frame, "SetFrameStrata", value)
+  end
+  session.reportAt(node.line, "frameStrata '" .. value .. "' is not a FRAMESTRATA; ignored")
+end
+
 -- source: wiki XML/LayoutFrame, hidden "Controls the frame's initial visibility" (row X7). Writes the state, not Hide,
 -- so no OnHide runs (assumed). `false` shows again what a template hid.
 local function hidden(_, _, st, value)
@@ -70,7 +84,7 @@ end
 M.frame = {
   hidden = hidden,
   setallpoints = setAllPoints,
-  framestrata = stringSetter("SetFrameStrata"),
+  framestrata = frameStrata,
   framelevel = numberSetter("SetFrameLevel"),
   enablemouse = boolSetter("EnableMouse"),
   movable = boolSetter("SetMovable"),
