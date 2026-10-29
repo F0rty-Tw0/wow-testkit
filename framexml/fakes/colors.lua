@@ -1,4 +1,5 @@
--- Color globals: class colors, reaction (faction bar) colors, tooltip defaults and difficulty colors.
+-- Color globals: class colors, reaction (faction bar) colors and difficulty colors. The tooltip defaults come from the
+-- UI colour table (color_util.lua).
 -- Class colors are the commonly published hex values; difficulty bands are a kit approximation of the client's.
 local M = {}
 
@@ -91,8 +92,6 @@ end
 function M.install(w)
   w:install("RAID_CLASS_COLORS", classColors(), Core.GATE)
   w:install("FACTION_BAR_COLORS", factionBarColors(), Core.GATE)
-  w:install("TOOLTIP_DEFAULT_COLOR", { r = 1, g = 1, b = 1 }, Core.GATE)
-  w:install("TOOLTIP_DEFAULT_BACKGROUND_COLOR", { r = 0.09, g = 0.09, b = 0.19 }, Core.GATE)
   local byLevel = difficultyColor(w, difficultyColors())
   for _, name in ipairs({ "GetQuestDifficultyColor", "GetCreatureDifficultyColor", "GetDifficultyColor" }) do
     w:install(name, byLevel, KETHO_GATE)
