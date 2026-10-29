@@ -13,8 +13,6 @@ local WindowsDemo = require("windows_demo")
 
 local MAX_SLOT = 180
 local BIND_LINE = "^%s*bind%s+%S+%s+%S"
--- The windows a state patch may name (the client's spelling, as blizzard_window_specs.lua keeps it); "close" closes the open one.
-local WINDOWS = { "talents", "map", "merchant", "mail", "auction", "transmog" }
 
 local function fail(message)
   error("state: " .. message, 0)
@@ -28,6 +26,18 @@ local function contains(list, value)
   end
   return false
 end
+
+-- The windows a state patch may name, sorted: every window blizzard_window_specs.lua holds on some flavor. "close"
+-- closes the open one.
+local WINDOWS = {}
+for _, windows in pairs(BlizzardWindows.WINDOWS) do
+  for window in pairs(windows) do
+    if not contains(WINDOWS, window) then
+      WINDOWS[#WINDOWS + 1] = window
+    end
+  end
+end
+table.sort(WINDOWS)
 
 local function count(t)
   local n = 0
