@@ -100,7 +100,7 @@ return {
   -- Category keys are Enum.TransmogCollectionType values (Shirt 5, Feet 11).
   transmog = {
     items = { 6096, 6097, 6120, 6125, 6122, 6127 },
-    categories = { [5] = { name = "Shirt" }, [11] = { name = "Feet" } },
+    categories = { [5] = { name = "Kit Shirt" }, [11] = { name = "Kit Feet" } },
     appearances = {
       [5] = {
         { visualID = 1968, isCollected = true, uiOrder = 1 },
