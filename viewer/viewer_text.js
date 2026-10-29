@@ -43,13 +43,31 @@
     return { kind, ref, height: Number(height) || 0, width: Number(width) || 0 };
   }
 
+  function isDigit(text, at) {
+    const char = text[at];
+
+    return char >= '0' && char <= '9';
+  }
+
+  // The last run of digits in line as a number, or null. A backwards scan: /(\d+)\D*$/ backtracks over every start of
+  // a long digit run, quadratic in its length (ui/measure.lua lastNumber scans the same way).
+  function lastNumber(line) {
+    let stop = line.length;
+    while (stop > 0 && !isDigit(line, stop - 1)) stop -= 1;
+    let start = stop;
+    while (start > 0 && isDigit(line, start - 1)) start -= 1;
+    if (start === stop) return null;
+    const digits = line.slice(start, stop);
+
+    return Number(digits);
+  }
+
   // Row V14, as ui/measure.lua pluralForm: the last number shown ahead of the escape on its line picks the singular
   // when it is 1, else (or with no number) the plural.
   function pluralForm(forms, before) {
     const [singular, plural = ''] = forms.split(':');
     const line = before.slice(before.lastIndexOf('\n') + 1);
-    const number = line.match(/(\d+)\D*$/);
-    const isOne = number !== null && Number(number[1]) === 1;
+    const isOne = lastNumber(line) === 1;
 
     return isOne ? singular : plural;
   }

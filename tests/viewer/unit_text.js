@@ -22,6 +22,20 @@
     },
   });
 
+  // /(\d+)\D*$/ backtracks over every start of a long digit run: minutes for this line. The harness clock is virtual
+  // (unit.sh --virtual-time-budget), so the guard is unit.sh's 60 s dump timeout, not a time assertion.
+  TK_TESTS.push({
+    name: 'parseEscapes reads the last number of a long line in linear time, as ui/measure.lua does',
+    fn() {
+      const digits = '1'.repeat(200000);
+      const text = textOf(`${digits} 1 |4Day:Days;`);
+      A.eq(text.slice(-5), '1 Day');
+      A.eq(textOf('x12y |4Day:Days;'), 'x12y Days');
+      A.eq(textOf('a 01 b |4Day:Days;'), 'a 01 b Day');
+      A.eq(textOf('no digits |4Day:Days;'), 'no digits Days');
+    },
+  });
+
   TK_TESTS.push({
     name: 'parseEscapes keeps the colour of a |4 inside |c, and the hex is no number',
     fn() {
