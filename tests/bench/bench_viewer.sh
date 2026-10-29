@@ -13,5 +13,5 @@ rm -rf "$OUT/viewer-stress"
 python tools/run51.py --script bin/tk.lua preview tests/fixtures/bench/Stress --out "$OUT/viewer-stress" > /dev/null
 python tests/wasm/fixture_js.py --json "$OUT/viewer_snapshot.js" SNAPSHOT "$OUT/viewer-stress/snapshot.json"
 export TK_CHROME_PROFILE="$OUT/profile-viewer"
-bash tests/wasm/run_page.sh "file:///$HERE/tests/bench/viewer_draw.html?live=1&runs=$RUNS&snap=file:///$OUT/viewer_snapshot.js" "$OUT/viewer_draw.html"
+bash tests/wasm/run_page.sh "file:///$HERE/tests/bench/viewer_draw.html?live=1&runs=$RUNS&snap=file:///$OUT/viewer_snapshot.js&base=file:///$OUT/viewer-stress/snapshot.json" "$OUT/viewer_draw.html"
 python tests/bench/summarize.py --page "$OUT/viewer_draw.html" --runtime chrome-viewer
