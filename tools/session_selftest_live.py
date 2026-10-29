@@ -133,6 +133,26 @@ def test_slash_reload_serves_changed_assets(tmp):
         assert Image.open(io.BytesIO(body)).getpixel((0, 0)) == (0, 0, 255, 255)
 
 
+def test_a_changed_font_gets_a_new_url(tmp):
+    """The viewer keeps one face per font url, so a font whose bytes change must come back under another url."""
+    root = temp_addon(tmp)
+    (root / "f.ttf").write_bytes(b"FONT-1")
+    with (root / "Main.lua").open("a", encoding="utf-8") as main:
+        main.write('local s = f:CreateFontString()\ns:SetFont("Interface\\\\AddOns\\\\T\\\\f.ttf", 12)\ns:SetPoint("CENTER")\ns:SetText("x")\n')
+
+    def font_url():
+        assets = get_json(live, "/snapshot")["assets"].values()
+        return next(asset["url"] for asset in assets if asset.get("kind") == "font")
+
+    with running(tmp, root) as live:
+        first = font_url()
+        (root / "f.ttf").write_bytes(b"FONT-2")
+        assert post_json(live, "/slash", {"text": "/reload"}) == (200, {"ok": True, "handled": True})
+        second = font_url()
+        assert second != first, first
+        assert request(live, "GET", "/" + second)[2] == b"FONT-2"
+
+
 def test_file_save_reloads_and_keeps_saved_variables(tmp):
     root = demo_copy(tmp)
     with running(tmp, root, watch=True) as live:
@@ -158,6 +178,17 @@ def test_a_failed_watched_reload_is_reported(tmp):
         time.sleep(0.6)  # one poll interval: the watcher's first scan must see the file before the edit
         (root / "Main.lua").write_text("-- edited\n", encoding="utf-8")
         assert wait_for(lambda: "reload failed: no world" in err.getvalue()), err.getvalue()
+
+
+def test_a_new_image_reloads_and_is_served(tmp):
+    root = temp_addon(tmp)
+    (root / "pic.png").unlink()
+    with running(tmp, root, watch=True) as live:
+        assert "url" not in get_json(live, "/snapshot")["assets"]["path:interface/addons/t/pic"]
+        time.sleep(0.6)  # one poll interval: the watcher's first scan must run before the file appears
+        Image.new("RGBA", (2, 2), (0, 255, 0, 255)).save(root / "pic.png")
+        assert wait_for_loads(live, 2), "no reload after a new image"
+        assert "url" in get_json(live, "/snapshot")["assets"]["path:interface/addons/t/pic"]
 
 
 def test_unwatched_file_changes_do_not_reload(tmp):
@@ -198,8 +229,10 @@ TESTS = [
     test_reload_event_is_streamed,
     test_assets_resolve_and_are_served,
     test_slash_reload_serves_changed_assets,
+    test_a_changed_font_gets_a_new_url,
     test_file_save_reloads_and_keeps_saved_variables,
     test_a_failed_watched_reload_is_reported,
+    test_a_new_image_reloads_and_is_served,
     test_unwatched_file_changes_do_not_reload,
     test_several_quick_saves_reload_once,
     test_shutdown_writes_the_file,

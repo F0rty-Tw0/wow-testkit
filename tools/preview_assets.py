@@ -189,11 +189,15 @@ def _base_name(asset):
 
 
 def write_asset(ref, asset, src, assets_dir):
-    """Writes the file for a hit into assets_dir and returns its url relative to the out dir (assets/<name>)."""
+    """Writes the file for a hit into assets_dir and returns its url relative to the out dir (assets/<name>). A font's
+    name also hashes its bytes: the viewer keeps one face per url (viewer_font.js), so changed bytes need a new url."""
     stem = "%s-%s" % (_base_name(asset), hashlib.sha1(ref.encode("utf-8")).hexdigest()[:8])
     if callable(src):
         name, write = stem + ".png", lambda dest: src().save(dest, format="PNG")
-    elif asset.get("kind") == "font" or src.suffix.lower() in COPIED_EXTS:
+    elif asset.get("kind") == "font":
+        stem += "-" + hashlib.sha1(src.read_bytes()).hexdigest()[:8]
+        name, write = stem + src.suffix.lower(), lambda dest: shutil.copyfile(src, dest)
+    elif src.suffix.lower() in COPIED_EXTS:
         name, write = stem + src.suffix.lower(), lambda dest: shutil.copyfile(src, dest)
     else:
         name = stem + ".png"

@@ -33,17 +33,20 @@ window.TK = window.TK || {};
     window.Viewer.showMessages('status', messages);
   }
 
+  const percent = (part, whole) => (100 * part) / whole + '%';
+
+  // Placed in percentages of #viewport, so the outline follows a zoom change without a redraw.
   function placeHover() {
     const node = document.getElementById('hover');
     const snapshot = TK.state.snapshot;
     const rect = snapshot && last.req ? live.hoverRect(snapshot, last.req, last.reply) : null;
     node.hidden = !rect;
     if (!rect) return;
-    const scale = document.getElementById('stage').getBoundingClientRect().width / snapshot.screen.width;
-    node.style.left = rect.x * scale + 'px';
-    node.style.top = rect.y * scale + 'px';
-    node.style.width = rect.width * scale + 'px';
-    node.style.height = rect.height * scale + 'px';
+    const screen = snapshot.screen;
+    node.style.left = percent(rect.x, screen.width);
+    node.style.top = percent(rect.y, screen.height);
+    node.style.width = percent(rect.width, screen.width);
+    node.style.height = percent(rect.height, screen.height);
   }
 
   // Handles a stream hello { boot }. Returns true when the boot differs from the last one seen, after resetting

@@ -4,12 +4,13 @@ import os
 import threading
 import time
 
-WATCHED = (".lua", ".xml", ".toc")
+# Code, plus the art and fonts a snapshot locates: a new or replaced file is only found again after a reload.
+WATCHED = (".lua", ".xml", ".toc", ".png", ".jpg", ".jpeg", ".tga", ".blp", ".ttf", ".otf")
 
 
 class Watcher:
-    """Watcher(root, on_change, interval=0.5, quiet=0.3): calls on_change() once after the .lua, .xml and .toc files
-    under root (dot-directories skipped) have stopped changing for `quiet` seconds. start() / stop()."""
+    """Watcher(root, on_change, interval=0.5, quiet=0.3): calls on_change() once after the WATCHED files (code, art and
+    fonts) under root (dot-directories skipped) have stopped changing for `quiet` seconds. start() / stop()."""
 
     def __init__(self, root, on_change, interval=0.5, quiet=0.3):
         self.root, self.on_change, self.interval, self.quiet = root, on_change, interval, quiet

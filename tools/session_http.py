@@ -18,7 +18,7 @@ Every request is checked before it is routed: the Host header must name this ser
 from this server's own page, and a POST must carry Content-Type: application/json. Every route but / and /viewer/* also
 needs the session's token, from the cookie or an X-Session-Token header (401 otherwise); a GET whose query carries
 token=<token> sets that cookie (HttpOnly, SameSite=Strict, named per port so two sessions keep their own). The token is
-saved in the session folder, so a restarted server accepts the cookie its viewer holds. Every reply carries
+saved in the session folder for a day, so a restarted server accepts the cookie its viewer holds. Every reply carries
 Referrer-Policy: no-referrer. At most MAX_CONNECTIONS connections are served at once.
 """
 

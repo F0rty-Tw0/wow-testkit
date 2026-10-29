@@ -8,7 +8,9 @@ import io
 import json
 import os
 import socket
+import stat
 import time
+from pathlib import Path
 
 import session
 import session_files
@@ -105,6 +107,83 @@ def test_restart_on_the_same_port_keeps_the_cookie_and_says_a_new_boot(tmp):
     path.write_text("not a token", encoding="ascii")
     fresh = session_files.session_token(path.parent)
     assert fresh != token and session_files.TOKEN_SHAPE.match(fresh), fresh
+
+
+def test_a_day_old_foreign_open_or_linked_token_file_is_replaced(tmp):
+    """A token another user could read or plant is not reused, and a saved one rotates after TOKEN_MAX_AGE."""
+    kept = session_files.session_token(tmp)
+    old = time.time() - session_files.TOKEN_MAX_AGE - 1
+    os.utime(tmp / session_files.TOKEN_FILE, (old, old))
+    assert session_files.session_token(tmp) not in (kept, None)
+    now, mine = time.time(), 1000
+
+    def saved(kind, mode, uid=mine):
+        return os.stat_result((kind | mode, 0, 0, 1, uid, 0, 32, now, now, now))
+
+    assert session_files.reusable(saved(stat.S_IFREG, 0o600), now, mine)
+    assert session_files.reusable(saved(stat.S_IFREG, 0o644), now, None)  # Windows: the folder's access list rules
+    assert not session_files.reusable(saved(stat.S_IFREG, 0o644), now, mine)  # readable by others
+    assert not session_files.reusable(saved(stat.S_IFREG, 0o600, uid=1001), now, mine)  # another user's
+    assert not session_files.reusable(saved(stat.S_IFLNK, 0o777), now, None)  # a planted link
+
+
+def test_a_token_file_linked_to_another_file_is_replaced_not_written_through(tmp):
+    """The new token goes to a fresh file, so a token path planted as a link to another file never overwrites it."""
+    victim = tmp / "victim"
+    victim.write_text("keep", encoding="ascii")
+    os.link(victim, tmp / session_files.TOKEN_FILE)
+    token = session_files.session_token(tmp)
+    assert victim.read_text(encoding="ascii") == "keep"
+    assert (tmp / session_files.TOKEN_FILE).read_text(encoding="ascii") == token
+
+
+def test_the_open_token_file_is_checked_not_only_its_path(tmp):
+    """A path whose lstat passes but whose open file is stale is not reused: the file read is the file checked."""
+    path = tmp / session_files.TOKEN_FILE
+    kept = session_files.session_token(tmp)
+    checked = os.lstat(path)
+    old = time.time() - session_files.TOKEN_MAX_AGE - 1
+    os.utime(path, (old, old))
+    real_lstat = os.lstat
+    os.lstat = lambda name, *args, **kwargs: checked if Path(name) == path else real_lstat(name, *args, **kwargs)
+    try:
+        assert session_files.session_token(tmp) != kept
+    finally:
+        os.lstat = real_lstat
+
+
+def test_a_server_creating_the_token_file_mid_start_does_not_fail_this_one(tmp):
+    """Another server on the session makes the token file, still empty, while this one starts."""
+    path = tmp / session_files.TOKEN_FILE
+    real_open = os.open
+
+    def racing_open(name, flags, *args):
+        if flags & os.O_CREAT and not path.exists():
+            path.write_bytes(b"")
+        return real_open(name, flags, *args)
+
+    os.open = racing_open
+    try:
+        token = session_files.session_token(tmp)
+    finally:
+        os.open = real_open
+    assert path.read_text(encoding="ascii") == token
+
+
+def test_a_token_file_held_open_does_not_fail_the_start_or_leave_a_temp_file(tmp):
+    """On Windows a rename onto a file another process holds open fails; the start goes on with an unsaved token."""
+    real_replace = os.replace
+
+    def held_replace(src, dst):
+        raise PermissionError(5, "Access is denied")
+
+    os.replace = held_replace
+    try:
+        token = session_files.session_token(tmp)
+    finally:
+        os.replace = real_replace
+    assert session_files.TOKEN_SHAPE.match(token), token
+    assert [p.name for p in tmp.iterdir()] == [], list(tmp.iterdir())
 
 
 def test_a_refused_request_with_the_token_sets_no_cookie(tmp):
@@ -210,6 +289,16 @@ def test_wtf_flags_are_usage_checked(tmp):
         assert needle in err.getvalue(), (flags, err.getvalue())
 
 
+def test_size_flag_takes_presets_and_the_reload_range(tmp):
+    """--size accepts what a reload accepts (session_options.lua): a preset name, or WxH within 320x240 to 7680x4320."""
+    assert session._parser().parse_args(["--size", "1440p", str(DEMO)]).size == (2560, 1440)
+    assert session._parser().parse_args(["--size", "320x240", str(DEMO)]).size == (320, 240)
+    for size in ("1x1", "7681x4320", "8k"):
+        with testkit_home(tmp), contextlib.redirect_stderr(io.StringIO()) as err:
+            assert session.main(["--size", size, str(DEMO)], wait=lambda running: None) == 2, size
+        assert "within 320x240 to 7680x4320" in err.getvalue(), (size, err.getvalue())
+
+
 def test_wtf_flag_imports_and_confines_reimport(tmp):
     """A synthetic WTF folder: its SessionDemo file seeds the session; a reimport path outside the folder is refused."""
     wtf = tmp / "WTF"
@@ -243,11 +332,17 @@ TESTS = [
     test_token_url_sets_the_cookie_and_the_cookie_works,
     test_non_loopback_bind_is_refused,
     test_restart_on_the_same_port_keeps_the_cookie_and_says_a_new_boot,
+    test_a_day_old_foreign_open_or_linked_token_file_is_replaced,
+    test_a_token_file_linked_to_another_file_is_replaced_not_written_through,
+    test_the_open_token_file_is_checked_not_only_its_path,
+    test_a_server_creating_the_token_file_mid_start_does_not_fail_this_one,
+    test_a_token_file_held_open_does_not_fail_the_start_or_leave_a_temp_file,
     test_a_refused_request_with_the_token_sets_no_cookie,
     test_every_reply_says_no_referrer,
     test_connections_past_the_cap_are_closed_unanswered,
     test_blizzard_flag_is_accepted_and_needs_an_extract,
     test_blizzard_flag_loads_the_layer_from_the_extract,
     test_wtf_flags_are_usage_checked,
+    test_size_flag_takes_presets_and_the_reload_range,
     test_wtf_flag_imports_and_confines_reimport,
 ]

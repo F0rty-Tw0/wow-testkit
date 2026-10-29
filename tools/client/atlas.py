@@ -11,6 +11,14 @@ from tools.client.manifest import lua_string, lua_value
 UNSAFE = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 SIDES = ("left", "right", "top", "bottom")
 _loaded = {}  # atlas.lua path -> (mtime, lupa table)
+MAX_MEMORY = 256 * 1024 * 1024  # atlas.lua is a few MB; the cap only stops a runaway chunk
+MAX_INSTRUCTIONS = 50_000_000  # atlas.lua is one table constructor; the cap only stops a chunk that loops
+LOADER = (
+    "function(text) local chunk, err = loadstring(text, '=atlas'); if not chunk then error(err, 0) end; "
+    "setfenv(chunk, {}); debug.setmetatable('', nil); "  # no ("x"):rep: C loops dodge the hook
+    f"debug.sethook(function() error('atlas.lua ran too long', 0) end, '', {MAX_INSTRUCTIONS}); "
+    "return chunk() end"
+)  # the hook stays set: every load gets a fresh runtime
 
 
 def build(sheets, members, elements):
@@ -54,18 +62,32 @@ def to_lua(entries):
     return "\n".join(lines) + "\n"
 
 
-def entry_of(extract_dir, key):
-    """The atlas.lua row for a lowercase name as a dict, or None."""
+def _load(text):
+    """The table an atlas.lua returns. The chunk runs under an empty environment, as strings.py runs GlobalStrings, so
+    it cannot reach lupa's `python` module and through it Python's objects: the extract folder is an input, and a
+    session serves crops from whatever --extract names. Bytecode is refused (loadstring would run it unchecked), and a
+    chunk that allocates more than MAX_MEMORY or runs more than MAX_INSTRUCTIONS VM instructions raises."""
     from lupa import lua51
 
+    if text[:1] == "\x1b":
+        raise ValueError("atlas.lua is precompiled bytecode, which is never run")
+    runtime = lua51.LuaRuntime(register_eval=False, register_builtins=False, max_memory=MAX_MEMORY)
+    entries = runtime.eval(LOADER)(text)
+    if lua51.lua_type(entries) != "table":
+        raise ValueError("atlas.lua does not return a table")
+
+    return entries
+
+
+def entry_of(extract_dir, key):
+    """The atlas.lua row for a lowercase name as a dict, or None."""
     path = Path(extract_dir) / "atlas.lua"
     try:
         stamp = path.stat().st_mtime_ns
     except OSError:
         return None
     if path not in _loaded or _loaded[path][0] != stamp:
-        runtime = lua51.LuaRuntime(register_eval=False, register_builtins=False)
-        _loaded[path] = (stamp, runtime.execute(path.read_text(encoding="utf-8")))
+        _loaded[path] = (stamp, _load(path.read_text(encoding="utf-8")))
     row = _loaded[path][1][key]
     return None if row is None else dict(row.items())
 
