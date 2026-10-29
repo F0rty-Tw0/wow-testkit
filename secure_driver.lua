@@ -6,7 +6,6 @@
 -- resolveDriver :95-117, unit watch :69-88), row TS16; the code is the kit's.
 -- Deviations: the manager's `updatetime` attribute is not modelled (the throttle is fixed), and a unit exists when
 -- UnitExists says so (the extract also accepts UnitIsVisible; a kit unit with no fixture does not exist).
-local MacroCond = require("macro_cond")
 local SecureAttributes = require("secure_attributes")
 local Taint = require("taint")
 
@@ -46,8 +45,11 @@ local function wanted(state)
   return next(state.attrs) ~= nil or next(state.watchers) ~= nil
 end
 
+-- source: `:96` the manager calls the global SecureCmdOptionParse at each update (no local copy), so an addon's replacement
+-- runs; the read goes through Taint.read (row TS4, assumed).
 local function resolveDriver(w, frame, attribute, values)
-  local result = MacroCond.eval(w, values)
+  Taint.read(w, _G, "SecureCmdOptionParse")
+  local result = _G.SecureCmdOptionParse(values)
   if attribute == "state-visibility" then
     if result == "show" then
       frame:Show()
