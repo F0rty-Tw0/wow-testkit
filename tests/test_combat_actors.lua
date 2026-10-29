@@ -13,6 +13,15 @@ local function test_creature_guid_follows_the_client_format() -- (C6)
   end)
 end
 
+local function test_add_keeps_a_given_guid_without_counting_it()
+  H.withCombat("retail", function(w, c)
+    local seq = c.seq
+    local guid = "Creature-0-4001-1-1000-77-00000000AB"
+    local actor = Actors.add(w, { kind = "npc", name = "Old", npcId = 77, guid = guid })
+    A.same({ actor.guid, c.actors[guid], c.seq }, { guid, actor, seq })
+  end)
+end
+
 local function test_player_and_pet_guid_formats_assumed() -- (C6)
   H.withCombat("retail", function(w, c)
     local ann = H.pair(w)
@@ -296,6 +305,7 @@ end
 
 return function()
   test_creature_guid_follows_the_client_format()
+  test_add_keeps_a_given_guid_without_counting_it()
   test_player_and_pet_guid_formats_assumed()
   test_npc_id_defaults_to_1000_plus_the_sequence()
   test_unit_apis_answer_from_the_actor()

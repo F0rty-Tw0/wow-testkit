@@ -54,6 +54,31 @@ local function test_combat_drops_after_the_delay_assumed() -- (C10)
   end)
 end
 
+local function test_drop_in_reads_the_pending_drop()
+  H.withCombat("retail", function(w)
+    local _, brute = H.pair(w)
+    A.eq(State.dropIn(w), nil)
+    State.engage(w, brute, Actors.get(w, "player"))
+    State.disengage(w, brute)
+    w:advance(3)
+    A.truthy(math.abs(State.dropIn(w) - 2) < 1e-9, tostring(State.dropIn(w)))
+  end)
+end
+
+local function test_restore_drop_resumes_combat_silently_and_drops_it_later()
+  H.withCombat("retail", function(w)
+    local log = H.watch(w, { "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" })
+    local hook
+    Combat.listen(w, "lockdown", function(on)
+      hook = on
+    end)
+    State.restoreDrop(w, 1)
+    A.same({ _G.InCombatLockdown(), #log, hook }, { true, 0, true })
+    w:advance(1)
+    A.same({ _G.InCombatLockdown(), H.names(log) }, { false, { "PLAYER_REGEN_ENABLED" } })
+  end)
+end
+
 local function test_engaging_again_inside_the_delay_cancels_the_drop()
   H.withCombat("retail", function(w)
     local _, brute = H.pair(w)
@@ -196,6 +221,8 @@ end
 return function()
   test_engage_fires_regen_once_and_sets_lockdown()
   test_combat_drops_after_the_delay_assumed()
+  test_drop_in_reads_the_pending_drop()
+  test_restore_drop_resumes_combat_silently_and_drops_it_later()
   test_engaging_again_inside_the_delay_cancels_the_drop()
   test_a_second_disengage_restarts_the_delay()
   test_a_dead_foe_ends_combat_after_the_delay()

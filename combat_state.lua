@@ -67,13 +67,31 @@ local function dropNow(w)
   end
 end
 
--- Starts the drop timer once the player has no live hostile foe left; a timer already running keeps its time.
-local function scheduleDrop(w)
+-- Starts the drop timer (after delay, else c.dropDelay) once the player has no live hostile foe left; a timer already
+-- running keeps its time.
+local function scheduleDrop(w, delay)
   local c = w.combat
   if w.mock.combat and not c.dropTimer then
-    c.dropTimer = Combat.later(w, c.dropDelay, function()
+    c.dropTimer = Combat.later(w, delay or c.dropDelay, function()
       dropNow(w)
     end)
+  end
+end
+
+-- Seconds until the pending combat drop, or nil when none is pending.
+function M.dropIn(w)
+  local timer = w.combat.dropTimer
+
+  return timer and timer.due - w.now
+end
+
+-- Puts a reloaded world back in the player's combat without PLAYER_REGEN_DISABLED (the addon saw it before the reload)
+-- and, when seconds is given, drops it after seconds. The "lockdown" hook still runs, so the secret restrictions follow.
+function M.restoreDrop(w, seconds)
+  w:setMock({ combat = true })
+  Combat.emit(w, "lockdown", true)
+  if seconds then
+    scheduleDrop(w, seconds)
   end
 end
 
