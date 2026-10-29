@@ -64,6 +64,8 @@ local OTHER = {
 
 -- Runaway guard. Captured at load so an addon that reassigns debug, coroutine or error cannot break it.
 local BUDGET_MESSAGE = "smoke: instruction budget exceeded"
+-- A layer trip names the layer, so a catalog does not blame the addon whose next function dies with it.
+local LAYER_MESSAGE = "smoke: Blizzard UI layer instruction budget exceeded"
 local ADDON_SOURCE = "@addon:"
 local C_SOURCE = "=[C]"
 local TAIL_SOURCE = "=(tail call)"
@@ -82,7 +84,7 @@ local raise, unpackList, select, pcall, type = error, unpack, select, pcall, typ
 -- Every kit module loads from the same package.path root as this file, so they share its source prefix.
 local KIT_SOURCE = getinfo(1, "S").source:match("^(@.*[/\\])smoke%.lua$") or "@"
 
-local armedBudget, tripped = 0, false
+local armedBudget, tripped, tripMessage = 0, false, BUDGET_MESSAGE
 local spent, layerSpent, layerBudget, layerAddons = 0, 0, 0, {}
 
 -- True when source is the kit's own code: a C function or a file under the kit root. Fixture addons live under
@@ -124,6 +126,7 @@ local function onBudget()
       sethook(onBudget, "", TICK)
       return
     end
+    tripMessage = spent < armedBudget and LAYER_MESSAGE or BUDGET_MESSAGE
   end
   sethook(onBudget, TRIPPED_MASK, TRIPPED_COUNT)
   if tripped then
@@ -133,10 +136,11 @@ local function onBudget()
     end
   end
   tripped = true
-  raise(BUDGET_MESSAGE, 0)
+  raise(tripMessage, 0)
 end
 
--- Hooks are per thread: every coroutine created while armed gets its own budget hook, the tripped one once tripped.
+-- Hooks are per thread: every coroutine created while armed gets its own budget hook, the tripped one once tripped. All
+-- threads charge the same counters, so the budget is per run, not per coroutine.
 local function hookedCreate(fn)
   local co = cocreate(fn)
   if tripped then
