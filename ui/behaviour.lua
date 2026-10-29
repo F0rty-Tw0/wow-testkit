@@ -53,10 +53,23 @@ local function isVisible(w, st)
   return true
 end
 
--- obj's visibility changed: script fires on it and on its shown child frames, whose visibility changed too.
+-- Sets fn(obj, script), the kit's own handler for typeName's OnShow and OnHide: it runs after each such frame's
+-- visibility scripts, out of reach of an addon's SetScript. One per type; setting it again replaces it.
+function M.afterVisibility(w, typeName, fn)
+  w.ui.afterVisibility = w.ui.afterVisibility or {}
+  w.ui.afterVisibility[typeName] = fn
+end
+
+-- obj's visibility changed: script fires on it and on its shown child frames, whose visibility changed too. After
+-- each frame's scripts, its type's afterVisibility handler runs.
 local function fireVisibility(w, obj, script)
   w:callScript(obj, script)
-  for _, child in ipairs(w.ui.state[obj].children) do
+  local st = w.ui.state[obj]
+  local after = w.ui.afterVisibility and w.ui.afterVisibility[st.plan.type]
+  if after then
+    after(obj, script)
+  end
+  for _, child in ipairs(st.children) do
     if w.ui.state[child].shown then
       fireVisibility(w, child, script)
     end

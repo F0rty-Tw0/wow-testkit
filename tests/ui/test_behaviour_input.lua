@@ -23,9 +23,9 @@ local function test_button_check_button_and_edit_box_start_mouse_enabled_assumed
   end)
 end
 
--- (I5, follows wiki API_ScriptRegion_EnableMouse) any of the four mouse scripts implies
+-- (I5, assumed: wiki API_ScriptRegion_EnableMouse) any of the four mouse scripts implies
 -- EnableMouse(true); OnClick and clearing a script enable nothing.
-local function test_mouse_scripts_enable_click_and_motion() -- (I5)
+local function test_mouse_scripts_enable_click_and_motion_assumed() -- (I5)
   withWidgets("retail", function()
     for _, script in ipairs({ "OnEnter", "OnLeave", "OnMouseDown", "OnMouseUp" }) do
       local f = _G.CreateFrame("Frame")
@@ -111,7 +111,7 @@ end
 return function()
   test_widgets_install_creates_the_input_state()
   test_button_check_button_and_edit_box_start_mouse_enabled_assumed()
-  test_mouse_scripts_enable_click_and_motion()
+  test_mouse_scripts_enable_click_and_motion_assumed()
   test_enable_mouse_sets_click_and_motion_together()
   test_click_and_motion_are_set_separately()
   test_enable_mouse_motion_sets_motion_only()

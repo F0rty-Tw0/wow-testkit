@@ -70,41 +70,72 @@ local function enterEntry(w, level, entry, index)
   end
 end
 
--- Kit scripts for one Button, set through the world so an addon's SetScript replaces them. They act on the entry the
--- Button shows when they run (w.menuBound).
-local function setBoundScripts(w, button)
+-- Kit scripts for one Button, set through the world so an addon's SetScript replaces them, and a kit SetScript drops
+-- the addon's hooks (F3). They act on the entry the Button shows when they run (w.menuBound).
+local function setBoundClick(w, button)
   w:setScript(button, "OnClick", function(_, mouseButton)
     local bound = w.menuBound[button]
     bound.level.pick(bound.index, mouseButton)
   end)
+end
+
+local function setBoundEnter(w, button)
   w:setScript(button, "OnEnter", function()
     local bound = w.menuBound[button]
     enterEntry(w, bound.level, bound.entry, bound.index)
   end)
 end
 
--- S21: a UIDropDownMenu Button (named level) gets its scripts once, when created, as UIDropDownMenuButtonTemplate sets
--- them; it is a disabled Button whose InvisibleButton takes the enter (S11). A Menu API element gets OnEnter on every
--- render (Menu.lua:1128-1130), which enables its mouse (I5); a title or divider is a Frame there, so it has no OnClick
--- (M18).
-local function setEntryScripts(w, level, entry, button, created)
-  if level.namePrefix and not created then
-    return
-  end
-  button:EnableMouse(true)
-  setBoundScripts(w, button)
-  if not level.namePrefix and FRAME_KINDS[entry.kind] then
-    w:setScript(button, "OnClick", nil)
-  end
-end
-
-local function fillButton(w, level, entry, index, button, created)
-  button.NormalText:SetText(entry.text or "")
-  if entry.enabled == false then
+local function setEnabled(button, enabled)
+  if enabled == false then
     button:Disable()
   else
     button:Enable()
   end
+end
+
+-- M19: a Menu API element's initializers, run on every render and on every ReinitializeAll (Refresh, M7): a button,
+-- checkbox or radio gets OnEnable, OnDisable and OnClick from ButtonInitializer (MenuTemplates.lua:184-186; forever
+-- :194-196, Classic :127-129), then its enabled state from ButtonFinalInitializer (:109-113, Classic :57-61). The kit
+-- models OnClick (the pick); OnEnable and OnDisable only restyle the client's button, so they are cleared, which drops
+-- an addon's handler and hooks as the client's SetScript does. A title or divider is a Frame there (M18): no such
+-- scripts.
+function M.initializeEntry(w, entry, button)
+  if not FRAME_KINDS[entry.kind] then
+    w:setScript(button, "OnEnable", nil)
+    w:setScript(button, "OnDisable", nil)
+    setBoundClick(w, button)
+  end
+  setEnabled(button, entry.enabled)
+end
+
+-- S21: a UIDropDownMenu Button (named level) gets its scripts once, when created, as UIDropDownMenuButtonTemplate sets
+-- them; it is a disabled Button whose InvisibleButton takes the enter (S11). A Menu API element runs its initializers,
+-- then InitializeFrame sets OnMouseDown, OnEnter and OnLeave (Menu.lua:1128-1130; Classic :1116-1118) on every render,
+-- which enables its mouse (I5). The kit models OnEnter; OnMouseDown (CheckForSubmenu, :2385-2391) and OnLeave are
+-- cleared (M19). A title or divider is a Frame in the client, so it has no OnClick (M18).
+local function setEntryScripts(w, level, entry, button, created)
+  if level.namePrefix then
+    setEnabled(button, entry.enabled)
+    if created then
+      button:EnableMouse(true)
+      setBoundClick(w, button)
+      setBoundEnter(w, button)
+    end
+    return
+  end
+  M.initializeEntry(w, entry, button)
+  if FRAME_KINDS[entry.kind] then
+    w:setScript(button, "OnClick", nil)
+  end
+  button:EnableMouse(true)
+  w:setScript(button, "OnMouseDown", nil)
+  setBoundEnter(w, button)
+  w:setScript(button, "OnLeave", nil)
+end
+
+local function fillButton(w, level, entry, index, button, created)
+  button.NormalText:SetText(entry.text or "")
   w.menuBound[button] = { level = level, entry = entry, index = index }
   setEntryScripts(w, level, entry, button, created)
   button:Show()

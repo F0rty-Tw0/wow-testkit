@@ -50,17 +50,13 @@ function M.readState(w, child)
   return enabled and true or false, checked
 end
 
--- M2 (Menu.lua:1645-1665, SecureReinitializeAll): re-reads enabled/checked of every entry of an open level. Never runs
--- the generator.
+-- M2 (Menu.lua:1645-1665, SecureReinitializeAll): re-reads enabled/checked of every entry of an open level and re-runs
+-- its initializers (MenuFrames.initializeEntry, M19), not InitializeFrame. Never runs the generator.
 function M.reinit(w, level)
   for index, entry in ipairs(level.entries) do
     entry.enabled, entry.checked = M.readState(w, level.node.children[index])
     if entry.frame then
-      if entry.enabled then
-        entry.frame:Enable()
-      else
-        entry.frame:Disable()
-      end
+      MenuFrames.initializeEntry(w, entry, entry.frame)
     end
   end
 end
