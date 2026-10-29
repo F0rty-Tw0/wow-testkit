@@ -1,5 +1,12 @@
 -- Demo data for s:openWindow, one entry per Blizzard window (Phase 12): kit-authored values over the extract's DB2 geometry
 -- (docs/client-sources.md B17). A scenario passes an entry as the opener's data: s:openWindow("talents", demo.talents).
+
+-- One TransmogOutfitSlotInfo (api/retail/TransmogOutfitInfo.lua): slot is an Enum.TransmogOutfitSlot value, collectionType an
+-- Enum.TransmogCollectionType value, slotName the inventory slot name the window's Lua passes to GetInventorySlotInfo.
+local function slot(slotID, collectionType, slotName)
+  return { slot = slotID, type = 0, collectionType = collectionType, slotName = slotName, isSecondary = false }
+end
+
 return {
   -- The classic family reads unspent, ranks and classFile (tabs and talents come from the extract); the trait window reads
   -- treeID and ranks. Each opener ignores the other's keys. kit is the stand-in store for a run with no extract.
@@ -86,5 +93,52 @@ return {
         { itemID = 2589, quantity = 10, unitPrice = 25, auctionID = 2, numOwnerItems = 0 },
       },
     },
+  },
+  -- Retail, forever and mists only (tbc and vanilla have no transmog window). Item ids and visual ids are rows of the
+  -- installed extract's ItemModifiedAppearance (visualID = ItemAppearanceID; a run with no extract has no
+  -- sources); item names and icons come from the extract, the collected flags are kit-authored, as the server's would be.
+  -- Category keys are Enum.TransmogCollectionType values (Shirt 5, Feet 11).
+  transmog = {
+    items = { 6096, 6097, 6120, 6125, 6122, 6127 },
+    categories = { [5] = { name = "Shirt" }, [11] = { name = "Feet" } },
+    appearances = {
+      [5] = {
+        { visualID = 1968, isCollected = true, uiOrder = 1 },
+        { visualID = 1969, isCollected = true, uiOrder = 2 },
+        { visualID = 1974, uiOrder = 3 },
+        { visualID = 1979, uiOrder = 4 },
+      },
+      [11] = { { visualID = 1976, isCollected = true, uiOrder = 1 }, { visualID = 1981, uiOrder = 2 } },
+    },
+    sourceInfo = { [2248] = { isCollected = true }, [2249] = { isCollected = true }, [2257] = { isCollected = true } },
+    -- The slot layout is kit-authored (no installed file lists which slot sits in which group): the left and right columns of
+    -- the armor slots and the weapons along the bottom, one appearance slot each.
+    slotGroups = {
+      {
+        position = 0, -- Enum.TransmogOutfitSlotPosition.Left
+        appearanceSlotInfo = {
+          slot(0, 1, "HEADSLOT"),
+          slot(1, 2, "SHOULDERSLOT"),
+          slot(3, 3, "BACKSLOT"),
+          slot(4, 4, "CHESTSLOT"),
+          slot(6, 5, "SHIRTSLOT"),
+          slot(5, 6, "TABARDSLOT"),
+          slot(7, 7, "WRISTSLOT"),
+        },
+        illusionSlotInfo = {},
+      },
+      {
+        position = 1, -- Right
+        appearanceSlotInfo = { slot(8, 8, "HANDSSLOT"), slot(9, 9, "WAISTSLOT"), slot(10, 10, "LEGSSLOT"), slot(11, 11, "FEETSLOT") },
+        illusionSlotInfo = {},
+      },
+      {
+        position = 2, -- Bottom
+        appearanceSlotInfo = { slot(12, 0, "MAINHANDSLOT"), slot(13, 0, "SECONDARYHANDSLOT") },
+        illusionSlotInfo = {},
+      },
+    },
+    outfits = { { outfitID = 1, name = "Kit Outfit" } },
+    activeOutfitID = 1,
   },
 }
