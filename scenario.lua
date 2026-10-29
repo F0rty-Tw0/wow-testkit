@@ -56,6 +56,9 @@ local function installWorld(w, opts)
   FrameXML.installStage1(w)
   if opts.sim then
     Sim.install(w, opts.sim)
+    if not Sim.options(opts.sim).twoPhase then
+      Sim.restore(w, nil)
+    end
   end
 end
 

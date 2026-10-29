@@ -5,6 +5,7 @@ local M = {}
 
 local Actors = require("combat_actors")
 local Combat = require("combat")
+local SimKeys = require("sim_keys")
 local SimMove = require("sim_move")
 local SimUpdate = require("sim_update")
 
@@ -123,6 +124,12 @@ function M.install(w, sim)
   end
   w:setMock({ zone = { mapID = M.MAP_ID, position = { x = MAP_POSITION.x, y = MAP_POSITION.y } } })
   return w.sim
+end
+
+-- Phase 2: what a login or a hot reload puts back on a world that phase 1 built: the fallback key commands and default
+-- keys. simState (the saved sim of a hot reload) is Task 1.6's; nil is a fresh world.
+function M.restore(w, _simState)
+  SimKeys.install(w)
 end
 
 -- Runs seconds of the sim clock: whole 1/60 s frames (the remainder carries to the next step), each running the frame
