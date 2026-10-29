@@ -60,6 +60,34 @@ local function test_frame_level_is_one_above_parent()
   end)
 end
 
+-- W77 (confirmed): a level change moves the descendants that hold their own level by the same amount.
+local function test_setting_a_level_moves_the_explicit_descendants()
+  withWidgets("retail", function()
+    local parent = _G.CreateFrame("Frame")
+    local child = _G.CreateFrame("Frame", nil, parent)
+    local grandchild = _G.CreateFrame("Frame", nil, child)
+    local loose = _G.CreateFrame("Frame", nil, child)
+    child:SetFrameLevel(1)
+    grandchild:SetFrameLevel(100)
+    parent:SetFrameLevel(10)
+    A.same({ child:GetFrameLevel(), grandchild:GetFrameLevel(), loose:GetFrameLevel() }, { 11, 110, 12 })
+    parent:SetFrameLevel(5)
+    A.same({ child:GetFrameLevel(), grandchild:GetFrameLevel(), loose:GetFrameLevel() }, { 6, 105, 7 })
+  end)
+end
+
+-- W77 (confirmed): a descendant that would end below 0 is set to 10000.
+local function test_a_descendant_pushed_below_zero_wraps_to_10000()
+  withWidgets("retail", function()
+    local parent = _G.CreateFrame("Frame")
+    local child = _G.CreateFrame("Frame", nil, parent)
+    parent:SetFrameLevel(10)
+    child:SetFrameLevel(5) -- below its parent, so moving the parent down 10 would take it to -5
+    parent:SetFrameLevel(0)
+    A.eq(child:GetFrameLevel(), 10000)
+  end)
+end
+
 local function test_frame_strata_follows_parent_else_medium()
   withWidgets("retail", function()
     local parent = _G.CreateFrame("Frame")
@@ -87,6 +115,8 @@ return function()
   test_fresh_frame_scale_is_one()
   test_effective_scale_multiplies_parent_scales()
   test_frame_level_is_one_above_parent()
+  test_setting_a_level_moves_the_explicit_descendants()
+  test_a_descendant_pushed_below_zero_wraps_to_10000()
   test_frame_strata_follows_parent_else_medium()
   test_unset_flags_are_false()
 end
