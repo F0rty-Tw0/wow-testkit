@@ -9,7 +9,7 @@
 Prints `session: http://127.0.0.1:<port>/?token=<token>` (the token every request but the viewer's files needs, kept
 in the session folder for a day so a restart on the same addon accepts the viewer's cookie) and serves until Ctrl-C (exit 0).
 Exit 2 on a usage error or a --bind that is not 127.0.0.1: the session answers only the local machine. A save of a
-.lua, .xml or .toc file under the addon folder reloads the addon (--no-watch turns that off; a failed reload prints on
+.lua, .xml or .toc file, or of an image or font, under the addon folder reloads the addon (--no-watch turns that off; a failed reload prints on
 stderr); SavedVariables are written at a reload and at shutdown. --wtf reads a client's WTF folder (never writes it):
 its CVars, key bindings and Edit Mode layouts go in before each login, and its SavedVariables seed a session that has
 none yet.

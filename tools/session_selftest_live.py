@@ -160,6 +160,17 @@ def test_a_failed_watched_reload_is_reported(tmp):
         assert wait_for(lambda: "reload failed: no world" in err.getvalue()), err.getvalue()
 
 
+def test_a_new_image_reloads_and_is_served(tmp):
+    root = temp_addon(tmp)
+    (root / "pic.png").unlink()
+    with running(tmp, root, watch=True) as live:
+        assert "url" not in get_json(live, "/snapshot")["assets"]["path:interface/addons/t/pic"]
+        time.sleep(0.6)  # one poll interval: the watcher's first scan must run before the file appears
+        Image.new("RGBA", (2, 2), (0, 255, 0, 255)).save(root / "pic.png")
+        assert wait_for_loads(live, 2), "no reload after a new image"
+        assert "url" in get_json(live, "/snapshot")["assets"]["path:interface/addons/t/pic"]
+
+
 def test_unwatched_file_changes_do_not_reload(tmp):
     root = demo_copy(tmp)
     with running(tmp, root, watch=True) as live:
@@ -200,6 +211,7 @@ TESTS = [
     test_slash_reload_serves_changed_assets,
     test_file_save_reloads_and_keeps_saved_variables,
     test_a_failed_watched_reload_is_reported,
+    test_a_new_image_reloads_and_is_served,
     test_unwatched_file_changes_do_not_reload,
     test_several_quick_saves_reload_once,
     test_shutdown_writes_the_file,
