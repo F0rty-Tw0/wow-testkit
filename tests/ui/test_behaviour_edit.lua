@@ -133,6 +133,13 @@ local function test_a_sign_and_a_decimal_part_belong_to_the_number_assumed() -- 
     A.eq(box:GetNumber(), 0.5)
     box:SetText("5.")
     A.eq(box:GetNumber(), 5)
+    -- SetNumber(1e20) writes "1e+20": the exponent is part of the number it reads back
+    box:SetNumber(1e20)
+    A.eq(box:GetNumber(), 1e20)
+    box:SetText("2.5E-3x")
+    A.eq(box:GetNumber(), 0.0025)
+    box:SetText("3e")
+    A.eq(box:GetNumber(), 3)
     for _, text in ipairs({ "-", ".", "-.", "" }) do
       box:SetText(text)
       A.eq(box:GetNumber(), 0)
