@@ -1,5 +1,6 @@
--- Scenario game state: s:mock(patch) merges patch into the world's w.mock (locale, realm, CVars, keys, buttons...) and fires
--- no event; a scenario fires the matching event itself, or uses s:actions for action bar slots.
+-- Scenario game state: s:mock(patch) merges patch into the world's w.mock (locale, realm, CVars, keys, buttons...) by
+-- State.merge's rules (a list merges index by index) and fires no event; a scenario fires the matching event itself,
+-- or uses s:actions for action bar slots.
 local M = {}
 
 function M.extend(Scenario)
