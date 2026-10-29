@@ -91,8 +91,13 @@ def session_token(session_dir):
     path.parent.mkdir(parents=True, exist_ok=True)
     fresh = path.with_name(f"{TOKEN_FILE}.{secrets.token_hex(8)}")
     fd = os.open(fresh, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "w", encoding="ascii") as out:
-        out.write(token)
-    os.replace(fresh, path)
+    try:
+        with os.fdopen(fd, "w", encoding="ascii") as out:
+            out.write(token)
+        os.replace(fresh, path)
+    except OSError:  # Windows: another server or a reader holds the token file; serve unsaved rather than fail
+        return _saved_token(path) or token
+    finally:
+        fresh.unlink(missing_ok=True)
 
     return token

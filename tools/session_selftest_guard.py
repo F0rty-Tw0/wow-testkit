@@ -170,6 +170,22 @@ def test_a_server_creating_the_token_file_mid_start_does_not_fail_this_one(tmp):
     assert path.read_text(encoding="ascii") == token
 
 
+def test_a_token_file_held_open_does_not_fail_the_start_or_leave_a_temp_file(tmp):
+    """On Windows a rename onto a file another process holds open fails; the start goes on with an unsaved token."""
+    real_replace = os.replace
+
+    def held_replace(src, dst):
+        raise PermissionError(5, "Access is denied")
+
+    os.replace = held_replace
+    try:
+        token = session_files.session_token(tmp)
+    finally:
+        os.replace = real_replace
+    assert session_files.TOKEN_SHAPE.match(token), token
+    assert [p.name for p in tmp.iterdir()] == [], list(tmp.iterdir())
+
+
 def test_a_refused_request_with_the_token_sets_no_cookie(tmp):
     with running(tmp) as live:
         for headers in ({"Origin": "http://evil.example"}, {"Host": "evil.example"}):
@@ -320,6 +336,7 @@ TESTS = [
     test_a_token_file_linked_to_another_file_is_replaced_not_written_through,
     test_the_open_token_file_is_checked_not_only_its_path,
     test_a_server_creating_the_token_file_mid_start_does_not_fail_this_one,
+    test_a_token_file_held_open_does_not_fail_the_start_or_leave_a_temp_file,
     test_a_refused_request_with_the_token_sets_no_cookie,
     test_every_reply_says_no_referrer,
     test_connections_past_the_cap_are_closed_unanswered,
