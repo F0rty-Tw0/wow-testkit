@@ -45,21 +45,23 @@ local function cycleReason(stack, name)
 end
 
 -- opts: { name, root, addonsDir? = the parent of root, flavor, provided? = fn(name) true for a dependency satisfied
--- without a folder }. Returns entries = { { name, root, requires }, ... } with each addon's required dependencies first,
--- then its optional ones (each depth first), and the addon last; requires lists the entry's required dependencies that
--- are entries too. Or returns nil and why the addon cannot load: "missing dependency: <name>" or
--- "dependency cycle: A -> B -> A". A dependency listed twice loads once.
+-- without loading: it is neither walked nor listed, folder or not }. Returns entries = { { name, root, requires }, ... }
+-- with each addon's required dependencies first, then its optional ones (each depth first), and the addon last;
+-- requires lists the entry's required dependencies that are entries too. Or returns nil and why the addon cannot load:
+-- "missing dependency: <name>" or "dependency cycle: A -> B -> A". A dependency listed twice loads once.
 function M.order(opts)
   local addonsDir = opts.addonsDir or M.addonsDirOf(opts.root)
   local entries, done, visiting, stack = {}, {}, {}, {}
   local visit
-  -- source: assumed (row G16) a Blizzard_ dependency is satisfied without loading and is not listed; an absent
-  -- optional dependency is ignored; a required one that is absent blocks its dependent unless opts.provided answers
-  -- for it. An optional dependency that cannot load is passed over, so only required edges carry a failure up.
+  -- source: assumed (row G16) a Blizzard_ dependency, or one opts.provided answers for (already loaded, so its own
+  -- dependencies were met then), is satisfied without loading and is not listed; an absent optional dependency is
+  -- ignored; a required one that is absent blocks its dependent. An optional dependency that cannot load is passed
+  -- over, so only required edges carry a failure up.
   local function visitAll(names, required, requires)
     for _, dep in ipairs(names) do
       local root = addonsDir .. "/" .. dep
-      if dep:sub(1, #BLIZZARD_PREFIX) ~= BLIZZARD_PREFIX then
+      local satisfied = dep:sub(1, #BLIZZARD_PREFIX) == BLIZZARD_PREFIX or (opts.provided and opts.provided(dep))
+      if not satisfied then
         if Toc.exists(root, dep) then
           local reason = visit(dep, root)
           if reason and required then
@@ -68,7 +70,7 @@ function M.order(opts)
           if required then
             requires[#requires + 1] = dep
           end
-        elseif required and not (opts.provided and opts.provided(dep)) then
+        elseif required then
           return "missing dependency: " .. dep
         end
       end
@@ -125,10 +127,10 @@ end
 
 -- Loads M.order(opts) (flavor = w's) under the caller's context through Addon.load and calls afterEach(entry) after
 -- each addon that loads; entry = { name, ns, info }. A dependency w.mock.addons already holds as loaded is not loaded
--- again, and satisfies a required dependency that has no folder. The last entry is the addon itself. An entry whose
--- required dependency came back skipped is skipped too; a skipped dependency is passed over, so the addon loads unless
--- the skip reaches it through required dependencies. When the addon cannot load (the order failed, a required
--- dependency was skipped, or its own TOC skips it) its info is skipped with a reason: "missing dependency: X",
+-- again nor walked, folder or not. The last entry is the addon itself. An entry whose required dependency came back
+-- skipped is skipped too; a skipped dependency is passed over, so the addon loads unless the skip reaches it through
+-- required dependencies. When the addon cannot load (the order failed, a required dependency was skipped, or its own
+-- TOC skips it) its info is skipped with a reason: "missing dependency: X",
 -- "dependency cycle: A -> B -> A" or "dependency X not loadable: <its reason>", and afterEach is not called for it.
 function M.loadAll(w, opts, afterEach)
   local order, reason = M.order({

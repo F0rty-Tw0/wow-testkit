@@ -4,6 +4,7 @@
 local M = {}
 
 local State = require("game.state")
+local Units = require("units")
 local WorldApi = require("world_api")
 local define = State.define
 
@@ -33,9 +34,10 @@ local function installTexts(w)
 end
 
 local function installMap(w)
-  -- source: confirmed (row G14) a uiMapID or nothing; assumed that only "player" has a map in the mock.
+  -- source: confirmed (row G14) a uiMapID or nothing; assumed that only "player" (or the player's name, row G24) has a
+  -- map in the mock.
   define(w, "C_Map.GetBestMapForUnit", function(unit)
-    if type(unit) == "string" and unit:lower() == "player" and type(w.mock.zone.mapID) == "number" then
+    if type(w.mock.zone.mapID) == "number" and type(unit) == "string" and Units.standsFor(w, unit, "player") then
       return w.mock.zone.mapID
     end
   end)

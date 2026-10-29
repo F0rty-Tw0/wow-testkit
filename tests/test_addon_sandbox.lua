@@ -139,6 +139,17 @@ local function test_later_addons_still_load_after_an_addon_sets_io()
   end)
 end
 
+-- An addon's write to a host-only name stays in its view: it reads back what it wrote, while the kit's _G keeps the host
+-- value, so kit code reading the global io is never left without it until w:destroy.
+local function test_an_addon_write_to_io_leaves_the_host_io()
+  local hostIo = io
+  local source = "local _, ns = ...\nio = nil\nns.cleared = type(io)\nio = 5\nns.set = io\n"
+  withWorld("retail", function(w)
+    local ns = Addon.load(w, { name = "IoClear", root = tempAddon("IoClear", source) })
+    A.same({ errorMessages(w), ns.cleared, ns.set, rawget(_G, "io") == hostIo }, { "", "nil", 5, true })
+  end)
+end
+
 local function test_a_golden_update_still_writes_after_an_addon_sets_io()
   local setRoot, goldenRoot = tempAddon("IoGolden", "io = 1\n"), Tmp.dir("addon")
   withWorld("retail", function(w)
@@ -271,6 +282,7 @@ return function()
   test_addon_errors_are_still_recorded_after_an_addon_sets_debug()
   test_a_failing_error_handler_still_records_after_an_addon_sets_debug()
   test_later_addons_still_load_after_an_addon_sets_io()
+  test_an_addon_write_to_io_leaves_the_host_io()
   test_a_golden_update_still_writes_after_an_addon_sets_io()
   test_debugprofilestop_still_works_after_an_addon_clears_os()
 end

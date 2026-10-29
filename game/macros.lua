@@ -1,6 +1,7 @@
 -- Macros kept in w.mock.macros = { account = {}, character = {} } (lists of { name, icon, body }) and the icon list in
 -- w.mock.macroIcons. Account macros index from 1, character macros from MAX_ACCOUNT + 1. A macro the mock does not hold
--- returns the API's default and counts as unscripted. RunMacro and RunMacroText hand each slash line to w:slash.
+-- returns the API's default and counts as unscripted. RunMacro and RunMacroText hand each slash line to w:slash, and
+-- count as unscripted in a world without it.
 local M = {}
 
 local State = require("game.state")
@@ -98,24 +99,32 @@ local function installEdits(w)
   end)
 end
 
--- source: assumed (row G17) the text runs each line starting with a slash in turn and ignores the rest.
-local function runText(w, text)
+-- source: assumed (row G17) the text runs each line starting with a slash in turn and ignores the rest. A world without
+-- w:slash (no framexml/fakes/slash.lua) cannot run a slash line, so the call counts as unscripted under name.
+local function runText(w, text, name)
+  local skipped = false
   for line in tostring(text):gmatch("[^\r\n]+") do
-    if line:sub(1, 1) == "/" and w.slash then
+    local command = line:sub(1, 1) == "/"
+    if command and w.slash then
       w:slash(line)
+    elseif command then
+      skipped = true
     end
+  end
+  if skipped then
+    WorldApi.markUnscripted(w, name)
   end
 end
 
 local function installRun(w)
   -- source: confirmed (row G1) bare RunMacroText exists on no flavor; the C_Macro name is where the data has it.
   define(w, "C_Macro.RunMacroText", function(text)
-    runText(w, text)
+    runText(w, text, "C_Macro.RunMacroText")
   end)
   define(w, "RunMacro", function(ident)
     local list, pos = find(w, ident)
     if list then
-      runText(w, list[pos].body)
+      runText(w, list[pos].body, "RunMacro")
     else
       WorldApi.markUnscripted(w, "RunMacro")
     end

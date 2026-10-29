@@ -17,11 +17,18 @@ local function requireSentinel(flavor)
 end
 
 -- Host-only names WoW's client does not have (python and __tk_fs: the lupa hosts' bridges to Python), hidden so addon
--- code reads _G as the client's. Fidelity, not a security boundary: addon code is trusted. An assigned one stays visible.
+-- code reads _G as the client's. Fidelity, not a security boundary: addon code is trusted. An assigned one stays visible
+-- in the view only, so kit code reading _G keeps the host's io, require, ...
 local HOST_ONLY = { "require", "io", "package", "loadfile", "dofile", "debug", "module", "load", "python", "__tk_fs" }
 local HOST_VALUES = {}
+-- The names an addon write keeps in the view (Names.write) instead of _G: the base library and the host-only names.
+local IN_VIEW = {}
+for name in pairs(Names.KEPT) do
+  IN_VIEW[name] = true
+end
 for _, name in ipairs(HOST_ONLY) do
   HOST_VALUES[name] = rawget(_G, name)
+  IN_VIEW[name] = true
 end
 local OS_KEPT = { "time", "date", "clock", "difftime" }
 
@@ -127,7 +134,7 @@ local function addRawAccess(overrides, view, w)
     return hostRawget(t, key)
   end
   overrides.rawset = function(t, key, value)
-    if t == view and Names.KEPT[key] then
+    if t == view and IN_VIEW[key] then
       Names.write(w, overrides, HOST_VALUES, key, value)
       return t
     end
@@ -220,7 +227,8 @@ local function callHandler(handler, ...)
 end
 
 -- The addon's _G: reads see _G through the overrides; writes land in _G (raw, so w:destroy's snapshot removes
--- them), except writes to Names.KEPT, which stay in the overrides, so kit code reading _G keeps the base library.
+-- them), except writes to IN_VIEW names, which stay in the overrides, so kit code reading _G keeps the base library
+-- and the host-only names.
 -- Like on any table, the addon metatable's __index runs only for absent globals and its __newindex only for new ones.
 local function newView(w)
   local view = {}
@@ -240,7 +248,7 @@ local function newView(w)
     end,
     __newindex = function(_, key, value)
       local handler = answer(overrides, key, true) == nil and globalsHandler(w, "__newindex")
-      if not handler and Names.KEPT[key] then
+      if not handler and IN_VIEW[key] then
         Names.write(w, overrides, HOST_VALUES, key, value)
       elseif not handler then
         (w.taint and w.taint.write or hostRawset)(_G, key, value)

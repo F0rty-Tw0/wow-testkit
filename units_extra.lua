@@ -113,7 +113,7 @@ local function installNames(w, deps)
 end
 
 local function installFlags(w, deps)
-  local fixture, fieldAnswer, normalize = deps.fixture, deps.fieldAnswer, deps.normalize
+  local fixture, fieldAnswer, standsFor = deps.fixture, deps.fieldAnswer, deps.standsFor
   define(w, "UnitIsDeadOrGhost", function(unit)
     local data = fixture(w.unitState, unit)
     if not data then
@@ -121,11 +121,12 @@ local function installFlags(w, deps)
     end
     return data.isDead == true or data.isGhost == true
   end)
-  -- source: assumed (row G11) the flag is read for ("player", other) only; any other first unit is unscripted.
+  -- source: assumed (row G11) the flag is read for ("player", other) only, the player's name standing for "player"
+  -- (row G24); any other first unit is unscripted.
   for name, field in pairs({ UnitIsEnemy = "isEnemy", UnitCanAttack = "canAttack" }) do
     local read = fieldAnswer(w, name, { field })
     define(w, name, function(unit, target)
-      if normalize(unit) == PLAYER then
+      if standsFor(w, unit, PLAYER) then
         return read(target)
       end
       return unknownUnit(w, name)
@@ -221,7 +222,7 @@ end
 M.nthAura = nthAura
 
 -- deps: { fixture = Units' fixture(state, token), fieldAnswer = Units' fieldAnswer(w, name, fields), normalize, guidOf =
--- Units' guidOf(state, token) }.
+-- Units' guidOf(state, token), standsFor = Units' standsFor(w, unit, token) }.
 function M.install(w, deps)
   installNames(w, deps)
   installFlags(w, deps)

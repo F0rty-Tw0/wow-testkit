@@ -57,9 +57,10 @@ local function installGroup(w)
   define(w, "GetNumSubgroupMembers", function()
     return subgroupSize(w.mock)
   end)
-  -- source: confirmed (row G8) the signature and the meaning; assumed that a solo player leads nothing.
+  -- source: confirmed (row G8) the signature and the meaning; assumed that a solo player leads nothing. The leader's
+  -- name stands for the leader's token (row G24).
   define(w, "UnitIsGroupLeader", function(unit)
-    return w.mock.group ~= "none" and type(unit) == "string" and unit:lower() == w.mock.leader
+    return w.mock.group ~= "none" and type(unit) == "string" and Units.standsFor(w, unit, w.mock.leader)
   end)
 end
 
@@ -69,10 +70,14 @@ local function installCombat(w)
   define(w, "InCombatLockdown", function()
     return w.mock.combat
   end)
+  -- The player's name stands for "player" (row G24).
   define(w, "UnitAffectingCombat", function(unit)
     local token = type(unit) == "string" and unit:lower()
-    local data = w.unitState and Units.fixture(w.unitState, token)
-    if token == "player" then
+    local data, resolved
+    if w.unitState then
+      data, resolved = Units.fixture(w.unitState, token)
+    end
+    if token == "player" or resolved == "player" then
       return w.mock.combat or (data ~= nil and data.affectingCombat == true)
     elseif data then
       return data.affectingCombat == true

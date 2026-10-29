@@ -137,6 +137,18 @@ local function fixture(state, token)
   return data, token
 end
 
+-- Whether unit is token (lowercase) in any case, or resolves to token's fixture through fixture: only "mouseover" and the
+-- name of that fixture can, so any other unit skips byName's walk over the group.
+local function standsFor(w, unit, token)
+  local key = normalize(unit)
+  local data = key ~= token and w.unitState and w.unitState.byToken[token]
+  if data and (key == MOUSEOVER or (type(data.name) == "string" and data.name:lower() == key)) then
+    local _, resolved = fixture(w.unitState, key)
+    return resolved == token
+  end
+  return key == token
+end
+
 local function guidOf(state, token)
   local data, resolved = fixture(state, token)
   return data and (data.guid or state.guids[resolved])
@@ -267,6 +279,7 @@ local function mouseover(self, token)
 end
 
 M.fixture = fixture
+M.standsFor = standsFor
 M.fieldAnswer = fieldAnswer
 M.tokenRank = tokenRank
 
@@ -280,7 +293,7 @@ function M.install(w)
   for name, answer in pairs(specialAnswers(w)) do
     w:install(name, answer, API_GATE)
   end
-  UnitsExtra.install(w, { fixture = fixture, fieldAnswer = fieldAnswer, normalize = normalize, guidOf = guidOf })
+  UnitsExtra.install(w, { fixture = fixture, fieldAnswer = fieldAnswer, normalize = normalize, guidOf = guidOf, standsFor = standsFor })
 end
 
 return M

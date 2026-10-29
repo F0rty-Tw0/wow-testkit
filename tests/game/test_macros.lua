@@ -82,6 +82,20 @@ local function test_run_macro_text_sends_slash_lines_to_handlers() -- (G17)
   end)
 end
 
+-- A world without the slash fake (framexml/fakes/slash.lua) cannot run a slash line, so the call counts as unscripted
+-- instead of doing nothing unnoticed; a text without slash lines needs no slash fake.
+local function test_run_macro_text_without_the_slash_fake_counts_unscripted()
+  G.withGame("retail", function(w)
+    A.eq(w.slash, nil)
+    _G.C_Macro.RunMacroText("plain text")
+    A.eq(w.unscripted["C_Macro.RunMacroText"], nil)
+    _G.C_Macro.RunMacroText("/t one\n/t two")
+    _G.CreateMacro("Run", 1, "/t three", false)
+    _G.RunMacro(1)
+    A.same({ w.unscripted["C_Macro.RunMacroText"], w.unscripted.RunMacro }, { 1, 1 })
+  end)
+end
+
 local function test_bare_run_macro_text_exists_on_no_flavor() -- (G1)
   for _, flavor in ipairs(Flavors.list) do
     G.withGame(flavor, function()
@@ -110,6 +124,7 @@ return function()
   test_a_full_list_refuses_the_macro_and_counts_unscripted()
   test_character_macro_limit_is_18_off_retail_assumed()
   test_run_macro_text_sends_slash_lines_to_handlers()
+  test_run_macro_text_without_the_slash_fake_counts_unscripted()
   test_bare_run_macro_text_exists_on_no_flavor()
   test_macro_icon_lists_assumed()
 end
