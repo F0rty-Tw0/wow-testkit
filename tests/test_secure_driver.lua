@@ -248,6 +248,16 @@ local function test_a_unit_watch_reading_an_addon_replaced_unit_exists_runs_it_t
   end)
 end
 
+-- The manager calls the global SecureCmdOptionParse at each update, so an addon's replacement runs, tainted (TS4).
+local function test_a_driver_calls_an_addon_replaced_secure_cmd_option_parse_tainted_assumed() -- TS4, TS16
+  H.withTaint("retail", function(w)
+    local f = stateFrame("TKDrvParse")
+    H.run(w, "Foo", "SecureCmdOptionParse = function(text) TK_Parse = issecure(); return 'mine' end")
+    _G.RegisterStateDriver(f, "x", "[combat] a; b")
+    A.same({ f:GetAttribute("state-x"), _G.TK_Parse }, { "mine", false })
+  end)
+end
+
 local function test_an_update_error_is_reported_and_the_driver_keeps_running() -- TS16
   H.withTaint("retail", function(w)
     local f = stateFrame("TKDrvErr")
@@ -279,5 +289,6 @@ return function()
   test_ticker_runs_only_while_a_driver_exists()
   test_a_driver_reading_an_addon_replaced_unit_global_runs_it_tainted_assumed()
   test_a_unit_watch_reading_an_addon_replaced_unit_exists_runs_it_tainted_assumed()
+  test_a_driver_calls_an_addon_replaced_secure_cmd_option_parse_tainted_assumed()
   test_an_update_error_is_reported_and_the_driver_keeps_running()
 end

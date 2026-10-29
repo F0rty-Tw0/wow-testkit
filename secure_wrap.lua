@@ -5,6 +5,7 @@
 -- kit's.
 local Scripts = require("secure_scripts")
 local SecureEnv = require("secure_env")
+local Taint = require("taint")
 
 local M = {}
 
@@ -129,7 +130,9 @@ local function wrappedDrag(w, frame, info, button, ...)
   end
 end
 
--- source: `:380-392` (Wrapped_Attribute): names starting with _ are not wrapped.
+-- source: `:380-392` (Wrapped_Attribute): names starting with _ are not wrapped. Runs as secure execution whoever set the
+-- attribute: the attribute-set route secure_scripts.lua's State and Attribute templates take (assumed, row TS15); the
+-- handler it wrapped still runs with its own taint (callOriginal).
 local function wrappedAttribute(w, frame, info, name, value, ...)
   local allow, message
   if not tostring(name):match("^_") and eligible(w, frame) then
@@ -157,7 +160,12 @@ M.wrappers = {
   OnDragStart = wrappedDrag,
   OnReceiveDrag = wrappedDrag,
   OnMouseWheel = simpleWrap("self,offset", "self,message,offset"),
-  OnAttributeChanged = wrappedAttribute,
+  OnAttributeChanged = function(w, ...)
+    if not Taint.current(w) then
+      return wrappedAttribute(w, ...)
+    end
+    return Taint.secure(w, wrappedAttribute, w, ...)
+  end,
 }
 
 return M

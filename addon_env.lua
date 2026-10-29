@@ -30,6 +30,7 @@ local hostRawget, hostRawset, hostNext, hostPairs = rawget, rawset, next, pairs
 local hostGetmetatable, hostSetmetatable, hostRawMetatable = getmetatable, setmetatable, debug.getmetatable
 local hostType, hostSelect, hostError, hostPcall = type, select, error, pcall
 local hostSub, hostGetinfo = string.sub, debug.getinfo
+local FALSE = Names.FALSE
 
 local function keptOs()
   local out = {}
@@ -89,7 +90,7 @@ local function answer(overrides, key, raw)
   if hidden(overrides, key) then
     return nil
   elseif value then
-    return value
+    return value ~= FALSE and value
   elseif raw then
     return hostRawget(_G, key)
   end

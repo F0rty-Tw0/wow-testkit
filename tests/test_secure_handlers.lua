@@ -39,28 +39,33 @@ local function test_click_snippet_shows_a_protected_frame_in_combat() -- TS15
   end)
 end
 
-local function test_handler_api_is_refused_in_combat_for_every_caller() -- TS15
+local function errorMessages(w, from)
+  local out = {}
+  for i = from + 1, #w.errors do
+    out[#out + 1] = tostring(w.errors[i].message)
+  end
+  return out
+end
+
+-- The combat refusal is raised in the API frame's OnAttributeChanged, so it goes to the error handler and the call returns;
+-- UnwrapScript then finds no results and raises to its caller (securehandlers.lua:665-674).
+local function test_handler_api_combat_refusal_goes_to_the_error_handler_assumed() -- TS15, TS20
   H.withTaint("retail", function(w)
     local h = handler("TKHApi", "SecureHandlerBaseTemplate")
     local other = hiddenTarget("TKHApiOther")
+    local onShow = other:GetScript("OnShow")
     H.setCombat(w, true)
     w:run("blizzard", function()
-      A.errors(function()
-        h:Execute("x = 1")
-      end, COMBAT_ERROR)
-      A.errors(function()
-        h:SetFrameRef("p", other)
-      end, COMBAT_ERROR)
-      A.errors(function()
-        h:WrapScript(other, "OnShow", "x = 1")
-      end, COMBAT_ERROR)
+      h:Execute("x = 1")
+      h:SetFrameRef("p", other)
+      h:WrapScript(other, "OnShow", "x = 1")
+      _G.SecureHandlerExecute(h, "x = 1")
       A.errors(function()
         h:UnwrapScript(other, "OnShow")
-      end, COMBAT_ERROR)
-      A.errors(function()
-        _G.SecureHandlerExecute(h, "x = 1")
-      end, COMBAT_ERROR)
+      end, "Unable to retrieve unwrap results")
     end)
+    A.same(errorMessages(w, 0), { COMBAT_ERROR, COMBAT_ERROR, COMBAT_ERROR, COMBAT_ERROR, COMBAT_ERROR })
+    A.same({ h:GetAttribute("frameref-p"), other:GetScript("OnShow") == onShow }, { nil, true })
   end)
 end
 
@@ -163,6 +168,25 @@ local function test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
   end)
 end
 
+-- The wrapper WrapScript puts on OnAttributeChanged takes the same attribute-set route: its pre and post bodies run secure
+-- for a tainted SetAttribute, and the handler it wrapped keeps its own (the addon's) taint.
+local function test_a_tainted_attribute_set_runs_the_wrapped_onattributechanged_bodies_assumed() -- TS15, TS20
+  H.withTaint("retail", function(w, Taint)
+    local hdr = _G.CreateFrame("Frame", "TKWrapAttrHdr", _G.UIParent, "SecureHandlerBaseTemplate")
+    local f = _G.CreateFrame("Frame", "TKWrapAttr", _G.UIParent)
+    H.probe(w, Taint)
+    H.run(w, "Foo", "TKWrapAttr:SetScript('OnAttributeChanged', function(_, name) if name == 'x' then TK_Orig = TK_Seen() end end)")
+    hdr:WrapScript(
+      f,
+      "OnAttributeChanged",
+      "if name == 'x' then self:SetAttribute('pre', value); return nil, 'm' end",
+      "self:SetAttribute('post', message)"
+    )
+    H.run(w, "Foo", "TKWrapAttr:SetAttribute('x', 5)")
+    A.same({ f:GetAttribute("pre"), f:GetAttribute("post"), _G.TK_Orig, #w.errors }, { 5, "m", "Foo", 0 })
+  end)
+end
+
 -- The client's behaviour, not a regression: only the attribute-set route runs a snippet secure for tainted callers.
 local function test_a_tainted_show_errors_in_the_onshow_snippet_as_the_client_does() -- TS15
   H.withTaint("retail", function(w)
@@ -190,7 +214,7 @@ local function test_restricted_environment_hides_globals() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHEnv", "SecureHandlerBaseTemplate")
     local r = SecureEnv.run(w, h, "return _G, CreateFrame, io, require, strlen('abc'), type(newtable()), floor(2.5), rawtype(self)")
-    A.same({ r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9] }, { true, nil, nil, nil, nil, 3, "table", 2, "table" })
+    A.same({ r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9] }, { true, nil, nil, nil, nil, 3, "table", 2, "userdata" })
     r = SecureEnv.run(w, h, "return self:GetName(), control:GetName(), select('#', pairs(newtable()))")
     A.same({ r[1], r[2], r[3], r[4] }, { true, "TKHEnv", "TKHEnv", 3 })
   end)
@@ -240,6 +264,24 @@ local function test_a_handle_ignores_an_addon_edit_of_the_class_method_table() -
     H.run(w, "Foo", "getmetatable(TKHMeta).__index.Show = function() TK_Called = true end")
     H.run(w, "Foo", "SecureHandlerExecute(TKHMeta, 'self:Show()')")
     A.same({ _G.TK_Called, h:IsShown(), #w.errors }, { nil, true, 0 })
+  end)
+end
+
+-- The kit's own methods added to a class after it was built (the Classic GameTooltip Hide that forgets the unit) are the
+-- class methods a handle calls. The tooltip is shown but not visible, so only that Hide forgets the unit.
+local function test_a_handle_calls_a_method_the_kit_added_to_the_class_later() -- TS15
+  H.withTaint("tbc", function(w)
+    local h = handler("TKHTip", "SecureHandlerBaseTemplate")
+    local holder = _G.CreateFrame("Frame", "TKHTipHolder", _G.UIParent)
+    holder:Hide()
+    h:SetFrameRef("tip", _G.GameTooltip)
+    _G.GameTooltip:SetParent(holder)
+    _G.GameTooltip:SetOwner(holder, "ANCHOR_NONE")
+    _G.GameTooltip:Show()
+    w:unit("target", { name = "Boss" })
+    _G.GameTooltip:SetUnit("target")
+    SecureEnv.run(w, h, "self:GetFrameRef('tip'):Hide()")
+    A.same({ _G.GameTooltip:IsShown(), _G.GameTooltip:GetUnit() }, { false })
   end)
 end
 
@@ -388,7 +430,8 @@ local function test_set_frame_ref_roundtrip() -- TS15
     local target = hiddenTarget("TKHRefT")
     h:SetFrameRef("p", target)
     A.eq(SecureEnv.run(w, h, "return self:GetFrameRef('p'):GetName(), self:GetFrameRef('none')")[2], "TKHRefT")
-    A.eq(h:GetAttribute("frameref-p") ~= nil, true)
+    -- source: restrictedinfrastructure.lua:48 handles are "lightweight userdata objects with a shared metatable".
+    A.same({ type(h:GetAttribute("frameref-p")), SecureEnv.run(w, h, "return type(self)")[2] }, { "userdata", "userdata" })
     A.eq(SecureEnv.run(w, h, "return self:GetFrameRef('none')")[2], nil)
     A.errors(function()
       h:SetFrameRef(1, target)
@@ -504,7 +547,7 @@ local function test_pre_body_runs_in_combat_only_for_a_protected_frame() -- TS15
 end
 
 local function test_unwrap_script_restores_the_handler_and_returns_the_wrap() -- TS15
-  H.withTaint("retail", function(_, _, s)
+  H.withTaint("retail", function(w, _, s)
     local hdr = _G.CreateFrame("Frame", "TKWrap4Hdr", _G.UIParent, "SecureHandlerBaseTemplate")
     local b = _G.CreateFrame("Button", "TKWrap4", _G.UIParent, "SecureActionButtonTemplate")
     b:RegisterForClicks("AnyUp")
@@ -520,11 +563,15 @@ local function test_unwrap_script_restores_the_handler_and_returns_the_wrap() --
     A.eq(b:GetScript("OnClick"), original)
     s:click(b)
     A.eq(ran, 1)
+    -- source: `:238-253` (RemoveWrapper) a script that is not wrapped is left as it is; `:667-676` then returns the three
+    -- empty result slots.
+    A.eq(select("#", hdr:UnwrapScript(b, "OnClick")), 3)
+    A.same({ b:GetScript("OnClick"), #w.errors }, { original, 0 })
   end)
 end
 
 local function test_wrap_script_checks_its_arguments() -- TS15
-  H.withTaint("retail", function()
+  H.withTaint("retail", function(w)
     local hdr, b = wrapSetup("TKWrap5")
     local plain = _G.CreateFrame("Frame", "TKWrap5Plain", _G.UIParent)
     A.errors(function()
@@ -537,15 +584,13 @@ local function test_wrap_script_checks_its_arguments() -- TS15
       hdr:WrapScript(b, "OnClick", "x = 1", 2)
     end, "Invalid post-handler body")
     A.errors(function()
-      hdr:WrapScript(b, "OnTextChanged", "x = 1")
-    end, "Frame does not support script")
-    A.errors(function()
-      hdr:WrapScript(b, "OnEnter", "x = 1")
-      hdr:WrapScript(b, "OnLoad", "x = 1")
-    end, "Unsupported script type")
-    A.errors(function()
       hdr:WrapScript({}, "OnClick", "x = 1")
     end, "Invalid frame")
+    -- source: `:500-513` the script checks are made in the API frame's OnAttributeChanged: to the error handler.
+    hdr:WrapScript(b, "OnTextChanged", "x = 1")
+    hdr:WrapScript(b, "OnEnter", "x = 1")
+    hdr:WrapScript(b, "OnLoad", "x = 1")
+    A.same(errorMessages(w, 0), { "Frame does not support script 'OnTextChanged'", "Unsupported script type 'OnLoad'" })
   end)
 end
 
@@ -593,13 +638,14 @@ end
 
 return function()
   test_click_snippet_shows_a_protected_frame_in_combat()
-  test_handler_api_is_refused_in_combat_for_every_caller()
+  test_handler_api_combat_refusal_goes_to_the_error_handler_assumed()
   test_execute_runs_secure_for_tainted_callers_out_of_combat()
   test_execute_checks_its_header_and_body()
   test_a_tainted_click_cannot_run_a_snippet()
   test_a_tainted_firing_of_any_non_attribute_script_cannot_run_its_snippet()
   test_a_tainted_click_in_combat_changes_no_protected_frame()
   test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
+  test_a_tainted_attribute_set_runs_the_wrapped_onattributechanged_bodies_assumed()
   test_a_tainted_show_errors_in_the_onshow_snippet_as_the_client_does()
   test_a_tainted_state_attribute_in_combat_is_blocked_before_the_snippet()
   test_restricted_environment_hides_globals()
@@ -607,6 +653,7 @@ return function()
   test_a_snippet_calling_an_addon_replaced_namespace_function_runs_it_tainted_assumed()
   test_a_handle_calls_the_class_method_not_an_addon_field()
   test_a_handle_ignores_an_addon_edit_of_the_class_method_table()
+  test_a_handle_calls_a_method_the_kit_added_to_the_class_later()
   test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet()
   test_snippet_globals_ignore_an_addon_replacement_of_a_luaapi_name()
   test_snippets_see_a_string_name_the_kit_only_stubs()
