@@ -224,6 +224,32 @@ local function test_scrub_copies_many_distinct_tables_whole()
   A.same({ #copy, copy[30000][2][1] }, { 30000, 30000 })
 end
 
+-- The member and key rules scrub applies to every table, named by their edges: a bad number reads null at any depth in
+-- a named or listed member, false and strings pass through, a list keeps 16 holes and not 17 (MAX_HOLES), a key that is
+-- no positive whole number makes the table null, and an empty table (a Json.object mark) is returned as it is.
+local function test_scrub_applies_the_member_and_key_rules_at_their_edges()
+  local sixteen, seventeen = { 1 }, { 1 }
+  sixteen[18], seventeen[19] = 18, 19
+  local mark = Json.object({})
+  local copy = Finite.scrub({
+    list = { 1, false, "s", NAN, INF, -INF, { x = NAN, y = { INF } } },
+    named = { a = NAN, b = false, c = 2 },
+    sixteen = sixteen,
+    seventeen = seventeen,
+    zero = { [0] = 1 },
+    negative = { [-1] = 1 },
+    fraction = { [1.5] = 1 },
+    mark = mark,
+  })
+  local null = Json.null
+  A.same(copy.list, { 1, false, "s", null, null, null, { x = null, y = { null } } })
+  A.same(copy.named, { a = null, b = false, c = 2 })
+  A.same({ copy.sixteen[1], copy.sixteen[2], copy.sixteen[17], copy.sixteen[18] }, { 1, null, null, 18 })
+  A.eq(copy.seventeen, null)
+  A.same({ copy.zero, copy.negative, copy.fraction }, { null, null, null })
+  A.eq(copy.mark, mark)
+end
+
 local function test_an_empty_assets_table_still_encodes_as_an_object()
   H.withRender(function(w)
     A.contains(select(2, encoded(w)), '"assets":{}')
@@ -243,5 +269,6 @@ return function()
   test_a_stored_table_shared_without_a_cycle_is_copied_whole_into_both_places()
   test_a_stored_table_with_shared_children_or_deep_nesting_is_copied_within_a_bound()
   test_scrub_copies_many_distinct_tables_whole()
+  test_scrub_applies_the_member_and_key_rules_at_their_edges()
   test_an_empty_assets_table_still_encodes_as_an_object()
 end

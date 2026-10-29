@@ -5,8 +5,10 @@ local M = {}
 
 local Json = require("json")
 
+local HUGE = math.huge
+
 local function finite(n)
-  return n == n and n ~= math.huge and n ~= -math.huge
+  return n == n and n ~= HUGE and n ~= -HUGE
 end
 
 -- True when every side of rect is a finite number.
@@ -16,10 +18,6 @@ end
 
 -- Most holes a list may have and still be filled: more means a table that only happens to hold a number key.
 local MAX_HOLES = 16
-
-local function isPosition(key)
-  return type(key) == "number" and key >= 1 and key % 1 == 0
-end
 
 -- Limits on one scrub call, which covers the whole snapshot. A table nested deeper than MAX_DEPTH (a chain of 90000
 -- overflows the stack here and in Json.encode) and any table copied again once MAX_REPEATS repeat copies are spent
@@ -54,22 +52,36 @@ local function scrubIn(value, walk, depth)
   end
   walk.path[value], walk.seen[value] = true, true
   local copy, size, count, named, odd = {}, 0, 0, false, false
+  -- Keys and scalar members are checked inline: a call per member made this loop ~30% of a large snapshot.
   for key, member in pairs(value) do
-    if isPosition(key) then
-      size, count = math.max(size, key), count + 1
-    elseif type(key) == "string" then
+    local keyKind = type(key)
+    if keyKind == "number" and key >= 1 and key % 1 == 0 then
+      if key > size then
+        size = key
+      end
+      count = count + 1
+    elseif keyKind == "string" then
       named = true
     else
       odd = true
     end
-    copy[key] = scrubIn(member, walk, depth + 1)
+    local kind = type(member)
+    if kind == "table" then
+      copy[key] = scrubIn(member, walk, depth + 1)
+    elseif kind == "number" and (member ~= member or member == HUGE or member == -HUGE) then
+      copy[key] = Json.null
+    else
+      copy[key] = member
+    end
   end
   walk.path[value] = nil
   if odd or (named and count > 0) or size > count + MAX_HOLES then
     return Json.null
   end
-  for i = 1, size do
-    copy[i] = copy[i] == nil and Json.null or copy[i]
+  if count < size then
+    for i = 1, size do
+      copy[i] = copy[i] == nil and Json.null or copy[i]
+    end
   end
   return copy
 end
