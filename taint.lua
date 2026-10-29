@@ -22,9 +22,11 @@ local ADDON_SOURCE = "^@addon:([^/\r\n]+)/"
 -- source: assumed (row TS2, "an empty string if tainted by a macro") session /run and /dump chunks run with macro taint.
 local MACRO_SOURCES = { ["=/run"] = "", ["=/dump"] = "" }
 
--- Function -> owning addon name, or false for a function no addon chunk defined. A function's chunk never changes,
--- so the cache is shared by every world.
+-- Function -> owning addon name, or false for a function no addon file defined; sourceCache keeps the chunk source of each
+-- false one, which w.taint.chunks may credit to an addon. A function's chunk never changes, so both are shared by every
+-- world.
 local ownerCache = setmetatable({}, { __mode = "k" })
+local sourceCache = setmetatable({}, { __mode = "k" })
 
 local function weakKeys()
   return setmetatable({}, { __mode = "k" })
@@ -59,13 +61,15 @@ function M.current(w)
   return stack[#stack] or nil
 end
 
--- The addon whose chunk defined fn (or, for a wrapper Taint.adopt registered, the function it wraps); nil for kit code
--- and for an addon in w.taint.secureAddons (the Blizzard UI layer), which inherit the running taint.
+-- The addon whose chunk defined fn (or, for a wrapper Taint.adopt registered, the function it wraps; for a function a
+-- loadstring chunk defined, the taint w.taint.chunks gives that chunk's source); nil for kit code and for an addon in
+-- w.taint.secureAddons (the Blizzard UI layer), which inherit the running taint.
 function M.ownerOf(w, fn)
   if type(fn) ~= "function" then
     return nil
   end
-  local adopted = w.taint.owners[fn]
+  local t = w.taint
+  local adopted = t.owners[fn]
   if adopted ~= nil then
     return adopted
   end
@@ -73,14 +77,12 @@ function M.ownerOf(w, fn)
   if owner == nil then
     local source = getinfo(fn, "S").source
     owner = source:match(ADDON_SOURCE) or MACRO_SOURCES[source] or false
-    ownerCache[fn] = owner
+    ownerCache[fn], sourceCache[fn] = owner, not owner and source or nil
   end
-  return owner and not w.taint.secureAddons[owner] and owner or nil
-end
-
--- The name log text gives a taint: the addon's, or "a macro" for macro taint (the empty string).
-function M.who(taint)
-  return taint == "" and "a macro" or taint
+  if not owner and t.chunks then
+    return t.chunks[sourceCache[fn]]
+  end
+  return owner and not t.secureAddons[owner] and owner or nil
 end
 
 -- Makes wrapper report fn's owner; returns wrapper.

@@ -213,6 +213,17 @@ local function test_a_loadstring_chunk_runs_with_its_builder_taint_assumed() -- 
   end)
 end
 
+-- A function a loadstring chunk defines is code the builder introduced, as the chunk is: it runs with that taint later.
+local function test_a_function_a_loadstring_chunk_defines_runs_with_its_builder_taint_assumed() -- TS1
+  H.withTaint("retail", function(w, Taint)
+    H.probe(w, Taint)
+    H.run(w, "Foo", "C_Timer.After(0, loadstring('return function() TK_N = TK_Seen() end')())")
+    local secureBuilt = w:run("blizzard", H.chunk(w, "Foo", "return loadstring")(), "return function() end")()
+    w:advance(0.1)
+    A.same({ _G.TK_N, Taint.ownerOf(w, secureBuilt) }, { "Foo" })
+  end)
+end
+
 local function test_log_is_capped_and_listeners_hear_each_entry()
   H.withTaint("retail", function(w, Taint)
     local heard = 0
@@ -283,6 +294,7 @@ return function()
   test_rawset_on_the_addon_view_taints_the_slot()
   test_timer_after_callback_keeps_the_scheduling_owner()
   test_a_loadstring_chunk_runs_with_its_builder_taint_assumed()
+  test_a_function_a_loadstring_chunk_defines_runs_with_its_builder_taint_assumed()
   test_log_is_capped_and_listeners_hear_each_entry()
   test_nested_frame_does_not_take_the_outer_frames_table_changes()
   test_secret_args_still_follow_context_after_taint()

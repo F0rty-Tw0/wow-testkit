@@ -9,7 +9,7 @@ local M = {}
 
 -- Localized: addon code may assign globals of the same names.
 local type, tostring, pairs, rawget, unpack, setfenv = type, tostring, pairs, rawget, unpack, setfenv
-local getmetatable = debug.getmetatable
+local getmetatable, getinfo = debug.getmetatable, debug.getinfo
 
 -- Longest __index chain issecurevariable follows for a nil field.
 local INDEX_DEPTH = 8
@@ -63,11 +63,14 @@ end
 function M.install(w)
   -- source: assumed (row TS1, "execution becomes 'tainted' as soon as it reads data or code introduced by a third party")
   -- the addon view's loadstring calls this: a chunk built by tainted execution (an addon's or a macro's, not
-  -- forceinsecure's) keeps that taint when it runs later as a callback; a secure builder leaves it unowned.
+  -- forceinsecure's) keeps that taint when it runs later as a callback, and so do the functions it defines (credited by
+  -- the chunk's source, so a later chunk of the same text and name takes them over); a secure builder leaves it unowned.
   w.taint.chunk = function(fn, env)
     local taint = Taint.current(w)
     if taint and taint ~= Taint.FORCED then
       w.taint.owners[fn] = taint
+      w.taint.chunks = w.taint.chunks or {}
+      w.taint.chunks[getinfo(fn, "S").source] = taint
     end
     return setfenv(fn, env)
   end
