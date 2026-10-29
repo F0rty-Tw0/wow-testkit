@@ -131,8 +131,12 @@ end
 
 -- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state?, blizzardUi? } (flavor
 -- "auto" is Session.autoFlavor's pick from the TOC; extract is a directory of tools/client's output; sessionDir holds
--- saved.lua; blizzardUi as Scenario.new's). Raises only when no world can be built (an unknown flavor, another world still active).
+-- saved.lua; blizzardUi as Scenario.new's, and needs extract). Raises only when no world can be built (an unknown flavor,
+-- another world still active) or on blizzardUi without extract, which SessionOptions.reopen refuses on a reload too.
 function M.new(opts)
+  if opts.blizzardUi and not opts.extract then
+    error("Session.new: blizzardUi needs extract, so the layer never falls back to Client.find's extract", 0)
+  end
   return open(opts, nil)
 end
 

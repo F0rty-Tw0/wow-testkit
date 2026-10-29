@@ -5,6 +5,7 @@ local A = require("assert")
 local B = require("tests.helpers.blizzard")
 local Json = require("json")
 local Layout = require("ui.layout")
+local Session = require("session")
 local SessionH = require("tests.helpers.session")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
@@ -49,6 +50,17 @@ local function test_reload_refuses_the_layer_without_an_extract()
     A.same({ host.sess.loads, host.sess.s.blizzardUi }, { 1, nil })
     A.eq(reload(host, { blizzardUi = false }).ok, true, "turning the layer off needs no extract")
   end)
+end
+
+-- The same fallback at start: only session.py checked --blizzard-ui against --extract before.
+local function test_new_refuses_the_layer_without_an_extract()
+  local opts = { addonDir = SessionH.DEMO, flavor = "retail", sessionDir = Tmp.dir("sbz"), blizzardUi = true }
+  local ok, err = pcall(Session.new, opts)
+  if ok then
+    err:shutdown()
+  end
+  A.eq(ok, false)
+  A.contains(err, "blizzardUi needs extract")
 end
 
 local function test_state_actions_update_the_button()
@@ -134,6 +146,7 @@ end
 return function()
   test_reload_toggles_the_layer()
   test_reload_refuses_the_layer_without_an_extract()
+  test_new_refuses_the_layer_without_an_extract()
   test_state_actions_update_the_button()
   test_state_actions_check_texture_and_count()
   test_state_actions_survive_a_reload_and_encode()
