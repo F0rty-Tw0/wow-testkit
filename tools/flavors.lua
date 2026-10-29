@@ -76,6 +76,18 @@ function M.majorMinorOf(tocVersion)
   return math.floor(tocVersion / 100)
 end
 
+-- path with each [Family] and [Game] variable of a TOC file line expanded for flavor; another [Variable] stays as written.
+-- source: confirmed (row BU3) wiki TOC_format, [Family] "Mainline, or Classic", [Game] "Standard, Vanilla, Camelot, TBC,
+-- Wrath, or Mists": the family is the flavor's last TOC suffix, the game its first (Standard, Camelot, Mists, Vanilla, TBC).
+function M.expandTocPath(name, path)
+  local suffixes = M.get(name).tocSuffixes
+  local folders = { family = suffixes[#suffixes], game = suffixes[1] }
+  return (path:gsub("%[(%a+)%]", function(token)
+    local suffix = folders[token:lower()]
+    return suffix and (suffix:gsub("^[_%-]", ""))
+  end))
+end
+
 local function setVersion(row, version)
   row.version = version
   row.tocVersion = M.tocVersionOf(version)
