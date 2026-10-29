@@ -1,8 +1,9 @@
 -- XML template facts for CreateFrame's template argument: retail (Gethe wow-ui-source, branch live) only.
 -- Per template: Ketho Templates.lua type, direct inherits and mixin names (flattened over the inherits
 -- chain), the parentKey children (key and widget type) flattened over the inherits chain from the XML, the
--- XML <Size> (most derived wins), protected for Secure* templates, and scripts (handler name -> the mixin method the
--- XML's method="" names, for the few handlers the kit models). A child with buttonText = true is the <ButtonText> of its
+-- XML <Size> (most derived wins), protected for Secure* templates, scripts (handler name -> the mixin method the
+-- XML's method="" names) and functions (handler name -> the global function the XML's function="" names), both for
+-- the few handlers the kit models. A child with buttonText = true is the <ButtonText> of its
 -- button (ui/template_apply.lua makes it the button's FontString). Facts only: no Blizzard XML or Lua.
 -- The comment above each entry lists the inherits chain and the XML file that defines each link. An entry whose
 -- `inherits` names another entry is applied after it (ui/template_apply.lua), so the entries in ui/templates_buttons.lua
@@ -79,6 +80,25 @@ M.TEMPLATES = {
     },
     mixins = { "NineSlicePanelMixin" },
     protected = false,
+  },
+  -- Blizzard_SharedXML/SharedTooltipTemplates.xml: SharedTooltipArtTemplate, SharedTooltipTemplate
+  -- Blizzard_GameTooltip/Mainline/GameTooltip.xml: GameTooltipTemplate
+  -- source: confirmed (row T3) GameTooltip.xml:4-37 at b9be937 (forever 172a387 the same): the template's own
+  -- <OnHide function="GameTooltip_OnHide"/> (:27) replaces SharedTooltipTemplate's appended SharedTooltip_OnHide.
+  -- Left out: the TextLeft1/TextRight1/TextLeft2/TextRight2 FontStrings (SharedTooltipTemplates.xml:35-42), as the
+  -- kit's tooltip makes its lines by name when a line is added (framexml/fakes/tooltip.lua).
+  GameTooltipTemplate = {
+    type = "GameTooltip",
+    inherits = { "SharedTooltipTemplate" },
+    children = {
+      { key = "NineSlice", type = "Frame" },
+      { key = "TopOverlay", type = "Texture" },
+      { key = "BottomOverlay", type = "Texture" },
+      { key = "StatusBar", type = "StatusBar" },
+    },
+    mixins = { "GameTooltipDataMixin" },
+    protected = false,
+    functions = { OnHide = "GameTooltip_OnHide" },
   },
   -- Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml: InsetFrameTemplate
   InsetFrameTemplate = {

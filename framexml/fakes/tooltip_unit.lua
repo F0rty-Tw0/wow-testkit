@@ -3,10 +3,13 @@
 -- (st.tooltip in framexml/fakes/tooltip.lua): tip.unit is the SetUnit token, tip.data the shown tooltip data.
 local M = {}
 
+local Behaviour = require("ui.behaviour")
 local TooltipLines = require("framexml.fakes.tooltip_lines")
 
 local TOOLTIP_NAME = "GameTooltip"
 local HIDERS = { "Hide", "SetShown" }
+-- Ketho's FrameXML list decides which flavors get GameTooltip_OnHide (every flavor's lists it).
+local KETHO_GATE = { gate = "framexml", flavors = {} }
 
 -- source: Mainline GameTooltipDataMixin:GetUnit → TooltipUtil.GetDisplayedUnit (Blizzard_SharedXMLGame/Tooltip/
 -- TooltipUtil.lua:34-41, live and forever): the unit token comes from the shown data's GUID, not from SetUnit.
@@ -38,16 +41,28 @@ end
 
 -- source: confirmed (row T3) GameTooltipTemplate's OnHide is GameTooltip_OnHide (Mainline GameTooltip.xml:27), whose
 -- ClearHandlerInfo (GameTooltip.lua:421 live, :430 forever) drops the shown data; an addon's SetScript replaces it.
+-- GameTooltip inherits the template (:249); a CreateFrame with the template gets it from ui/templates.lua.
 local function forgetOnMainlineHide(w, tooltip, tipOf)
-  w:setScript(tooltip, "OnHide", function(self)
-    forget(tipOf(w, self, TOOLTIP_NAME .. ":OnHide"))
-  end)
+  local label = "GameTooltip_OnHide"
+  local function onHide(self)
+    forget(tipOf(w, self, label))
+  end
+  w:install(label, onHide, KETHO_GATE)
+  w:setScript(tooltip, "OnHide", onHide)
 end
 
 -- source: assumed (row T3, user decision) wiki API_GameTooltip_GetUnit "Returns nil when the tooltip is not shown":
--- Classic forgets the unit when its own Hide or SetShown takes a shown tooltip to hidden, whatever its scripts are; a
--- tooltip never shown since SetUnit still answers.
+-- Classic forgets the unit when its own Hide or SetShown takes a shown tooltip to hidden, or when it stops being
+-- visible because an ancestor hid (the kit fires its OnHide then), whatever its scripts are; a tooltip never shown
+-- since SetUnit still answers.
 local function forgetOnClassicHide(w, tooltip, tipOf)
+  local hideLabel = TOOLTIP_NAME .. ":OnHide"
+  Behaviour.afterVisibility(w, TOOLTIP_NAME, function(self, script)
+    -- An OnHide script that shows the tooltip again leaves it visible: no hide, as for the wrappers below.
+    if script == "OnHide" and not self:IsVisible() then
+      forget(tipOf(w, self, hideLabel))
+    end
+  end)
   local index = getmetatable(tooltip).__index
   for _, name in ipairs(HIDERS) do
     local original = index[name]

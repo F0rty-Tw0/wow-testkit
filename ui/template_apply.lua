@@ -90,6 +90,13 @@ function M.apply(w, frame, st, entry)
       self[method](self, ...)
     end)
   end
+  -- An XML function="" script is that global function itself; set only when the world defines it.
+  for scriptName, name in pairs(entry.functions or {}) do
+    local fn = AddonEnv.global(w, name, true)
+    if type(fn) == "function" then
+      w:setScript(frame, scriptName, fn)
+    end
+  end
   -- entry.methods = { Name = fn(w, self, ...) } become methods of the frame.
   for name, fn in pairs(entry.methods or {}) do
     frame[name] = function(self, ...)
