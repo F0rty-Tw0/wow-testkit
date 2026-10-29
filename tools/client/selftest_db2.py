@@ -123,6 +123,19 @@ def test_atlas_lua_quotes_a_string_file_or_size_never_writes_it_raw(tmp):
     assert lua_value(tmp / "atlas.lua") == {"x": entry}
 
 
+def test_atlas_lua_reaches_no_python_and_bytecode_is_refused(tmp):
+    """atlas.lua comes from whatever --extract names: it must not reach lupa's python module (and Python's objects)."""
+    (tmp / "atlas.lua").write_text("return { probe = { reach = python ~= nil, globals = _G ~= nil } }\n")
+    assert atlas.entry_of(tmp, "probe") == {"reach": False, "globals": False}
+    (tmp / "atlas.lua").write_text("\x1bLua")
+    try:
+        atlas.entry_of(tmp, "probe")
+    except ValueError as err:
+        assert "bytecode" in str(err), err
+    else:
+        raise AssertionError("bytecode atlas.lua was run")
+
+
 TESTS = [
     test_wdc5_inline_and_bitpacked_fields,
     test_pallet_and_common_fields,
@@ -134,4 +147,5 @@ TESTS = [
     test_atlas_crop_writes_the_member_rect_png,
     test_atlas_crop_scales_each_side_by_its_own_axis,
     test_atlas_lua_quotes_a_string_file_or_size_never_writes_it_raw,
+    test_atlas_lua_reaches_no_python_and_bytecode_is_refused,
 ]
