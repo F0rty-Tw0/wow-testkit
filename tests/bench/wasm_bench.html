@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>WASM worker bench</title>
+  </head>
+  <body>
+    <pre id="out"></pre>
+    <script src="../wasm/hold.js"></script>
+    <script src="../../host/worker_bundle.js"></script>
+    <script>
+      window.TK_TESTS = [];
+    </script>
+    <script src="../wasm/worker_tests.js"></script>
+    <script src="../wasm/fakes.js"></script>
+    <script src="../../host/host_fs.js"></script>
+    <script src="wasm_bench.js"></script>
+  </body>
+</html>

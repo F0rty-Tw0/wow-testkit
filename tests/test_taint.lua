@@ -51,11 +51,67 @@ end
 -- Enum (and Constants) are swept only from the first query on; a change before it is not attributed (known gap).
 local function test_a_table_declared_with_keys_tracks_only_those_keys() -- R6
   H.withTaint("retail", function(w, Taint)
-    local t = { watched = 1, other = 1 }
+    local t = { first = 1, watched = 1, other = 1 } -- watched is not the first declared key: every key is compared
     w:setGlobal("KitK", t)
-    Taint.declare(w, t, "KitK", false, { "watched" })
+    Taint.declare(w, t, "KitK", false, { "first", "watched" })
     H.run(w, "Foo", "KitK.watched = 2; KitK.other = 2")
     A.same({ Taint.slotOf(w, t, "watched"), Taint.slotOf(w, t, "other") }, { "Foo", nil })
+    A.eq(w.taint.log[#w.taint.log].text, "KitK.watched tainted by Foo")
+  end)
+end
+
+-- A keyed sweep compares raw values: a table another addon swaps in is a change even when its __eq says equal, and the
+-- sweep never runs that __eq.
+local function test_a_keyed_sweep_compares_values_raw_and_never_runs_an_eq_metamethod() -- R6
+  H.withTaint("retail", function(w, Taint)
+    local eqCalls = 0
+    w:setGlobal("TK_Mt", {
+      __eq = function()
+        eqCalls = eqCalls + 1
+        return true
+      end,
+    })
+    local t = { watched = 1 }
+    w:setGlobal("KitK", t)
+    Taint.declare(w, t, "KitK", false, { "watched" })
+    H.run(w, "Foo", "KitK.watched = setmetatable({}, TK_Mt)")
+    A.eq(Taint.slotOf(w, t, "watched"), "Foo")
+    H.run(w, "Bar", "KitK.watched = setmetatable({}, TK_Mt)")
+    A.same({ Taint.slotOf(w, t, "watched"), eqCalls }, { "Bar", 0 })
+    w:run("blizzard", function()
+      t.watched = nil
+    end)
+    A.same({ Taint.slotOf(w, t, "watched"), eqCalls }, { nil, 0 })
+  end)
+end
+
+local function test_a_keyed_sweep_compares_a_declared_table_value_raw() -- R6
+  H.withTaint("retail", function(w, Taint)
+    local eqCalls = 0
+    local mt = {
+      __eq = function()
+        eqCalls = eqCalls + 1
+        return true
+      end,
+    }
+    local t = { watched = setmetatable({}, mt) }
+    w:setGlobal("KitK", t)
+    w:setGlobal("TK_Mt", mt)
+    Taint.declare(w, t, "KitK", false, { "watched" })
+    H.run(w, "Foo", "KitK.watched = setmetatable({}, TK_Mt)")
+    A.same({ Taint.slotOf(w, t, "watched"), eqCalls }, { "Foo", 0 })
+  end)
+end
+
+-- A keyed sweep reads with rawget: a key removed from a table that falls back through __index is still a removal.
+local function test_a_keyed_sweep_sees_a_removed_key_behind_an_index_metamethod() -- R6
+  H.withTaint("retail", function(w, Taint)
+    local t = { watched = 1 }
+    w:setGlobal("KitK", t)
+    Taint.declare(w, t, "KitK", false, { "watched" })
+    setmetatable(t, { __index = { watched = 1 } })
+    H.run(w, "Foo", "KitK.watched = nil")
+    A.eq(Taint.slotOf(w, t, "watched"), "Foo")
     A.eq(w.taint.log[#w.taint.log].text, "KitK.watched tainted by Foo")
   end)
 end
@@ -217,6 +273,9 @@ return function()
   test_addon_global_overwrite_taints_the_slot_and_logs_once_assumed()
   test_declared_table_fields_are_attributed_without_a_proxy()
   test_a_table_declared_with_keys_tracks_only_those_keys()
+  test_a_keyed_sweep_compares_values_raw_and_never_runs_an_eq_metamethod()
+  test_a_keyed_sweep_compares_a_declared_table_value_raw()
+  test_a_keyed_sweep_sees_a_removed_key_behind_an_index_metamethod()
   test_enum_is_declared_lazily_from_the_first_query()
   test_reading_a_tainted_slot_taints_the_running_execution_assumed()
   test_kit_function_inherits_the_running_taint()

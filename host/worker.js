@@ -92,11 +92,14 @@
     };
   }
 
+  // Encodes with the native TextEncoder and hands MEMFS the bytes (canOwn): FS.writeFile on a string runs a JS loop per
+  // character twice (length, then encode) and copies, ~290 ms of the worker's ~570 ms start-up for the 21 MB kit.
   function writeKit(FS) {
+    const encoder = new TextEncoder();
     for (const path of Object.keys(TK_KIT_FILES)) {
       const full = '/kit/' + path;
       FS.mkdirTree(full.slice(0, full.lastIndexOf('/')));
-      FS.writeFile(full, TK_KIT_FILES[path]);
+      FS.writeFile(full, encoder.encode(TK_KIT_FILES[path]), { canOwn: true });
     }
   }
 

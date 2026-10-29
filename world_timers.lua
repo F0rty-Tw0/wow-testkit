@@ -14,12 +14,60 @@ M.methods = methods
 local Timer = {}
 Timer.__index = Timer
 
-local function removeTimer(timers, timer)
-  for i, t in ipairs(timers) do
-    if t == timer then
-      table.remove(timers, i)
-      return
+-- The pending timers are a binary min-heap in w.timers ordered by (due, creation); timer[SLOT] is its index there, so
+-- the next due timer is timers[1] and schedule, cancel and re-queue cost O(log n) (a scan per fire was O(n^2)). SLOT is
+-- a private key: the handle is addon-visible, and an addon-written field named slot must not steer the heap.
+local SLOT = {}
+local function before(a, b)
+  return a.due < b.due or (a.due == b.due and a.seq < b.seq)
+end
+
+local function place(timers, i, timer)
+  timers[i] = timer
+  timer[SLOT] = i
+end
+
+local function siftUp(timers, i)
+  local timer = timers[i]
+  while i > 1 do
+    local parent = math.floor(i / 2)
+    if not before(timer, timers[parent]) then
+      break
     end
+    place(timers, i, timers[parent])
+    i = parent
+  end
+  place(timers, i, timer)
+end
+
+local function siftDown(timers, i)
+  local timer, count = timers[i], #timers
+  while i * 2 <= count do
+    local child = i * 2
+    if child < count and before(timers[child + 1], timers[child]) then
+      child = child + 1
+    end
+    if not before(timers[child], timer) then
+      break
+    end
+    place(timers, i, timers[child])
+    i = child
+  end
+  place(timers, i, timer)
+end
+
+-- Drops timer from the heap; a timer that is not in it (fired, cancelled, or from a reset world) is left alone.
+local function removeTimer(timers, timer)
+  local i = timer[SLOT]
+  if timers[i] ~= timer then
+    return
+  end
+  local last = table.remove(timers)
+  timer[SLOT] = nil
+  if last ~= timer then
+    place(timers, i, last)
+    siftUp(timers, i)
+    siftDown(timers, last[SLOT])
   end
 end
 
@@ -47,18 +95,19 @@ function methods:schedule(seconds, callback, iterations)
     seq = self.timerSeq,
     cancelled = false,
   }, Timer)
+  if timer.due ~= timer.due then
+    timer.due = math.huge -- a NaN delay is never due; NaN would break the heap order
+  end
   self.timers[#self.timers + 1] = timer
+  siftUp(self.timers, #self.timers)
   return timer
 end
 
 local function nextDue(timers, limit)
-  local best
-  for _, t in ipairs(timers) do
-    if t.due <= limit and (not best or t.due < best.due or (t.due == best.due and t.seq < best.seq)) then
-      best = t
-    end
+  local first = timers[1]
+  if first and first.due <= limit then
+    return first
   end
-  return best
 end
 
 local function fireTimer(w, timer)
@@ -70,6 +119,7 @@ local function fireTimer(w, timer)
     removeTimer(w.timers, timer)
   else
     timer.due = timer.due + math.max(timer.interval, FRAME)
+    siftDown(w.timers, timer[SLOT])
   end
   local outer = w.firingTimer
   w.firingTimer = true
