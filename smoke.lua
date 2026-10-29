@@ -10,6 +10,8 @@ local Toc = require("toc")
 local fs = require("fs")
 
 M.BUDGET = 10000000
+-- Layer ticks trip at LAYER_FACTOR budgets (R-debt-1, below).
+M.LAYER_FACTOR = 10
 M.format = SmokeScoreboard.format
 M.formatJson = SmokeJson.format
 
@@ -64,7 +66,14 @@ local OTHER = {
 local BUDGET_MESSAGE = "smoke: instruction budget exceeded"
 local ADDON_SOURCE = "@addon:"
 local C_SOURCE = "=[C]"
+local TAIL_SOURCE = "=(tail call)"
 local TRIPPED_MASK, TRIPPED_COUNT = "c", 1000
+-- source: R-debt-1 (lead ruling 2026-10-29) the budget counts addon-owned execution only; Blizzard UI layer chunks are
+-- excluded, since layer fidelity grew s:login from 7.7M to 22M instructions against the 10M budget. The count hook fires
+-- every TICK instructions and charges them to the first non-kit function on the stack. Layer ticks only trip at
+-- M.LAYER_FACTOR budgets, so a Blizzard loop the kit sends into a spin still ends the run.
+local TICK = 1000
+local ADDON_OWNER = "^@addon:([^/\r\n]+)/"
 local coroutineLib = coroutine
 local sethook, getinfo = debug.sethook, debug.getinfo
 local cocreate, cowrap, coresume = coroutine.create, coroutine.wrap, coroutine.resume
@@ -73,6 +82,7 @@ local raise, unpackList, select, pcall, type = error, unpack, select, pcall, typ
 local KIT_SOURCE = getinfo(1, "S").source:match("^(@.*[/\\])smoke%.lua$") or "@"
 
 local armedBudget, tripped = 0, false
+local spent, layerSpent, layerBudget, layerAddons = 0, 0, 0, {}
 
 -- True when source is the kit's own code: a C function or a file under the kit root. Fixture addons live under
 -- the kit root too, so addon chunks are ruled out first.
@@ -83,10 +93,37 @@ local function isKit(source)
   return source == C_SOURCE or source:sub(1, #KIT_SOURCE) == KIT_SOURCE
 end
 
--- Budget error. The first trip raises whatever runs; after that every thread that reaches the hook switches to the
+-- True when the first non-kit function at stack level 3 and up (the code the hook interrupted, seen from inside
+-- onBudget) is a chunk of a layer addon. Kit code counts for whoever called it; a stack of kit code only counts too.
+-- Tail-call frames are skipped like kit code: widget methods reach the kit through them.
+local function inLayer()
+  local level = 3
+  local info = getinfo(level, "S")
+  while info and (isKit(info.source) or info.source == TAIL_SOURCE) do
+    level = level + 1
+    info = getinfo(level, "S")
+  end
+  local owner = info and info.source:match(ADDON_OWNER)
+  return owner ~= nil and layerAddons[owner] == true
+end
+
+-- Charges a tick and returns, until the addon's ticks reach the budget (or the layer's, layerBudget). Then the
+-- budget error: the first trip raises whatever runs; after that every thread that reaches the hook switches to the
 -- tripped hook (every call and every 1000 instructions) and every non-kit function dies at once, so kit code (error
 -- handlers, disarm, w:destroy) runs normally and a looping 0-second ticker dies on entry to each callback.
 local function onBudget()
+  if not tripped then
+    if inLayer() then
+      layerSpent = layerSpent + TICK
+    else
+      spent = spent + TICK
+    end
+    if spent < armedBudget and layerSpent < layerBudget then
+      -- Lua 5.1 counts this hook's own instructions toward the next tick; setting the hook again restarts the count.
+      sethook(onBudget, "", TICK)
+      return
+    end
+  end
   sethook(onBudget, TRIPPED_MASK, TRIPPED_COUNT)
   if tripped then
     local info = getinfo(2, "S")
@@ -104,7 +141,7 @@ local function hookedCreate(fn)
   if tripped then
     sethook(co, onBudget, TRIPPED_MASK, TRIPPED_COUNT)
   else
-    sethook(co, onBudget, "", armedBudget)
+    sethook(co, onBudget, "", TICK)
   end
   return co
 end
@@ -126,10 +163,12 @@ local function hookedWrap(fn)
   end
 end
 
-local function arm(budget)
-  armedBudget, tripped = budget, false
+-- secureAddons: the world's w.taint.secureAddons, the layer addons whose chunks the budget does not count (R-debt-1).
+local function arm(budget, secureAddons)
+  armedBudget, tripped, spent, layerSpent = budget, false, 0, 0
+  layerBudget, layerAddons = budget * M.LAYER_FACTOR, secureAddons
   coroutineLib.create, coroutineLib.wrap = hookedCreate, hookedWrap
-  sethook(onBudget, "", budget)
+  sethook(onBudget, "", TICK)
 end
 
 local function hasToc(root)
@@ -171,12 +210,12 @@ end
 -- The guard is disarmed on every exit path; err is rethrown unchanged so Scenario's SKIPPED sentinel keeps its
 -- identity. sethook() runs first thing after pcall to keep the window where a stray hook could fire small. The Blizzard UI
 -- layer (opts.blizzardUi) loads before the guard arms: its closure of dozens of addons is not the addon under test, and
--- s:login skips a layer already loaded.
+-- s:login skips a layer already loaded. Once armed, the layer's own chunks still run outside the budget (R-debt-1).
 local function smokeScenario(budget)
   return function(s)
     s:unit("player", VIEWER)
     s:loadBlizzard()
-    arm(budget)
+    arm(budget, s.w.taint.secureAddons)
     local ok, err = pcall(drive, s)
     sethook()
     coroutineLib.create, coroutineLib.wrap = cocreate, cowrap
