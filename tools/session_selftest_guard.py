@@ -210,6 +210,16 @@ def test_wtf_flags_are_usage_checked(tmp):
         assert needle in err.getvalue(), (flags, err.getvalue())
 
 
+def test_size_flag_takes_presets_and_the_reload_range(tmp):
+    """--size accepts what a reload accepts (session_options.lua): a preset name, or WxH within 320x240 to 7680x4320."""
+    assert session._parser().parse_args(["--size", "1440p", str(DEMO)]).size == (2560, 1440)
+    assert session._parser().parse_args(["--size", "320x240", str(DEMO)]).size == (320, 240)
+    for size in ("1x1", "7681x4320", "8k"):
+        with testkit_home(tmp), contextlib.redirect_stderr(io.StringIO()) as err:
+            assert session.main(["--size", size, str(DEMO)], wait=lambda running: None) == 2, size
+        assert "within 320x240 to 7680x4320" in err.getvalue(), (size, err.getvalue())
+
+
 def test_wtf_flag_imports_and_confines_reimport(tmp):
     """A synthetic WTF folder: its SessionDemo file seeds the session; a reimport path outside the folder is refused."""
     wtf = tmp / "WTF"
@@ -249,5 +259,6 @@ TESTS = [
     test_blizzard_flag_is_accepted_and_needs_an_extract,
     test_blizzard_flag_loads_the_layer_from_the_extract,
     test_wtf_flags_are_usage_checked,
+    test_size_flag_takes_presets_and_the_reload_range,
     test_wtf_flag_imports_and_confines_reimport,
 ]

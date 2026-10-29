@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A long-running local session of one addon, served to the browser viewer.
 
-    python tools/session.py <addon-dir> [--flavor F|auto] [--size WxH] [--port N] [--bind 127.0.0.1]
+    python tools/session.py <addon-dir> [--flavor F|auto] [--size WxH|1080p|1440p|4k] [--port N] [--bind 127.0.0.1]
                             [--extract DIR] [--bindings FILE] [--no-watch] [--blizzard-ui]
                             [--wtf DIR [--wtf-account NAME] [--wtf-character REALM/CHARACTER]]
     python tools/session.py --selftest
@@ -26,6 +26,8 @@ from pathlib import Path
 LOOPBACK = "127.0.0.1"
 FLAVORS = ("auto", "retail", "mists", "vanilla", "tbc", "forever")
 DEFAULT_SIZE = (1920, 1080)
+SIZE_PRESETS = {"1080p": (1920, 1080), "1440p": (2560, 1440), "4k": (3840, 2160)}
+MIN_SIZE, MAX_SIZE = (320, 240), (7680, 4320)
 VIEWER_DIR = Path(__file__).resolve().parent.parent / "viewer"
 
 
@@ -91,11 +93,13 @@ def _report_reload(reply):
 
 
 def _size(text):
+    """A preset name or WxH, in the range a reload accepts (session_options.lua PRESETS and MIN/MAX sides)."""
     import preview
 
-    size = preview.parse_size(text)
-    if size is None:
-        raise argparse.ArgumentTypeError(f"expected WxH with both sides in 1..{preview.MAX_SIDE}, got {text!r}")
+    size = SIZE_PRESETS.get(text) or preview.parse_size(text)
+    fits = size and MIN_SIZE[0] <= size[0] <= MAX_SIZE[0] and MIN_SIZE[1] <= size[1] <= MAX_SIZE[1]
+    if not fits:
+        raise argparse.ArgumentTypeError(f"expected 1080p, 1440p, 4k or WxH within 320x240 to 7680x4320, got {text!r}")
     return size
 
 
