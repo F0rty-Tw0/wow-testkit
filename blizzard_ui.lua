@@ -235,8 +235,9 @@ function M.load(w, extract, opts)
   end
   report.handler = keepErrors(w, report)
   loadDefaultBindings(w, extract, report)
+  -- source: assumed (row B3) nothing reloads: an ADDON_LOADED handler may have loaded an entry through LoadAddOn.
   for _, entry in ipairs(entries) do
-    if not isLoaded(report, entry.name) then -- an ADDON_LOADED handler may have loaded it through LoadAddOn
+    if not isLoaded(report, entry.name) then
       loadEntry(w, entry, report, fire)
       w.errorHandler = report.handler
     end
@@ -250,9 +251,9 @@ local function append(target, list)
   end
 end
 
--- Loads name (and the dependencies M.order puts first, those already loaded skipped) into w after M.load ran, fires
--- ADDON_LOADED(<name as the caller spelled it>, false) for each addon it loads, and sends its errors to w.blizzard.errors.
--- The error handler the caller had (a user addon's seterrorhandler included) is the handler after each load.
+-- Loads name (and the dependencies M.order puts first, those already loaded skipped) into w after M.load ran and fires
+-- ADDON_LOADED(<name as the caller spelled it>, false) for each addon it loads. Its errors go to the caller's handler,
+-- kept after each load: w.blizzard.errors while that is the layer's, else a user addon's seterrorhandler (assumed).
 -- Returns true, also when name was already loaded (B3: nothing reloads); nil, "MISSING" when the extract has no such
 -- addon or the layer is off.
 function M.loadOne(w, name)
