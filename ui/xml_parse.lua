@@ -5,9 +5,17 @@
 local M = {}
 
 local NAME = "[%a_:][%w_:%.%-]*"
+-- Patterns built once: a concatenation in the scan loop would allocate one per tag.
+local OPEN = "^<(" .. NAME .. ")()"
+local ATTRIBUTE = "^%s*(" .. NAME .. ")%s*=%s*([\"'])()"
+local DOUBLE_QUOTED = "^%s*(" .. NAME .. ')%s*=%s*"([^"]*)"()'
+local CLOSE = "^</(" .. NAME .. ")%s*>()"
 local UTF8_BOM = "^\239\187\191"
 local MAX_CODE_POINT = 0x10FFFF
 local ENTITIES = { lt = "<", gt = ">", amp = "&", quot = '"', apos = "'" }
+
+local find, match, sub, byte = string.find, string.match, string.sub, string.byte
+local SLASH, BANG, QUESTION = byte("/"), byte("!"), byte("?")
 
 local function utf8Char(code)
   if code < 0x80 then
@@ -36,6 +44,9 @@ local function entity(ref)
 end
 
 local function decode(text)
+  if not find(text, "&", 1, true) then
+    return text
+  end
   return (text:gsub("&([#%w]+);", entity))
 end
 
@@ -45,8 +56,13 @@ end
 
 -- Moves the scan position to `to`, counting the lines passed.
 local function advance(p, to)
-  local _, newlines = p.text:sub(p.pos, to - 1):gsub("\n", "")
-  p.line, p.pos = p.line + newlines, to
+  local text, line = p.text, p.line
+  local newline = find(text, "\n", p.pos, true)
+  while newline and newline < to do
+    line = line + 1
+    newline = find(text, "\n", newline + 1, true)
+  end
+  p.line, p.pos = line, to
 end
 
 -- Skips a construct that ends at `closer` (comment, prolog, CDATA body is read by the caller).
@@ -62,7 +78,12 @@ end
 local function addText(p, text)
   local top = p.stack[#p.stack]
   if top then
-    top.parts[#top.parts + 1] = text
+    local parts = top.parts
+    if parts then
+      parts[#parts + 1] = text
+    else
+      top.parts = { text }
+    end
     return true
   elseif text:find("%S") then
     return fail(p.line, "text outside the root element")
@@ -78,7 +99,7 @@ local function readCdata(p)
   elseif not body then
     return fail(p.line, "unterminated CDATA section")
   end
-  top.parts[#top.parts + 1] = body
+  addText(p, body)
   advance(p, last)
   return true
 end
@@ -87,30 +108,39 @@ end
 local function readAttrs(p, pos, rawTag)
   local attrs = {}
   while true do
-    pos = p.text:match("^%s*()", pos)
-    local closer, after = p.text:match("^(/?>)()", pos)
-    if closer then
-      return attrs, after, closer == "/>"
+    -- The common case in one call: a double-quoted attribute (its closing quote must exist).
+    local name, value, after = match(p.text, DOUBLE_QUOTED, pos)
+    if name then
+      attrs[name:lower()] = decode(value)
+      pos = after
+    else
+      local closer
+      closer, after = match(p.text, "^%s*(/?>)()", pos)
+      if closer then
+        return attrs, after, closer == "/>"
+      end
+      local quote, valueStart
+      name, quote, valueStart = match(p.text, ATTRIBUTE, pos)
+      local valueEnd = name and find(p.text, quote, valueStart, true)
+      if not valueEnd then
+        return fail(p.line, "bad attribute in <" .. rawTag .. ">")
+      end
+      attrs[name:lower()] = decode(sub(p.text, valueStart, valueEnd - 1))
+      pos = valueEnd + 1
     end
-    local name, quote, valueStart = p.text:match("^(" .. NAME .. ")%s*=%s*([\"'])()", pos)
-    local valueEnd = name and p.text:find(quote, valueStart, true)
-    if not valueEnd then
-      return fail(p.line, "bad attribute in <" .. rawTag .. ">")
-    end
-    attrs[name:lower()] = decode(p.text:sub(valueStart, valueEnd - 1))
-    pos = valueEnd + 1
   end
 end
 
 local function closeNode(p, node)
-  node.text, node.parts = table.concat(node.parts), nil
+  local parts = node.parts
+  node.text, node.parts = parts and table.concat(parts) or "", nil
   p.stack[#p.stack] = nil
   return true
 end
 
 local function readOpen(p)
   local line = p.line
-  local rawTag, afterName = p.text:match("^<(" .. NAME .. ")()", p.pos)
+  local rawTag, afterName = match(p.text, OPEN, p.pos)
   if not rawTag then
     return fail(line, "expected a tag name after '<'")
   end
@@ -123,7 +153,7 @@ local function readOpen(p)
     return fail(line, "more than one root element")
   end
   advance(p, after)
-  local node = { tag = rawTag:lower(), rawTag = rawTag, attrs = attrs, children = {}, parts = {}, line = line, textLine = p.line }
+  local node = { tag = rawTag:lower(), rawTag = rawTag, attrs = attrs, children = {}, line = line, textLine = p.line }
   if parent then
     parent.children[#parent.children + 1] = node
   else
@@ -134,7 +164,7 @@ local function readOpen(p)
 end
 
 local function readClose(p)
-  local rawTag, after = p.text:match("^</(" .. NAME .. ")%s*>()", p.pos)
+  local rawTag, after = match(p.text, CLOSE, p.pos)
   if not rawTag then
     return fail(p.line, "malformed closing tag")
   end
@@ -150,7 +180,13 @@ end
 
 -- Handles the markup at the scan position.
 local function readMarkup(p)
-  local at = p.text:sub(p.pos, p.pos + 8)
+  local second = byte(p.text, p.pos + 1)
+  if second == SLASH then
+    return readClose(p)
+  elseif second ~= BANG and second ~= QUESTION then
+    return readOpen(p)
+  end
+  local at = sub(p.text, p.pos, p.pos + 8)
   if at:sub(1, 4) == "<!--" then
     return skipPast(p, "-->", "comment")
   elseif at == "<![CDATA[" then
@@ -169,8 +205,11 @@ end
 function M.parse(text)
   local p = { text = text:gsub(UTF8_BOM, ""), pos = 1, line = 1, stack = {} }
   while p.pos <= #p.text do
-    local lt = p.text:find("<", p.pos, true) or #p.text + 1
-    local ok, message = addText(p, decode(p.text:sub(p.pos, lt - 1)))
+    local lt = find(p.text, "<", p.pos, true) or #p.text + 1
+    local ok, message = true, nil
+    if lt > p.pos then
+      ok, message = addText(p, decode(sub(p.text, p.pos, lt - 1)))
+    end
     if not ok then
       return nil, message
     end

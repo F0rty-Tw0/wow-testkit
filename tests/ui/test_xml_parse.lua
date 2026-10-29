@@ -53,7 +53,36 @@ local function test_unclosed_tag_unterminated_comment_and_missing_root_fail()
   A.contains(missing, "line 2")
 end
 
+local function test_lines_count_newlines_in_attributes_comments_cdata_and_text()
+  local root = XmlParse.parse('<Ui\n a="x\ny">\n<!-- one\ntwo -->\n<Script><![CDATA[a\nb]]>\nc</Script>\n<?pi\n?><!DOCTYPE z>\n<Frame\n/>\n</Ui>')
+  local script, frame = root.children[1], root.children[2]
+  A.same({ root.line, root.textLine, script.line, script.textLine, frame.line, frame.textLine }, { 1, 3, 6, 6, 11, 12 })
+  A.eq(script.text, "a\nb\nc")
+end
+
+local function test_attribute_quotes_spacing_entities_and_empty_text()
+  local root = XmlParse.parse('<Ui><F a = "1"  b=\'2\' c="&lt;>" d=""\n e=\'"\'/><G/> </Ui>')
+  local f = root.children[1]
+  A.same({ f.attrs.a, f.attrs.b, f.attrs.c, f.attrs.d, f.attrs.e }, { "1", "2", "<>", "", '"' })
+  A.same({ f.text, root.children[2].text, root.text }, { "", "", " " })
+  A.eq(XmlParse.parse("<S>pre<![CDATA[<x>]]>post</S>").text, "pre<x>post")
+end
+
+local function test_bad_attributes_and_stray_markup_fail_with_the_line()
+  local _, unterminated = XmlParse.parse('<Ui>\n<Frame a="1>\n</Frame></Ui>')
+  A.contains(unterminated, "line 2: bad attribute in <Frame>")
+  local _, unquoted = XmlParse.parse("<Ui><Frame a=1/></Ui>")
+  A.contains(unquoted, "bad attribute in <Frame>")
+  local _, bare = XmlParse.parse("<Ui>\n<")
+  A.contains(bare, "line 2: expected a tag name")
+  local _, outside = XmlParse.parse("<Ui/>\ntext")
+  A.contains(outside, "line 1: text outside the root element")
+end
+
 return function()
+  test_lines_count_newlines_in_attributes_comments_cdata_and_text()
+  test_attribute_quotes_spacing_entities_and_empty_text()
+  test_bad_attributes_and_stray_markup_fail_with_the_line()
   test_parses_tags_attributes_and_children()
   test_skips_prolog_and_comments_and_decodes_entities_and_cdata()
   test_decodes_quote_apostrophe_and_numeric_entities()
