@@ -124,7 +124,8 @@ end
 
 -- source: `:646-678` (SecureHandlerUnwrapScript), `:520-556` (_unwrap) and `:238-253` (RemoveWrapper): restores the
 -- handler the wrap replaced and returns the header and bodies; a script that is not wrapped is left as it is and returns
--- nothing. "Unable to retrieve unwrap results" only when the API frame's half raised (apiScript).
+-- three nils (`:667-676` reads them from the empty result slots). "Unable to retrieve unwrap results" only when the API
+-- frame's half raised (apiScript).
 function M.unwrapScript(w, frame, script)
   checkFrame(w, frame, "Invalid frame")
   if type(script) ~= "string" then
@@ -145,6 +146,7 @@ function M.unwrapScript(w, frame, script)
   elseif info then
     return info.header, info.preBody, info.postBody
   end
+  return nil, nil, nil
 end
 
 -- The methods the handler templates put on their frames (SecureHandler_OnLoad): fn(w, self, ...).

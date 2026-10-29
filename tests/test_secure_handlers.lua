@@ -563,8 +563,9 @@ local function test_unwrap_script_restores_the_handler_and_returns_the_wrap() --
     A.eq(b:GetScript("OnClick"), original)
     s:click(b)
     A.eq(ran, 1)
-    -- source: `:238-253` (RemoveWrapper) a script that is not wrapped is left as it is and the call returns nothing.
-    A.same({ hdr:UnwrapScript(b, "OnClick") }, {})
+    -- source: `:238-253` (RemoveWrapper) a script that is not wrapped is left as it is; `:667-676` then returns the three
+    -- empty result slots.
+    A.eq(select("#", hdr:UnwrapScript(b, "OnClick")), 3)
     A.same({ b:GetScript("OnClick"), #w.errors }, { original, 0 })
   end)
 end
