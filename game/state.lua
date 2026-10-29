@@ -20,7 +20,8 @@ end
 
 -- Merges patch into target key by key; a table value merges into an existing table, any other value replaces. Table
 -- values are copied, so a later merge never writes into the caller's table. A list merges index by index like any
--- table (slot and id maps rely on that), so a shorter list keeps the old tail.
+-- table (slot and id maps rely on that), so a shorter list keeps the old tail. To replace a list, merge a non-table
+-- (false) over it first, then the new list.
 function M.merge(target, patch)
   for key, value in pairs(patch) do
     if type(value) == "table" then
