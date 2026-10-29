@@ -20,7 +20,7 @@ function M.held(w, slots, slot, obj)
 end
 
 -- Frees slot: the region stops filling it, and one the widget made is hidden. A region another widget took keeps its
--- marks, since they are that widget's now.
+-- marks, since they are that widget's now; one that still fills another slot of obj stays shown, marked with that slot.
 function M.release(w, obj, slots, slot, keys)
   local old = M.held(w, slots, slot, obj)
   slots[slot] = nil
@@ -28,6 +28,12 @@ function M.release(w, obj, slots, slot, keys)
     return
   end
   local oldState = w.ui.state[old]
+  for other, region in pairs(slots) do
+    if region == old then
+      oldState[keys.mark] = other
+      return
+    end
+  end
   oldState[keys.mark] = nil
   if oldState[keys.owned] then
     oldState[keys.owned] = nil

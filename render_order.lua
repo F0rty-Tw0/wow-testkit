@@ -48,12 +48,12 @@ end
 -- the Frame." A HIGHLIGHT region draws while the mouse focus is its frame or a descendant of it; a button's draws by
 -- BehaviourButton.highlightShown instead (W17), and a state texture of a button only in its state (W17, W24). A slider
 -- thumb or status bar texture never draws as a region: its widget exports it (W43, W44).
-local function regionDraws(w, st)
+local function regionDraws(w, obj, st)
   local owner = st.parent
   if st.widgetPart then
     return false
   end
-  if st.role and not BehaviourButton.shown(w, owner, st.role) then
+  if st.role and not BehaviourButton.regionShown(w, owner, obj, st.role) then
     return false
   end
   if layerOf(st) ~= "HIGHLIGHT" then
@@ -120,7 +120,7 @@ function M.collect(w)
   end
   for _, entry in ipairs(regions) do
     local parentKey = frames[entry.st.parent]
-    if parentKey and regionDraws(w, entry.st) then
+    if parentKey and regionDraws(w, entry.obj, entry.st) then
       entry.key = regionKey(parentKey, entry.st, entry.kind)
       entries[#entries + 1] = entry
     end

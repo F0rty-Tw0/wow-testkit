@@ -63,6 +63,28 @@ local function test_pushed_without_a_pushed_texture_keeps_the_normal_one_assumed
   end)
 end
 
+-- source: assumed (W17, W18) a texture that fills two roles draws in either state, and still fills the one left
+-- after the other is cleared.
+local function test_a_texture_in_two_roles_draws_in_both_states_assumed() -- W17
+  H.withRender(function(w)
+    local b = S.anchored("Button", "Two")
+    local both, disabled = b:CreateTexture("TwoT"), b:CreateTexture("TwoD")
+    both:SetColorTexture(0, 0, 1)
+    disabled:SetColorTexture(0.5, 0.5, 0.5)
+    b:SetNormalTexture(both)
+    b:SetPushedTexture(both)
+    b:SetDisabledTexture(disabled)
+    A.same(H.names(Render.snapshot(w), "Two"), { "Two", "TwoT" })
+    b:SetButtonState("PUSHED")
+    A.same(H.names(Render.snapshot(w), "Two"), { "Two", "TwoT" })
+    b:SetButtonState("NORMAL")
+    b:SetPushedTexture(nil)
+    A.same({ b:GetNormalTexture() == both, b:GetPushedTexture(), both:IsShown() }, { true, nil, true })
+    b:Disable()
+    A.same(H.names(Render.snapshot(w), "Two"), { "Two", "TwoD" })
+  end)
+end
+
 local function test_highlight_draws_when_hovered_or_locked_assumed() -- W17
   H.withRender(function(w)
     local b = button()
@@ -191,6 +213,7 @@ return function()
   test_a_path_on_an_adopted_state_texture_draws_one_region_assumed()
   test_pushed_state_swaps_the_texture_and_exports_state_assumed()
   test_pushed_without_a_pushed_texture_keeps_the_normal_one_assumed()
+  test_a_texture_in_two_roles_draws_in_both_states_assumed()
   test_highlight_draws_when_hovered_or_locked_assumed()
   test_button_text_is_a_font_string_shifted_while_pushed()
   test_pushed_state_shifts_only_the_button_text_assumed()
