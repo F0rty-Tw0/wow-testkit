@@ -4,6 +4,7 @@
 local A = require("assert")
 local B = require("tests.helpers.blizzard")
 local Bindings = require("bindings")
+local BlizzardUi = require("blizzard_ui")
 local Json = require("json")
 local Scenario = require("scenario")
 local SessionH = require("tests.helpers.session")
@@ -218,6 +219,13 @@ local function test_default_bindings_xml_loads_with_the_layer_assumed()
   s.w:destroy()
 end
 
+-- source: assumed (row BU1) the extract names a bindings file for tbc and vanilla too; forever has none (spec 11 R3).
+local function test_default_bindings_files_cover_tbc_and_vanilla_assumed()
+  A.eq(BlizzardUi.BINDINGS_FILES.tbc, "addons/blizzard_framexml/bindings_tbc.xml")
+  A.eq(BlizzardUi.BINDINGS_FILES.vanilla, "addons/blizzard_framexml/bindings_vanilla.xml")
+  A.eq(BlizzardUi.BINDINGS_FILES.forever, nil)
+end
+
 local function test_blizzard_code_runs_secure() -- R6: the folder name never taints Blizzard code
   B.run(B.mini(), { targets = { "Blizzard_MiniBase" } }, function()
     A.eq(_G.MiniSecure, true)
@@ -290,6 +298,7 @@ return function()
   test_loaded_blizzard_addons_count_as_loaded()
   test_bindings_xml_registers_commands_and_runs_them()
   test_default_bindings_xml_loads_with_the_layer_assumed()
+  test_default_bindings_files_cover_tbc_and_vanilla_assumed()
   test_blizzard_code_runs_secure()
   test_tainted_caller_keeps_taint_in_blizzard_code()
   test_session_snapshot_reports_the_layer()
