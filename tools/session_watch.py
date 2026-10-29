@@ -5,7 +5,7 @@ import threading
 import time
 
 # Code, plus the art and fonts a snapshot locates: a new or replaced file is only found again after a reload.
-WATCHED = (".lua", ".xml", ".toc", ".png", ".jpg", ".tga", ".blp", ".ttf", ".otf")
+WATCHED = (".lua", ".xml", ".toc", ".png", ".jpg", ".jpeg", ".tga", ".blp", ".ttf", ".otf")
 
 
 class Watcher:
