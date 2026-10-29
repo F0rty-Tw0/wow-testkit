@@ -102,6 +102,19 @@ window.TK = window.TK || {};
     check(out, 'a re-read after a combat action keeps an unsaved fixture edit', fixtureBox().value, EDITED);
     const column = (id) => getComputedStyle(document.getElementById(id)).gridColumnStart;
     check(out, "the combat log sits beside the inspector, not under it, so it leaves the inspector's details room", column('combatlog'), '2');
+  }
+
+  // Wrapped before TK.start (DOMContentLoaded) registers it; a reload runs after report, as it re-reads the panels.
+  const forgetFonts = window.Viewer.forgetFonts;
+  let forgets = 0;
+  window.Viewer.forgetFonts = () => {
+    forgets += 1;
+    forgetFonts();
+  };
+
+  function reportFonts() {
+    const out = document.getElementById('out');
+    check(out, 'a restart and a reload each drop the loaded fonts', forgets, 2);
     out.setAttribute('data-done', '1');
   }
 
@@ -138,6 +151,8 @@ window.TK = window.TK || {};
       document.getElementById('combat-pull').click();
     });
     at(1600, report);
+    at(1700, () => emit('reload', {}));
+    at(1800, reportFonts);
   }
 
   spy('pointer', 'pointer');

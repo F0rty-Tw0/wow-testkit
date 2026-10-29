@@ -60,4 +60,89 @@
       A.eq(height, 14, 'lines height');
     },
   });
+
+  TK_TESTS.push({
+    name: 'loadFonts builds one FontFace per font url across redraws, also for a url that fails',
+    async fn() {
+      const RealFontFace = window.FontFace;
+      let built = 0;
+      window.FontFace = function (...args) {
+        built += 1;
+
+        return new RealFontFace(...args);
+      };
+      V.forgetFonts();
+      try {
+        const assets = { 'Fonts/MISSING.TTF': { kind: 'font', url: 'fixtures/missing-font.ttf' } };
+        await V.loadFonts(assets, location.href);
+        const families = await V.loadFonts(assets, location.href);
+        A.eq(built, 1, 'FontFace count');
+        A.eq(families.size, 0, 'a font that failed stays out');
+      } finally {
+        window.FontFace = RealFontFace;
+      }
+    },
+  });
+
+  // Runs fn(log) with FontFace and document.fonts.add/delete faked, as the repo has no font file: every face loads.
+  async function withFakeFonts(fn) {
+    const RealFontFace = window.FontFace;
+    const log = { built: [], added: [], deleted: [] };
+    window.FontFace = function (family) {
+      const face = { family, load: () => Promise.resolve() };
+      log.built.push(face);
+
+      return face;
+    };
+    document.fonts.add = (face) => log.added.push(face);
+    document.fonts.delete = (face) => log.deleted.push(face);
+    V.forgetFonts();
+    try {
+      await fn(log);
+    } finally {
+      // The fake faces leave document.fonts through the fake delete (an empty load drops the forgotten faces, a
+      // microtask later) before the real one is back.
+      V.forgetFonts();
+      await V.loadFonts({}, location.href);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      window.FontFace = RealFontFace;
+      delete document.fonts.add;
+      delete document.fonts.delete;
+    }
+  }
+
+  const TWO_FONTS = {
+    'Fonts/A.TTF': { kind: 'font', url: 'fixtures/a.ttf' },
+    'Fonts/B.TTF': { kind: 'font', url: 'fixtures/b.ttf' },
+  };
+
+  TK_TESTS.push({
+    name: 'loadFonts gives each font url its own family and loads it once across redraws',
+    async fn() {
+      await withFakeFonts(async (log) => {
+        const first = await V.loadFonts(TWO_FONTS, location.href);
+        const second = await V.loadFonts(TWO_FONTS, location.href);
+        A.eq(log.built.length, 2, 'FontFace count');
+        A.eq(log.added.length, 2, 'faces added to document.fonts');
+        A.eq(new Set(first.values()).size, 2, 'distinct families');
+        A.same([...second.entries()], [...first.entries()], 'a redraw keeps the families');
+      });
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'after forgetFonts the next loadFonts loads each url under a new family, then drops the old faces',
+    async fn() {
+      await withFakeFonts(async (log) => {
+        const before = await V.loadFonts(TWO_FONTS, location.href);
+        V.forgetFonts();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        A.same(log.deleted, [], 'the drawn stage keeps its faces until the next load');
+        const after = await V.loadFonts(TWO_FONTS, location.href);
+        A.eq(log.built.length, 4, 'FontFace count');
+        A.same(log.deleted, log.built.slice(0, 2), 'dropped faces');
+        for (const ref of Object.keys(TWO_FONTS)) A.eq(after.get(ref) !== before.get(ref), true, ref + ' family');
+      });
+    },
+  });
 })();
