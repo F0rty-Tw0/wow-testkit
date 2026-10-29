@@ -136,6 +136,16 @@ def test_atlas_lua_reaches_no_python_and_bytecode_is_refused(tmp):
         raise AssertionError("bytecode atlas.lua was run")
 
 
+def test_atlas_lua_that_loops_raises(tmp):
+    (tmp / "atlas.lua").write_text("while true do end\nreturn {}\n")
+    try:
+        atlas.entry_of(tmp, "probe")
+    except Exception as err:
+        assert "too long" in str(err), err
+    else:
+        raise AssertionError("a looping atlas.lua returned")
+
+
 TESTS = [
     test_wdc5_inline_and_bitpacked_fields,
     test_pallet_and_common_fields,
@@ -148,4 +158,5 @@ TESTS = [
     test_atlas_crop_scales_each_side_by_its_own_axis,
     test_atlas_lua_quotes_a_string_file_or_size_never_writes_it_raw,
     test_atlas_lua_reaches_no_python_and_bytecode_is_refused,
+    test_atlas_lua_that_loops_raises,
 ]

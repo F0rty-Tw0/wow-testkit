@@ -12,10 +12,13 @@ UNSAFE = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
 SIDES = ("left", "right", "top", "bottom")
 _loaded = {}  # atlas.lua path -> (mtime, lupa table)
 MAX_MEMORY = 256 * 1024 * 1024  # atlas.lua is a few MB; the cap only stops a runaway chunk
+MAX_INSTRUCTIONS = 50_000_000  # atlas.lua is one table constructor; the cap only stops a chunk that loops
 LOADER = (
     "function(text) local chunk, err = loadstring(text, '=atlas'); if not chunk then error(err, 0) end; "
-    "setfenv(chunk, {}); return chunk() end"
-)
+    "setfenv(chunk, {}); debug.setmetatable('', nil); "  # no ("x"):rep: C loops dodge the hook
+    f"debug.sethook(function() error('atlas.lua ran too long', 0) end, '', {MAX_INSTRUCTIONS}); "
+    "return chunk() end"
+)  # the hook stays set: every load gets a fresh runtime
 
 
 def build(sheets, members, elements):
@@ -62,7 +65,8 @@ def to_lua(entries):
 def _load(text):
     """The table an atlas.lua returns. The chunk runs under an empty environment, as strings.py runs GlobalStrings, so
     it cannot reach lupa's `python` module and through it Python's objects: the extract folder is an input, and a
-    session serves crops from whatever --extract names. Bytecode is refused (loadstring would run it unchecked)."""
+    session serves crops from whatever --extract names. Bytecode is refused (loadstring would run it unchecked), and a
+    chunk that allocates more than MAX_MEMORY or runs more than MAX_INSTRUCTIONS VM instructions raises."""
     from lupa import lua51
 
     if text[:1] == "\x1b":
