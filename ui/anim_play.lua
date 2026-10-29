@@ -38,14 +38,15 @@ local function schedule(w, group, st)
 end
 
 -- source: W65 `IsDone` is true only after a finish, false after Stop; W59 OnFinished(group, requested) at the natural
--- end (false) and on Finish (true). The state is set before the script runs, so the script may Play again.
+-- end (false) and on Finish (true). The state and a kept final alpha (W60) are set before the script runs, so the script
+-- may Play again and reads the final alpha.
 local function finish(w, group, st, requested)
-  local keeps = Anim.value(st, "ToFinalAlpha")
   cancelTimer(st.group)
   st.group.state = DONE
   st.group.pendingFinish = false
-  if not keeps then
-    AnimEffects.deactivate(w, group)
+  AnimEffects.deactivate(w, group)
+  if Anim.value(st, "ToFinalAlpha") then
+    AnimEffects.keepFinalAlpha(w, group)
   end
   w:callScript(group, "OnFinished", requested)
 end
@@ -100,7 +101,7 @@ local function pause(w, group, st)
 end
 
 -- source: W59 OnStop on Stop(); assumed: Stop does not fire OnFinished, a Stop on a group that is not running fires
--- nothing, and a Stop on a finished group clears the state (and its final alpha) silently.
+-- nothing, and a Stop on a finished group clears the state silently (a kept final alpha is the target's own by then).
 local function stop(w, group, st)
   local gs = st.group
   if not gs then

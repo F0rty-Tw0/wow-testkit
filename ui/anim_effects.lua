@@ -1,11 +1,11 @@
--- What playing animations do to a target: the groups that may show (playing, paused, and finished ones that keep their
--- final alpha) and, for one widget, the alpha multiplier, translation, scales and rotation they add up to. Reads w.now
--- and never advances it. Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
+-- What playing animations do to a target: the groups that may show (playing and paused ones) and, for one widget, the
+-- alpha multiplier, translation, scales and rotation they add up to, and the final alpha a finished group leaves on its
+-- targets. Reads w.now and never advances it. Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
 local M = {}
 
 local Anim = require("ui.anim")
 
--- The groups whose animations may show: playing, paused, and finished ones that keep their final alpha.
+-- The groups whose animations may show: playing and paused ones.
 function M.activate(w, group)
   local active = w.ui.animActive or {}
   w.ui.animActive = active
@@ -60,23 +60,24 @@ end
 
 local CONTRIBUTE = { Alpha = alpha, Translation = translation, Scale = scale, Rotation = rotation }
 
--- source: assumed (W60) a finished group with SetToFinalAlpha keeps the toAlpha of its last Alpha animation (highest
--- order, then latest created). Only a group that keeps it stays active once done (ui/anim_play.lua). True when it
--- changed fx.
-local function addFinalAlpha(w, group, obj, fx)
-  local last
+-- source: W60 Blizzard_ActionBar/Shared/StatusTrackingManager.lua:249 and :262 read GetAlpha after setToFinalAlpha
+-- fades (StatusTrackingBar.xml:3, :11, :17), so a finished group that keeps its final alpha sets each target's own
+-- alpha; assumed: to the toAlpha of the group's last Alpha animation on that target (highest order, then latest created).
+-- The group is done and no longer active (ui/anim_play.lua), so a later SetAlpha or group replaces the alpha.
+function M.keepFinalAlpha(w, group)
+  local last = {}
   for _, item in ipairs(Anim.timeline(w, group).items) do
-    local isLast = item.st.plan.type == "Alpha" and Anim.target(w, item.animation) == obj
-    if isLast and (not last or item.order >= last.order) then
-      last = item
+    if item.st.plan.type == "Alpha" then
+      local target = Anim.target(w, item.animation)
+      local isWidget = target ~= nil and w.ui.state[target] ~= nil
+      if isWidget and (not last[target] or item.order >= last[target].order) then
+        last[target] = item
+      end
     end
   end
-  if not last then
-    return false
+  for target, item in pairs(last) do
+    w.ui.state[target].alpha = Anim.value(item.st, "ToAlpha")
   end
-  fx.alpha = fx.alpha * Anim.value(last.st, "ToAlpha")
-
-  return true
 end
 
 -- True when a playing animation of the group targets obj and changed fx.
@@ -104,8 +105,7 @@ function M.effects(w, obj)
   local fx = { alpha = 1, dx = 0, dy = 0, scales = {}, rotation = 0 }
   local touched = false
   for _, group in ipairs(w.ui.animActive) do
-    local add = w.ui.state[group].group.state == Anim.DONE and addFinalAlpha or addPlaying
-    touched = add(w, group, obj, fx) or touched
+    touched = addPlaying(w, group, obj, fx) or touched
   end
 
   return touched and fx or nil
