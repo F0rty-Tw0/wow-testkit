@@ -1,5 +1,6 @@
 -- Unit fixtures: w:unit / w:mouseover and the kit implementations of the Unit* answers.
 local A = require("assert")
+local G = require("tests.helpers.game")
 local H = require("tests.helpers.world")
 local Units = require("units")
 
@@ -250,7 +251,25 @@ local function test_the_players_own_name_is_a_unit_assumed()
   end)
 end
 
+-- source: row G24: the answers that compare the token (UnitAffectingCombat's player check, UnitIsGroupLeader,
+-- C_Map.GetBestMapForUnit, the first unit of UnitIsEnemy and UnitCanAttack) take a group member's name too, and
+-- "mouseover" pointed at the unit.
+local function test_token_comparing_answers_take_a_group_members_name()
+  G.withGame("retail", function(w)
+    w:unit("player", { name = "Me" })
+    w:unit("party1", { name = "Bob" })
+    w:unit("target", { name = "Orc", isEnemy = true, canAttack = true })
+    w:setMock({ combat = true, group = "party", leader = "party1", zone = { mapID = 84 } })
+    w:mouseover("party1")
+    local leader = { _G.UnitIsGroupLeader("Bob"), _G.UnitIsGroupLeader("Me"), _G.UnitIsGroupLeader("mouseover") }
+    local player = { _G.UnitAffectingCombat("me"), _G.C_Map.GetBestMapForUnit("Me") }
+    local hostile = { _G.UnitIsEnemy("Me", "target"), _G.UnitCanAttack("ME", "target") }
+    A.same({ leader, player, hostile }, { { true, false, true }, { true, 84 }, { true, true } })
+  end)
+end
+
 return function()
+  test_token_comparing_answers_take_a_group_members_name()
   test_mouseover_aliases_registered_unit()
   test_unit_name_returns_name_and_realm()
   test_mythic_score_only_where_api_exists()
