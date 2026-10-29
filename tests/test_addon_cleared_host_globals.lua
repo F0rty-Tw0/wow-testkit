@@ -6,6 +6,7 @@ local Addon = require("addon")
 local Flavors = require("tools.flavors")
 local Scenario = require("scenario")
 local HF = require("tests.helpers.framexml")
+local HT = require("tests.helpers.taint")
 local fs = require("fs")
 
 local CLEARS_THEN_CALLS = [[
@@ -169,6 +170,25 @@ ns.run = function() ns.result = TKViewHooked() end
   A.same({ errors, ns.result, ns.hooks }, { {}, "original", 2 })
 end
 
+-- Forever's require is the view's own (it rejects addon module names), not _G's: a hook on it, in either form, wraps the
+-- view's require, so kit code still loads its modules with the host one.
+local function test_a_hook_on_forevers_require_leaves_the_kit_require_working()
+  local hostRequire = rawget(_G, "require")
+  HT.withTaint("forever", function(w)
+    local results = HT.run(
+      w,
+      "Foo",
+      [[
+hooksecurefunc(_G, "require", function() end)
+hooksecurefunc("require", function() end)
+return pcall(_G.require, "x")
+]]
+    )
+    A.same({ results[1], results[2], tostring(results[3]):match("Invalid import") }, { true, false, "Invalid import" })
+    A.same({ rawget(_G, "require") == hostRequire, type(require("json")) }, { true, "table" })
+  end)
+end
+
 return function()
   test_kit_functions_still_work_after_an_addon_clears_select_and_xpcall()
   test_kit_functions_still_work_after_an_addon_clears_type()
@@ -178,4 +198,5 @@ return function()
   test_a_hooked_base_library_name_fires_for_the_addons_calls_only()
   test_a_false_written_to_a_base_library_name_reads_back_as_false()
   test_a_hook_through_the_g_view_fires_for_kit_callers_too()
+  test_a_hook_on_forevers_require_leaves_the_kit_require_working()
 end

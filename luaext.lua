@@ -105,17 +105,19 @@ end
 -- its errors go to the error handler, so the original's results still return. A global name must exist as addon code
 -- sees it (AddonEnv.global), so a host-only global (require, io, ...) is refused and never rewritten. A base-library
 -- name (Names.KEPT: type, setfenv, ...) hooked on _G or the addon view wraps the view's value and stays in the view, so
--- the addon's calls fire the hook and kit code reading _G keeps the host function. Any other name hooked on the view
--- hooks _G's slot, the one global addon and kit code both call (the client has one _G).
+-- the addon's calls fire the hook and kit code reading _G keeps the host function; so does a name the view answers apart
+-- from _G (Forever's require). Any other name hooked on the view hooks _G's slot, the one global addon and kit code both
+-- call (the client has one _G).
 local function hooksecurefunc(w, tbl, name, hook)
   local original
   if type(tbl) == "table" then
     original = tbl[name]
   else
     tbl, name, hook = _G, tbl, name
-    original = AddonEnv.global(w, name) ~= nil and _G[name] or nil
+    original = AddonEnv.global(w, name)
   end
-  local kept = Names.KEPT[name] and (tbl == _G or w.addonEnvs and w.addonEnvs[tbl])
+  local viewed = tbl == _G or w.addonEnvs and w.addonEnvs[tbl]
+  local kept = viewed and (Names.KEPT[name] or rawget(_G, name) ~= original)
   if kept then
     original = AddonEnv.global(w, name)
   end
