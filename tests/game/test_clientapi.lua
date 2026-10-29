@@ -66,6 +66,17 @@ local function test_inventory_slot_names_answer_their_ids_assumed()
   end)
 end
 
+-- Blizzard's transmog code passes "HEADSLOT" and "SHOULDERSLOT" (blizzard_transmog.lua, blizzard_transmogshared.lua) where
+-- securetemplates.lua:464 passes "MainHandSlot", to the same call, so the lookup ignores case. With a nil id
+-- TransmogUtil.GetSlotID raised "table index is nil" and the transmog window built no slot.
+local function test_inventory_slot_names_ignore_case()
+  G.withGame("retail", function()
+    A.same({ _G.C_PaperDollInfo.GetInventorySlotInfo("HEADSLOT"), _G.C_PaperDollInfo.GetInventorySlotInfo("shoulderslot") }, { 1, 3 })
+    A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo("NOSUCHSLOT"), nil)
+    A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo(nil), nil)
+  end)
+end
+
 -- Blizzard_TalentUI (Classic/Blizzard_TalentUI.lua:159) calls ClassicExpansionAtLeast(LE_EXPANSION_WRATH_OF_THE_LICH_KING) in its
 -- OnLoad; with the constant nil the call raised a bad-argument error and the talent frame never finished loading.
 local function test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
@@ -141,6 +152,7 @@ return function()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
   test_inventory_slot_names_answer_their_ids_assumed()
+  test_inventory_slot_names_ignore_case()
   test_metatable_getters_answer_the_widget_class_metatable_assumed()
   test_quality_colors_carry_the_color_mixin_assumed()
   test_curve_object_evaluates_its_points_assumed()

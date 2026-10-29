@@ -54,6 +54,13 @@ local INVENTORY_SLOTS = {
   TabardSlot = 19,
 }
 
+-- source: confirmed (rows G21) Blizzard passes the same slot as "HEADSLOT" (blizzard_transmogshared.lua) and "MainHandSlot"
+-- (securetemplates.lua:464) to C_PaperDollInfo.GetInventorySlotInfo, so the lookup ignores case.
+local INVENTORY_SLOT_IDS = {}
+for name, id in pairs(INVENTORY_SLOTS) do
+  INVENTORY_SLOT_IDS[name:lower()] = id
+end
+
 -- source: assumed (row G21) the engine's LE_EXPANSION_* values (classic 0 up to mists 4) and the expansion level each classic
 -- flavor runs at; retail and forever are not modelled.
 local EXPANSIONS = {
@@ -113,7 +120,7 @@ function M.install(w)
     end)
   end
   define(w, "C_PaperDollInfo.GetInventorySlotInfo", function(slotName)
-    return INVENTORY_SLOTS[slotName]
+    return type(slotName) == "string" and INVENTORY_SLOT_IDS[slotName:lower()] or nil
   end)
   for name, value in pairs(UNIT_STATS) do
     define(w, name, value, State.ALL)
