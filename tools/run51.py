@@ -5,11 +5,14 @@
     python tools/run51.py --script <file.lua> [args...] # exit with the chunk's returned number
 
 Hosts tests/run.lua, so both runners share one contract. Adds what plain Lua lacks:
-the __tk_fs filesystem bridge (used by fs.lua) and LUA_INIT handling.
+the __tk_fs filesystem bridge (used by fs.lua) and LUA_INIT handling. A test file runs with a private TEMP folder,
+removed when it ends.
 """
 
 import os
+import shutil
 import sys
+import tempfile
 
 try:
     from lupa import lua51
@@ -69,8 +72,27 @@ def run_lua_init(lua):
         lua.execute(init)
 
 
+def private_temp(lua):
+    """Points TEMP, TMP and TMPDIR at a fresh folder that goes when the run ends, so the Tmp.dir folders of one test
+    file go with it (scripts/test.sh does the same for a whole run). Lua's os.exit ends the process without Python's
+    finally blocks, so it removes the folder first. Returns the folder's remover."""
+    folder = tempfile.mkdtemp(prefix="wow-testkit-run-")
+    for name in ("TEMP", "TMP", "TMPDIR"):
+        os.environ[name] = folder
+
+    def remove():
+        shutil.rmtree(folder, ignore_errors=True)
+
+    exits = lua.eval("function(exit, remove) return function(...) remove(); return exit(...) end end")
+    lua.globals().os.exit = exits(lua.globals().os.exit, remove)
+
+    return remove
+
+
 def main(argv):
     lua = new_runtime()
+    # --script output (a preview folder, a generated file) may live in TEMP for the caller to keep.
+    remove = private_temp(lua) if argv[:1] != ["--script"] else lambda: None
     try:
         run_lua_init(lua)
         lua.globals().arg = lua.table_from({i: a for i, a in enumerate([RUNNER] + argv)})
@@ -79,6 +101,8 @@ def main(argv):
     except lua51.LuaError as err:
         print(err, file=sys.stderr)
         return 1
+    finally:
+        remove()
     return 1  # os.exit was not reached
 
 

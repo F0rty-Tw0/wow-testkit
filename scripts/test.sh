@@ -2,7 +2,8 @@
 # Run the kit's tests:
 #   - every tests/**/test_*.lua on Lua 5.1 ($LUA51, else python tools/run51.py)
 #   - the files listed in tests/pure.txt also on the system Lua (lua tests/run.lua)
-#   - the runner's --script mode, then the canaries (canaries/run.lua) when present
+#   - the runner's --script mode, then (without $LUA51) that a run51 test file removes its temp folders
+#   - the canaries (canaries/run.lua) when present
 # Exits non-zero on any failure.
 
 set -uo pipefail
@@ -51,6 +52,20 @@ script_mode_works() {
   return 1
 }
 
+# A single-file run51 run removes its Tmp.dir folders itself (tools/run51.py private_temp). Skipped under $LUA51,
+# where no run51 runs.
+run51_leaves_no_temp() {
+  local out dir
+  out=$(python tools/run51.py tests/fixtures/tmp_probe.lua)
+  dir=$(sed -n 's/^TMP //p' <<<"${out//$'\r'/}")
+  if [[ -n $dir && ! -e $dir ]]; then
+    echo "PASS run51 removes its temp folders"
+    return 0
+  fi
+  echo "FAIL run51 removes its temp folders: ${dir:-no TMP line} is still there"
+  return 1
+}
+
 for f in tests/**/test_*.lua; do
   check "${RUN51[@]}" "$f"
 done
@@ -63,6 +78,9 @@ if [[ -f tests/pure.txt ]]; then
 fi
 
 check script_mode_works
+if [[ -z ${LUA51:-} ]]; then
+  check run51_leaves_no_temp
+fi
 
 if [[ -f canaries/run.lua ]]; then
   check "${RUN51[@]}" --script canaries/run.lua
