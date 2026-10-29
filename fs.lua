@@ -86,20 +86,20 @@ function M.rename(from, to)
   assert(ok, err)
 end
 
--- A file that opens exists; the rename probe covers directories, which io.open cannot open on Windows. Opening first
--- keeps a read-only mount working, where the rename fails with EROFS. Accepted without the bridge: a file that exists
--- but cannot be read on a read-only mount reads as missing (the open fails, the rename fails with EROFS).
+-- A file that opens exists, and so does one whose open is refused with EACCES (a file that cannot be read, or a
+-- directory on Windows); the rename probe covers the rest. Opening first keeps a read-only mount working, where the
+-- rename fails with EROFS.
 function M.exists(path)
   local bridge = host()
   if bridge then
     return bridge.exists(path)
   end
-  local file = io.open(path, "r")
+  local file, _, code = io.open(path, "r")
   if file then
     file:close()
     return true
   end
-  return renameProbe(path)
+  return code == EACCES or renameProbe(path)
 end
 
 function M.isdir(path)

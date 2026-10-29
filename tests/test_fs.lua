@@ -165,6 +165,25 @@ local function test_exists_is_true_when_the_rename_probe_is_refused_with_eacces(
   A.same({ ok, found }, { true, true })
 end
 
+-- On a read-only mount a file that exists but cannot be read refuses the open with EACCES and the rename probe with
+-- EROFS (30); the refused open still means the path exists.
+local function test_exists_is_true_when_the_open_is_refused_with_eacces()
+  local path = tempDir() .. "/unreadable"
+  local bridge, open, rename = rawget(_G, "__tk_fs"), io.open, os.rename
+  rawset(_G, "__tk_fs", nil)
+  rawset(io, "open", function()
+    return nil, path .. ": Permission denied", 13
+  end)
+  rawset(os, "rename", function()
+    return nil, path .. ": Read-only file system", 30
+  end)
+  local ok, found = pcall(fs.exists, path)
+  rawset(os, "rename", rename)
+  rawset(io, "open", open)
+  rawset(_G, "__tk_fs", bridge)
+  A.same({ ok, found }, { true, true })
+end
+
 -- The shell fallbacks run paths through sh or cmd; one the shell would still expand inside double quotes must raise.
 local function test_shell_fallbacks_refuse_a_path_the_shell_would_expand()
   local dir = tempDir()
@@ -205,6 +224,7 @@ return function()
   test_shell_fallbacks_list_a_dir_named_with_bang_and_caret()
   test_exists_and_list_work_without_the_bridge_while_the_global_io_is_cleared()
   test_exists_is_true_when_the_rename_probe_is_refused_with_eacces()
+  test_exists_is_true_when_the_open_is_refused_with_eacces()
   test_exists_finds_a_file_that_cannot_be_renamed()
   test_exists_finds_a_directory_without_the_bridge()
   test_mkdirp_creates_nested_dirs_and_write_then_list_finds_file()
