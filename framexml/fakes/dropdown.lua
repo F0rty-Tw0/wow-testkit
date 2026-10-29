@@ -148,7 +148,8 @@ local function addButton(w, info, level)
 end
 
 -- S1 (Mainline :1064-1071, Classic :1003-1010): at any level, a shown DropDownList<level> whose open menu is frame, or
--- button's parent without one, hides. The client indexes a nil button; the kit reads that as no match.
+-- button's parent without one, hides. The client indexes a nil button; the kit reads that as no match, and
+-- checkToggle raises for it past level 1.
 local function closesShown(w, level, frame, button)
   local owner = frame or (button and button:GetParent())
   local open = readGlobal(w, "UIDROPDOWNMENU_OPEN_MENU")
@@ -165,7 +166,13 @@ local function frameFor(w, level, frame)
   return frame
 end
 
-local function checkToggle(frame)
+-- S1, S16: past level 1 the client anchors the list to button (Mainline :1168, Classic :1107), and with no frame it
+-- reads button's parent first (Mainline :1065, Classic :1004), so a nil button raises there. Level 1 with neither
+-- raises "no dropdown frame" below.
+local function checkToggle(level, frame, button)
+  if level > 1 and button == nil then
+    error("ToggleDropDownMenu: no button; level " .. level .. " opens from the entry that was entered", Callsite.level())
+  end
   if not frame then
     error("ToggleDropDownMenu: no dropdown frame", Callsite.level())
   end
@@ -179,7 +186,7 @@ end
 -- :997-998). After the S1 check, hides the target list and deeper before init runs (S12); level 1 then becomes
 -- UIDROPDOWNMENU_OPEN_MENU (Mainline :1095, Classic :1034), and init runs through Initialize and its helper (S4).
 -- Shows nothing when init added no entries (S10). anchor, x, y, autoHideDelay and displayMode are ignored: the kit
--- has no layout; button only feeds the S1 check.
+-- has no layout; button feeds the S1 check and must be there past level 1.
 local function toggle(w, level, value, frame, menuList, button)
   level = level or 1
   createLists(w, level)
@@ -191,7 +198,7 @@ local function toggle(w, level, value, frame, menuList, button)
     return
   end
   frame = frameFor(w, level, frame)
-  checkToggle(frame)
+  checkToggle(level, frame, button)
   MenuFrames.close(w, level)
   if level == 1 then
     w:setGlobal("UIDROPDOWNMENU_OPEN_MENU", frame)

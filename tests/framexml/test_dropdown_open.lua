@@ -43,10 +43,27 @@ end
 local function test_toggle_without_a_frame_uses_the_owner_of_level_one()
   withFrameXML("retail", function(w)
     local frame = openMenu({ { "More", { hasArrow = true } } })
-    _G.ToggleDropDownMenu(2, "v", nil, nil, nil, nil, { { "Nested" } })
+    _G.ToggleDropDownMenu(2, "v", nil, nil, nil, nil, { { "Nested" } }, _G.DropDownList1Button1)
     A.eq(#w.menus, 2)
     A.eq(w.menus[2].owner, frame)
     A.same(texts(w, 2), { "Nested" })
+  end)
+end
+
+-- S1, S16 (Mainline UIDropDownMenu.lua:1065 and :1168, Classic :1004 and :1107): the client indexes button when no
+-- frame is passed and when it opens a level past 1, so a nil one raises at the caller and opens nothing.
+local function test_toggle_past_level_one_without_a_button_errors()
+  withFrameXML("retail", function(w)
+    local frame = openMenu({ { "More", { hasArrow = true } } })
+    local where = "^tests[/\\]framexml[/\\]test_dropdown_open%.lua:%d+: ToggleDropDownMenu: "
+    local message = A.errors(function()
+      _G.ToggleDropDownMenu(2, "v", nil, nil, nil, nil, { { "Nested" } })
+    end, "no button")
+    A.truthy(message:find(where), message)
+    A.errors(function()
+      _G.ToggleDropDownMenu(2, "v", frame, nil, nil, nil, { { "Nested" } })
+    end, "no button")
+    A.same({ #w.menus, _G.DropDownList2:IsShown() }, { 1, false })
   end)
 end
 
@@ -206,6 +223,7 @@ return function()
   test_toggle_again_on_the_owning_frame_closes_the_menu()
   test_toggle_on_another_frame_replaces_the_open_menu()
   test_toggle_without_a_frame_uses_the_owner_of_level_one()
+  test_toggle_past_level_one_without_a_button_errors()
   test_toggle_on_a_frame_without_initialize_errors()
   test_entering_has_arrow_entry_calls_toggle_with_value_menu_list_and_entry()
   test_entering_has_arrow_entry_without_value_passes_its_text()
