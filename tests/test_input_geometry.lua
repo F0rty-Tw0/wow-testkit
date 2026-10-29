@@ -99,10 +99,11 @@ local function drawnOnTop(w, frames)
   return top
 end
 
--- WORLD (unassignable), a lowercase name and an unknown one draw as MEDIUM; the hit follows the draw.
+-- BLIZZARD (a FRAMESTRATA with no rank here) draws as MEDIUM and a lowercase name as its strata; the hit follows the
+-- draw. WORLD and unknown names raise (test_behaviour_render.lua).
 local function test_the_hit_follows_the_draw_order_for_odd_strata_assumed() -- (LY12)
   inWorld(function(w)
-    for _, odd in ipairs({ "WORLD", "high", "NOPE" }) do
+    for _, odd in ipairs({ "BLIZZARD", "high" }) do
       local low = box(100, 100, 200, 200)
       low:SetFrameStrata("LOW")
       local oddFrame = box(100, 100, 200, 200)

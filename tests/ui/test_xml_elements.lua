@@ -98,6 +98,16 @@ local function test_unsupported_attribute_is_reported_once_per_file()
   end)
 end
 
+-- A frameStrata outside FRAMESTRATA is reported and skipped; the frame keeps its strata and still builds its children.
+local function test_a_frame_strata_that_is_no_framestrata_is_reported_assumed()
+  local xml = '<Ui><Frame name="Sa" frameStrata="BOGUS"><Frames><Frame name="SaKid"/></Frames></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ _G.Sa:GetFrameStrata(), _G.SaKid ~= nil, #w.errors }, { "MEDIUM", true, 0 })
+    A.eq(count(reportText(ctx), "frameStrata 'BOGUS' is not a FRAMESTRATA; ignored"), 1)
+  end)
+end
+
 local function test_tag_matches_the_frame_type_ignoring_case_assumed()
   H.withXml({ ["Ui.xml"] = '<Ui><checkbutton name="Cb"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -238,6 +248,7 @@ return function()
   test_region_tag_at_top_level_builds_no_frame_assumed()
   test_unknown_child_element_is_reported_once_per_file_assumed()
   test_unsupported_attribute_is_reported_once_per_file()
+  test_a_frame_strata_that_is_no_framestrata_is_reported_assumed()
   test_tag_matches_the_frame_type_ignoring_case_assumed()
   test_mixin_copies_the_global_table_and_records_its_name()
   test_inherits_applies_before_the_elements_own_mixin_assumed()

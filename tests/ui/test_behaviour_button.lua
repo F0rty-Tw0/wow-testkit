@@ -274,6 +274,10 @@ local function test_an_unknown_font_object_name_stores_nothing_assumed() -- W22
     b:SetNormalFontObject(_G.CreateFont("T63Known"))
     b:SetNormalFontObject("T63NoSuchFont")
     A.same({ b:GetNormalFontObject(), Btn.fontFor(w, b) }, { nil, nil })
+    -- a global that holds no font object (here a string) is the same as a missing one
+    w:setGlobal("T63StringGlobal", "not a font")
+    b:SetNormalFontObject("T63StringGlobal")
+    A.eq(b:GetNormalFontObject(), nil)
   end)
 end
 

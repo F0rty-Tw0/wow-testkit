@@ -98,6 +98,28 @@ local function test_frame_strata_follows_parent_else_medium()
   end)
 end
 
+-- source: Blizzard_SharedXML/UI.xsd:18-30 FRAMESTRATA; assumed: from Lua another name raises at the caller and keeps
+-- the strata, any case is taken (SetPoint takes "Left", PARENT inherits as in XML).
+local function test_a_strata_that_is_no_framestrata_errors_assumed()
+  withWidgets("retail", function()
+    local parent = _G.CreateFrame("Frame")
+    local f = _G.CreateFrame("Frame", nil, parent)
+    f:SetFrameStrata("HIGH")
+    for _, bogus in ipairs({ "BOGUS", "WORLD" }) do
+      local message = A.errors(function()
+        f:SetFrameStrata(bogus)
+      end, "SetFrameStrata: '" .. bogus .. "' is not a FRAMESTRATA")
+      A.truthy(message:find("^tests[/\\]ui[/\\]test_behaviour_render%.lua:%d+:"), message)
+    end
+    A.eq(f:GetFrameStrata(), "HIGH")
+    f:SetFrameStrata("dialog")
+    A.eq(f:GetFrameStrata(), "DIALOG")
+    parent:SetFrameStrata("TOOLTIP")
+    f:SetFrameStrata("PARENT")
+    A.eq(f:GetFrameStrata(), "TOOLTIP")
+  end)
+end
+
 local function test_unset_flags_are_false()
   withWidgets("retail", function(w)
     local f = _G.CreateFrame("Frame")
@@ -118,5 +140,6 @@ return function()
   test_setting_a_level_moves_the_explicit_descendants()
   test_a_descendant_pushed_below_zero_wraps_to_10000()
   test_frame_strata_follows_parent_else_medium()
+  test_a_strata_that_is_no_framestrata_errors_assumed()
   test_unset_flags_are_false()
 end

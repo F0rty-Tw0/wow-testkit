@@ -206,6 +206,7 @@ local function setFontObject(state)
     local fonts = State.write(st).fonts
     if type(font) == "string" then
       font = AddonEnv.global(w, font)
+      font = type(font) == "table" and font or nil -- a global that holds no font object is a missing one
     end
     fonts[state] = font
   end
