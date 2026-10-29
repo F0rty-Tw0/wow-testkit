@@ -59,6 +59,15 @@ local function newCatalog(w)
   -- dependency check treats a Blizzard_ addon as present, so the call api asked about one the mock does not hold counts
   -- unscripted.
   function catalog.resolve(ident, api)
+    local name = catalog.find(ident)
+    if not name and type(ident) == "string" and ident:sub(1, #BLIZZARD_PREFIX) == BLIZZARD_PREFIX then
+      WorldApi.markUnscripted(w, api)
+    end
+    return name
+  end
+
+  -- catalog.resolve without the unscripted count.
+  function catalog.find(ident)
     local names = catalog.names()
     if type(ident) == "number" then
       return names[ident]
@@ -67,9 +76,6 @@ local function newCatalog(w)
       if name == ident then
         return name
       end
-    end
-    if type(ident) == "string" and ident:sub(1, #BLIZZARD_PREFIX) == BLIZZARD_PREFIX then
-      WorldApi.markUnscripted(w, api)
     end
     return nil
   end
@@ -154,11 +160,13 @@ end
 local function installLoad(w, catalog)
   -- source: assumed (row G15) true once loaded, or nil and MISSING (not installed), DISABLED or a loadFailure code; a
   -- loaded addon answers true without loading again; an addon the mock holds without a folder is loaded as it stands.
-  -- A Blizzard_ addon the catalog does not hold as loaded goes to the Blizzard UI layer when it is on: it loads from the
-  -- extract with its dependencies (B3; assumed), or comes back MISSING.
+  -- A Blizzard_ addon the catalog does not hold goes to the Blizzard UI layer when it is on: it loads from the extract
+  -- with its dependencies (B3; assumed); one the extract lacks too answers as the catalog does (MISSING).
   define(w, "C_AddOns.LoadAddOn", function(ident)
-    if w.blizzard and type(ident) == "string" and ident:match("^[Bb]lizzard_") and not catalog.state(ident).loaded then
-      return BlizzardUi.loadOne(w, ident)
+    if w.blizzard and type(ident) == "string" and ident:match("^[Bb]lizzard_") and not catalog.find(ident) then
+      if BlizzardUi.loadOne(w, ident) then
+        return true
+      end
     end
     local name = catalog.resolve(ident, "C_AddOns.LoadAddOn")
     if not name then
