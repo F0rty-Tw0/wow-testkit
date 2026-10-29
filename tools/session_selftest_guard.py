@@ -8,6 +8,7 @@ import io
 import json
 import os
 import socket
+import stat
 import time
 
 import session
@@ -105,6 +106,24 @@ def test_restart_on_the_same_port_keeps_the_cookie_and_says_a_new_boot(tmp):
     path.write_text("not a token", encoding="ascii")
     fresh = session_files.session_token(path.parent)
     assert fresh != token and session_files.TOKEN_SHAPE.match(fresh), fresh
+
+
+def test_a_day_old_foreign_open_or_linked_token_file_is_replaced(tmp):
+    """A token another user could read or plant is not reused, and a saved one rotates after TOKEN_MAX_AGE."""
+    kept = session_files.session_token(tmp)
+    old = time.time() - session_files.TOKEN_MAX_AGE - 1
+    os.utime(tmp / session_files.TOKEN_FILE, (old, old))
+    assert session_files.session_token(tmp) not in (kept, None)
+    now, mine = time.time(), 1000
+
+    def saved(kind, mode, uid=mine):
+        return os.stat_result((kind | mode, 0, 0, 1, uid, 0, 32, now, now, now))
+
+    assert session_files.reusable(saved(stat.S_IFREG, 0o600), now, mine)
+    assert session_files.reusable(saved(stat.S_IFREG, 0o644), now, None)  # Windows: the folder's access list rules
+    assert not session_files.reusable(saved(stat.S_IFREG, 0o644), now, mine)  # readable by others
+    assert not session_files.reusable(saved(stat.S_IFREG, 0o600, uid=1001), now, mine)  # another user's
+    assert not session_files.reusable(saved(stat.S_IFLNK, 0o777), now, None)  # a planted link
 
 
 def test_a_refused_request_with_the_token_sets_no_cookie(tmp):
@@ -253,6 +272,7 @@ TESTS = [
     test_token_url_sets_the_cookie_and_the_cookie_works,
     test_non_loopback_bind_is_refused,
     test_restart_on_the_same_port_keeps_the_cookie_and_says_a_new_boot,
+    test_a_day_old_foreign_open_or_linked_token_file_is_replaced,
     test_a_refused_request_with_the_token_sets_no_cookie,
     test_every_reply_says_no_referrer,
     test_connections_past_the_cap_are_closed_unanswered,

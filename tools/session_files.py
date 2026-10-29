@@ -1,14 +1,17 @@
 """What the session server reads from disk: the static files it serves, confined to their root, and the session's
-token, kept in the session folder so a restarted server accepts the cookie its viewer holds."""
+token, kept in the session folder for a day so a restarted server accepts the cookie its viewer holds."""
 
 import os
 import re
 import secrets
+import stat
+import time
 from pathlib import Path
 from urllib.parse import unquote
 
 TOKEN_FILE = "token"
 TOKEN_SHAPE = re.compile(r"^[A-Za-z0-9_-]{32}$")
+TOKEN_MAX_AGE = 24 * 60 * 60  # seconds a saved token is reused before a restart rotates it
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -40,22 +43,45 @@ def content_type(path):
     return CONTENT_TYPES.get(path.suffix.lower(), "application/octet-stream")
 
 
-def session_token(session_dir):
-    """The token <session_dir>/token holds, made and saved there first when it holds none, so a server restarted on the
-    same session keeps the cookie its viewer has. The file is made readable by this user only where the OS honours the
-    mode (POSIX); on Windows it inherits the folder's access list (the testkit home, under the user's profile)."""
-    path = Path(session_dir) / TOKEN_FILE
+def reusable(info, now, uid):
+    """True when a saved token file (its lstat) may be reused: a regular file, not a link, saved less than
+    TOKEN_MAX_AGE ago and, where uid is given (POSIX), owned by uid and closed to group and others. A token another
+    user could read or plant would let them drive the session, and its /run executes code as this user."""
+    fresh = stat.S_ISREG(info.st_mode) and 0 <= now - info.st_mtime < TOKEN_MAX_AGE
+    if not fresh or uid is None:
+        return fresh
+
+    return info.st_uid == uid and not info.st_mode & 0o077
+
+
+def _saved_token(path):
+    """The token a reusable file at path holds, or None."""
+    uid = os.getuid() if hasattr(os, "getuid") else None
     try:
+        if not reusable(os.lstat(path), time.time(), uid):
+            return None
         saved = path.read_text(encoding="ascii").strip()
     except (OSError, UnicodeDecodeError):
-        saved = ""
-    if TOKEN_SHAPE.match(saved):
+        return None
+
+    return saved if TOKEN_SHAPE.match(saved) else None
+
+
+def session_token(session_dir):
+    """The token <session_dir>/token holds, so a server restarted on the same session keeps the cookie its viewer has.
+    A file `reusable` refuses (a link, another user's, open to others, a day old) or a malformed one is replaced by a
+    fresh token: the old file is removed and the new one made exclusively, so a planted link is never followed. The
+    file is readable by this user only where the OS honours the mode (POSIX); on Windows it inherits the folder's
+    access list (the testkit home, under the user's profile)."""
+    path = Path(session_dir) / TOKEN_FILE
+    saved = _saved_token(path)
+    if saved:
         return saved
     token = secrets.token_urlsafe(24)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    path.unlink(missing_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="ascii") as out:
         out.write(token)
-    os.chmod(path, 0o600)
 
     return token
