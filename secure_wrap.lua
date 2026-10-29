@@ -161,6 +161,9 @@ M.wrappers = {
   OnReceiveDrag = wrappedDrag,
   OnMouseWheel = simpleWrap("self,offset", "self,message,offset"),
   OnAttributeChanged = function(w, ...)
+    if not Taint.current(w) then
+      return wrappedAttribute(w, ...)
+    end
     return Taint.secure(w, wrappedAttribute, w, ...)
   end,
 }
