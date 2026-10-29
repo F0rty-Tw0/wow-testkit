@@ -26,6 +26,12 @@ local function cvarKey(name)
   return type(name) == "string" and name:lower() or nil
 end
 
+-- source: confirmed (row G29) the client's default for each CVar Blizzard's UI reads before anything sets it, from
+-- Ketho's CVars dump; keys lowercase like the store.
+local CVAR_DEFAULTS = {
+  userfontscale = "1.000000",
+}
+
 local function toCvarValue(value)
   if type(value) == "boolean" then
     return value and "1" or "0"
@@ -34,9 +40,13 @@ local function toCvarValue(value)
 end
 
 local function installCvars(w)
+  local function default(name)
+    local key = cvarKey(name)
+    return key and CVAR_DEFAULTS[key] or nil
+  end
   local function get(name)
     local key = cvarKey(name)
-    return key and w.mock.cvars[key] or nil
+    return key and (w.mock.cvars[key] or CVAR_DEFAULTS[key]) or nil
   end
   local function getBool(name)
     return get(name) == "1"
@@ -53,9 +63,11 @@ local function installCvars(w)
     return true
   end
   define(w, "GetCVar", get, ALL)
+  define(w, "GetCVarDefault", default, ALL)
   define(w, "GetCVarBool", getBool, ALL)
   define(w, "SetCVar", set, ALL)
   define(w, "C_CVar.GetCVar", get)
+  define(w, "C_CVar.GetCVarDefault", default)
   define(w, "C_CVar.GetCVarBool", getBool)
   define(w, "C_CVar.SetCVar", set)
 end

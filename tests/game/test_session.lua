@@ -76,6 +76,18 @@ local function test_set_cvar_stores_the_string_form() -- (G3)
   end)
 end
 
+-- TextSizeManager.lua (Blizzard_AccessibilityTemplates) takes math.max of GetCVarNumberOrDefault("userFontScale"), which
+-- falls back to GetCVarDefault; an unset CVar reads as its default until SetCVar changes it.
+local function test_unset_cvar_reads_its_client_default() -- (G29)
+  G.withGame("retail", function()
+    A.same({ _G.GetCVar("userFontScale"), _G.GetCVarDefault("UserFontScale") }, { "1.000000", "1.000000" })
+    A.eq(_G.C_CVar.GetCVarDefault("userFontScale"), "1.000000")
+    _G.SetCVar("userFontScale", 1.5)
+    A.same({ _G.GetCVar("userFontScale"), _G.GetCVarDefault("userFontScale") }, { "1.5", "1.000000" })
+    A.eq(_G.GetCVarDefault("nope"), nil)
+  end)
+end
+
 local function test_namespaced_cvars_share_the_store() -- (G3)
   G.withGame("retail", function()
     _G.C_CVar.SetCVar("Bar", "7")
@@ -180,6 +192,7 @@ return function()
   test_cvars_are_case_insensitive_strings()
   test_set_cvar_stores_the_string_form()
   test_namespaced_cvars_share_the_store()
+  test_unset_cvar_reads_its_client_default()
   test_logged_in_flips_at_player_login_assumed()
   test_logged_in_is_nil_without_a_login()
   test_server_time_follows_the_world_clock()
