@@ -57,10 +57,15 @@ def reusable(info, now, uid):
 def _saved_token(path):
     """The token a reusable file at path holds, or None."""
     uid = os.getuid() if hasattr(os, "getuid") else None
+    now = time.time()
     try:
-        if not reusable(os.lstat(path), time.time(), uid):
+        if not reusable(os.lstat(path), now, uid):
             return None
-        saved = path.read_text(encoding="ascii").strip()
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))  # POSIX: a link swapped in since fails here
+        with os.fdopen(fd, encoding="ascii") as saved_file:
+            if not reusable(os.fstat(saved_file.fileno()), now, uid):  # the file read is the file checked
+                return None
+            saved = saved_file.read().strip()
     except (OSError, UnicodeDecodeError):
         return None
 
@@ -80,7 +85,13 @@ def session_token(session_dir):
     token = secrets.token_urlsafe(24)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.unlink(missing_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:  # another server on this session saved one between the unlink and the open
+        saved = _saved_token(path)
+        if saved:
+            return saved
+        raise
     with os.fdopen(fd, "w", encoding="ascii") as out:
         out.write(token)
 

@@ -126,6 +126,16 @@ def test_a_day_old_foreign_open_or_linked_token_file_is_replaced(tmp):
     assert not session_files.reusable(saved(stat.S_IFLNK, 0o777), now, None)  # a planted link
 
 
+def test_a_token_file_linked_to_another_file_is_replaced_not_written_through(tmp):
+    """The new token goes to a fresh file, so a token path planted as a link to another file never overwrites it."""
+    victim = tmp / "victim"
+    victim.write_text("keep", encoding="ascii")
+    os.link(victim, tmp / session_files.TOKEN_FILE)
+    token = session_files.session_token(tmp)
+    assert victim.read_text(encoding="ascii") == "keep"
+    assert (tmp / session_files.TOKEN_FILE).read_text(encoding="ascii") == token
+
+
 def test_a_refused_request_with_the_token_sets_no_cookie(tmp):
     with running(tmp) as live:
         for headers in ({"Origin": "http://evil.example"}, {"Host": "evil.example"}):
@@ -273,6 +283,7 @@ TESTS = [
     test_non_loopback_bind_is_refused,
     test_restart_on_the_same_port_keeps_the_cookie_and_says_a_new_boot,
     test_a_day_old_foreign_open_or_linked_token_file_is_replaced,
+    test_a_token_file_linked_to_another_file_is_replaced_not_written_through,
     test_a_refused_request_with_the_token_sets_no_cookie,
     test_every_reply_says_no_referrer,
     test_connections_past_the_cap_are_closed_unanswered,
