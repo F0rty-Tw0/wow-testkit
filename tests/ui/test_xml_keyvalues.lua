@@ -15,6 +15,7 @@ local function test_global_keyvalue_follows_a_dotted_path_assumed()
   H.withXml({ ["Ui.xml"] = XML }, function(w, ctx)
     local kit = { Inner = { Leaf = 7 } }
     w:setGlobal("Kit", kit)
+    w:setGlobal("Leaf", "WRONG") -- a missing link must not restart the lookup at a global
     H.load(w, ctx, "Ui.xml")
     A.same({ _G.Kd.flat, _G.Kd.deep }, { kit, 7 })
     for _, key in ipairs({ "missing", "through", "nothing" }) do -- no error, no value

@@ -200,15 +200,13 @@ end
 -- source: confirmed (row X26) a global KeyValue names a dotted path (`MoneyDenominationDisplayType.Copper`, `AuctionHouseFrameDisplayMode.Buy`):
 -- the first part is a global, each later part a field of the table before it; assumed a missing or non-table link gives nil.
 local function globalPath(w, path)
-  local current
-  for part in path:gmatch("[^.]+") do
-    if current == nil then
-      current = AddonEnv.global(w, part, true)
-    elseif type(current) == "table" then
-      current = current[part]
-    else
+  local first, rest = path:match("^([^.]*)(.*)$")
+  local current = AddonEnv.global(w, first, true)
+  for part in rest:gmatch("[^.]+") do
+    if type(current) ~= "table" then
       return nil
     end
+    current = current[part]
   end
   return current
 end
