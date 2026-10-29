@@ -51,9 +51,9 @@ end
 -- Enum (and Constants) are swept only from the first query on; a change before it is not attributed (known gap).
 local function test_a_table_declared_with_keys_tracks_only_those_keys() -- R6
   H.withTaint("retail", function(w, Taint)
-    local t = { watched = 1, other = 1 }
+    local t = { first = 1, watched = 1, other = 1 } -- watched is not the first declared key: every key is compared
     w:setGlobal("KitK", t)
-    Taint.declare(w, t, "KitK", false, { "watched" })
+    Taint.declare(w, t, "KitK", false, { "first", "watched" })
     H.run(w, "Foo", "KitK.watched = 2; KitK.other = 2")
     A.same({ Taint.slotOf(w, t, "watched"), Taint.slotOf(w, t, "other") }, { "Foo", nil })
     A.eq(w.taint.log[#w.taint.log].text, "KitK.watched tainted by Foo")
