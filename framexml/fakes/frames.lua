@@ -6,9 +6,9 @@ local M = {}
 
 local WorldApi = require("world_api")
 
--- First match wins. Row F6: the edit box of each chat frame (floatingchatframe.xml:540); the template and the parent
--- are not modelled.
-local LAZY_TYPES = { { "^ChatFrame%d+EditBox$", "EditBox" } }
+-- First match wins. Row F6: the edit box of each chat frame (floatingchatframe.xml:540); row F8: the chat frames
+-- themselves (floatingchatframe.xml:698-751). The templates and the parents are not modelled.
+local LAZY_TYPES = { { "^ChatFrame%d+EditBox$", "EditBox" }, { "^ChatFrame%d+$", "ScrollingMessageFrame" } }
 
 local function previousLookup(previous, t, key)
   if type(previous) == "function" then

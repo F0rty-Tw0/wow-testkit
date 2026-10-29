@@ -133,18 +133,46 @@ local function test_class_info_answers_the_class_list_assumed() -- Blizzard_Play
 end
 
 -- Blizzard_WorldMap.lua:577 (ToggleWorldMap) indexes Enum.GameRule.WorldMapDisabled; no installed data lists the members, so
--- the kit's table is empty and every rule reads as inactive.
+-- the kit's table is empty and every rule reads as inactive. tbc's AutoComplete.lua:138 reads it the same way.
 local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
   G.withGame("retail", function()
     A.same({ type(_G.Enum.GameRule), _G.Enum.GameRule.WorldMapDisabled }, { "table", nil })
     A.eq(_G.C_GameRules.IsGameRuleActive(_G.Enum.GameRule.WorldMapDisabled), false)
   end)
   G.withGame("tbc", function()
-    A.eq(_G.Enum.GameRule, nil) -- the classic data has no GameRule; the kit adds none
+    A.same({ type(_G.Enum.GameRule), _G.Enum.GameRule.GuildsDisabled }, { "table", nil })
+    A.eq(_G.C_GameRules.IsGameRuleActive(_G.Enum.GameRule.GuildsDisabled), false)
   end)
 end
 
+-- ActionButton.lua (Blizzard_ActionBar) compares C_GameRules.GetActiveGameMode() with Enum.GameMode.Plunderstorm on
+-- every button update, and tbc's GameRulesUtil.lua indexes it at file scope; source: row G28, the member values of
+-- Ketho's retail LuaEnum dump (assumed the same off retail).
+local function test_game_mode_enum_has_the_client_members()
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    G.withGame(flavor, function()
+      local mode = _G.Enum.GameMode
+      A.same({ mode.Standard, mode.Plunderstorm, mode.WoWHack }, { 1, 2, 3 }, flavor)
+    end)
+  end
+end
+
+-- EventUtil.lua (Blizzard_SharedXML) asserts C_EventUtils.IsEventValid on each event ContinueAfterAllEvents waits for.
+local function test_event_is_valid_when_the_flavor_knows_the_event_assumed()
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    G.withGame(flavor, function()
+      A.same({
+        _G.C_EventUtils.IsEventValid("VARIABLES_LOADED"),
+        _G.C_EventUtils.IsEventValid("PLAYER_LOGIN"),
+        _G.C_EventUtils.IsEventValid("NOT_AN_EVENT"),
+      }, { true, true, false }, flavor)
+    end)
+  end
+end
+
 return function()
+  test_game_mode_enum_has_the_client_members()
+  test_event_is_valid_when_the_flavor_knows_the_event_assumed()
   test_legacy_item_quality_names_alias_enum_item_quality_assumed()
   test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
   test_class_info_answers_the_class_list_assumed()

@@ -1,6 +1,6 @@
 -- Colour objects and colour globals: ColorMixin and CreateColor, the hex and byte constructors, WrapTextInColorCode,
--- GetClassColor, C_ClassColor.GetClassColor, the font colour globals and the standard font paths. The font colours
--- come out of C_UIColor.GetColors the way the client's colour file imports them (row W68). Kit-authored bodies over the
+-- GetClassColor, C_ClassColor.GetClassColor, the UI colour globals (font, tooltip and hotkey colours) and the standard
+-- font paths. The UI colours come out of C_UIColor.GetColors the way the client's colour file imports them (row W68). Kit-authored bodies over the
 -- behaviour rows W68 and W69 record. CUSTOM_CLASS_COLORS (a colour addon's table) and ColorGradient (in no extract
 -- and no api list) are not Blizzard globals, so neither is installed.
 local M = {}
@@ -36,6 +36,10 @@ local UI_COLORS = {
   { baseTag = "GREEN_FONT_COLOR", color = { r = 0.098, g = 1, b = 0.098, a = 1 } },
   { baseTag = "RED_FONT_COLOR", color = { r = 1, g = 0.125, b = 0.125, a = 1 } },
   { baseTag = "YELLOW_FONT_COLOR", color = { r = 1, g = 1, b = 0, a = 1 } },
+  -- source: row W78 (confirmed) GlobalColor rows 29, 78, 79 (ARGB ffcccccc, ffffffff, ff171730); no Lua defines them.
+  { baseTag = "ACTIONBAR_HOTKEY_FONT_COLOR", color = { r = 0.8, g = 0.8, b = 0.8, a = 1 } },
+  { baseTag = "TOOLTIP_DEFAULT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } },
+  { baseTag = "TOOLTIP_DEFAULT_BACKGROUND_COLOR", color = { r = 0.09, g = 0.09, b = 0.188, a = 1 } },
 }
 
 local function byte(channel)

@@ -38,6 +38,20 @@ local function test_the_font_colours_come_from_the_ui_colour_table() -- W68
   end)
 end
 
+-- Blizzard's tooltip templates call TOOLTIP_DEFAULT_BACKGROUND_COLOR:GetRGB() and its action buttons
+-- ACTIONBAR_HOTKEY_FONT_COLOR:GetRGB(); no Lua defines either, so both are colour objects from the UI colour table.
+local function test_tooltip_and_hotkey_colours_are_colour_objects_from_the_ui_colour_table() -- W78
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.eq(_G.TOOLTIP_DEFAULT_BACKGROUND_COLOR:GenerateHexColor(), "ff171730", flavor)
+      A.eq(_G.TOOLTIP_DEFAULT_COLOR:GenerateHexColor(), "ffffffff", flavor)
+      A.eq(_G.ACTIONBAR_HOTKEY_FONT_COLOR:GenerateHexColor(), "ffcccccc", flavor)
+      A.same({ _G.TOOLTIP_DEFAULT_BACKGROUND_COLOR:GetRGB() }, { 0.09, 0.09, 0.188 }, flavor)
+      A.eq(_G.TOOLTIP_DEFAULT_COLOR_CODE, "|cffffffff", flavor)
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -146,6 +160,7 @@ return function()
   test_font_colour_globals_have_the_recorded_values()
   test_font_colour_hex_and_code_globals_match_the_literals()
   test_the_font_colours_come_from_the_ui_colour_table()
+  test_tooltip_and_hotkey_colours_are_colour_objects_from_the_ui_colour_table()
   test_the_font_colours_exist_on_every_flavor()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
