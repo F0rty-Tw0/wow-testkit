@@ -2,15 +2,19 @@
 -- an entry is the running addon's name, or false for secure execution. Slot taint (w.taint.slots[tbl][key] = addonName) is
 -- recorded for writes through Taint.rawset (addon writes to _G, w:setGlobal, w:rawWrite) and, for the tables Taint.declare
 -- names, found by comparing each with a shadow copy whenever a frame is pushed or popped. No proxy sits on _G or any table
--- addon code sees, so pairs, next, # and rawget behave as before. Every entry is logged to w.taint.log and its listeners.
+-- addon code sees, so pairs, next, # and rawget behave as before. Every entry is logged to w.taint.log and its listeners
+-- (taint_log.lua).
+local Log = require("taint_log")
+
 local M = {}
 
 -- Localized: addon code may assign globals of the same names.
 local rawset, rawget, rawequal, pairs, ipairs, type, tostring = rawset, rawget, rawequal, pairs, ipairs, type, tostring
 local setmetatable, getmetatable, pcall, error, select, unpack = setmetatable, getmetatable, pcall, error, select, unpack
-local getinfo, tremove = debug.getinfo, table.remove
+local getinfo = debug.getinfo
 
-M.LOG_LIMIT = 1000
+M.LOG_LIMIT = Log.LOG_LIMIT
+M.record, M.listen, M.who = Log.record, Log.listen, Log.who
 -- The taint forceinsecure records; the name is recalled from taint logs, not sourced (row TS6, assumed).
 M.FORCED = "*** ForceTaint_Strong ***"
 
@@ -83,28 +87,6 @@ end
 function M.adopt(w, wrapper, fn)
   w.taint.owners[wrapper] = M.ownerOf(w, fn)
   return wrapper
-end
-
--- Appends entry to the log (seq and time filled in, the oldest dropped past LOG_LIMIT) and passes it to each listener.
-function M.record(w, entry)
-  local t = w.taint
-  t.seq = t.seq + 1
-  entry.seq, entry.time = t.seq, w.now
-  local log = t.log
-  log[#log + 1] = entry
-  if #log > M.LOG_LIMIT then
-    tremove(log, 1)
-  end
-  for _, listener in ipairs(t.listeners) do
-    listener(entry)
-  end
-  return entry
-end
-
--- Calls fn(entry) with each entry logged from now on.
-function M.listen(w, fn)
-  local listeners = w.taint.listeners
-  listeners[#listeners + 1] = fn
 end
 
 -- The label a write to tbl is logged under ("global" for _G), or nil when tbl is neither _G nor declared.
