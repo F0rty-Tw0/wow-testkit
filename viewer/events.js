@@ -49,7 +49,7 @@ window.TK = window.TK || {};
 
   // DOM ------------------------------------------------------------------------------------------------------------
 
-  const ui = { byName: new Map() };
+  const ui = { byName: new Map(), loaded: false };
   const dom = {};
 
   function el(tag, props) {
@@ -105,14 +105,24 @@ window.TK = window.TK || {};
     button.addEventListener('click', fire);
   }
 
-  async function start() {
+  // The flavor's event names. A failed load is tried again when the session says hello, so a session that was down at
+  // start fills the list later; a reload loads them again, as it may change the flavor.
+  async function load() {
     try {
       const reply = await TK.api('events', {});
       ui.byName = new Map((reply.events || []).map((event) => [event.name, event]));
       dom.list.replaceChildren(...[...ui.byName.keys()].map((name) => el('option', { value: name })));
+      if (!ui.loaded) dom.status.textContent = '';
+      ui.loaded = true;
     } catch (err) {
       dom.status.textContent = 'Events: ' + err.message;
     }
+  }
+
+  function start() {
+    TK.on('hello', () => ui.loaded || load());
+    TK.on('reload', load);
+    load();
   }
 
   const isLive = new URLSearchParams(location.search).get('live') === '1';
