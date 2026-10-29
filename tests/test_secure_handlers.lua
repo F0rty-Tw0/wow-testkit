@@ -214,7 +214,7 @@ local function test_restricted_environment_hides_globals() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHEnv", "SecureHandlerBaseTemplate")
     local r = SecureEnv.run(w, h, "return _G, CreateFrame, io, require, strlen('abc'), type(newtable()), floor(2.5), rawtype(self)")
-    A.same({ r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9] }, { true, nil, nil, nil, nil, 3, "table", 2, "table" })
+    A.same({ r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9] }, { true, nil, nil, nil, nil, 3, "table", 2, "userdata" })
     r = SecureEnv.run(w, h, "return self:GetName(), control:GetName(), select('#', pairs(newtable()))")
     A.same({ r[1], r[2], r[3], r[4] }, { true, "TKHEnv", "TKHEnv", 3 })
   end)
@@ -430,7 +430,8 @@ local function test_set_frame_ref_roundtrip() -- TS15
     local target = hiddenTarget("TKHRefT")
     h:SetFrameRef("p", target)
     A.eq(SecureEnv.run(w, h, "return self:GetFrameRef('p'):GetName(), self:GetFrameRef('none')")[2], "TKHRefT")
-    A.eq(h:GetAttribute("frameref-p") ~= nil, true)
+    -- source: restrictedinfrastructure.lua:48 handles are "lightweight userdata objects with a shared metatable".
+    A.same({ type(h:GetAttribute("frameref-p")), SecureEnv.run(w, h, "return type(self)")[2] }, { "userdata", "userdata" })
     A.eq(SecureEnv.run(w, h, "return self:GetFrameRef('none')")[2], nil)
     A.errors(function()
       h:SetFrameRef(1, target)

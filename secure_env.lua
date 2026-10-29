@@ -12,6 +12,7 @@ local M = {}
 -- Localized: addon code may assign globals of the same names.
 local rawget, pairs, ipairs, type, tostring, select, pcall, error = rawget, pairs, ipairs, type, tostring, select, pcall, error
 local setmetatable, loadstring, setfenv, unpack, next, tonumber = setmetatable, loadstring, setfenv, unpack, next, tonumber
+local getmetatable, newproxy = getmetatable, newproxy
 local remove, insert, maxn, sort, concat, gsub = table.remove, table.insert, table.maxn, table.sort, table.concat, string.gsub
 
 M.handleMethods = {}
@@ -98,22 +99,27 @@ local function meta(w)
   }
 end
 
+-- source: restrictedinfrastructure.lua:48 handles are "lightweight userdata objects with a shared metatable": each handle
+-- is a newproxy sharing s.proto's metatable.
 function M.state(w)
   local s = w.secure
   if not s then
-    s = { handles = weakKeys(), frames = weakKeys(), envs = weakKeys() }
-    s.meta = meta(w)
+    s = { handles = weakKeys(), frames = weakKeys(), envs = weakKeys(), proto = newproxy(true) }
+    local mt = getmetatable(s.proto)
+    for key, value in pairs(meta(w)) do
+      mt[key] = value
+    end
     w.secure = s
   end
   return s
 end
 
--- The handle for frame (the same table each time).
+-- The handle for frame (the same userdata each time).
 function M.handle(w, frame)
   local s = M.state(w)
   local handle = s.handles[frame]
   if not handle then
-    handle = setmetatable({}, s.meta)
+    handle = newproxy(s.proto)
     s.handles[frame], s.frames[handle] = handle, frame
   end
   return handle
@@ -121,7 +127,7 @@ end
 
 -- The frame a handle stands for, or nil when value is not a handle.
 function M.frameOf(w, value)
-  return type(value) == "table" and M.state(w).frames[value] or nil
+  return value ~= nil and M.state(w).frames[value] or nil
 end
 
 -- Replaces each handle among the arguments with its frame.
