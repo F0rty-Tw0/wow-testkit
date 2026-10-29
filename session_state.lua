@@ -1,7 +1,7 @@
 -- Session mock state, set from the viewer's state panel: unit fixtures, the mouseover unit, modifier keys, the combat
--- flag and the group kind; the Blizzard panel's action slots and active Edit Mode layout go through session_blizzard.lua. The world reads the last three from w.mock through game/keys.lua (IsShiftKeyDown and its
--- siblings) and game/group.lua (InCombatLockdown, IsInGroup and theirs); a changed flag fires the event the client
--- fires for it.
+-- flag and the group kind. The world reads modifiers, combat and group from w.mock through game/keys.lua (IsShiftKeyDown
+-- and its siblings) and game/group.lua (InCombatLockdown, IsInGroup and theirs); a changed flag fires the event the client
+-- fires for it. The Blizzard panel's action slots, active Edit Mode layout and open window go through session_blizzard.lua.
 local M = {}
 
 local Json = require("json")
@@ -10,7 +10,7 @@ local SessionBlizzard = require("session_blizzard")
 local GROUPS = { none = true, party = true, raid = true }
 local MODIFIERS = { shift = true, ctrl = true, alt = true }
 local DEFAULT_MODIFIERS = { shift = false, ctrl = false, alt = false }
-local FIELDS = { units = true, mouseover = true, modifiers = true, combat = true, group = true, actions = true, editMode = true }
+local FIELDS = { units = true, mouseover = true, modifiers = true, combat = true, group = true, actions = true, editMode = true, window = true }
 
 local function sortedKeys(t)
   local keys = {}
@@ -42,7 +42,7 @@ end
 local function check(sess, patch)
   for key in pairs(patch) do
     if not FIELDS[key] then
-      fail("unknown field '" .. tostring(key) .. "'; valid: units, mouseover, modifiers, combat, group, actions, editMode")
+      fail("unknown field '" .. tostring(key) .. "'; valid: units, mouseover, modifiers, combat, group, actions, editMode, window")
     end
   end
   if patch.units ~= nil and type(patch.units) ~= "table" then
