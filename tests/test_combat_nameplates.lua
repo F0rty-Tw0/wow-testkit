@@ -210,6 +210,18 @@ local function test_the_player_has_no_plate()
   end, true)
 end
 
+local function test_plate_range_is_measured_from_the_player()
+  H.withCombat("retail", function(w)
+    local player = Actors.get(w, "player")
+    grunt(w, "Far", 0, 70) -- 70 > 60: no plate with the player at the origin
+    A.eq(_G.C_NamePlate.GetNamePlateForUnit("nameplate1"), nil)
+    Actors.setPos(w, player, 0, 30) -- 40 away now: the plate appears
+    A.truthy(_G.C_NamePlate.GetNamePlateForUnit("nameplate1") ~= nil)
+    Actors.setPos(w, player, 0, -30) -- 100 away: it goes again
+    A.eq(_G.C_NamePlate.GetNamePlateForUnit("nameplate1"), nil)
+  end, true)
+end
+
 return function()
   test_plate_rect_follows_the_ground_projection()
   test_lifecycle_order_and_frame_reuse()
@@ -224,4 +236,5 @@ return function()
   test_plate_unit_frame_unit_is_the_token()
   test_actor_behind_the_camera_has_no_projection()
   test_the_player_has_no_plate()
+  test_plate_range_is_measured_from_the_player()
 end
