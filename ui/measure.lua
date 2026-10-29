@@ -36,13 +36,34 @@ local function textureWidth(params, size)
   return height > 0 and width or width * size
 end
 
+local function isDigit(text, at)
+  local byte = text:byte(at)
+
+  return byte >= 48 and byte <= 57
+end
+
+-- The last run of digits in text as a number, or nil. A backwards scan: `(%d+)%D*$` backtracks over every start of a
+-- long digit run, quadratic in its length (viewer_text.js lastNumber scans the same way).
+local function lastNumber(text)
+  local stop = #text
+  while stop > 0 and not isDigit(text, stop) do
+    stop = stop - 1
+  end
+  local start = stop
+  while start > 0 and isDigit(text, start) do
+    start = start - 1
+  end
+
+  return tonumber(text:sub(start + 1, stop))
+end
+
 -- source: row V14, wiki UI_escape_sequences: `number |4singular:plural;` "assigns the singular or plural form depending
 -- on the number" ("1 |4car:cars;" is "1 car", "2 |4car:cars;" "2 cars"). forms is "singular:plural"; before is the text
 -- shown ahead of the escape on its line. Assumed: the number is the last one in before, singular only when it is 1, the
 -- plural with no number; the ruRU third form is not chosen.
 function M.pluralForm(forms, before)
   local singular, plural = forms:match("^([^:]*):?([^:]*)")
-  local number = tonumber(before:match("(%d+)%D*$"))
+  local number = lastNumber(before)
 
   return number == 1 and singular or plural
 end

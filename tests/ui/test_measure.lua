@@ -66,6 +66,16 @@ local function test_a_plural_escape_shows_the_form_its_number_picks() -- V14
   end)
 end
 
+-- The last number of a long line is found in linear time: `(%d+)%D*$` backtracks over every start of a long digit run
+-- (seconds for this line).
+local function test_a_plural_form_reads_the_last_number_of_a_long_line_quickly()
+  local before = string.rep("1", 10000) .. " 1"
+  local started = os.clock()
+  A.same({ Measure.pluralForm("Day:Days", before), Measure.pluralForm("Day:Days", "x12y") }, { "Day", "Days" })
+  A.same({ Measure.pluralForm("Day:Days", "a 01 b"), Measure.pluralForm("Day:Days", "no digits") }, { "Day", "Days" })
+  A.truthy(os.clock() - started < 1, "pluralForm took " .. (os.clock() - started) .. " s")
+end
+
 local function test_an_atlas_is_sized_like_a_texture_assumed() -- R2
   H.withWorld("retail", function(w)
     local function width(params, tail)
@@ -144,6 +154,7 @@ return function()
   test_a_texture_is_as_wide_as_the_wiki_sizing_rules_say_assumed()
   test_a_named_color_start_is_invisible_up_to_its_colon_assumed()
   test_a_plural_escape_shows_the_form_its_number_picks()
+  test_a_plural_form_reads_the_last_number_of_a_long_line_quickly()
   test_an_atlas_is_sized_like_a_texture_assumed()
   test_width_of_several_lines_is_the_widest_assumed()
   test_height_is_lines_times_the_line_height_assumed()
