@@ -64,6 +64,57 @@ local function test_viewed_slot_is_the_scenarios_record_by_slot_type_and_option(
   end)
 end
 
+local GROUPS = {
+  {
+    position = 0, -- Enum.TransmogOutfitSlotPosition.Left
+    appearanceSlotInfo = { { slot = 0, type = 0, collectionType = 1, slotName = "HEADSLOT", isSecondary = false } },
+    illusionSlotInfo = {},
+  },
+  {
+    position = 2, -- Bottom
+    appearanceSlotInfo = { { slot = 12, type = 0, collectionType = 0, slotName = "MAINHANDSLOT", isSecondary = false } },
+    illusionSlotInfo = { { slot = 12, type = 1, collectionType = 0, slotName = "MAINHANDSLOT", isSecondary = false } },
+  },
+}
+
+-- The slot layout is the scenario's (no installed file lists which slot sits in which group). The window builds a slot
+-- button per GetSlotGroupInfo entry (blizzard_transmog.lua:994) and TRANSMOG_SLOTS from GetAllSlotLocationInfo's two lists
+-- (blizzard_transmogshared.lua:632).
+local function test_slot_groups_and_locations_come_from_the_store()
+  W.withWindows("retail", {}, function(w)
+    A.same({ _G.C_TransmogOutfitInfo.GetSlotGroupInfo(), { _G.C_TransmogOutfitInfo.GetAllSlotLocationInfo() } }, { {}, { {}, {} } })
+    w:setMock({ transmog = { slotGroups = GROUPS } })
+    A.same(_G.C_TransmogOutfitInfo.GetSlotGroupInfo()[2].position, 2)
+    local appearance, illusion = _G.C_TransmogOutfitInfo.GetAllSlotLocationInfo()
+    A.same({ #appearance, appearance[2].slotName, #illusion, illusion[1].type }, { 2, "MAINHANDSLOT", 1, 1 })
+  end)
+end
+
+-- source: assumed the viewed outfit is the scenario's viewedOutfitID, else the active one.
+local function test_currently_viewed_outfit_defaults_to_the_active_one_assumed()
+  W.withWindows("retail", {}, function(w)
+    w:setMock({ transmog = TM })
+    A.eq(_G.C_TransmogOutfitInfo.GetCurrentlyViewedOutfitID(), 1)
+    w:setMock({ transmog = { viewedOutfitID = 7 } })
+    A.eq(_G.C_TransmogOutfitInfo.GetCurrentlyViewedOutfitID(), 7)
+  end)
+end
+
+-- source: assumed the client answers ChangeViewedOutfit with VIEWED_TRANSMOG_OUTFIT_CHANGED on its next frame, not inside the
+-- call: the window builds its slot buttons on that event (blizzard_transmog.lua:948) and calls the function from its OnShow
+-- (:526), before the frames inside it have registered.
+local function test_changing_the_viewed_outfit_sets_it_and_fires_the_event_assumed()
+  W.withWindows("retail", {}, function(w)
+    local log = W.watch(w, { "VIEWED_TRANSMOG_OUTFIT_CHANGED" })
+    w:setMock({ transmog = TM })
+    _G.C_TransmogOutfitInfo.ChangeViewedOutfit(7)
+    A.same({ _G.C_TransmogOutfitInfo.GetCurrentlyViewedOutfitID(), #log }, { 7, 0 })
+    w:advance(1 / 60)
+    A.same(W.names(log), { "VIEWED_TRANSMOG_OUTFIT_CHANGED" })
+    A.eq(#w.mock.requests, 0) -- viewing an outfit asks the server for nothing
+  end)
+end
+
 local function test_npc_flag_follows_the_window()
   W.scenario("retail", {}, function(s)
     local log = W.watch(s.w, { "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE" })
@@ -72,6 +123,18 @@ local function test_npc_flag_follows_the_window()
     A.eq(_G.C_Transmog.IsAtTransmogNPC(), true)
     s:closeWindow("transmog")
     A.same({ W.names(log), _G.C_Transmog.IsAtTransmogNPC() }, { { "TRANSMOGRIFY_OPEN", "TRANSMOGRIFY_CLOSE" }, false })
+  end)
+end
+
+-- source: assumed (B2) the opener lets one frame pass, so the window gets the answer to the call it made while showing.
+local function test_open_lets_one_frame_pass_assumed()
+  W.scenario("retail", {}, function(s)
+    local ran = false
+    s.w:schedule(0, function()
+      ran = true
+    end, 1)
+    s:openWindow("transmog", TM)
+    A.eq(ran, true)
   end)
 end
 
@@ -119,7 +182,11 @@ return function()
   test_sources_and_has_transmog()
   test_outfits_and_active_outfit()
   test_viewed_slot_is_the_scenarios_record_by_slot_type_and_option()
+  test_slot_groups_and_locations_come_from_the_store()
+  test_currently_viewed_outfit_defaults_to_the_active_one_assumed()
+  test_changing_the_viewed_outfit_sets_it_and_fires_the_event_assumed()
   test_npc_flag_follows_the_window()
+  test_open_lets_one_frame_pass_assumed()
   test_reopen_replaces_the_store()
   test_retail_opens_on_the_transmogrifier_interaction_first_and_mists_on_the_legacy_event_only_assumed()
   test_apis_answer_on_tbc_but_the_window_does_not_exist()

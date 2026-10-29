@@ -2,7 +2,9 @@
 -- canHaveIllusions, canMainHand, canOffHand, canRanged } }, appearances = { [category] = { TransmogCategoryAppearanceInfo } },
 -- sources = { [visualID] = { sourceID } }, sourceInfo = { [sourceID] = { visualID, itemID, itemModID = 0, categoryID,
 -- isCollected = false, ... } }, items = { itemID } (the ids the DB2 fill expands), outfits = { TransmogOutfitEntryInfo },
--- activeOutfitID, slots = { ["<slot>:<type>:<option>"] = ViewedTransmogOutfitSlotInfo }. The collected flags are the server's,
+-- activeOutfitID, viewedOutfitID?, slotGroups = { { position, appearanceSlotInfo = { TransmogOutfitSlotInfo },
+-- illusionSlotInfo = { TransmogOutfitSlotInfo } } }, slots = { ["<slot>:<type>:<option>"] = ViewedTransmogOutfitSlotInfo }.
+-- The collected flags are the server's,
 -- so only the scenario sets them (B16); the kit never owns, favorites or applies anything. CommitAndApplyAllPending only
 -- records a request (B13). Every other C_TransmogOutfitInfo name stays on the permissive stub.
 local M = {}
@@ -11,7 +13,21 @@ local Requests = require("game.requests")
 local State = require("game.state")
 local define = State.define
 
-M.DEFAULTS = { transmog = { atNPC = false, categories = {}, appearances = {}, sources = {}, sourceInfo = {}, items = {}, outfits = {}, slots = {} } }
+local ENGINE = "blizzard"
+
+M.DEFAULTS = {
+  transmog = {
+    atNPC = false,
+    categories = {},
+    appearances = {},
+    sources = {},
+    sourceInfo = {},
+    items = {},
+    outfits = {},
+    slotGroups = {},
+    slots = {},
+  },
+}
 
 local function boolDefault(value, default)
   if value == nil then
@@ -153,6 +169,36 @@ local function installOutfits(w)
   end)
   define(w, "C_TransmogOutfitInfo.GetActiveOutfitID", function()
     return w.mock.transmog.activeOutfitID
+  end)
+  -- source: assumed the viewed outfit is the scenario's viewedOutfitID, else the active one.
+  define(w, "C_TransmogOutfitInfo.GetCurrentlyViewedOutfitID", function()
+    return w.mock.transmog.viewedOutfitID or w.mock.transmog.activeOutfitID
+  end)
+  -- source: assumed the client answers on its next frame with VIEWED_TRANSMOG_OUTFIT_CHANGED, on which the window builds its
+  -- slots: the window calls this from its OnShow, before the frames inside it have run theirs and registered for the event.
+  define(w, "C_TransmogOutfitInfo.ChangeViewedOutfit", function(outfitID)
+    w.mock.transmog.viewedOutfitID = outfitID
+    w:schedule(0, function()
+      w:run(ENGINE, w.fire, w, "VIEWED_TRANSMOG_OUTFIT_CHANGED")
+    end, 1)
+  end)
+  -- source: confirmed (B16, api/retail/TransmogOutfitInfo.lua) the shapes (TransmogOutfitSlotGroup, TransmogOutfitSlotInfo);
+  -- assumed the layout is the scenario's, since no installed file says which slot sits in which group.
+  define(w, "C_TransmogOutfitInfo.GetSlotGroupInfo", function()
+    return w.mock.transmog.slotGroups
+  end)
+  -- The appearance slots of every group in order, then the illusion slots of every group.
+  define(w, "C_TransmogOutfitInfo.GetAllSlotLocationInfo", function()
+    local appearance, illusion = {}, {}
+    for _, group in ipairs(w.mock.transmog.slotGroups) do
+      for _, info in ipairs(group.appearanceSlotInfo or {}) do
+        appearance[#appearance + 1] = info
+      end
+      for _, info in ipairs(group.illusionSlotInfo or {}) do
+        illusion[#illusion + 1] = info
+      end
+    end
+    return appearance, illusion
   end)
   -- The scenario's record for slotKey "<slot>:<type>:<option>", as set.
   define(w, "C_TransmogOutfitInfo.GetViewedOutfitSlotInfo", function(slot, kind, option)

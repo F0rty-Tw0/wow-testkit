@@ -254,6 +254,8 @@ function M.openers.transmog(s, data)
   end)
   store.atNPC = true
   M.show(s, "transmog")
+  -- source: assumed (B2) the client's next frame, which delivers its answer to the window's ChangeViewedOutfit call.
+  s:advance(FRAME)
 end
 M.closers.transmog = function(s)
   s.w.mock.transmog.atNPC = false
