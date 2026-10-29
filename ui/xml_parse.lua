@@ -54,15 +54,18 @@ local function fail(line, what)
   return nil, "line " .. line .. ": " .. what
 end
 
--- Moves the scan position to `to`, counting the lines passed.
+-- Moves the scan position to `to`, counting the lines passed. p.newline caches the next newline at or after p.pos
+-- (false when there is none; nil before the first scan), so a long line is searched once, not once per tag on it.
 local function advance(p, to)
-  local text, line = p.text, p.line
-  local newline = find(text, "\n", p.pos, true)
+  local text, line, newline = p.text, p.line, p.newline
+  if newline == nil then
+    newline = find(text, "\n", p.pos, true) or false
+  end
   while newline and newline < to do
     line = line + 1
-    newline = find(text, "\n", newline + 1, true)
+    newline = find(text, "\n", newline + 1, true) or false
   end
-  p.line, p.pos = line, to
+  p.line, p.pos, p.newline = line, to, newline
 end
 
 -- Skips a construct that ends at `closer` (comment, prolog, CDATA body is read by the caller).

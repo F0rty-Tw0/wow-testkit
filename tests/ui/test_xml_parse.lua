@@ -79,6 +79,51 @@ local function test_bad_attributes_and_stray_markup_fail_with_the_line()
   A.contains(outside, "line 1: text outside the root element")
 end
 
+-- How many times a private copy of the parser searches for a newline while parsing text (its `find` is a counting wrapper).
+local function newlineSearches(text)
+  local real, count = string.find, 0
+  rawset(string, "find", function(subject, pattern, ...)
+    if pattern == "\n" then
+      count = count + 1
+    end
+    return real(subject, pattern, ...)
+  end)
+  local original = package.loaded["ui.xml_parse"]
+  package.loaded["ui.xml_parse"] = nil
+  local ok, copy = pcall(require, "ui.xml_parse")
+  package.loaded["ui.xml_parse"] = original
+  rawset(string, "find", real)
+  assert(ok, copy)
+  assert(copy.parse(text))
+  return count
+end
+
+-- advance caches the next newline: thousands of tags on one line must parse to the right tree, and line numbers must
+-- stay right when long lines and newlines mix (an error after a long line names that line).
+local function test_long_single_line_parses_and_lines_stay_right_when_mixed_with_newlines()
+  local frames = {}
+  for i = 1, 3000 do
+    frames[i] = '<Frame name="F' .. i .. '"><Size x="1" y="2"/></Frame>'
+  end
+  local row = table.concat(frames)
+  local root = XmlParse.parse("<Ui>" .. row .. "</Ui>")
+  A.same({ #root.children, root.children[1].attrs.name, root.children[3000].attrs.name, root.children[3000].line }, { 3000, "F1", "F3000", 1 })
+
+  local mixed = XmlParse.parse("<Ui>" .. row .. "\n" .. row .. '\n\n<Frame name="Last"/>' .. row .. "</Ui>")
+  local children = mixed.children
+  A.same(
+    { #children, children[3000].line, children[3001].line, children[6001].line, children[6001].attrs.name, children[6002].line },
+    { 9001, 1, 2, 4, "Last", 4 }
+  )
+
+  local _, err = XmlParse.parse("<Ui>" .. row .. "\n" .. row .. "\n<Frame name=oops/></Ui>")
+  A.contains(err, "line 3: bad attribute in <Frame>")
+
+  -- Behind the timing: a line with no newline is searched once, not once per tag on it.
+  A.eq(newlineSearches("<Ui>" .. row .. "</Ui>") <= 2, true, "newline searches on a single line")
+  A.eq(newlineSearches("<Ui>" .. row .. "\n" .. row .. "</Ui>") <= 3, true, "newline searches on two lines")
+end
+
 return function()
   test_lines_count_newlines_in_attributes_comments_cdata_and_text()
   test_attribute_quotes_spacing_entities_and_empty_text()
@@ -91,4 +136,5 @@ return function()
   test_tags_and_attribute_names_are_lowercased_assumed()
   test_malformed_input_returns_nil_and_the_line()
   test_unclosed_tag_unterminated_comment_and_missing_root_fail()
+  test_long_single_line_parses_and_lines_stay_right_when_mixed_with_newlines()
 end
