@@ -9,7 +9,6 @@ local AddonEnv = require("addon_env")
 local Layout = require("ui.layout")
 local Widgets = require("ui.widgets")
 local XmlAttrs = require("ui.xml_attrs")
-local WorldEvents = require("world_events")
 
 -- handlers[tag] = fn(w, obj, st, node, session) for a child element of a frame or region (obj).
 M.handlers = {}
@@ -44,15 +43,18 @@ end
 -- err with one position, the one the addon author can act on: an addon position ("addon:...") is kept, a kit file's
 -- leading position is replaced by `where` (the traceback still names it), anything else gets `where` in front. Kit
 -- report format, not client behaviour. No kit-root match: Lua 5.1 shortens long chunk names to "...<tail>", so a
--- shortened position is kept when its tail names one registered addon chunk (WorldEvents.resolveTail).
+-- shortened position is kept when its tail ends a registered chunk name; only addon chunks register, so any number do.
 local function position(w, where, err)
   local text = tostring(err)
   if text:sub(1, 6) == "addon:" then
     return text
   end
   local _, stop, chunk = text:find("^([^\n]-%.lua):%d+: ")
-  if chunk and chunk:sub(1, 3) == "..." and WorldEvents.resolveTail(w.chunks, chunk:sub(4)) then
-    return text
+  local tail = chunk and chunk:sub(1, 3) == "..." and chunk:sub(4)
+  for name in pairs(tail and w.chunks or {}) do
+    if name:sub(-#tail) == tail then
+      return text
+    end
   end
   return where .. text:sub((stop or 0) + 1)
 end
@@ -113,15 +115,14 @@ end
 local attach = M.attach
 
 -- source: wiki XML, example `<Frame parent="UIParent">`: parent names a global frame. With no parent attribute a
--- top-level frame is parentless, not UIParent's child (row X1, assumed); a nested one keeps its enclosing frame.
+-- top-level frame is parentless, not UIParent's child (row X1, assumed); a nested one keeps its enclosing frame, as does
+-- one whose parent global is missing or no widget (a string, a plain table: reported, assumed).
 local function parentOf(w, node, enclosing, session)
   local named = node.attrs.parent
-  if not named then
-    return enclosing
-  end
-  local parent = AddonEnv.global(w, named, true)
-  if not parent then
-    session.report("parent:" .. named, "parent '" .. named .. "' not found")
+  local parent = named and AddonEnv.global(w, named, true)
+  if named and not w.ui.state[parent or false] then
+    session.report("parent:" .. named, "parent '" .. named .. (parent == nil and "' not found" or "' is not a frame"))
+    parent = nil
   end
   return parent or enclosing
 end

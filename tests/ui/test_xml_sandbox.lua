@@ -55,6 +55,22 @@ local function test_a_parent_attribute_does_not_parent_to_host_tables()
   end)
 end
 
+-- source: assumed (row X1) a parent attribute naming a global that is no frame (a string, a plain table) is reported and
+-- the frame builds without that parent, its name's $parent standing for "".
+local function test_a_parent_attribute_naming_a_non_frame_global_is_reported()
+  local xml = '<Ui><Frame name="$parentSbParStr" parent="SbParText"/><Frame name="SbParTbl" parent="SbParTable"/></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    w:setGlobal("SbParText", "text")
+    w:setGlobal("SbParTable", {})
+    H.load(w, ctx, "Ui.xml")
+    A.same(w.errors, {})
+    A.same({ _G.SbParStr:GetParent(), _G.SbParTbl:GetParent() }, {})
+    local report = table.concat(ctx.report, "\n")
+    A.contains(report, "parent 'SbParText' is not a frame")
+    A.contains(report, "parent 'SbParTable' is not a frame")
+  end)
+end
+
 local function test_a_template_mixin_name_does_not_copy_host_tables()
   Framexml.withFrameXML("retail", function(w)
     Templates.TEMPLATES.SbHostMixin = { type = "Frame", inherits = {}, children = {}, mixins = { "io", "SbMixin" } }
@@ -136,6 +152,7 @@ return function()
   test_a_mixin_attribute_does_not_copy_host_tables_onto_the_frame()
   test_a_relative_to_global_does_not_anchor_to_host_tables()
   test_a_parent_attribute_does_not_parent_to_host_tables()
+  test_a_parent_attribute_naming_a_non_frame_global_is_reported()
   test_a_template_mixin_name_does_not_copy_host_tables()
   test_widget_methods_resolving_a_name_do_not_reach_host_tables()
   test_securecall_and_hooksecurefunc_by_name_do_not_reach_host_globals()

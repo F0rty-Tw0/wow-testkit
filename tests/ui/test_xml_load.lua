@@ -79,7 +79,8 @@ local function test_missing_files_are_reported_and_loading_continues()
     ["Ui.xml"] = '<Ui><Script file="Nope.lua"/><Include file="Gone.xml"/><Script>local _, ns = ...; ns.after = true</Script></Ui>',
   }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
-    A.contains(w.errors[1].message, "TOC lists missing file: addon:XmlT/Nope.lua")
+    A.contains(w.errors[1].message, "addon:XmlT/Ui.xml lists missing file: addon:XmlT/Nope.lua")
+    A.contains(w.errors[2].message, "addon:XmlT/Ui.xml lists missing file: addon:XmlT/Gone.xml")
     A.contains(reportText(ctx), "Gone.xml: cannot read XML file")
     A.eq(ctx.ns.after, true)
   end)
@@ -216,7 +217,25 @@ local function test_guard_keeps_a_shortened_addon_position_from_an_overridden_se
   end)
 end
 
+-- Two addon chunks whose shortened names share the tail: the position is still an addon's, so it is kept.
+local function test_guard_keeps_a_shortened_addon_position_that_two_chunks_share()
+  local mixin = 'LongMixin = {}\nfunction LongMixin:SetPoint() error("boom") end'
+  H.withXml({
+    ["Ui.xml"] = '<Ui><Script file="A/'
+      .. LONG
+      .. '/LongMixin.lua"/><Script file="B/'
+      .. LONG
+      .. '/LongMixin.lua"/><Frame name="LongF" mixin="LongMixin"><Anchors><Anchor point="CENTER"/></Anchors></Frame></Ui>',
+    ["A/" .. LONG .. "/LongMixin.lua"] = mixin,
+    ["B/" .. LONG .. "/LongMixin.lua"] = mixin,
+  }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ #w.errors, tostring(w.errors[1].message) }, { 1, "...ply/Nested/Folder/Structure/For/Mixins/LongMixin.lua:2: boom" })
+  end)
+end
+
 return function()
+  test_guard_keeps_a_shortened_addon_position_that_two_chunks_share()
   test_script_files_run_in_document_order_relative_to_the_xml_assumed()
   test_a_backslash_path_to_the_xml_loads()
   test_an_include_of_a_lua_file_runs_it_like_a_script_assumed()

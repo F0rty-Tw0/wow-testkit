@@ -211,7 +211,7 @@ local function test_missing_xml_and_xml_script_are_errors()
   withWorld("retail", function(w)
     load(w, "Missing")
     A.contains(errorMessages(w), "TOC lists missing file: addon:Missing/Gone.xml")
-    A.contains(errorMessages(w), "TOC lists missing file: addon:Missing/GoneToo.lua")
+    A.contains(errorMessages(w), "addon:Missing/Ui.xml lists missing file: addon:Missing/GoneToo.lua")
     A.eq(#w.errors, 3)
   end)
 end

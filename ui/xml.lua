@@ -61,11 +61,11 @@ local loadInto
 local function include(w, node, ctx, file, loading)
   local target = resolve(ctx, file.path, node.attrs.file)
   if target:lower():match("%.lua$") then
-    ctx.runFile(target)
+    ctx.runFile(target, file.path)
   elseif loading[target:lower()] then
     ctx.report[#ctx.report + 1] = target .. ": include cycle ignored"
   else
-    loadInto(w, target, ctx, loading)
+    loadInto(w, target, ctx, loading, file.path)
   end
 end
 
@@ -75,7 +75,7 @@ local function walk(w, root, ctx, file, loading, session)
     if node.tag == "include" and node.attrs.file then
       include(w, node, ctx, file, loading)
     elseif node.tag == "script" and node.attrs.file then
-      ctx.runFile(resolve(ctx, file.path, node.attrs.file))
+      ctx.runFile(resolve(ctx, file.path, node.attrs.file), file.path)
     elseif node.tag == "script" then
       ctx.runSource(node.text, "addon:" .. ctx.name .. "/" .. file.path, node.textLine)
     else
@@ -84,8 +84,9 @@ local function walk(w, root, ctx, file, loading, session)
   end
 end
 
-loadInto = function(w, path, ctx, loading)
-  local text = ctx.readFile(path)
+-- listedBy: the XML file whose <Include> names path, nil when the TOC lists it.
+loadInto = function(w, path, ctx, loading, listedBy)
+  local text = ctx.readFile(path, listedBy)
   if not text then
     ctx.report[#ctx.report + 1] = path .. ": cannot read XML file"
     return false, "cannot read " .. path
