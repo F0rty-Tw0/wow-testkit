@@ -97,6 +97,18 @@ local function test_classic_on_hide_that_shows_again_keeps_the_unit_assumed()
   end)
 end
 
+-- The tooltip's own Hide forgets even while a hidden ancestor keeps it invisible: no OnHide fires then, so only the
+-- Hide wrapper sees the shown-to-hidden change.
+local function test_classic_own_hide_under_a_hidden_ancestor_forgets_the_unit_assumed()
+  withClassicMouseover(function(tooltip)
+    _G.UIParent:Hide()
+    tooltip:Show()
+    tooltip:SetUnit("mouseover")
+    tooltip:Hide()
+    A.eq(select("#", tooltip:GetUnit()), 0)
+  end)
+end
+
 -- Mainline GameTooltipTemplate has <OnHide function="GameTooltip_OnHide"/> (Blizzard_GameTooltip/Mainline/
 -- GameTooltip.xml:27 on live and forever), so a tooltip made from it forgets its unit on hide as GameTooltip does.
 local function test_mainline_template_tooltip_forgets_the_unit_on_hide()
@@ -123,4 +135,5 @@ return function()
   test_classic_ancestor_hide_of_a_hidden_tooltip_keeps_the_unit_assumed()
   test_classic_show_keeps_the_unit_assumed()
   test_classic_on_hide_that_shows_again_keeps_the_unit_assumed()
+  test_classic_own_hide_under_a_hidden_ancestor_forgets_the_unit_assumed()
 end

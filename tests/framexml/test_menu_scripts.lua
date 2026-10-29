@@ -138,10 +138,31 @@ local function test_a_refresh_drops_on_disable_before_it_disables_the_button()
   end)
 end
 
+-- A pooled button that a re-render reuses for a title loses the kit's OnClick: a title is a Frame (M18).
+local function test_a_rerender_that_turns_a_button_into_a_title_clears_its_click()
+  withFrameXML("retail", function(w)
+    local asTitle = false
+    local dd = HM.newDropdownButton(function(_, root)
+      if asTitle then
+        root:CreateTitle("Go")
+      else
+        root:CreateButton("Go", noop)
+      end
+    end)
+    dd:OpenMenu()
+    local button = w.menus[1].entries[1].frame
+    asTitle = true
+    dd:GenerateMenu()
+    A.eq(w.menus[1].entries[1].frame, button)
+    A.eq(button:GetScript("OnClick"), nil)
+  end)
+end
+
 return function()
   test_a_rerender_drops_hooks_on_every_script_it_sets()
   test_a_refresh_drops_initializer_hooks_and_keeps_frame_script_hooks()
   test_a_refresh_gives_a_title_no_click()
   test_a_submenu_refresh_drops_the_parent_levels_click_hooks()
   test_a_refresh_drops_on_disable_before_it_disables_the_button()
+  test_a_rerender_that_turns_a_button_into_a_title_clears_its_click()
 end
