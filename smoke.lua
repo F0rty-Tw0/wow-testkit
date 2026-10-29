@@ -72,7 +72,8 @@ local TRIPPED_MASK, TRIPPED_COUNT = "c", 1000
 -- excluded, since layer fidelity grew s:login from 7.7M to 22M instructions against the 10M budget. The count hook fires
 -- every TICK instructions and charges them to the first non-kit function on the stack. Layer ticks only trip at
 -- M.LAYER_FACTOR budgets, so a Blizzard loop the kit sends into a spin still ends the run.
-local TICK = 1000
+-- 10000, not 1000: the stack walk per tick doubled the CPU of a Blizzard-layer smoke run at 1000 (+7% at 10000).
+local TICK = 10000
 local ADDON_OWNER = "^@addon:([^/\r\n]+)/"
 local coroutineLib = coroutine
 local sethook, getinfo = debug.sethook, debug.getinfo

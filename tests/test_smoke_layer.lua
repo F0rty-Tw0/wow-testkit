@@ -25,6 +25,10 @@ f:SetScript("OnEvent", function()
   for _ = 1, 100 do securecallfunction(noop) end
   for _, callback in ipairs(MiniCallbacks) do callback() end
   MiniRun()
+  if MiniSpin then
+    for i = 1, MiniSpin do sum = sum + i end
+    MiniSpinDone = true
+  end
 end)
 ]]
 
@@ -73,7 +77,19 @@ local function test_addon_work_in_a_hook_of_a_blizzard_function_still_counts()
   assertAddonTrips('hooksecurefunc("MiniRun", ' .. ADDON_WORK .. ")\n")
 end
 
+-- The layer's own backstop: a layer loop past TEST_BUDGET * LAYER_FACTOR is cut short, so a Blizzard loop the kit sends
+-- into a spin still ends. The probe sets MiniSpin to about 4M instructions of layer work, past the layer's 1M.
+local function test_layer_work_past_the_layer_budget_is_cut_short()
+  local lua = 'MiniSpin = 1000000\nlocal f = CreateFrame("Frame")\nf:RegisterEvent("PLAYER_ENTERING_WORLD")\n'
+    .. 'f:SetScript("OnEvent", function() if MiniSpinDone then error("layer spin ran to the end") end end)\n'
+  local report = runProbe(lua)
+  for _, e in ipairs(report.errors) do
+    A.eq(tostring(e.message):find("layer spin ran to the end", 1, true), nil)
+  end
+end
+
 return function()
+  test_layer_work_past_the_layer_budget_is_cut_short()
   test_heavy_layer_login_work_does_not_count()
   test_addon_work_in_its_login_handler_still_counts()
   test_addon_work_in_a_callback_blizzard_calls_still_counts()
