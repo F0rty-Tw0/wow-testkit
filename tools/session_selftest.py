@@ -40,10 +40,10 @@ def testkit_home(tmp):
 
 
 @contextlib.contextmanager
-def running(tmp, addon=DEMO, watch=False, bindings=None, port=0):
-    """A started session on `addon` (with a bindings file, if given) and a temp testkit home, always stopped."""
+def running(tmp, addon=DEMO, watch=False, bindings=None, port=0, sim=None):
+    """A started session on `addon` (with a bindings file and a sim class, if given) and a temp testkit home, always stopped."""
     with testkit_home(tmp):
-        live = session.start(str(addon), port=port, watch=watch, bindings=bindings)
+        live = session.start(str(addon), port=port, watch=watch, bindings=bindings, sim=sim)
         try:
             yield live
         finally:

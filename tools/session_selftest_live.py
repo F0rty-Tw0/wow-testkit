@@ -219,6 +219,17 @@ def test_shutdown_writes_the_file(tmp):
         assert saved.is_file() and "runs = 1" in saved.read_text(encoding="utf-8"), saved
 
 
+def test_sim_flag_serves_a_world_over_http(tmp):
+    with running(tmp, sim="WARRIOR") as live:
+        _, world = post_json(live, "/call/sim", {"action": "world"})
+        assert world["ok"] and world["world"]["player"]["pos"] == {"x": 0, "y": -10}, world
+        assert post_json(live, "/input", {"kind": "keydown", "key": "W"})[1]["ok"] is True
+        for _ in range(4):
+            _, moved = post_json(live, "/call/sim", {"action": "step", "seconds": 0.25})
+        assert moved["world"]["player"]["pos"]["y"] > -9, moved
+        assert post_json(live, "/input", {"kind": "keyup", "key": "W"})[1]["ok"] is True
+
+
 TESTS = [
     test_input_fire_slash_state_round_trip,
     test_point_click_over_http,
@@ -236,4 +247,5 @@ TESTS = [
     test_unwatched_file_changes_do_not_reload,
     test_several_quick_saves_reload_once,
     test_shutdown_writes_the_file,
+    test_sim_flag_serves_a_world_over_http,
 ]

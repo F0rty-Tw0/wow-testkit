@@ -7,6 +7,7 @@
     GET  /state              the mock state: { ok, state }
     GET  /dev                the developer report: { ok, addons, notes } (POST to /tree, /events or /dev is 405)
     POST /call/<method>      any method, through SessionHost:handleJson; the reply is always status 200
+                             (/call/sim takes { action: step | world | reset }, on a session started with --sim)
     POST /input /fire /slash /state /reload   the same calls for curl and the selftests (400 when the request is malformed)
                              (/reload takes { flavor?, size?, keepSaved?, blizzardUi? }; session_options.lua checks it)
     GET  /stream             server-sent events: hello { boot } first, then snapshot, console, reload, combatlog (a
