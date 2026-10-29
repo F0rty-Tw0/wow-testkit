@@ -10,6 +10,7 @@ import os
 import socket
 import stat
 import time
+from pathlib import Path
 
 import session
 import session_files
@@ -134,6 +135,39 @@ def test_a_token_file_linked_to_another_file_is_replaced_not_written_through(tmp
     token = session_files.session_token(tmp)
     assert victim.read_text(encoding="ascii") == "keep"
     assert (tmp / session_files.TOKEN_FILE).read_text(encoding="ascii") == token
+
+
+def test_the_open_token_file_is_checked_not_only_its_path(tmp):
+    """A path whose lstat passes but whose open file is stale is not reused: the file read is the file checked."""
+    path = tmp / session_files.TOKEN_FILE
+    kept = session_files.session_token(tmp)
+    checked = os.lstat(path)
+    old = time.time() - session_files.TOKEN_MAX_AGE - 1
+    os.utime(path, (old, old))
+    real_lstat = os.lstat
+    os.lstat = lambda name, *args, **kwargs: checked if Path(name) == path else real_lstat(name, *args, **kwargs)
+    try:
+        assert session_files.session_token(tmp) != kept
+    finally:
+        os.lstat = real_lstat
+
+
+def test_a_server_creating_the_token_file_mid_start_does_not_fail_this_one(tmp):
+    """Another server on the session makes the token file, still empty, while this one starts."""
+    path = tmp / session_files.TOKEN_FILE
+    real_open = os.open
+
+    def racing_open(name, flags, *args):
+        if flags & os.O_CREAT and not path.exists():
+            path.write_bytes(b"")
+        return real_open(name, flags, *args)
+
+    os.open = racing_open
+    try:
+        token = session_files.session_token(tmp)
+    finally:
+        os.open = real_open
+    assert path.read_text(encoding="ascii") == token
 
 
 def test_a_refused_request_with_the_token_sets_no_cookie(tmp):
@@ -284,6 +318,8 @@ TESTS = [
     test_restart_on_the_same_port_keeps_the_cookie_and_says_a_new_boot,
     test_a_day_old_foreign_open_or_linked_token_file_is_replaced,
     test_a_token_file_linked_to_another_file_is_replaced_not_written_through,
+    test_the_open_token_file_is_checked_not_only_its_path,
+    test_a_server_creating_the_token_file_mid_start_does_not_fail_this_one,
     test_a_refused_request_with_the_token_sets_no_cookie,
     test_every_reply_says_no_referrer,
     test_connections_past_the_cap_are_closed_unanswered,

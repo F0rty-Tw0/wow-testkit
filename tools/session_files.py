@@ -55,15 +55,19 @@ def reusable(info, now, uid):
 
 
 def _saved_token(path):
-    """The token a reusable file at path holds, or None."""
+    """The token a reusable file at path holds, or None. The open file is checked again, so the file read is the file
+    checked; POSIX opens with O_NOFOLLOW (a link swapped in after the lstat fails to open) and O_NONBLOCK (a FIFO does
+    not hang the start). Windows has neither: a link swapped in there is followed to a fresh regular target, as a hard
+    link is, and the folder's access list is what keeps others out."""
     uid = os.getuid() if hasattr(os, "getuid") else None
     now = time.time()
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
         if not reusable(os.lstat(path), now, uid):
             return None
-        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))  # POSIX: a link swapped in since fails here
+        fd = os.open(path, flags)
         with os.fdopen(fd, encoding="ascii") as saved_file:
-            if not reusable(os.fstat(saved_file.fileno()), now, uid):  # the file read is the file checked
+            if not reusable(os.fstat(saved_file.fileno()), now, uid):
                 return None
             saved = saved_file.read().strip()
     except (OSError, UnicodeDecodeError):
@@ -75,24 +79,20 @@ def _saved_token(path):
 def session_token(session_dir):
     """The token <session_dir>/token holds, so a server restarted on the same session keeps the cookie its viewer has.
     A file `reusable` refuses (a link, another user's, open to others, a day old) or a malformed one is replaced by a
-    fresh token: the old file is removed and the new one made exclusively, so a planted link is never followed. The
-    file is readable by this user only where the OS honours the mode (POSIX); on Windows it inherits the folder's
-    access list (the testkit home, under the user's profile)."""
+    fresh token: it is written to a new file made exclusively and renamed over the old one, so a planted link is never
+    followed and a server starting at the same time never meets a half-written token. The file is readable by this
+    user only where the OS honours the mode (POSIX); on Windows it inherits the folder's access list (the testkit home,
+    under the user's profile)."""
     path = Path(session_dir) / TOKEN_FILE
     saved = _saved_token(path)
     if saved:
         return saved
     token = secrets.token_urlsafe(24)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.unlink(missing_ok=True)
-    try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:  # another server on this session saved one between the unlink and the open
-        saved = _saved_token(path)
-        if saved:
-            return saved
-        raise
+    fresh = path.with_name(f"{TOKEN_FILE}.{secrets.token_hex(8)}")
+    fd = os.open(fresh, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="ascii") as out:
         out.write(token)
+    os.replace(fresh, path)
 
     return token
