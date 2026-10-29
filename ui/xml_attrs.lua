@@ -50,8 +50,9 @@ for _, strata in ipairs({ "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULL
   FRAMESTRATA[strata] = true
 end
 
-local function frameStrata(_, frame, _, value, node, session)
+local function frameStrata(_, frame, st, value, node, session)
   if value:upper() == "PARENT" then
+    st.strata = nil -- nil strata inherits the parent's (behaviour_render.lua), also over a template's
     return
   end
   if FRAMESTRATA[value:upper()] then

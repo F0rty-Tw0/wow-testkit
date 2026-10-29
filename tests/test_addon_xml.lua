@@ -103,7 +103,8 @@ local function test_a_bogus_anchor_point_or_frame_strata_is_reported_and_ignored
 <Frame name="BadPoint"><Anchors><Anchor point="BOGUS"/><Anchor point="TOP" relativePoint="NOPE"/></Anchors></Frame>
 <Frame name="BadStrata" frameStrata="BOGUS"><Frames><Frame name="BadStrataChild"/></Frames></Frame>
 <Frame name="LowerOk" frameStrata="dialog"><Anchors><Anchor point="center"/></Anchors></Frame>
-<Frame name="InheritOk" frameStrata="PARENT"/></Ui>]]
+<Frame name="HighTpl" virtual="true" frameStrata="HIGH"/>
+<Frame name="InheritOk" inherits="HighTpl" frameStrata="PARENT"/></Ui>]]
   withBrokenXml(xml, function(w, ns, info)
     A.same(w.errors, {})
     local report = table.concat(info.report, "\n")
@@ -111,6 +112,7 @@ local function test_a_bogus_anchor_point_or_frame_strata_is_reported_and_ignored
     A.contains(report, "Ui.xml:2: <Anchor> relativePoint 'NOPE' is not a FRAMEPOINT; anchor skipped")
     A.contains(report, "Ui.xml:3: frameStrata 'BOGUS' is not a FRAMESTRATA; ignored")
     A.eq(report:find("dialog", 1, true) or report:find("center", 1, true) or report:find("PARENT", 1, true), nil)
+    A.eq(_G.InheritOk:GetFrameStrata(), "MEDIUM") -- PARENT drops the template's HIGH and inherits UIParent's
     A.same({ _G.BadPoint:GetNumPoints(), _G.BadStrata:GetFrameStrata(), _G.LowerOk:GetNumPoints() }, { 0, "MEDIUM", 1 })
     A.eq(_G.BadStrataChild:GetParent(), _G.BadStrata)
     A.eq(ns.late, true)
