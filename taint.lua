@@ -23,8 +23,8 @@ local ADDON_SOURCE = "^@addon:([^/\r\n]+)/"
 local MACRO_SOURCES = { ["=/run"] = "", ["=/dump"] = "" }
 
 -- Function -> owning addon name, or false for a function no addon file defined; sourceCache keeps the chunk source of each
--- false one, which w.taint.chunks may credit to an addon. A function's chunk never changes, so both are shared by every
--- world.
+-- false Lua one (a C function has none), which w.taint.chunks may credit to an addon. A function's chunk never changes, so
+-- both are shared by every world.
 local ownerCache = setmetatable({}, { __mode = "k" })
 local sourceCache = setmetatable({}, { __mode = "k" })
 
@@ -71,13 +71,13 @@ function M.ownerOf(w, fn)
   local t = w.taint
   local adopted = t.owners[fn]
   if adopted ~= nil then
-    return adopted
+    return adopted or nil
   end
   local owner = ownerCache[fn]
   if owner == nil then
-    local source = getinfo(fn, "S").source
-    owner = source:match(ADDON_SOURCE) or MACRO_SOURCES[source] or false
-    ownerCache[fn], sourceCache[fn] = owner, not owner and source or nil
+    local info = getinfo(fn, "S")
+    owner = info.source:match(ADDON_SOURCE) or MACRO_SOURCES[info.source] or false
+    ownerCache[fn], sourceCache[fn] = owner, not owner and info.what ~= "C" and info.source or nil
   end
   if not owner and t.chunks then
     return t.chunks[sourceCache[fn]]
@@ -85,7 +85,8 @@ function M.ownerOf(w, fn)
   return owner and not t.secureAddons[owner] and owner or nil
 end
 
--- Makes wrapper report fn's owner; returns wrapper.
+-- Makes wrapper report fn's owner; returns wrapper. w.taint.owners maps a function to its owner, or to false for one that
+-- has none whatever its source (a loadstring chunk a secure builder made).
 function M.adopt(w, wrapper, fn)
   w.taint.owners[wrapper] = M.ownerOf(w, fn)
   return wrapper

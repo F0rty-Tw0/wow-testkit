@@ -64,13 +64,20 @@ function M.install(w)
   -- source: assumed (row TS1, "execution becomes 'tainted' as soon as it reads data or code introduced by a third party")
   -- the addon view's loadstring calls this: a chunk built by tainted execution (an addon's or a macro's, not
   -- forceinsecure's) keeps that taint when it runs later as a callback, and so do the functions it defines (credited by
-  -- the chunk's source, so a later chunk of the same text and name takes them over); a secure builder leaves it unowned.
+  -- the chunk's source, so a later chunk of the same text and name takes them over); a secure builder leaves it and the
+  -- functions it defines unowned, so it also takes over the functions of an earlier tainted chunk of that text and name.
   w.taint.chunk = function(fn, env)
     local taint = Taint.current(w)
+    local source = getinfo(fn, "S").source
     if taint and taint ~= Taint.FORCED then
       w.taint.owners[fn] = taint
       w.taint.chunks = w.taint.chunks or {}
-      w.taint.chunks[getinfo(fn, "S").source] = taint
+      w.taint.chunks[source] = taint
+    else
+      w.taint.owners[fn] = false
+      if w.taint.chunks then
+        w.taint.chunks[source] = nil
+      end
     end
     return setfenv(fn, env)
   end
