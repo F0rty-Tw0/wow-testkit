@@ -146,6 +146,17 @@ def test_atlas_lua_that_loops_raises(tmp):
         raise AssertionError("a looping atlas.lua returned")
 
 
+def test_atlas_lua_has_no_string_methods(tmp):
+    """String methods run as C loops the instruction cap cannot stop, so atlas.lua gets none."""
+    (tmp / "atlas.lua").write_text("return { probe = { size = #('x'):rep(2) } }\n")
+    try:
+        atlas.entry_of(tmp, "probe")
+    except Exception as err:
+        assert "index" in str(err), err
+    else:
+        raise AssertionError("atlas.lua called a string method")
+
+
 TESTS = [
     test_wdc5_inline_and_bitpacked_fields,
     test_pallet_and_common_fields,
@@ -159,4 +170,5 @@ TESTS = [
     test_atlas_lua_quotes_a_string_file_or_size_never_writes_it_raw,
     test_atlas_lua_reaches_no_python_and_bytecode_is_refused,
     test_atlas_lua_that_loops_raises,
+    test_atlas_lua_has_no_string_methods,
 ]
