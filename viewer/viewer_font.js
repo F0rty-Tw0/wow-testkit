@@ -11,15 +11,28 @@
     thick: '-2px 0 0 #000, 2px 0 0 #000, 0 -2px 0 #000, 0 2px 0 #000',
   };
 
-  async function loadFont(ref, href, name, families) {
+  // One load per font url for the page's life: a live redraw calls loadFonts again with the same assets, and a new
+  // FontFace each time added duplicate faces and re-fetched a url that had already failed.
+  const faces = new Map();
+
+  async function addFace(ref, href, name) {
     const face = new FontFace(name, V.cssUrl(href));
     try {
       await face.load();
       document.fonts.add(face);
-      families.set(ref, `"${name}", ${FALLBACK_FAMILY}`);
+
+      return name;
     } catch (err) {
       console.warn('viewer: font ' + ref + ' did not load, using the fallback family', err);
+
+      return null;
     }
+  }
+
+  async function loadFont(ref, href, families) {
+    if (!faces.has(href)) faces.set(href, addFace(ref, href, 'wtk-font-' + faces.size));
+    const name = await faces.get(href);
+    if (name) families.set(ref, `"${name}", ${FALLBACK_FAMILY}`);
   }
 
   // A Map from font ref to CSS font-family for every font asset with a url; a font that fails to load is left out.
@@ -27,8 +40,7 @@
     const families = new Map();
     const ctx = { assets, baseUrl };
     const refs = Object.keys(assets).filter((ref) => assets[ref].kind === 'font' && V.assetUrl(ctx, ref));
-    const loads = refs.map((ref, i) => loadFont(ref, V.assetUrl(ctx, ref), 'wtk-font-' + i, families));
-    await Promise.all(loads);
+    await Promise.all(refs.map((ref) => loadFont(ref, V.assetUrl(ctx, ref), families)));
 
     return families;
   };

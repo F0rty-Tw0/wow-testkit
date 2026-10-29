@@ -60,4 +60,26 @@
       A.eq(height, 14, 'lines height');
     },
   });
+
+  TK_TESTS.push({
+    name: 'loadFonts builds one FontFace per font url across redraws, also for a url that fails',
+    async fn() {
+      const RealFontFace = window.FontFace;
+      let built = 0;
+      window.FontFace = function (...args) {
+        built += 1;
+
+        return new RealFontFace(...args);
+      };
+      try {
+        const assets = { 'Fonts/MISSING.TTF': { kind: 'font', url: 'fixtures/missing-font.ttf' } };
+        await V.loadFonts(assets, location.href);
+        const families = await V.loadFonts(assets, location.href);
+        A.eq(built, 1, 'FontFace count');
+        A.eq(families.size, 0, 'a font that failed stays out');
+      } finally {
+        window.FontFace = RealFontFace;
+      }
+    },
+  });
 })();
