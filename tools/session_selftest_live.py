@@ -133,6 +133,26 @@ def test_slash_reload_serves_changed_assets(tmp):
         assert Image.open(io.BytesIO(body)).getpixel((0, 0)) == (0, 0, 255, 255)
 
 
+def test_a_changed_font_gets_a_new_url(tmp):
+    """The viewer keeps one face per font url, so a font whose bytes change must come back under another url."""
+    root = temp_addon(tmp)
+    (root / "f.ttf").write_bytes(b"FONT-1")
+    with (root / "Main.lua").open("a", encoding="utf-8") as main:
+        main.write('local s = f:CreateFontString()\ns:SetFont("Interface\\\\AddOns\\\\T\\\\f.ttf", 12)\ns:SetPoint("CENTER")\ns:SetText("x")\n')
+
+    def font_url():
+        assets = get_json(live, "/snapshot")["assets"].values()
+        return next(asset["url"] for asset in assets if asset.get("kind") == "font")
+
+    with running(tmp, root) as live:
+        first = font_url()
+        (root / "f.ttf").write_bytes(b"FONT-2")
+        assert post_json(live, "/slash", {"text": "/reload"}) == (200, {"ok": True, "handled": True})
+        second = font_url()
+        assert second != first, first
+        assert request(live, "GET", "/" + second)[2] == b"FONT-2"
+
+
 def test_file_save_reloads_and_keeps_saved_variables(tmp):
     root = demo_copy(tmp)
     with running(tmp, root, watch=True) as live:
@@ -209,6 +229,7 @@ TESTS = [
     test_reload_event_is_streamed,
     test_assets_resolve_and_are_served,
     test_slash_reload_serves_changed_assets,
+    test_a_changed_font_gets_a_new_url,
     test_file_save_reloads_and_keeps_saved_variables,
     test_a_failed_watched_reload_is_reported,
     test_a_new_image_reloads_and_is_served,
