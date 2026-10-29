@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Viewer draw bench</title>
+    <link rel="stylesheet" href="../../viewer/viewer.css" />
+  </head>
+  <body>
+    <div id="toolbar">
+      <button id="zoom-out" type="button">-</button>
+      <button id="zoom-in" type="button">+</button>
+      <button id="zoom-fit" type="button">Fit</button>
+      <span id="zoom-label"></span>
+    </div>
+    <div id="status" role="alert" hidden></div>
+    <div id="skipped" role="alert" hidden></div>
+    <div id="errors" hidden></div>
+    <div id="workspace">
+      <div id="viewport"><div id="stage"></div><div id="hover" hidden></div><div id="selection" hidden></div></div>
+      <aside id="panels" hidden></aside>
+    </div>
+    <pre id="out"></pre>
+    <script src="../wasm/hold.js"></script>
+    <script src="../../viewer/transport.js"></script>
+    <script src="../../viewer/viewer_text.js"></script>
+    <script src="../../viewer/viewer_font.js"></script>
+    <script src="../../viewer/viewer_items.js"></script>
+    <script src="../../viewer/viewer_stack.js"></script>
+    <script src="../../viewer/viewer.js"></script>
+    <script src="viewer_draw.js"></script>
+  </body>
+</html>
