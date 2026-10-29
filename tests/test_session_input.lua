@@ -161,6 +161,34 @@ local function test_a_shift_binding_sees_shift_held_assumed()
   end)
 end
 
+-- source: assumed (K3) a keydown runs the key's frames and binding, a repeated keydown is ignored, and the keyup ends
+-- the press.
+local function test_keydown_and_keyup_split_a_press_assumed()
+  H.withSession({ addonDir = H.CLICKY }, function(sess)
+    local seen = { down = 0, up = 0 }
+    local frame = _G.CreateFrame("Frame", "SplitFrame", _G.UIParent)
+    frame:EnableKeyboard(true)
+    frame:SetPropagateKeyboardInput(true)
+    frame:SetScript("OnKeyDown", function()
+      seen.down = seen.down + 1
+    end)
+    frame:SetScript("OnKeyUp", function()
+      seen.up = seen.up + 1
+    end)
+    _G.SetBindingClick("K", "ClickyCheck")
+    local before = #sess.s.ns.log
+    local down = input(sess, { kind = "keydown", key = "k" })
+    A.same({ down.ok, down.binding }, { true, "CLICK ClickyCheck:LeftButton" })
+    A.same({ seen.down, seen.up, #sess.s.ns.log - before }, { 1, 0, 1 })
+    local again = input(sess, { kind = "keydown", key = "K" })
+    A.same({ again.ok, again.ignored }, { true, true })
+    A.same({ seen.down, #sess.s.ns.log - before }, { 1, 1 })
+    local up = input(sess, { kind = "keyup", key = "K" })
+    A.same({ up.ok, seen.up, #sess.s.ns.log - before }, { true, 1, 1 })
+    A.eq(input(sess, { kind = "keyup", key = 5 }).ok, false)
+  end)
+end
+
 local function test_a_point_target_without_numbers_is_malformed()
   H.withSession({ addonDir = H.CLICKY }, function(sess)
     A.contains(input(sess, { kind = "click", target = { x = "1" } }).error, "x and y")
@@ -181,5 +209,6 @@ return function()
   test_click_on_an_edit_box_focuses_it_assumed()
   test_a_press_holds_its_modifiers_while_it_runs_assumed()
   test_a_shift_binding_sees_shift_held_assumed()
+  test_keydown_and_keyup_split_a_press_assumed()
   test_a_point_target_without_numbers_is_malformed()
 end

@@ -289,7 +289,7 @@ function M.install(w)
     end,
   }
   w.ui.classFor = classFor -- classFor(w, typeName) -> { plan, meta }: game/clientapi.lua's Get<Type>Metatable
-  w.input = { mouseFocus = nil, editFocus = nil }
+  w.input = { mouseFocus = nil, editFocus = nil, heldKeys = {} } -- heldKeys: input_keys.lua
   Layout.install(w)
   w:install("CreateFrame", createFrame(w), { gate = "none" })
   w:install("CreateFont", function(name)
