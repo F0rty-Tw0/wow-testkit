@@ -157,6 +157,15 @@ function M.install(w)
   if w.manifest.enums.GameRule == nil then
     define(w, "Enum.GameRule", {}, { "retail", "forever" })
   end
+  -- source: confirmed (row G28) the members of Ketho's retail LuaEnum dump; no API doc lists Enum.GameMode.
+  if w.manifest.enums.GameMode == nil then
+    define(w, "Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 }, { "retail" })
+  end
+  -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
+  -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
+  define(w, "C_EventUtils.IsEventValid", function(event)
+    return (w.manifest.events[event] or w.globals.events[event]) ~= nil
+  end)
   local qualities, meta = w.manifest.enums.ItemQuality or {}, w.manifest.enums.ItemQualityMeta or {}
   for name, member in pairs(LEGACY_QUALITIES) do
     if qualities[member] then
