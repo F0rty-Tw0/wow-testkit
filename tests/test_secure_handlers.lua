@@ -39,28 +39,33 @@ local function test_click_snippet_shows_a_protected_frame_in_combat() -- TS15
   end)
 end
 
-local function test_handler_api_is_refused_in_combat_for_every_caller() -- TS15
+local function errorMessages(w, from)
+  local out = {}
+  for i = from + 1, #w.errors do
+    out[#out + 1] = tostring(w.errors[i].message)
+  end
+  return out
+end
+
+-- The combat refusal is raised in the API frame's OnAttributeChanged, so it goes to the error handler and the call returns;
+-- UnwrapScript then finds no results and raises to its caller (securehandlers.lua:665-674).
+local function test_handler_api_combat_refusal_goes_to_the_error_handler_assumed() -- TS15, TS20
   H.withTaint("retail", function(w)
     local h = handler("TKHApi", "SecureHandlerBaseTemplate")
     local other = hiddenTarget("TKHApiOther")
+    local onShow = other:GetScript("OnShow")
     H.setCombat(w, true)
     w:run("blizzard", function()
-      A.errors(function()
-        h:Execute("x = 1")
-      end, COMBAT_ERROR)
-      A.errors(function()
-        h:SetFrameRef("p", other)
-      end, COMBAT_ERROR)
-      A.errors(function()
-        h:WrapScript(other, "OnShow", "x = 1")
-      end, COMBAT_ERROR)
+      h:Execute("x = 1")
+      h:SetFrameRef("p", other)
+      h:WrapScript(other, "OnShow", "x = 1")
+      _G.SecureHandlerExecute(h, "x = 1")
       A.errors(function()
         h:UnwrapScript(other, "OnShow")
-      end, COMBAT_ERROR)
-      A.errors(function()
-        _G.SecureHandlerExecute(h, "x = 1")
-      end, COMBAT_ERROR)
+      end, "Unable to retrieve unwrap results")
     end)
+    A.same(errorMessages(w, 0), { COMBAT_ERROR, COMBAT_ERROR, COMBAT_ERROR, COMBAT_ERROR, COMBAT_ERROR })
+    A.same({ h:GetAttribute("frameref-p"), other:GetScript("OnShow") == onShow }, { nil, true })
   end)
 end
 
@@ -504,7 +509,7 @@ local function test_pre_body_runs_in_combat_only_for_a_protected_frame() -- TS15
 end
 
 local function test_unwrap_script_restores_the_handler_and_returns_the_wrap() -- TS15
-  H.withTaint("retail", function(_, _, s)
+  H.withTaint("retail", function(w, _, s)
     local hdr = _G.CreateFrame("Frame", "TKWrap4Hdr", _G.UIParent, "SecureHandlerBaseTemplate")
     local b = _G.CreateFrame("Button", "TKWrap4", _G.UIParent, "SecureActionButtonTemplate")
     b:RegisterForClicks("AnyUp")
@@ -520,11 +525,14 @@ local function test_unwrap_script_restores_the_handler_and_returns_the_wrap() --
     A.eq(b:GetScript("OnClick"), original)
     s:click(b)
     A.eq(ran, 1)
+    -- source: `:238-253` (RemoveWrapper) a script that is not wrapped is left as it is and the call returns nothing.
+    A.same({ hdr:UnwrapScript(b, "OnClick") }, {})
+    A.same({ b:GetScript("OnClick"), #w.errors }, { original, 0 })
   end)
 end
 
 local function test_wrap_script_checks_its_arguments() -- TS15
-  H.withTaint("retail", function()
+  H.withTaint("retail", function(w)
     local hdr, b = wrapSetup("TKWrap5")
     local plain = _G.CreateFrame("Frame", "TKWrap5Plain", _G.UIParent)
     A.errors(function()
@@ -537,15 +545,13 @@ local function test_wrap_script_checks_its_arguments() -- TS15
       hdr:WrapScript(b, "OnClick", "x = 1", 2)
     end, "Invalid post-handler body")
     A.errors(function()
-      hdr:WrapScript(b, "OnTextChanged", "x = 1")
-    end, "Frame does not support script")
-    A.errors(function()
-      hdr:WrapScript(b, "OnEnter", "x = 1")
-      hdr:WrapScript(b, "OnLoad", "x = 1")
-    end, "Unsupported script type")
-    A.errors(function()
       hdr:WrapScript({}, "OnClick", "x = 1")
     end, "Invalid frame")
+    -- source: `:500-513` the script checks are made in the API frame's OnAttributeChanged: to the error handler.
+    hdr:WrapScript(b, "OnTextChanged", "x = 1")
+    hdr:WrapScript(b, "OnEnter", "x = 1")
+    hdr:WrapScript(b, "OnLoad", "x = 1")
+    A.same(errorMessages(w, 0), { "Frame does not support script 'OnTextChanged'", "Unsupported script type 'OnLoad'" })
   end)
 end
 
@@ -593,7 +599,7 @@ end
 
 return function()
   test_click_snippet_shows_a_protected_frame_in_combat()
-  test_handler_api_is_refused_in_combat_for_every_caller()
+  test_handler_api_combat_refusal_goes_to_the_error_handler_assumed()
   test_execute_runs_secure_for_tainted_callers_out_of_combat()
   test_execute_checks_its_header_and_body()
   test_a_tainted_click_cannot_run_a_snippet()

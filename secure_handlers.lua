@@ -52,15 +52,17 @@ local function checkFrame(w, frame, message)
   end
 end
 
--- source: `:430-441` (API_OnAttributeChanged): the API refuses every caller in combat, secure or not.
-local function checkCombat(w)
-  if inCombat(w) then
-    fail(COMBAT_ERROR)
-  end
-end
-
-local function secure(w, fn, ...)
-  return Taint.secure(w, fn, ...)
+-- source: `:430-441` (API_OnAttributeChanged) each call's second half runs as the API frame's OnAttributeChanged script:
+-- secure whoever calls, refusing every caller in combat. An error it raises goes to the error handler and the call returns
+-- on (assumed: a script's error never reaches SetAttribute's caller; UnwrapScript's result check `:665-674` relies on it).
+-- True when fn ran without an error.
+local function apiScript(w, fn)
+  return Taint.secure(w, w.try, w, function()
+    if inCombat(w) then
+      error(COMBAT_ERROR, 0)
+    end
+    fn()
+  end)[1]
 end
 
 -- source: `:680-700` (SecureHandlerExecute) and `:444-459` (_execute): runs body as secure execution against a header, for
@@ -72,9 +74,8 @@ function M.execute(w, frame, body)
   elseif type(body) ~= "string" then
     fail("Invalid body")
   end
-  checkCombat(w)
-  secure(w, function()
-    w:try(SecureEnv.call, w, frame, frame, "self", body)
+  apiScript(w, function()
+    SecureEnv.call(w, frame, frame, "self", body)
   end)
 end
 
@@ -85,14 +86,13 @@ function M.setFrameRef(w, frame, label, refFrame)
     fail("Invalid body")
   end
   checkFrame(w, refFrame, "Invalid reference frame")
-  checkCombat(w)
-  secure(w, function()
+  apiScript(w, function()
     frame:SetAttribute("frameref-" .. label, SecureEnv.handle(w, refFrame))
   end)
 end
 
 -- source: `:602-644` (SecureHandlerWrapScript) and `:461-518` (_wrap): the wrapper becomes the frame's script (so a later
--- SetScript replaces it) and keeps the handler it replaced.
+-- SetScript replaces it) and keeps the handler it replaced; the script checks are the API frame's (apiScript).
 function M.wrapScript(w, frame, script, header, preBody, postBody)
   checkFrame(w, frame, "Invalid frame")
   if type(script) ~= "string" then
@@ -106,42 +106,45 @@ function M.wrapScript(w, frame, script, header, preBody, postBody)
   elseif postBody ~= nil and type(postBody) ~= "string" then
     fail("Invalid post-handler body")
   end
-  checkCombat(w)
-  local wrapper = Wrap.wrappers[script]
-  if not frame:HasScript(script) then
-    fail("Frame does not support script '" .. script .. "'")
-  elseif not wrapper then
-    fail("Unsupported script type '" .. script .. "'")
-  end
-  local info = { header = header, preBody = preBody, postBody = postBody, original = frame:GetScript(script) }
-  local function wrap(self, ...)
-    return wrapper(w, self, info, ...)
-  end
-  SecureEnv.state(w).wraps[wrap] = info
-  secure(w, function()
+  apiScript(w, function()
+    local wrapper = Wrap.wrappers[script]
+    if not frame:HasScript(script) then
+      error("Frame does not support script '" .. script .. "'", 0)
+    elseif not wrapper then
+      error("Unsupported script type '" .. script .. "'", 0)
+    end
+    local info = { header = header, preBody = preBody, postBody = postBody, original = frame:GetScript(script) }
+    local function wrap(self, ...)
+      return wrapper(w, self, info, ...)
+    end
+    SecureEnv.state(w).wraps[wrap] = info
     frame:SetScript(script, wrap)
   end)
 end
 
--- source: `:646-678` (SecureHandlerUnwrapScript) and `:520-556` (_unwrap): restores the handler the wrap replaced and
--- returns the header and bodies; a script that is not wrapped has nothing to retrieve.
+-- source: `:646-678` (SecureHandlerUnwrapScript), `:520-556` (_unwrap) and `:238-253` (RemoveWrapper): restores the
+-- handler the wrap replaced and returns the header and bodies; a script that is not wrapped is left as it is and returns
+-- nothing. "Unable to retrieve unwrap results" only when the API frame's half raised (apiScript).
 function M.unwrapScript(w, frame, script)
   checkFrame(w, frame, "Invalid frame")
   if type(script) ~= "string" then
     fail("Invalid script id")
   end
-  checkCombat(w)
-  if not frame:HasScript(script) then
-    fail("Frame does not support script '" .. script .. "'")
-  end
-  local info = SecureEnv.state(w).wraps[frame:GetScript(script)]
-  if not info then
-    fail("Unable to retrieve unwrap results")
-  end
-  secure(w, function()
-    frame:SetScript(script, info.original)
+  local info
+  local ran = apiScript(w, function()
+    if not frame:HasScript(script) then
+      error("Frame does not support script '" .. script .. "'", 0)
+    end
+    info = SecureEnv.state(w).wraps[frame:GetScript(script)]
+    if info then
+      frame:SetScript(script, info.original)
+    end
   end)
-  return info.header, info.preBody, info.postBody
+  if not ran then
+    fail("Unable to retrieve unwrap results")
+  elseif info then
+    return info.header, info.preBody, info.postBody
+  end
 end
 
 -- The methods the handler templates put on their frames (SecureHandler_OnLoad): fn(w, self, ...).
