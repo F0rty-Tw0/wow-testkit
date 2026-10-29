@@ -50,6 +50,10 @@ function M.level()
   end
 end
 
+-- A function's addon name (false for a kit or C function): a function's chunk never changes, and the stack walk below
+-- meets the same kit functions on every call. Weak keys, so a dropped addon function frees its entry.
+local addonOf = setmetatable({}, { __mode = "k" })
+
 -- The addon a kit call is credited to: nil outside addon context; else the <Name> of the nearest addon chunk
 -- (@addon:<Name>/<file>) on the stack, else the addon whose files are loading (w.dev.loading).
 function M.addon(w)
@@ -58,13 +62,21 @@ function M.addon(w)
   end
   local level = 2
   while true do
-    local info = getinfo(level, "S")
+    local info = getinfo(level, "f")
     if not info then
       return w.dev.loading
     end
-    local name = info.source:match("^@addon:([^/]+)/")
-    if name then
-      return name
+    -- A tail-call level has no function (its source "=(tail call)" never matched).
+    local fn = info.func
+    if fn then
+      local name = addonOf[fn]
+      if name == nil then
+        name = getinfo(fn, "S").source:match("^@addon:([^/]+)/") or false
+        addonOf[fn] = name
+      end
+      if name then
+        return name
+      end
     end
     level = level + 1
   end

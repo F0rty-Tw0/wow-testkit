@@ -97,7 +97,74 @@ local function test_an_empty_kit_root_still_names_a_consumer_ui_file()
   A.truthy(message:find("^ui/x%.lua:3: boom"), message)
 end
 
+-- Callsite.addon / credit: a stand-in world whose caller context and loading addon are set per case.
+local function worldIn(context, loading)
+  return {
+    dev = { loading = loading, widgets = {} },
+    callerIsAddon = function()
+      return context == "addon"
+    end,
+  }
+end
+
+-- A function in a chunk named chunkName that returns what fn(...) returns, by a normal call or a tail call.
+local function addonFrame(chunkName, tail)
+  local body = tail and "return fn(...)" or "local a, b = fn(...)\n  return a, b"
+  local chunk = assert(loadstring("local fn = ...\nreturn function(...)\n  " .. body .. "\nend", "@" .. chunkName))
+  return function(fn)
+    return chunk(fn)
+  end
+end
+
+local function test_addon_is_the_nearest_addon_chunk_on_the_stack()
+  local w = worldIn("addon", "Loading")
+  local function ask()
+    return Callsite.addon(w)
+  end
+  local inner = addonFrame("addon:Inner/b.lua")(ask)
+  local outer = addonFrame("addon:Outer/a.lua")(inner)
+  A.eq(outer(), "Inner")
+  A.eq(addonFrame("addon:Outer/a.lua")(ask)(), "Outer")
+  -- A tail call replaces the frame that made it: Inner's chunk is gone from the stack, Outer's is not.
+  A.eq(addonFrame("addon:Outer/a.lua")(addonFrame("addon:Inner/b.lua", true)(ask))(), "Outer")
+  A.eq(addonFrame("addon:Outer/a.lua", true)(addonFrame("kit/x.lua")(ask))(), "Loading")
+  -- The answer repeats for a function seen before.
+  A.eq(outer(), "Inner")
+  A.eq(outer(), "Inner")
+end
+
+local function test_addon_falls_back_to_the_loading_addon_and_is_nil_outside_addon_context()
+  A.eq(Callsite.addon(worldIn("addon", "Loading")), "Loading")
+  A.eq(Callsite.addon(worldIn("addon")), nil)
+  local w = worldIn("kit", "Loading")
+  A.eq(
+    addonFrame("addon:Outer/a.lua")(function()
+      return Callsite.addon(w)
+    end)(),
+    nil
+  )
+end
+
+local function test_credit_counts_once_per_call_under_the_credited_addon()
+  local w = worldIn("addon", "Loading")
+  local function credit(key)
+    return function()
+      Callsite.credit(w, "widgets", key)
+    end
+  end
+  addonFrame("addon:Outer/a.lua")(credit("Frame"))()
+  addonFrame("addon:Outer/a.lua")(credit("Frame"))()
+  addonFrame("addon:Inner/b.lua")(credit("Button"))()
+  Callsite.credit(worldIn("kit", "Loading"), "widgets", "Frame")
+  A.eq(w.dev.widgets.Outer.Frame, 2)
+  A.eq(w.dev.widgets.Inner.Button, 1)
+  A.eq(w.dev.widgets.Loading, nil)
+end
+
 return function()
+  test_addon_is_the_nearest_addon_chunk_on_the_stack()
+  test_addon_falls_back_to_the_loading_addon_and_is_nil_outside_addon_context()
+  test_credit_counts_once_per_call_under_the_credited_addon()
   test_a_kit_file_is_skipped()
   test_a_framexml_fake_is_skipped()
   test_the_hook_wrapper_module_is_skipped()
