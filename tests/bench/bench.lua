@@ -69,6 +69,8 @@ function M.fresh(id, runtime, runs, build, fn)
   local samples = {}
   for i = 1, runs do
     local ctx, cleanup = build()
+    collectgarbage() -- twice: the first pass only queues finalizers, and a GC step inside the timed call is an outlier
+    collectgarbage()
     local start = os.clock()
     local ok, err = pcall(fn, ctx)
     samples[i] = (os.clock() - start) * 1000
