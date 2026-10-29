@@ -265,6 +265,22 @@ local function test_a_required_dependency_mocked_loaded_needs_no_folder_assumed(
   A.eq(ran, true)
 end
 
+-- source: assumed (row G16) a dependency the mock holds as loaded is not walked, even with a folder: its own
+-- dependencies were met when it loaded, so one missing from the addons dir does not skip the addon.
+local function test_a_dependency_mocked_loaded_is_not_walked_assumed()
+  local dir = Tmp.dir("deps")
+  addon(dir, "Lib", "## Dependencies: Gone\n", "LIB_RAN = true")
+  addon(dir, "Main", "## Dependencies: Lib\n", "MAIN_RAN = true")
+  local ran
+  local results = Scenario.matrix({ "retail" }, function(s)
+    s:mock({ addons = { Lib = { loaded = true } } })
+    s:login()
+    ran = { rawget(_G, "LIB_RAN"), rawget(_G, "MAIN_RAN") }
+  end, { addon = "Main", root = dir .. "/Main" })
+  A.eq(results.retail.status, "pass", tostring(results.retail.reason))
+  A.same(ran, { nil, true })
+end
+
 -- source: assumed (row G16) a missing required dependency stops the login as a skip with the reason.
 local function test_login_with_a_missing_dependency_is_skipped_assumed()
   local dir = Tmp.dir("deps")
@@ -312,6 +328,7 @@ return function()
   test_optional_dependency_missing_its_own_dependency_is_passed_over_assumed()
   test_optional_dependency_whose_dependency_is_skipped_does_not_load_assumed()
   test_a_required_dependency_mocked_loaded_needs_no_folder_assumed()
+  test_a_dependency_mocked_loaded_is_not_walked_assumed()
   test_login_with_a_missing_dependency_is_skipped_assumed()
   test_a_dependency_already_loaded_does_not_load_again()
 end
