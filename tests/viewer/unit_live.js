@@ -4,7 +4,8 @@
 // answers late, after a stream line newer than its own lines (and, on "b", one it also holds). Then the combat bar's
 // Pull puts the session in combat in a party, which the Mock state panel must show; a step that leaves combat on must
 // not re-read the state, a step that ends it must, and a second Pull's re-read keeps a fixture edit not yet applied.
-// The combat log takes the second panel column, not the inspector's. Writes PASS/FAIL lines
+// A hover outline placed before a zoom in keeps its share of the stage. The combat log takes the second panel
+// column, not the inspector's. Writes PASS/FAIL lines
 // into #out like unit.js, for check_unit.py.
 window.TK = window.TK || {};
 
@@ -20,6 +21,7 @@ window.TK = window.TK || {};
   // ms each server's console backlog takes to answer: "a" is asked at load and answers after old-2 (400 ms) streams,
   // "b" is asked at its hello (600 ms) and answers after new-2 (800 ms) streams.
   const BACKLOG_MS = { a: 500, b: 250 };
+  const ITEMS = [{ id: 'f1', kind: 'frame', rect: { x: 0, y: 0, width: 50, height: 50 } }];
   const INFO = { ok: true, flavors: ['retail', 'vanilla'], flavor: 'retail', addon: 'X', loads: 1, errors: 0 };
 
   function down(field) {
@@ -29,7 +31,8 @@ window.TK = window.TK || {};
   }
 
   const ANSWERS = {
-    snapshot: () => (down('snapshotFailures') ? null : { screen: { width: 100, height: 100 }, items: [], session: { seq: server.seq } }),
+    snapshot: () => (down('snapshotFailures') ? null : { screen: { width: 100, height: 100 }, items: ITEMS, session: { seq: server.seq } }),
+    input: () => ({ ok: true, target: { id: 'f1' } }),
     info: () => (down('infoFailures') ? null : { ...INFO, screen: { width: 1920, height: 1080 }, seq: server.seq }),
     console: () => {
       const lines = LINES[server.boot];
@@ -101,6 +104,7 @@ window.TK = window.TK || {};
     check(out, 'a step that ends combat re-reads the state and unchecks combat', marks.endOfFight, { reread: true, combat: false });
     check(out, 'a re-read after a combat action keeps an unsaved fixture edit', fixtureBox().value, EDITED);
     const column = (id) => getComputedStyle(document.getElementById(id)).gridColumnStart;
+    check(out, 'the hover outline keeps half the stage width after a zoom in', marks.hoverRatio, 0.5);
     check(out, "the combat log sits beside the inspector, not under it, so it leaves the inspector's details room", column('combatlog'), '2');
   }
 
@@ -149,6 +153,16 @@ window.TK = window.TK || {};
       fixtureBox().value = EDITED;
       fixtureBox().dispatchEvent(new Event('input'));
       document.getElementById('combat-pull').click();
+    });
+    at(1450, () => {
+      const stage = document.getElementById('stage').getBoundingClientRect();
+      const point = { clientX: stage.left + 10, clientY: stage.top + 10, bubbles: true };
+      document.getElementById('stage').dispatchEvent(new MouseEvent('mousemove', point));
+    });
+    at(1500, () => document.getElementById('zoom-in').click());
+    at(1550, () => {
+      const width = (id) => document.getElementById(id).getBoundingClientRect().width;
+      marks.hoverRatio = Math.round((100 * width('hover')) / width('stage')) / 100;
     });
     at(1600, report);
     at(1700, () => emit('reload', {}));
