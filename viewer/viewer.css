@@ -110,6 +110,14 @@ body.bare #combat {
   white-space: pre-wrap;
 }
 
+/* A snapshot can carry hundreds of errors (the Blizzard UI layer): the list scrolls instead of pushing the stage off
+   the screen. */
+#errors {
+  box-sizing: border-box;
+  max-height: 20vh;
+  overflow-y: auto;
+}
+
 #status[hidden],
 #skipped[hidden],
 #errors[hidden] {
