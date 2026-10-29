@@ -74,9 +74,8 @@ end
 -- source: wiki XML/LayoutFrame, `mixin` / `secureMixin` "Inherits a comma-separated list of Lua mixins". secureMixin is
 -- copied the same way (its secure wrapping is not modelled); a name is recorded as templates record theirs, found or not.
 local function mixin(w, frame, st, value, _, session)
-  st.mixins = st.mixins or {}
   for name in value:gmatch("[^,%s]+") do
-    st.mixins[#st.mixins + 1] = name
+    TemplateApply.recordMixin(st, name)
     local source = AddonEnv.global(w, name, true)
     if type(source) == "table" then
       TemplateApply.copyMixin(frame, source)

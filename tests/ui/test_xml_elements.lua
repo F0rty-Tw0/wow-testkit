@@ -122,6 +122,15 @@ local function test_inherits_applies_before_the_elements_own_mixin_assumed()
   end)
 end
 
+-- A mixin a template already brought (or one listed twice) is recorded once.
+local function test_a_mixin_name_is_recorded_once()
+  local xml = '<Ui><Frame name="Dup" inherits="BackdropTemplate, BackdropTemplate" mixin="BackdropTemplateMixin, BoxMixin, BoxMixin"/></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same(w.ui.state[_G.Dup].mixins, { "BackdropTemplateMixin", "BoxMixin" })
+  end)
+end
+
 local function test_missing_mixin_is_reported_assumed()
   H.withXml({ ["Ui.xml"] = '<Ui><Frame name="Mx" mixin="BoxMixin, OtherMixin"/></Ui>' }, function(w, ctx)
     w:setGlobal("BoxMixin", {})
@@ -232,6 +241,7 @@ return function()
   test_tag_matches_the_frame_type_ignoring_case_assumed()
   test_mixin_copies_the_global_table_and_records_its_name()
   test_inherits_applies_before_the_elements_own_mixin_assumed()
+  test_a_mixin_name_is_recorded_once()
   test_missing_mixin_is_reported_assumed()
   test_mixin_on_a_layer_region_copies_the_global_table()
   test_template_inherits_apply_kit_templates()
