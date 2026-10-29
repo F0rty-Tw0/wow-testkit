@@ -96,6 +96,9 @@ files["tests/fixtures/addons/PreviewBroken/*.lua"] = {
   read_globals = { "CreateFrame", "UIParent" },
 }
 
+-- Bench fixture (tests/bench): a stress grid and a long anchor chain, written like a real addon.
+files["tests/fixtures/bench/Stress/*.lua"] = { read_globals = { "CreateFrame", "UIParent" } }
+
 -- Preview fixture: MouseOverTooltip's minimap-button geometry, written against the world's WoW globals.
 files["tests/fixtures/addons/MotLike/*.lua"] = {
   read_globals = { "CreateFrame", "Minimap" },
