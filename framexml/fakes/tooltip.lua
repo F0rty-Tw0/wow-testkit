@@ -190,17 +190,14 @@ local function tipOf(w, self, label)
   return st.tooltip
 end
 
--- Adds the tooltip methods to the world's GameTooltip class (the metatable __index every such widget shares) and to its
--- class methods (w.ui.classMethods), the ones secure kit code calls.
+-- Adds the tooltip methods to the world's GameTooltip class (the metatable __index every such widget shares).
 local function attachMethods(w, tooltip)
   local index = getmetatable(tooltip).__index
-  local own = w.ui.classMethods[w.ui.state[tooltip].plan]
   for name, impl in pairs(methods) do
     local label = TOOLTIP_NAME .. ":" .. name
     index[name] = function(self, ...)
       return impl(w, self, tipOf(w, self, label), ...)
     end
-    own[name] = index[name]
   end
 end
 
