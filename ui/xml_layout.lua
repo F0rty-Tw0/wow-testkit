@@ -3,6 +3,7 @@
 local M = {}
 
 local AddonEnv = require("addon_env")
+local BehaviourLayout = require("ui.behaviour_layout")
 local Templates = require("ui.templates")
 local XmlBuild = require("ui.xml_build")
 
@@ -167,10 +168,7 @@ end
 
 -- source: confirmed (row X27) Blizzard_SharedXML/UI.xsd:4-16 FRAMEPOINT, the type of <Anchor> point and relativePoint
 -- (:593, :596); assumed: another value, in any case, is reported and the anchor skipped.
-local FRAMEPOINT = {}
-for _, point in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "TOP", "BOTTOM", "LEFT", "RIGHT", "CENTER" }) do
-  FRAMEPOINT[point] = true
-end
+local FRAMEPOINT = BehaviourLayout.FRAMEPOINT
 
 -- The name of the first of point and relativePoint that is no FRAMEPOINT, and its value; nil when both are.
 local function badPoint(attrs)

@@ -3,6 +3,7 @@
 local M = {}
 
 local Core = require("framexml.fakes.core")
+local Layout = require("ui.layout")
 
 local maxn = table.maxn
 
@@ -176,13 +177,15 @@ end
 
 -- S3 (assumed): hiding a shown frame under the cursor fires its OnLeave (Interface/AddOns/Blizzard_Menu/Menu.lua:1077,
 -- "causing the OnLeave to be called"); motion = false because a hide is not mouse movement (wiki UIHANDLER_OnLeave).
--- The focus clears before OnLeave runs, as Input.leave does.
+-- The focus clears before OnLeave runs, and the cached layout drops with it (a hovered button's text follows its state
+-- font), as Input.leave does.
 local function hideLevel(w, level)
   local container = level.frame
   container:Hide()
   local focus = w.input.mouseFocus
   if focus and focusInside(focus, container) then
     w.input.mouseFocus = nil
+    Layout.invalidate(w, focus)
     w:callScript(focus, "OnLeave", false)
   end
 end

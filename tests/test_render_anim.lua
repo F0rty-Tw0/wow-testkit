@@ -2,6 +2,7 @@
 -- Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
 local A = require("assert")
 local AG = require("tests.helpers.anim_group")
+local AnimEffects = require("ui.anim_effects")
 local H = require("tests.helpers.render")
 local S = require("tests.helpers.widget_snap")
 
@@ -74,7 +75,41 @@ local function test_final_alpha_comes_from_the_last_alpha_animation_assumed() --
   end)
 end
 
-local function test_stop_drops_the_final_alpha_assumed() -- W60
+-- source: W60 Blizzard_ActionBar/Shared/StatusTrackingManager.lua:249 and :262 skip a fade by the frame's GetAlpha
+-- after setToFinalAlpha groups ran (StatusTrackingBar.xml:3, :11, :17), so the kept alpha is the frame's own.
+local function test_final_alpha_becomes_the_target_alpha() -- W60
+  H.withRender(function(w)
+    local animGroup, animation, frame = animated("Owned", "Alpha")
+    fade(animGroup, animation)
+    animGroup:SetToFinalAlpha(true)
+    animGroup:Play()
+    w:advance(1.5)
+    A.same({ frame:GetAlpha(), S.snap(w, "Owned").alpha, AnimEffects.anyActive(w) }, { 0, 0, false })
+    frame:SetAlpha(1)
+    A.eq(S.snap(w, "Owned").alpha, 1)
+  end)
+end
+
+local function test_a_fade_in_after_a_kept_fade_out_shows_the_frame() -- W60
+  H.withRender(function(w)
+    local fadeOut, out, frame = animated("Faded", "Alpha")
+    fade(fadeOut, out)
+    fadeOut:SetToFinalAlpha(true)
+    local fadeIn = frame:CreateAnimationGroup()
+    local back = fadeIn:CreateAnimation("Alpha")
+    back:SetFromAlpha(0)
+    back:SetToAlpha(1)
+    back:SetDuration(1)
+    fadeIn:SetToFinalAlpha(true)
+    fadeOut:Play()
+    w:advance(1.5)
+    fadeIn:Play()
+    w:advance(1.5)
+    A.same({ frame:GetAlpha(), S.snap(w, "Faded").alpha }, { 1, 1 })
+  end)
+end
+
+local function test_stop_after_the_finish_keeps_the_final_alpha() -- W60
   H.withRender(function(w)
     local animGroup, animation = animated("Reset", "Alpha")
     fade(animGroup, animation)
@@ -82,7 +117,7 @@ local function test_stop_drops_the_final_alpha_assumed() -- W60
     animGroup:Play()
     w:advance(1.5)
     animGroup:Stop()
-    A.eq(S.snap(w, "Reset").alpha, 1)
+    A.eq(S.snap(w, "Reset").alpha, 0)
   end)
 end
 
@@ -194,7 +229,9 @@ return function()
   test_a_fresh_widget_exports_no_animation_fields()
   test_final_alpha_is_kept_when_requested_assumed()
   test_final_alpha_comes_from_the_last_alpha_animation_assumed()
-  test_stop_drops_the_final_alpha_assumed()
+  test_final_alpha_becomes_the_target_alpha()
+  test_a_fade_in_after_a_kept_fade_out_shows_the_frame()
+  test_stop_after_the_finish_keeps_the_final_alpha()
   test_stop_removes_the_effect_and_replay_restarts_it_assumed()
   test_pause_holds_the_effect_assumed()
   test_smoothing_bends_the_alpha_animation_assumed()

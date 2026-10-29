@@ -64,6 +64,20 @@ function M.shown(w, owner, role)
   return display == role
 end
 
+-- source: assumed (W17) a region that fills several roles of owner (role is its mark) draws while any of them shows.
+function M.regionShown(w, owner, region, role)
+  if M.shown(w, owner, role) then
+    return true
+  end
+  for other, held in pairs(State.read(w.ui.state[owner]).tex) do
+    if held == region and M.shown(w, owner, other) then
+      return true
+    end
+  end
+
+  return false
+end
+
 -- source: assumed (W22) the shown text uses the state's font object (disabled; highlight while hovered), else the
 -- normal one. The font object the button text shows, or nil.
 function M.fontFor(w, owner)
@@ -192,6 +206,7 @@ local function setFontObject(state)
     local fonts = State.write(st).fonts
     if type(font) == "string" then
       font = AddonEnv.global(w, font)
+      font = type(font) == "table" and font or nil -- a global that holds no font object is a missing one
     end
     fonts[state] = font
   end

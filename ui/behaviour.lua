@@ -157,10 +157,11 @@ local function checkNoLoop(w, obj, st, parent)
 end
 
 -- Moves obj under parent (a widget, a frame name, or nil); parents that are not kit widgets are kept but
--- list nothing.
+-- list nothing. A name whose global holds no table unparents, as a missing one does.
 function M.setParent(w, obj, st, parent)
   if type(parent) == "string" then
     parent = AddonEnv.global(w, parent)
+    parent = type(parent) == "table" and parent or nil
   end
   checkNoLoop(w, obj, st, parent)
   local oldState = st.parent and w.ui.state[st.parent]

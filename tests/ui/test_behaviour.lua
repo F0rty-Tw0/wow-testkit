@@ -147,6 +147,17 @@ local function test_children_follow_set_parent()
   end)
 end
 
+-- A frame name whose global holds no frame (here a string) unparents, as a missing name does.
+local function test_set_parent_to_a_name_of_no_frame_unparents_assumed()
+  withWidgets("retail", function(w)
+    local a = _G.CreateFrame("Frame")
+    local child = _G.CreateFrame("Frame", nil, a)
+    w:setGlobal("TkStringParent", "not a frame")
+    child:SetParent("TkStringParent")
+    A.same({ child:GetParent(), select("#", a:GetChildren()) }, { nil, 0 })
+  end)
+end
+
 local function test_set_parent_to_self_or_a_descendant_errors_and_keeps_the_parent_assumed()
   withWidgets("retail", function()
     local a = _G.CreateFrame("Frame", "LoopA")
@@ -223,6 +234,7 @@ return function()
   test_create_regions_are_listed_with_parent()
   test_animation_group_has_parent_but_is_not_a_region()
   test_children_follow_set_parent()
+  test_set_parent_to_a_name_of_no_frame_unparents_assumed()
   test_set_parent_to_self_or_a_descendant_errors_and_keeps_the_parent_assumed()
   test_object_type_checks_ancestors()
   test_objects_are_loaded_at_once_assumed()

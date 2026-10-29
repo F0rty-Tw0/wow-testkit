@@ -17,6 +17,17 @@ function M.copyMixin(frame, mixin)
   end
 end
 
+-- Adds name to st.mixins, the mixins applied to the frame, unless a template or the frame's own list already brought it.
+function M.recordMixin(st, name)
+  st.mixins = st.mixins or {}
+  for _, known in ipairs(st.mixins) do
+    if known == name then
+      return
+    end
+  end
+  st.mixins[#st.mixins + 1] = name
+end
+
 -- The widget a template child is: a group comes from the frame's CreateAnimationGroup, anything else from w.ui.create.
 local function makeChild(w, frame, child)
   if child.type == "AnimationGroup" then
@@ -74,7 +85,7 @@ function M.apply(w, frame, st, entry)
   end
   st.protected = st.protected or entry.protected
   for _, name in ipairs(entry.mixins) do
-    st.mixins[#st.mixins + 1] = name
+    M.recordMixin(st, name)
     local mixin = AddonEnv.global(w, name, true)
     if type(mixin) == "table" then
       M.copyMixin(frame, mixin)

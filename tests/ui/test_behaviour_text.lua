@@ -44,6 +44,17 @@ local function test_string_metrics_follow_font_object()
   end)
 end
 
+-- A font object named by a global that holds none (here a string) is the same as a missing one.
+local function test_a_font_object_name_of_no_font_object_sets_none()
+  withWidgets("vanilla", function(w)
+    w:setGlobal("TkStringFont", "not a font")
+    local text = newText()
+    text:SetFontObject(_G.CreateFont("TkRealFont"))
+    text:SetFontObject("TkStringFont")
+    A.eq(text:GetFontObject(), nil)
+  end)
+end
+
 local function test_set_text_round_trips()
   withWidgets("retail", function()
     local text = newText()
@@ -153,6 +164,7 @@ return function()
   test_string_width_ignores_color_codes_at_default_size()
   test_string_metrics_use_set_font_size()
   test_string_metrics_follow_font_object()
+  test_a_font_object_name_of_no_font_object_sets_none()
   test_set_text_round_trips()
   test_unset_text_reads_back_nil_assumed()
   test_text_color_defaults_alpha_to_one()

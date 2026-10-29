@@ -18,9 +18,11 @@ local WHITE = { 1, 1, 1, DEFAULT_ALPHA }
 local COLOR_FIELDS = 4
 local DEFAULT_VALUE = 0
 
+-- A font object or its global name; a name whose global holds no table is a missing one.
 local function resolveObject(w, value)
   if type(value) == "string" then
-    return AddonEnv.global(w, value)
+    local global = AddonEnv.global(w, value)
+    return type(global) == "table" and global or nil
   end
   return value
 end

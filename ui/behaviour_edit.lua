@@ -15,6 +15,7 @@ M.methods = {}
 M.UTF8_CHAR = "[%z\1-\127\194-\244][\128-\191]*"
 local DIGIT = "^%d$"
 local NUMBER_PREFIX = "^-?%d*%.?%d+"
+local EXPONENT = "^[eE][-+]?%d+"
 local MASK = "*"
 
 local function newEdit()
@@ -170,9 +171,16 @@ end
 
 -- source: confirmed (W36) wiki API_EditBox_GetNumber: "It will return number recognized so far, or 0 if there were no
 -- valid digits recognized."; "The function will never return nil."; assumed (W36) the number recognised is a leading
--- sign and decimal part too, so SetNumber(-5) and SetNumber(1.5) read back as given.
+-- sign and decimal part too, so SetNumber(-5) and SetNumber(1.5) read back as given, and an exponent, so SetNumber(1e20)
+-- (text "1e+20") does too.
 local function getNumber(_, _, st)
-  return tonumber((st.text or ""):match(NUMBER_PREFIX)) or 0
+  local text = st.text or ""
+  local mantissa = text:match(NUMBER_PREFIX)
+  if not mantissa then
+    return 0
+  end
+
+  return tonumber(mantissa .. (text:match(EXPONENT, #mantissa + 1) or ""))
 end
 
 local function setNumber(w, obj, st, number)

@@ -50,6 +50,19 @@ local function test_hook_script_rejects_unsupported_handler()
   end)
 end
 
+-- source: api/retail/SimpleScriptRegionAPI.lua:410-423, HookScript's script is not nilable; assumed: a missing one raises
+-- at the caller and hooks nothing.
+local function test_hook_script_without_a_function_errors_assumed()
+  withWidgets("retail", function(w)
+    local frame = _G.CreateFrame("Frame")
+    local message = A.errors(function()
+      frame:HookScript("OnShow", nil)
+    end, "HookScript: script must be a function")
+    A.truthy(message:find("^tests[/\\]ui[/\\]test_behaviour_scripts%.lua:%d+:"), message)
+    A.eq(w:getScript(frame, "OnShow"), nil)
+  end)
+end
+
 local function test_hooked_script_runs_after_script()
   withWidgets("retail", function(w)
     local f = _G.CreateFrame("Frame")
@@ -147,6 +160,7 @@ return function()
   test_tooltip_set_unit_script_errors_on_retail()
   test_tooltip_set_unit_script_works_on_vanilla()
   test_hook_script_rejects_unsupported_handler()
+  test_hook_script_without_a_function_errors_assumed()
   test_hooked_script_runs_after_script()
   test_hook_script_without_a_handler_sets_the_handler_assumed()
   test_register_unknown_event_errors_naming_event_and_flavor()

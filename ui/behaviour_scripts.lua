@@ -22,8 +22,13 @@ function methods.SetScript(w, obj, st, script, fn)
   w:setScript(obj, script, fn)
 end
 
+-- source: api/retail/SimpleScriptRegionAPI.lua:410-423 (script not nilable); assumed: a script that is no function
+-- raises at the caller and hooks nothing.
 function methods.HookScript(w, obj, st, script, fn)
   checkHandler(w, st, script)
+  if type(fn) ~= "function" then
+    error("HookScript: script must be a function", Callsite.level())
+  end
   w:hookScript(obj, script, fn)
 end
 

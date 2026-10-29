@@ -79,6 +79,36 @@ local function test_missing_global_name_anchors_to_the_screen_assumed() -- (LY4)
   end)
 end
 
+-- A global that holds no region (here a string) anchors to the screen, as a missing one does.
+local function test_a_global_that_is_no_region_anchors_to_the_screen_assumed() -- (LY4)
+  HW.withWidgets("retail", function(w)
+    w:setGlobal("TkStringGlobal", "not a frame")
+    local f = frame()
+    f:SetPoint("TOP", "TkStringGlobal", "BOTTOM")
+    A.same({ f:GetPoint() }, { "TOP", nil, "BOTTOM", 0, 0 })
+  end)
+end
+
+-- source: Blizzard_SharedXML/UI.xsd:4-16 FRAMEPOINT; any case is taken (retail
+-- blizzard_gluexml/mainline/characterservices.lua:501 SetPoint("Left", ...)). Assumed: another name raises at the
+-- caller and adds no anchor.
+local function test_a_point_that_is_no_framepoint_errors_assumed()
+  HW.withWidgets("retail", function()
+    local f = frame()
+    local where = "^tests[/\\]ui[/\\]test_behaviour_layout%.lua:%d+: "
+    local message = A.errors(function()
+      f:SetPoint("BOGUS")
+    end, "SetPoint: 'BOGUS' is not a FRAMEPOINT")
+    A.truthy(message:find(where), message)
+    A.errors(function()
+      f:SetPoint("TOP", nil, "NOWHERE", 1, 2)
+    end, "SetPoint: 'NOWHERE' is not a FRAMEPOINT")
+    A.eq(f:GetNumPoints(), 0)
+    f:SetPoint("Left", 3, 4)
+    A.same({ f:GetPoint() }, { "LEFT", nil, "LEFT", 3, 4 })
+  end)
+end
+
 local function test_set_all_points_defaults_to_the_parent_and_replaces_older_anchors() -- (LY1)
   HF.withFrameXML("retail", function()
     local parent = frame(_G.UIParent)
@@ -102,5 +132,7 @@ return function()
   test_explicit_nil_relative_to_anchors_to_the_screen()
   test_string_relative_to_resolves_through_globals()
   test_missing_global_name_anchors_to_the_screen_assumed()
+  test_a_global_that_is_no_region_anchors_to_the_screen_assumed()
+  test_a_point_that_is_no_framepoint_errors_assumed()
   test_set_all_points_defaults_to_the_parent_and_replaces_older_anchors()
 end

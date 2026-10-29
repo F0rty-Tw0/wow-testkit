@@ -4,6 +4,7 @@
 local M = {}
 
 local AddonEnv = require("addon_env")
+local Callsite = require("ui.callsite")
 local Layout = require("ui.layout")
 
 local unpack = unpack
@@ -22,9 +23,11 @@ end
 -- source: wiki API_Region_SetPoint, relativeTo: "If omitted, anchors to the parent region if applicable, otherwise
 -- to the screen dimensions." and "If explicitly passed `nil`, anchors relative to the screen dimensions."
 -- source: wiki API_Region_SetPoint, relativeTo is `ScriptRegion,string?`: "For example `UIParent` or `"UIParent"`."
+-- assumed (LY4): a global that holds no region (a string, a number) anchors to the screen, as a missing one does.
 local function relativeOf(w, st, relativeTo, explicit)
   if type(relativeTo) == "string" then
-    return AddonEnv.global(w, relativeTo)
+    local global = AddonEnv.global(w, relativeTo)
+    return type(global) == "table" and global or nil
   end
   if relativeTo ~= nil then
     return relativeTo
@@ -60,8 +63,26 @@ local function addAnchor(st, anchor)
   st.points[#st.points + 1] = anchor
 end
 
+-- source: confirmed Blizzard_SharedXML/UI.xsd:4-16 FRAMEPOINT, the point names; any case is taken (retail
+-- blizzard_gluexml/mainline/characterservices.lua:501 SetPoint("Left", ...)).
+M.FRAMEPOINT = {}
+for _, point in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "TOP", "BOTTOM", "LEFT", "RIGHT", "CENTER" }) do
+  M.FRAMEPOINT[point] = true
+end
+
+-- source: assumed (LY15, no Lua shows the C side) a point or relativePoint name outside FRAMEPOINT raises at the caller and
+-- adds no anchor. A non-string is left as before.
+local function checkPoints(anchor)
+  for _, point in ipairs({ anchor[1], anchor[3] }) do
+    if type(point) == "string" and not M.FRAMEPOINT[point] then
+      error(string.format("SetPoint: '%s' is not a FRAMEPOINT", point), Callsite.level())
+    end
+  end
+end
+
 function methods.SetPoint(w, obj, st, ...)
   local anchor = parsePoint(w, st, select("#", ...), ...)
+  checkPoints(anchor)
   Layout.checkAnchor(w, obj, anchor)
   addAnchor(st, anchor)
 end

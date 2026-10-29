@@ -6,6 +6,7 @@ local M = {}
 
 local AddonEnv = require("addon_env")
 local BehaviourRegions = require("ui.behaviour_regions")
+local BehaviourRender = require("ui.behaviour_render")
 local TemplateApply = require("ui.template_apply")
 
 -- Identity attributes: built by ui/xml_build.lua (XmlBuild.attach), so no setter here.
@@ -43,19 +44,15 @@ end
 local function skip() end
 
 -- source: confirmed (row X27) Blizzard_SharedXML/UI.xsd:18-30 FRAMESTRATA, the type of frameStrata (:836); assumed:
--- another value, in any case, is reported and ignored, so the frame keeps its strata. PARENT (tbc 70577 UI.xsd:18-31, the
--- default) means inherit, so it sets nothing; assumed the same on retail, whose UI.xsd leaves it out.
-local FRAMESTRATA = {}
-for _, strata in ipairs({ "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP", "BLIZZARD" }) do
-  FRAMESTRATA[strata] = true
-end
-
+-- another value, in any case, is reported and ignored, so the frame keeps its strata instead of SetFrameStrata's error
+-- (row LY15) aborting the rest of the frame. PARENT (tbc 70577 UI.xsd:18-31, the default) means inherit, so it sets
+-- nothing; assumed the same on retail, whose UI.xsd leaves it out.
 local function frameStrata(_, frame, st, value, node, session)
   if value:upper() == "PARENT" then
     st.strata = nil -- nil strata inherits the parent's (behaviour_render.lua), also over a template's
     return
   end
-  if FRAMESTRATA[value:upper()] then
+  if BehaviourRender.FRAMESTRATA[value:upper()] then
     return callIfPresent(frame, "SetFrameStrata", value)
   end
   session.reportAt(node.line, "frameStrata '" .. value .. "' is not a FRAMESTRATA; ignored")
@@ -74,9 +71,8 @@ end
 -- source: wiki XML/LayoutFrame, `mixin` / `secureMixin` "Inherits a comma-separated list of Lua mixins". secureMixin is
 -- copied the same way (its secure wrapping is not modelled); a name is recorded as templates record theirs, found or not.
 local function mixin(w, frame, st, value, _, session)
-  st.mixins = st.mixins or {}
   for name in value:gmatch("[^,%s]+") do
-    st.mixins[#st.mixins + 1] = name
+    TemplateApply.recordMixin(st, name)
     local source = AddonEnv.global(w, name, true)
     if type(source) == "table" then
       TemplateApply.copyMixin(frame, source)

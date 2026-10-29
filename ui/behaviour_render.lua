@@ -3,6 +3,8 @@
 -- the parent else MEDIUM. Methods are fn(w, obj, st, ...) like ui/behaviour.lua.
 local M = {}
 
+local Callsite = require("ui.callsite")
+
 local methods = {}
 M.methods = methods
 
@@ -12,6 +14,13 @@ local ROOT_LEVEL = 0
 -- source: row V1, wiki Frame_Strata, "from back to front": BACKGROUND, LOW, MEDIUM, HIGH, DIALOG, FULLSCREEN,
 -- FULLSCREEN_DIALOG, TOOLTIP. WORLD is reserved for the world frame and cannot be assigned, so it stays out.
 local STRATA = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6, FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+
+-- source: confirmed Blizzard_SharedXML/UI.xsd:18-30 FRAMESTRATA: the STRATA names and BLIZZARD (which ranks as MEDIUM
+-- here); tbc 70577 UI.xsd adds PARENT, inherit. Upper case.
+M.FRAMESTRATA = { BLIZZARD = true, PARENT = true }
+for name in pairs(STRATA) do
+  M.FRAMESTRATA[name] = true
+end
 
 local function parentState(w, st)
   return st.parent and w.ui.state[st.parent]
@@ -105,8 +114,17 @@ function methods.GetFrameLevel(w, _, st)
   return frameLevel(w, st)
 end
 
+-- source: assumed (LY15, no Lua shows the C side) a name outside FRAMESTRATA raises at the caller and keeps the strata; any
+-- case is taken, as SetPoint takes "Left" (retail blizzard_gluexml/mainline/characterservices.lua:501); PARENT
+-- inherits, as the XML attribute does. A non-string is stored as given.
 function methods.SetFrameStrata(_, _, st, strata)
-  st.strata = strata
+  if type(strata) == "string" then
+    if not M.FRAMESTRATA[strata:upper()] then
+      error(string.format("SetFrameStrata: '%s' is not a FRAMESTRATA", strata), Callsite.level())
+    end
+    strata = strata:upper()
+  end
+  st.strata = strata ~= "PARENT" and strata or nil
 end
 
 function methods.GetFrameStrata(w, _, st)
@@ -119,8 +137,8 @@ function methods.GetFrameStrata(w, _, st)
   return DEFAULT_STRATA
 end
 
--- The draw-order key of a frame, back to front: { strata rank, level, seq }. A strata outside STRATA (WORLD, a
--- misspelt or lowercase name) ranks as MEDIUM. render_order.lua sorts by it and LayoutHit.above compares it, so the
+-- The draw-order key of a frame, back to front: { strata rank, level, seq }. A strata outside STRATA (BLIZZARD,
+-- a non-string) ranks as MEDIUM. render_order.lua sorts by it and LayoutHit.above compares it, so the
 -- frame drawn on top is the one hit.
 function M.frameKey(w, obj, st)
   local strata = methods.GetFrameStrata(w, obj, st)
