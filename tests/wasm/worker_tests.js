@@ -176,6 +176,29 @@
   });
 
   T.push({
+    name: 'worker_kit_files_in_memfs_match_the_bundle_bytes',
+    fn: async () => {
+      const probe = fsHook(
+        'function (FS) {' +
+          ' var enc = new TextEncoder(); var bad = []; var wide = 0; var paths = Object.keys(TK_KIT_FILES);' +
+          ' paths.forEach(function (p) {' +
+          '   var want = enc.encode(TK_KIT_FILES[p]); var got = FS.readFile("/kit/" + p);' +
+          '   if (want.length !== TK_KIT_FILES[p].length) wide++;' +
+          '   if (got.length !== want.length || got.some(function (b, i) { return b !== want[i]; })) bad.push(p);' +
+          ' });' +
+          ' return { bad: bad, files: paths.length, wide: wide }; }',
+      );
+      await using(probe, async (worker) => {
+        await send(worker, { type: 'ping' }); // the kit is written once the module is up; the probe does not wait for it
+        const out = await send(worker, { type: 'probe' });
+        A.same(out.bad, []);
+        A.eq(out.files > 100, true);
+        A.eq(out.wide > 0, true, 'at least one kit file holds a non-ASCII character');
+      });
+    },
+  });
+
+  T.push({
     name: 'worker_session_dir_per_account_character_addon',
     fn: async () => {
       await fixtures;
