@@ -71,6 +71,7 @@
 
         return new RealFontFace(...args);
       };
+      V.forgetFonts();
       try {
         const assets = { 'Fonts/MISSING.TTF': { kind: 'font', url: 'fixtures/missing-font.ttf' } };
         await V.loadFonts(assets, location.href);
@@ -80,6 +81,64 @@
       } finally {
         window.FontFace = RealFontFace;
       }
+    },
+  });
+
+  // Runs fn(log) with FontFace and document.fonts.add/delete faked, as the repo has no font file: every face loads.
+  async function withFakeFonts(fn) {
+    const RealFontFace = window.FontFace;
+    const log = { built: [], added: [], deleted: [] };
+    window.FontFace = function (family) {
+      const face = { family, load: () => Promise.resolve() };
+      log.built.push(face);
+
+      return face;
+    };
+    document.fonts.add = (face) => log.added.push(face);
+    document.fonts.delete = (face) => log.deleted.push(face);
+    V.forgetFonts();
+    try {
+      await fn(log);
+    } finally {
+      // The fake faces leave document.fonts through the fake delete, a task later, before the real one is back.
+      V.forgetFonts();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      window.FontFace = RealFontFace;
+      delete document.fonts.add;
+      delete document.fonts.delete;
+    }
+  }
+
+  const TWO_FONTS = {
+    'Fonts/A.TTF': { kind: 'font', url: 'fixtures/a.ttf' },
+    'Fonts/B.TTF': { kind: 'font', url: 'fixtures/b.ttf' },
+  };
+
+  TK_TESTS.push({
+    name: 'loadFonts gives each font url its own family and loads it once across redraws',
+    async fn() {
+      await withFakeFonts(async (log) => {
+        const first = await V.loadFonts(TWO_FONTS, location.href);
+        const second = await V.loadFonts(TWO_FONTS, location.href);
+        A.eq(log.built.length, 2, 'FontFace count');
+        A.eq(log.added.length, 2, 'faces added to document.fonts');
+        A.eq(new Set(first.values()).size, 2, 'distinct families');
+        A.same([...second.entries()], [...first.entries()], 'a redraw keeps the families');
+      });
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'forgetFonts drops every face from document.fonts and the next loadFonts loads each url under a new family',
+    async fn() {
+      await withFakeFonts(async (log) => {
+        const before = await V.loadFonts(TWO_FONTS, location.href);
+        V.forgetFonts();
+        const after = await V.loadFonts(TWO_FONTS, location.href);
+        A.eq(log.built.length, 4, 'FontFace count');
+        A.same(log.deleted, log.built.slice(0, 2), 'dropped faces');
+        for (const ref of Object.keys(TWO_FONTS)) A.eq(after.get(ref) !== before.get(ref), true, ref + ' family');
+      });
     },
   });
 })();

@@ -11,17 +11,19 @@
     thick: '-2px 0 0 #000, 2px 0 0 #000, 0 -2px 0 #000, 0 2px 0 #000',
   };
 
-  // One load per font url for the page's life: a live redraw calls loadFonts again with the same assets, and a new
-  // FontFace each time added duplicate faces and re-fetched a url that had already failed.
+  // One load per font url until forgetFonts: a live redraw calls loadFonts again with the same assets, and a new
+  // FontFace each time added duplicate faces and re-fetched a url that had already failed. url -> Promise<FontFace|null>.
   const faces = new Map();
+  // Family names never repeat, so a face loaded after forgetFonts cannot share a family with one still being dropped.
+  let made = 0;
 
-  async function addFace(ref, href, name) {
-    const face = new FontFace(name, V.cssUrl(href));
+  async function addFace(ref, href) {
+    const face = new FontFace('wtk-font-' + made++, V.cssUrl(href));
     try {
       await face.load();
       document.fonts.add(face);
 
-      return name;
+      return face;
     } catch (err) {
       console.warn('viewer: font ' + ref + ' did not load, using the fallback family', err);
 
@@ -30,10 +32,17 @@
   }
 
   async function loadFont(ref, href, families) {
-    if (!faces.has(href)) faces.set(href, addFace(ref, href, 'wtk-font-' + faces.size));
-    const name = await faces.get(href);
-    if (name) families.set(ref, `"${name}", ${FALLBACK_FAMILY}`);
+    if (!faces.has(href)) faces.set(href, addFace(ref, href));
+    const face = await faces.get(href);
+    if (face) families.set(ref, `"${face.family}", ${FALLBACK_FAMILY}`);
   }
+
+  // A session reload can serve new font bytes at the same url (tools/preview_assets.py names files by ref): drops every
+  // face, also from document.fonts, so the next loadFonts fetches each url again.
+  V.forgetFonts = function () {
+    for (const pending of faces.values()) pending.then((face) => face && document.fonts.delete(face));
+    faces.clear();
+  };
 
   // A Map from font ref to CSS font-family for every font asset with a url; a font that fails to load is left out.
   V.loadFonts = async function (assets, baseUrl) {
