@@ -7,7 +7,7 @@ local M = {}
 
 -- Localized: addon code may assign globals of the same names.
 local rawset, rawget, rawequal, pairs, ipairs, type, tostring = rawset, rawget, rawequal, pairs, ipairs, type, tostring
-local setmetatable, pcall, error, select, unpack = setmetatable, pcall, error, select, unpack
+local setmetatable, getmetatable, pcall, error, select, unpack = setmetatable, getmetatable, pcall, error, select, unpack
 local getinfo, tremove = debug.getinfo, table.remove
 
 M.LOG_LIMIT = 1000
@@ -182,31 +182,33 @@ function M.declare(w, tbl, label, lazy, keys)
     w.taint.lazy[tbl] = label
     return
   end
-  local shadow, count = {}, 0
+  local shadow, count, plain = {}, 0, true
   for k, v in pairs(tbl) do
-    shadow[k], count = v, count + 1
+    shadow[k], count, plain = v, count + 1, plain and type(v) ~= "table" and type(v) ~= "userdata"
   end
   local declared = w.taint.declared
-  declared[#declared + 1] = { tbl = tbl, label = label, shadow = shadow, count = count, keys = keys }
+  declared[#declared + 1] = { tbl = tbl, label = label, shadow = shadow, count = count, keys = keys, plain = plain }
 end
 
 local function sweepKeys(w, entry, taint)
-  local tbl, shadow = entry.tbl, entry.shadow
-  local keys = entry.keys
-  for i = 1, #keys do
+  local tbl, shadow, keys = entry.tbl, entry.shadow, entry.keys
+  local same = entry.plain and getmetatable(tbl) == nil -- no table in the shadow, no metatable: tbl[k] and == equal rawget and rawequal
+  for i = 1, same and #keys or 0 do
+    if shadow[keys[i]] ~= tbl[keys[i]] then
+      same = false
+    end
+  end
+  for i = 1, same and 0 or #keys do
     local k = keys[i]
     local old, v = shadow[k], rawget(tbl, k)
     if not rawequal(old, v) then
       M.attribute(w, tbl, k, old ~= nil, taint)
-      shadow[k] = v
+      shadow[k], entry.plain = v, entry.plain and type(v) ~= "table" and type(v) ~= "userdata"
     end
   end
 end
 
 local function sweepTable(w, entry, taint)
-  if entry.keys then
-    return sweepKeys(w, entry, taint)
-  end
   local tbl, shadow = entry.tbl, entry.shadow
   local count, added = 0, 0
   for k, v in pairs(tbl) do
@@ -234,7 +236,7 @@ end
 -- taint of the frame that made them; false or nil clears the slots.
 function M.sweep(w, popped)
   for _, entry in ipairs(w.taint.declared) do
-    sweepTable(w, entry, popped)
+    (entry.keys and sweepKeys or sweepTable)(w, entry, popped)
   end
 end
 
