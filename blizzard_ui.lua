@@ -250,6 +250,7 @@ end
 
 -- Loads name (and the dependencies M.order puts first, those already loaded skipped) into w after M.load ran, fires
 -- ADDON_LOADED(<name as the caller spelled it>, false) for each addon it loads, and sends its errors to w.blizzard.errors.
+-- The error handler the caller had (a user addon's seterrorhandler included) is the handler after each load.
 -- Returns true, also when name was already loaded (B3: nothing reloads); nil, "MISSING" when the extract has no such
 -- addon or the layer is off.
 function M.loadOne(w, name)
@@ -269,10 +270,11 @@ function M.loadOne(w, name)
   for _, entry in ipairs(entries) do
     if not isLoaded(report, entry.name) then
       w.taint.secureAddons[entry.name] = true
+      local handler = w.errorHandler
       loadEntry(w, entry, report, function(...)
         w:run(ENGINE, w.fire, w, ...)
       end)
-      w.errorHandler = report.handler
+      w.errorHandler = handler
     end
   end
   return true
