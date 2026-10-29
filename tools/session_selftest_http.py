@@ -168,6 +168,10 @@ def test_blizzard_reload_and_state_fields_are_checked(tmp):
         assert status == 400 and "'x'" in reply["error"], (status, reply)
         status, reply = post_json(live, "/state", {"editMode": {"active": 9}})
         assert status == 400 and "active" in reply["error"], (status, reply)
+        status, reply = post_json(live, "/state", {"window": "bank"})
+        assert status == 400 and "'bank'" in reply["error"], (status, reply)
+        status, reply = post_json(live, "/state", {"window": "merchant"})
+        assert status == 400 and "'merchant'" in reply["error"], (status, reply)
         status, reply = post_json(live, "/state", {"actions": {"3": {"texture": 7}}})
         assert status == 200 and reply["state"]["actions"] == {"3": {"texture": 7}}, (status, reply)
         assert get_json(live, "/snapshot")["session"]["blizzard"]["available"] is False

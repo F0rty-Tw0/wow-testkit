@@ -67,13 +67,21 @@ local function pointsOf(w, st)
   return points
 end
 
--- The names of the scripts set on obj (a hook alone counts: it becomes the handler), sorted.
-local function scriptsOf(w, obj)
-  local names = {}
+-- The names of the scripts that run on obj, sorted: those set on it (a hook alone counts: it becomes the handler) and
+-- its type's intrinsic handlers (world_events.lua callScript runs both).
+local function scriptsOf(w, obj, st)
+  local seen = {}
   for name, entry in pairs(w.scripts[obj] or {}) do
-    if entry.fn then
-      names[#names + 1] = name
+    seen[name] = entry.fn and true or nil
+  end
+  for _, intrinsic in ipairs({ st.plan.intrinsicScripts or {}, st.plan.intrinsicPostScripts or {} }) do
+    for name in pairs(intrinsic) do
+      seen[name] = true
     end
+  end
+  local names = {}
+  for name in pairs(seen) do
+    names[#names + 1] = name
   end
   table.sort(names)
   return names
@@ -120,7 +128,7 @@ function M.frame(w, id)
   props.rect = Layout.rect(w, obj)
   props.screenRect = Layout.screenRect(w, obj)
   props.mouse = { click = BehaviourInput.methods.IsMouseClickEnabled(w, obj, st), motion = BehaviourInput.methods.IsMouseMotionEnabled(w, obj, st) }
-  props.scripts = scriptsOf(w, obj)
+  props.scripts = scriptsOf(w, obj, st)
   props.events = eventsOf(w, obj)
   if st.plan.isFrame then
     props.strata = BehaviourRender.methods.GetFrameStrata(w, obj, st)

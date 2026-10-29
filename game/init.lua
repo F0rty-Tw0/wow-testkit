@@ -5,6 +5,8 @@ local M = {}
 
 local ActionBar = require("game.actionbar")
 local Addons = require("game.addons")
+local Auction = require("game.auction")
+local AuctionLegacy = require("game.auction_legacy")
 local Bindings = require("bindings")
 local Chat = require("game.chat")
 local ClientApi = require("game.clientapi")
@@ -13,17 +15,50 @@ local Group = require("game.group")
 local Items = require("game.items")
 local Keys = require("game.keys")
 local Macros = require("game.macros")
+local Mail = require("game.mail")
+local Merchant = require("game.merchant")
+local Requests = require("game.requests")
 local Session = require("game.session")
 local Social = require("game.social")
 local Spells = require("game.spells")
 local State = require("game.state")
+local TalentsClassic = require("game.talents_classic")
+local TalentsSpecInfo = require("game.talents_specinfo")
+local TalentsTraits = require("game.talents_traits")
+local Transmog = require("game.transmog")
 local UnitFrame = require("game.unitframe")
+local WorldMap = require("game.worldmap")
 local Zone = require("game.zone")
 
 M.define = State.define
 M.ALL = State.ALL
 
-local AREAS = { Session, Keys, Group, Spells, Items, Zone, Addons, Macros, Chat, Social, ActionBar, UnitFrame, EditMode, ClientApi }
+local AREAS = {
+  Session,
+  Keys,
+  Group,
+  Spells,
+  Items,
+  Merchant,
+  Mail,
+  AuctionLegacy,
+  Auction,
+  Zone,
+  WorldMap,
+  Addons,
+  Macros,
+  Chat,
+  Social,
+  ActionBar,
+  UnitFrame,
+  EditMode,
+  ClientApi,
+  Requests,
+  TalentsClassic,
+  TalentsSpecInfo,
+  TalentsTraits,
+  Transmog,
+}
 
 -- w.mock is shared with session_state.lua (modifiers, combat, group), so it is created only when absent and each
 -- area's defaults fill the keys not yet set.

@@ -134,6 +134,7 @@ local function allowedOn(file, row, report)
   report[#report + 1] = file.path .. ": [" .. GAME_TYPE_DIRECTIVE .. "] names no known game type (" .. names .. "); loaded"
   return true
 end
+M.allowedOn = allowedOn
 
 -- source: assumed (row BU2) "A [AllowLoadGameType mainline], B [AllowLoad Glue]" -> "A" on retail: a name whose
 -- game-type list excludes row, or whose AllowLoad list lacks game (a glue-screen addon), is dropped.
@@ -152,9 +153,9 @@ local function allowedNames(value, row)
   return table.concat(names, ",")
 end
 
--- source: confirmed (row G16) any word beginning Dep, and RequiredDeps, list addons that load first.
+-- source: confirmed (row G16) any word beginning Dep, and RequiredDeps, list addons that load first; assumed (row BU9) RequiredDep too.
 local function isRequiredKey(key)
-  return key:sub(1, 3) == "Dep" or key == "RequiredDeps"
+  return key:sub(1, 3) == "Dep" or key == "RequiredDeps" or key == "RequiredDep"
 end
 
 -- source: confirmed (row G16) a dependency directive may repeat, and later instances append to the list.

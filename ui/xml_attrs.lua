@@ -99,6 +99,7 @@ M.frame = {
   end,
   parent = skip, -- built by XmlBuild.frame
   virtual = skip, -- XmlBuild.frame registers a virtual element as a template; its body carries the attribute
+  intrinsic = skip, -- likewise for an intrinsic element, registered as a frame type (ui/xml_intrinsic.lua)
 }
 
 M.region = {

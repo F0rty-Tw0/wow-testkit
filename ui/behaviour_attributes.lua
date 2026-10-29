@@ -9,7 +9,7 @@ local methods = {}
 M.methods = methods
 
 -- The doc types SetAttribute's value as cstring; the client stores anything. Read by lenient in ui/widgets.lua.
-M.uncheckedArgs = { SetAttribute = { value = true } }
+M.uncheckedArgs = { SetAttribute = { value = true }, SetAttributeNoHandler = { value = true } }
 
 -- source: wiki API_Frame_SetAttribute, attributeName "(case-insensitive)". A nil name raises at the caller's line
 -- (row A3, assumed: the client's message is unsourced); other non-strings are left to the doc check.
@@ -28,6 +28,12 @@ function methods.SetAttribute(w, obj, st, name, value)
   if Scripts.supports(st.plan.type, "OnAttributeChanged", w.flavor) then
     w:callScript(obj, "OnAttributeChanged", key, value)
   end
+end
+
+-- source: wiki API_Frame_SetAttribute, "SetAttributeNoHandler": the same store without OnAttributeChanged (row A2 follow-up).
+function methods.SetAttributeNoHandler(_, _, st, name, value)
+  st.attributes = st.attributes or {}
+  st.attributes[keyOf("SetAttributeNoHandler", name)] = value
 end
 
 -- source: row TS14, wiki API_Frame_GetAttribute ("this function attempts to return attributes in the following order"):

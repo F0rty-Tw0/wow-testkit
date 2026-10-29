@@ -40,7 +40,7 @@ function methods.Raise(w, obj, st)
   local level = render.GetFrameLevel(w, obj, st)
   local top = #levels > 0 and math.max(unpack(levels))
   if top and top >= level then
-    st.frameLevel = top + 1
+    BehaviourRender.setFrameLevel(w, st, top + 1)
   end
 end
 
@@ -51,7 +51,7 @@ function methods.Lower(w, obj, st)
   local level = render.GetFrameLevel(w, obj, st)
   local bottom = #levels > 0 and math.min(unpack(levels))
   if bottom and bottom <= level then
-    st.frameLevel = math.max(ROOT_LEVEL, bottom - 1)
+    BehaviourRender.setFrameLevel(w, st, math.max(ROOT_LEVEL, bottom - 1))
   end
 end
 

@@ -66,8 +66,93 @@ local function test_inventory_slot_names_answer_their_ids_assumed()
   end)
 end
 
+-- Blizzard's transmog code passes "HEADSLOT" and "SHOULDERSLOT" (blizzard_transmog.lua, blizzard_transmogshared.lua) where
+-- securetemplates.lua:464 passes "MainHandSlot", to the same call, so the lookup ignores case. With a nil id
+-- TransmogUtil.GetSlotID raised "table index is nil" and the transmog window built no slot.
+local function test_inventory_slot_names_ignore_case()
+  G.withGame("retail", function()
+    A.same({ _G.C_PaperDollInfo.GetInventorySlotInfo("HEADSLOT"), _G.C_PaperDollInfo.GetInventorySlotInfo("shoulderslot") }, { 1, 3 })
+    A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo("NOSUCHSLOT"), nil)
+    A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo(nil), nil)
+  end)
+end
+
+-- Blizzard_TalentUI (Classic/Blizzard_TalentUI.lua:159) calls ClassicExpansionAtLeast(LE_EXPANSION_WRATH_OF_THE_LICH_KING) in its
+-- OnLoad; with the constant nil the call raised a bad-argument error and the talent frame never finished loading.
+local function test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
+  for flavor, level in pairs({ vanilla = 0, tbc = 1, mists = 4 }) do
+    G.withGame(flavor, function()
+      A.same({ _G.LE_EXPANSION_BURNING_CRUSADE, _G.LE_EXPANSION_MISTS_OF_PANDARIA, _G.GetClassicExpansionLevel() }, { 1, 4, level }, flavor)
+      A.eq(_G.ClassicExpansionAtLeast(_G.LE_EXPANSION_WRATH_OF_THE_LICH_KING), level >= 2, flavor)
+    end)
+  end
+  G.withGame("retail", function()
+    A.eq(_G.LE_EXPANSION_BURNING_CRUSADE, nil)
+  end)
+end
+
+-- The classic UIParent (tbc uiparent.lua:24-28) builds ITEM_QUALITY_COLORS for 0 .. NUM_LE_ITEM_QUALITYS - 1 and the auction
+-- list (Blizzard_AuctionUI.lua:1013) indexes it by quality; with the names nil the table stayed empty.
+local function test_legacy_item_quality_names_alias_enum_item_quality_assumed() -- (G26)
+  for _, flavor in ipairs({ "vanilla", "tbc", "mists" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.LE_ITEM_QUALITY_POOR, _G.LE_ITEM_QUALITY_COMMON, _G.LE_ITEM_QUALITY_UNCOMMON, _G.LE_ITEM_QUALITY_RARE }, { 0, 1, 2, 3 }, flavor)
+      A.same({ _G.LE_ITEM_QUALITY_HEIRLOOM, _G.LE_ITEM_QUALITY_WOW_TOKEN, _G.NUM_LE_ITEM_QUALITYS }, { 7, 8, 9 }, flavor)
+    end)
+  end
+  G.withGame("retail", function() -- no retail-loaded file reads them
+    A.same({ _G.LE_ITEM_QUALITY_COMMON, _G.NUM_LE_ITEM_QUALITYS }, {})
+  end)
+end
+
+local function test_kiosk_mode_is_off_assumed() -- Blizzard_MicroMenu calls Kiosk.IsEnabled() from UpdateMicroButtons
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.Kiosk.IsEnabled(), false, flavor)
+    end)
+  end
+end
+
+-- confirmed: paperdollframe.lua:617 reads _G["SPELL_STAT" .. statIndex .. "_NAME"] for statIndex = LE_UNIT_STAT_*, and
+-- the retail strings name SPELL_STAT1..5 Strength, Agility, Stamina, Intellect, Spirit.
+local function test_unit_stat_constants_index_the_stat_names()
+  G.withGame("retail", function()
+    A.same(
+      { _G.LE_UNIT_STAT_STRENGTH, _G.LE_UNIT_STAT_AGILITY, _G.LE_UNIT_STAT_STAMINA, _G.LE_UNIT_STAT_INTELLECT, _G.LE_UNIT_STAT_SPIRIT },
+      { 1, 2, 3, 4, 5 }
+    )
+  end)
+end
+
+local function test_class_info_answers_the_class_list_assumed() -- Blizzard_PlayerSpellsFrame.lua:340 reads .classFile of it
+  G.withGame("retail", function()
+    A.same(_G.C_CreatureInfo.GetClassInfo(1), { className = "Warrior", classFile = "WARRIOR", classID = 1 })
+    A.same(_G.C_CreatureInfo.GetClassInfo(13), { className = "Evoker", classFile = "EVOKER", classID = 13 })
+    A.eq(_G.C_CreatureInfo.GetClassInfo(99), nil)
+  end)
+end
+
+-- Blizzard_WorldMap.lua:577 (ToggleWorldMap) indexes Enum.GameRule.WorldMapDisabled; no installed data lists the members, so
+-- the kit's table is empty and every rule reads as inactive.
+local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
+  G.withGame("retail", function()
+    A.same({ type(_G.Enum.GameRule), _G.Enum.GameRule.WorldMapDisabled }, { "table", nil })
+    A.eq(_G.C_GameRules.IsGameRuleActive(_G.Enum.GameRule.WorldMapDisabled), false)
+  end)
+  G.withGame("tbc", function()
+    A.eq(_G.Enum.GameRule, nil) -- the classic data has no GameRule; the kit adds none
+  end)
+end
+
 return function()
+  test_legacy_item_quality_names_alias_enum_item_quality_assumed()
+  test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
+  test_class_info_answers_the_class_list_assumed()
+  test_unit_stat_constants_index_the_stat_names()
+  test_kiosk_mode_is_off_assumed()
+  test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
   test_inventory_slot_names_answer_their_ids_assumed()
+  test_inventory_slot_names_ignore_case()
   test_metatable_getters_answer_the_widget_class_metatable_assumed()
   test_quality_colors_carry_the_color_mixin_assumed()
   test_curve_object_evaluates_its_points_assumed()

@@ -1,5 +1,5 @@
--- Secure API answers: issecure, issecurevariable, securecall, securecallfunction, secureexecuterange, forceinsecure,
--- and hooksecurefunc taint. Lua 5.1 only.
+-- Secure API answers: issecure, issecurevariable, securecall, securecallfunction, securecallmethod, secureexecuterange,
+-- forceinsecure and hooksecurefunc taint. Lua 5.1 only.
 local A = require("assert")
 local H = require("tests.helpers.taint")
 
@@ -115,6 +115,23 @@ local function test_securecall_by_name_and_securecallfunction_pass_arguments_and
   end)
 end
 
+-- SecurePoolCollectionMixin:Release (retail Pools.lua:473) asks each pool `securecallmethod(pool, "Release", object, true)`
+-- and treats a nothing answer as "not mine"; with no securecallmethod every ScrollBox row release failed.
+local function test_securecallmethod_calls_the_method_with_the_object_as_self()
+  H.withTaint("retail", function(w)
+    local pool = { n = 10 }
+    function pool:Add(a, b)
+      return self.n + a + b, "ok"
+    end
+    function pool:Boom()
+      error("boom")
+    end
+    A.same({ _G.securecallmethod(pool, "Add", 1, 2) }, { 13, "ok" })
+    A.same({ _G.securecallmethod(pool, "Boom") }, {})
+    A.eq(#w.errors, 1)
+  end)
+end
+
 local function test_secureexecuterange_calls_func_with_key_value_and_extras_through_securecall()
   H.withTaint("retail", function(w)
     local seen = {}
@@ -169,6 +186,7 @@ return function()
   test_hook_keeps_the_taint_of_an_addon_replaced_slot_assumed()
   test_securecall_from_tainted_code_keeps_the_taint_assumed()
   test_securecall_by_name_and_securecallfunction_pass_arguments_and_return_results()
+  test_securecallmethod_calls_the_method_with_the_object_as_self()
   test_secureexecuterange_calls_func_with_key_value_and_extras_through_securecall()
   test_forceinsecure_taints_the_rest_of_the_execution_assumed()
   test_forceinsecure_in_addon_code_keeps_the_addon_taint_assumed()

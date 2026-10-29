@@ -33,7 +33,13 @@ local unpack = unpack
 local methods = {}
 M.methods = methods
 M.typed = BehaviourInput.typed
-M.uncheckedArgs = BehaviourAttributes.uncheckedArgs
+-- Method name -> { argName = true (any value) or a Lua type name (that type too) }: read by lenient in ui/widgets.lua.
+M.uncheckedArgs = {}
+for _, group in ipairs({ BehaviourAttributes.uncheckedArgs, BehaviourTexture.uncheckedArgs }) do
+  for name, args in pairs(group) do
+    M.uncheckedArgs[name] = args
+  end
+end
 
 -- Visibility --------------------------------------------------------------------------------------------------
 
@@ -183,6 +189,11 @@ end
 
 function methods.IsObjectType(_, _, st, typeName)
   return type(typeName) == "string" and st.plan.isA[typeName:lower()] == true
+end
+
+-- source: assumed the kit reads every asset from disk, so an object is loaded the moment it exists.
+function methods.IsObjectLoaded()
+  return true
 end
 
 -- BehaviourInput goes last: its SetScript wraps BehaviourScripts's.

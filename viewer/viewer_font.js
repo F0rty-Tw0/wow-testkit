@@ -88,6 +88,8 @@
     lines.className = 'lines';
     lines.style.textAlign = JUSTIFY_H[item.justifyH] || 'center';
     lines.style.lineHeight = size + (Number(item.spacing) || 0) + 'px';
+    // Row V15: a rect shorter than one line still draws that line, centred on the rect like any overflow.
+    lines.style.minHeight = lines.style.lineHeight;
     const unwrapped = item.wrap === false || item.autoWidth === true;
     lines.style.whiteSpace = unwrapped ? 'pre' : 'pre-wrap';
     if (item.autoWidth === true) lines.classList.add('auto');

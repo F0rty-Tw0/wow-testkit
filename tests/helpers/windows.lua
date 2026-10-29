@@ -1,0 +1,121 @@
+-- Window test helpers: a world or scenario over a kit-authored mini client extract (DB2 tables, DB2 index files and empty
+-- Blizzard addon folders written from strings, never from a Blizzard file), always destroyed.
+local Combat = require("tests.helpers.combat")
+local Game = require("game")
+local H = require("tests.helpers.client")
+local Scenario = require("scenario")
+local Tmp = require("tests.helpers.tmp")
+local Units = require("units")
+local Widgets = require("ui.widgets")
+local World = require("world")
+
+local M = {}
+
+local BUILD = "1"
+
+-- The mini extract opts describes, or nil when it names no table, index or addon (no extract). opts = { db2? = {
+-- [lowername] = "<lua source>" }, index? = { ["<lowername>.<column lowercased>"] = "<lua source>" }, addons? = { "Blizzard_Name" } }.
+local function extractOf(flavor, opts)
+  local files, any = {}, false
+  for name, source in pairs(opts.db2 or {}) do
+    files["db2/" .. name .. ".lua"], any = source, true
+  end
+  for name, source in pairs(opts.index or {}) do
+    files["db2/index/" .. name .. ".lua"], any = source, true
+  end
+  for _, addon in ipairs(opts.addons or {}) do
+    local key = addon:lower()
+    files["code/addons/" .. key .. "/" .. key .. ".toc"], any = "", true
+  end
+  return any and H.extract(Tmp.dir("win"), flavor, BUILD, files) or nil
+end
+
+local function finish(destroy, ok, err)
+  destroy()
+  if not ok then
+    error(err, 0)
+  end
+end
+
+-- Runs fn(w) on a world of flavor over the mini extract opts describes, with Units, Widgets and Game installed.
+function M.withWindows(flavor, opts, fn)
+  local w = World.new({ flavor = flavor, client = extractOf(flavor, opts) })
+  local ok, err = pcall(function()
+    Units.install(w)
+    Widgets.install(w)
+    Game.install(w)
+    fn(w)
+  end)
+  finish(function()
+    w:destroy()
+  end, ok, err)
+end
+
+-- Runs fn(s) on a Scenario of flavor over the same mini extract (no layer unless the caller sets s.blizzardUi).
+function M.scenario(flavor, opts, fn)
+  local s = Scenario.new({ addon = "T", root = "T", flavor = flavor, client = extractOf(flavor, opts) })
+  local ok, err = pcall(fn, s)
+  finish(function()
+    s.w:destroy()
+  end, ok, err)
+end
+
+-- A frame registered for events; log[i] = { event, n, ... } in firing order (Task 8.2's watcher).
+M.watch = Combat.watch
+
+-- The event names of a watch log, in fire order.
+function M.names(log)
+  local out = {}
+  for i, entry in ipairs(log) do
+    out[i] = entry[1]
+  end
+  return out
+end
+
+-- Kit-authored mini Blizzard addons for the window tests; pass one to B.mini(overrides) to add it to an extract.
+M.MINI = {
+  blizzard_miniauction = { -- Task 12.6: shows on AUCTION_HOUSE_SHOW and lists the first browse result's name
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniAuction.lua\n",
+    files = {
+      ["miniauction.lua"] = [[
+local f = CreateFrame("Frame", "MiniAuctionFrame", UIParent)
+f:SetSize(300, 200)
+f:SetPoint("CENTER")
+f:Hide()
+f.Row = f:CreateFontString(nil, "OVERLAY")
+f.Row:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+f.Row:SetPoint("TOPLEFT", 10, -20)
+f:RegisterEvent("AUCTION_HOUSE_SHOW")
+f:RegisterEvent("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+f:SetScript("OnEvent", function(self, event)
+  if event == "AUCTION_HOUSE_SHOW" then
+    ShowUIPanel(self)
+  else
+    self.Row:SetText(C_AuctionHouse.GetItemKeyInfo(C_AuctionHouse.GetBrowseResults()[1].itemKey).itemName)
+  end
+end)
+]],
+    },
+  },
+  blizzard_minitransmog = { -- Task 12.7: shows on TRANSMOGRIFY_OPEN and counts category 1's collected appearances
+    toc = "## Interface: 120100\n## LoadOnDemand: 1\nMiniTransmog.lua\n",
+    files = {
+      ["minitransmog.lua"] = [[
+local f = CreateFrame("Frame", "MiniTransmogFrame", UIParent)
+f:SetSize(300, 200)
+f:SetPoint("CENTER")
+f:Hide()
+f.Count = f:CreateFontString(nil, "OVERLAY")
+f.Count:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+f.Count:SetPoint("TOPLEFT", 10, -20)
+f:RegisterEvent("TRANSMOGRIFY_OPEN")
+f:SetScript("OnEvent", function(self)
+  ShowUIPanel(self)
+  self.Count:SetText(C_TransmogCollection.GetCategoryCollectedCount(1) .. "/" .. C_TransmogCollection.GetCategoryTotal(1))
+end)
+]],
+    },
+  },
+}
+
+return M

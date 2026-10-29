@@ -208,7 +208,27 @@ local function test_set_atlas_with_an_unknown_atlas_keeps_the_size() -- W3
   end)
 end
 
+-- The doc types both wrap modes cstring, but Blizzard code passes booleans (tbc Backdrop.lua:266 `SetTexture(file, tileVerts,
+-- tileVerts)`, Blizzard_NameplateUnitFrame.lua:58 `SetTexture(path, true, true)` on retail and tbc); a table still fails.
+local function test_set_texture_wrap_modes_take_a_boolean_from_addon_code()
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    HW.withWidgets(flavor, function(w)
+      local t = newTexture()
+      w:run("addon", function()
+        t:SetTexture(136235, true, false)
+        t:SetTexture(136235, "REPEAT", "CLAMP")
+      end)
+      A.errors(function()
+        w:run("addon", function()
+          t:SetTexture(136235, {})
+        end)
+      end, "bad argument #2 'wrapModeHorizontal' (string expected, got table)")
+    end)
+  end
+end
+
 return function()
+  test_set_texture_wrap_modes_take_a_boolean_from_addon_code()
   test_set_tex_coord_expands_four_numbers_to_eight()
   test_fresh_tex_coord_is_the_full_image_assumed()
   test_eight_tex_coord_numbers_are_stored_as_given()

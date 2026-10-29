@@ -25,6 +25,17 @@ local function test_raise_goes_above_the_highest_sibling_assumed() -- W48
   end)
 end
 
+-- W77 (confirmed): Raise is a level change, so the descendants holding their own level move with the frame.
+local function test_raise_carries_the_descendants()
+  HW.withWidgets("retail", function()
+    local a, b = pair(3, 7)
+    local inner = newFrame(a)
+    inner:SetFrameLevel(1)
+    a:Raise()
+    A.same({ a:GetFrameLevel(), inner:GetFrameLevel(), b:GetFrameLevel() }, { 8, 6, 7 })
+  end)
+end
+
 local function test_lower_goes_below_the_lowest_sibling_assumed() -- W48
   HW.withWidgets("retail", function()
     local a, b = pair(3, 7)
@@ -164,6 +175,7 @@ end
 
 return function()
   test_raise_goes_above_the_highest_sibling_assumed()
+  test_raise_carries_the_descendants()
   test_lower_goes_below_the_lowest_sibling_assumed()
   test_raise_goes_above_a_sibling_at_the_same_level_assumed()
   test_lower_goes_below_a_sibling_at_the_same_level_assumed()

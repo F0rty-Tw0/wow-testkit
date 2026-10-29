@@ -42,11 +42,11 @@ local function catalogFor(w)
   return catalog
 end
 
--- Every argument nilable, checked only when passed (no arity check); one in unchecked takes any value.
+-- Every argument nilable, checked only when passed (no arity check); Behaviour.uncheckedArgs names the exceptions.
 local function lenient(signature, unchecked)
   local args = {}
   for i, spec in ipairs(signature.args or {}) do
-    args[i] = { name = spec.name, lua = unchecked[spec.name] and "any" or spec.lua, nilable = true }
+    args[i] = { name = spec.name, lua = spec.lua, also = unchecked[spec.name], nilable = true }
   end
   return { args = args }
 end
@@ -188,11 +188,13 @@ local function create(w, typeName, name, parent)
   return obj
 end
 
--- The template list (ui/template_apply.lua), then the templates' OnLoad: it runs once the frame is built, before
--- CreateFrame returns.
+-- The template list (ui/template_apply.lua), then the OnLoad of the templates or the frame's intrinsic type: it runs once
+-- the frame is built, before CreateFrame returns.
 function M.applyTemplates(w, frame, templates)
   TemplateApply.applyList(w, frame, templates)
-  if type(templates) == "string" and w:getScript(frame, "OnLoad") then
+  local plan = w.ui.state[frame].plan
+  local intrinsic = (plan.intrinsicScripts or NO_VALUES).OnLoad or (plan.intrinsicPostScripts or NO_VALUES).OnLoad
+  if intrinsic or (type(templates) == "string" and w:getScript(frame, "OnLoad")) then
     w:callScript(frame, "OnLoad")
   end
 end
@@ -232,10 +234,9 @@ local function createFrame(w)
   end
 end
 
--- The plan of an intrinsic type: base's plan copied (the catalog's stays untouched) with the intrinsic's own methods.
--- It keeps the base type as its type, as the client's GetObjectType does, and the name in plan.intrinsic. Two reserved
--- keys of methods are not methods: init, the once-per-frame hook, and scripts, handlers that run before the frame's own
--- (plan.intrinsicScripts, see World:callScript).
+-- The plan of an intrinsic type: base's plan copied (the catalog's stays untouched) plus the intrinsic's methods; its type
+-- stays the base, as the client's GetObjectType (row D8), the name goes to plan.intrinsic. Reserved keys of methods: init,
+-- the once-per-frame hook; scripts / postScripts, handlers run before / after the frame's own (World:callScript).
 local function intrinsicPlan(base, name, baseType, methods)
   local isA, planMethods = {}, {}
   for key, value in pairs(base.isA) do
@@ -249,8 +250,8 @@ local function intrinsicPlan(base, name, baseType, methods)
   for key, value in pairs(methods) do
     if key == "init" then
       plan.init = value
-    elseif key == "scripts" then
-      plan.intrinsicScripts = value
+    elseif key == "scripts" or key == "postScripts" then
+      plan[key == "scripts" and "intrinsicScripts" or "intrinsicPostScripts"] = value
     else
       planMethods[key] = { impl = value }
     end
@@ -278,7 +279,7 @@ function M.install(w)
     classes = {},
     classMethods = setmetatable({}, { __mode = "k" }),
     intrinsics = {},
-    -- name -> { type, apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
+    -- name -> { type, node, size(), apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
     virtuals = {},
     seq = 0,
     -- seq -> widget, weak-valued: EnumerateFrames walks it in creation order

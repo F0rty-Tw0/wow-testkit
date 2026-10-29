@@ -9,8 +9,8 @@ M.SECTIONS = { "functions", "events", "enums", "constants", "structs", "widgets"
 local cache = {}
 
 -- Events Blizzard's own code registers that no API doc lists, per flavor (a documented event of the same name wins).
--- source: row G23, blizzard_moneyframe/mainline/moneyframe.lua:49.
-local EXTRA_EVENTS = { retail = { TRIAL_STATUS_UPDATE = {} } }
+-- source: row G23, blizzard_moneyframe/mainline/moneyframe.lua:49; row G25 for tbc, blizzard_moneyframe/classic/moneyframe.lua:17.
+local EXTRA_EVENTS = { retail = { TRIAL_STATUS_UPDATE = {} }, tbc = { TRIAL_STATUS_UPDATE = {} } }
 
 -- The generated build versions replace the defaults in tools/flavors.lua (GetBuildInfo, TOC interface checks).
 -- Module code runs once per process; Flavors.load is idempotent anyway.

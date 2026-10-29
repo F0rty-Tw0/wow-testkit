@@ -10,6 +10,7 @@ local AddonDeps = require("addon_deps")
 local Bindings = require("bindings")
 local Flavors = require("tools.flavors")
 local Toc = require("toc")
+local TocHeader = require("toc_header")
 local Xml = require("ui.xml")
 local fs = require("fs")
 
@@ -25,6 +26,7 @@ M.BINDINGS_FILES = {
   mists = "addons/blizzard_framexml/bindings_mists.xml",
 }
 
+local ENGINE = "blizzard"
 local FRAMEXML = "Blizzard_FrameXML"
 local NO_EXTRACT = "Blizzard UI: no client extract; kit fakes only"
 local NO_BINDINGS = "Blizzard UI: no default Bindings.xml"
@@ -67,8 +69,12 @@ function M.order(extract, targets, flavor)
       skipped[#skipped + 1] = { name = name, reason = "not in extract" }
       return
     end
-    visiting[key] = true
     local parsed = Toc.parse(fs.readFile(toc) or "")
+    if not TocHeader.loadsOn(parsed.meta, flavor) then
+      skipped[#skipped + 1] = { name = name, reason = "game type" }
+      return
+    end
+    visiting[key] = true
     local deps = Toc.dependencies(parsed.meta, flavor)
     for _, list in ipairs({ deps.required, deps.optional }) do
       for _, dep in ipairs(list) do
@@ -131,8 +137,10 @@ end
 
 -- ctx.readFile for an extract addon: TOC lines and XML paths are mixed case and the extract is lowercase. A file the
 -- extract lacks is a note, not an error. A UTF-8 BOM the client skips is dropped by Addon.runFile and Xml, for every addon.
+-- source: assumed (row BU11) "..\..\..\Interface\AddOns\<Addon>\X" is the client's game-root path to an addon folder (tbc
+-- Blizzard_MapCanvas.xml:3); the extract keeps addons side by side, so it reads "../<addon>/X".
 local function lowerPath(relative)
-  return (relative:gsub("\\", "/"):lower())
+  return (relative:gsub("\\", "/"):lower():gsub("^%.%./%.%./%.%./interface/addons/", "../"))
 end
 
 local function lowerReader(root, name, notes)
@@ -193,6 +201,16 @@ local function loadDefaultBindings(w, extract, report)
   report.defaultBindings = path
 end
 
+local function isLoaded(report, name)
+  local key = name:lower()
+  for _, loaded in ipairs(report.loaded) do
+    if loaded:lower() == key then
+      return true
+    end
+  end
+  return false
+end
+
 -- Loads opts.targets (default M.TARGETS) and their dependencies from extract into w, in M.order, after the flavor's
 -- default bindings file; opts.fire(event, ...) fires ADDON_LOADED (default w:fire). Returns the report, also stored as
 -- w.blizzard: { loaded = { name... }, errors = { { addon, message } }, skipped = { { name, reason } }, notes,
@@ -215,13 +233,54 @@ function M.load(w, extract, opts)
   for _, entry in ipairs(entries) do
     secure[entry.name] = true
   end
-  local handler = keepErrors(w, report)
+  report.handler = keepErrors(w, report)
   loadDefaultBindings(w, extract, report)
+  -- source: assumed (row B3) nothing reloads: an ADDON_LOADED handler may have loaded an entry through LoadAddOn.
   for _, entry in ipairs(entries) do
-    loadEntry(w, entry, report, fire)
-    w.errorHandler = handler
+    if not isLoaded(report, entry.name) then
+      loadEntry(w, entry, report, fire)
+      w.errorHandler = report.handler
+    end
   end
   return report
+end
+
+local function append(target, list)
+  for _, item in ipairs(list) do
+    target[#target + 1] = item
+  end
+end
+
+-- Loads name (and the dependencies M.order puts first, those already loaded skipped) into w after M.load ran and fires
+-- ADDON_LOADED(<name as the caller spelled it>, false) for each addon it loads. Its errors go to the caller's handler,
+-- kept after each load: w.blizzard.errors while that is the layer's, else a user addon's seterrorhandler (assumed).
+-- Returns true, also when name was already loaded (B3: nothing reloads); nil, "MISSING" when the extract has no such
+-- addon or the layer is off.
+function M.loadOne(w, name)
+  local report, extract = w.blizzard, w.client
+  if not (report and extract) then
+    return nil, "MISSING"
+  elseif isLoaded(report, name) then
+    return true
+  end
+  local entries, skipped, notes = M.order(extract, { name }, w.flavor)
+  local last = entries[#entries]
+  if not (last and last.name == name) then
+    return nil, "MISSING"
+  end
+  append(report.skipped, skipped)
+  append(report.notes, notes)
+  for _, entry in ipairs(entries) do
+    if not isLoaded(report, entry.name) then
+      w.taint.secureAddons[entry.name] = true
+      local handler = w.errorHandler
+      loadEntry(w, entry, report, function(...)
+        w:run(ENGINE, w.fire, w, ...)
+      end)
+      w.errorHandler = handler
+    end
+  end
+  return true
 end
 
 -- { enabled, loaded, errors = <count>, firstErrors = { { addon, message }... up to 10 }, notes }; enabled is false

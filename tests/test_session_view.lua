@@ -3,6 +3,7 @@
 local A = require("assert")
 local H = require("tests.helpers.session")
 local View = require("session_view")
+local Widgets = require("ui.widgets")
 
 local function nodeNamed(tree, name)
   for _, node in ipairs(tree.nodes) do
@@ -63,6 +64,19 @@ local function test_frame_props_scripts_and_events()
   end)
 end
 
+-- An intrinsic type's handlers (XML <Scripts> of an intrinsic, a kit fake's) run on dispatch, so the inspector lists
+-- them with the frame's own, once each.
+local function test_frame_props_scripts_list_intrinsic_handlers()
+  H.withSession(nil, function(sess)
+    local function noop() end
+    Widgets.registerIntrinsic(sess.w, "KitPill", "Button", { scripts = { OnClick = noop }, postScripts = { OnLeave = noop } })
+    local pill = _G.CreateFrame("KitPill", "KitViewPill", _G.UIParent)
+    pill:SetScript("OnClick", noop)
+    pill:SetScript("OnEnter", noop)
+    A.same(View.frame(sess.w, idOf(sess.w, "KitViewPill")).scripts, { "OnClick", "OnEnter", "OnLeave" })
+  end)
+end
+
 local function test_hidden_frame_has_no_render_item()
   H.withSession(nil, function(sess)
     local props = View.frame(sess.w, idOf(sess.w, "SessionDemoHidden"))
@@ -102,6 +116,7 @@ return function()
   test_tree_lists_hidden_frames_and_regions()
   test_frame_props_points_size_and_rect()
   test_frame_props_scripts_and_events()
+  test_frame_props_scripts_list_intrinsic_handlers()
   test_hidden_frame_has_no_render_item()
   test_unknown_id_is_nil()
   test_reads_leave_unscripted_and_seq_alone()

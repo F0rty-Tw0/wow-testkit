@@ -93,16 +93,21 @@ local fullName = M.fullName
 
 -- source: wiki API:Object_SetParentKey "Sets a key on the parent to the child object"; wiki XML/LayoutFrame, parentArray
 -- "Inserts a reference to an array in the widget's parent". The array table is created when absent (row X3, assumed).
-function M.attach(parent, child, attrs)
+-- st, when given, records which of the two the child got, so an inherited template's root adds only the one it lacks.
+function M.attach(parent, child, attrs, st)
   if not parent then
     return
   end
-  if attrs.parentkey then
+  if attrs.parentkey and not (st and st.parentKeyed) then
     parent[attrs.parentkey] = child
   end
-  if attrs.parentarray then
+  if attrs.parentarray and not (st and st.parentArrayed) then
     parent[attrs.parentarray] = parent[attrs.parentarray] or {}
     table.insert(parent[attrs.parentarray], child)
+  end
+  if st then
+    st.parentKeyed = st.parentKeyed or attrs.parentkey ~= nil
+    st.parentArrayed = st.parentArrayed or attrs.parentarray ~= nil
   end
 end
 local attach = M.attach
@@ -180,8 +185,16 @@ end
 
 -- Builds `node`'s content on obj in a fresh session of the file that registered the template, the way a template is
 -- applied to a frame or region that inherits it. No OnLoad here: the caller fires it once after its whole list.
+-- source: confirmed (row X25) retail MailFrame.xml:173 `<Button name="SendMailAttachment" parentArray=
+-- "SendMailAttachments" virtual="true">`, used as `<Button name="SendMailAttachment1" inherits="SendMailAttachment">`
+-- (:697-700, no parentArray of their own), and MailFrame.lua:965 reads `SendMailFrame.SendMailAttachments[i]`: the
+-- template root's parentKey / parentArray reach obj's parent when a frame inherits it in XML. Assumed: the same for a
+-- `CreateFrame(type, name, parent, "T")` template and for region templates (XML or CreateTexture / CreateFontString);
+-- the element's own, then the nearest template's, win.
 function M.applyTemplate(w, obj, node, origin)
   local session = M.session(origin.ctx, origin.file)
+  local st = w.ui.state[obj]
+  attach(st.parent, obj, node.attrs, st)
   M.body(w, obj, node, session)
   M.finish(w, session)
 end
@@ -194,6 +207,11 @@ function M.registerVirtual(w, name, node, origin)
   local applying = false
   w.ui.virtuals[name] = {
     type = typeName,
+    node = node,
+    -- width, height from <Size> through the inherits chain (ui/xml_layout.lua requires this module, so it loads late)
+    size = function()
+      return require("ui.xml_layout").templateSize(w, name)
+    end,
     apply = function(_, obj)
       if applying then
         error("template '" .. name .. "' inherits itself, directly or through another template", 0)
@@ -222,10 +240,14 @@ function M.isRegion(node)
 end
 
 -- Builds the frame `node` describes under parent. Nil when the tag is no frame type on this flavor (reported) or the
--- element is virtual (registered as a template instead).
+-- element is virtual or intrinsic (registered as a template or a frame type instead, ui/xml_intrinsic.lua).
 function M.frame(w, node, parent, session)
   if not Widgets.resolveType(w, node.rawTag) then
     unsupportedTag(session, node)
+    return nil
+  end
+  if node.attrs.intrinsic == "true" then
+    require("ui.xml_intrinsic").declare(w, node, session)
     return nil
   end
   if node.attrs.virtual == "true" then
@@ -234,9 +256,9 @@ function M.frame(w, node, parent, session)
   end
   parent = parentOf(w, node, parent, session)
   local frame = Widgets.newFrame(w, node.rawTag, fullName(node, parent), parent)
-  attach(parent, frame, node.attrs)
-  M.body(w, frame, node, session)
   local st = w.ui.state[frame]
+  attach(parent, frame, node.attrs, st)
+  M.body(w, frame, node, session)
   for _, finish in ipairs(M.finishers) do
     finish(w, frame, st, node, session)
   end
@@ -258,7 +280,7 @@ function M.region(w, node, frame, session, layer, sub)
   end
   local region = w.ui.create(typeName, fullName(node, frame), frame)
   region:SetDrawLayer(layer or DEFAULT_LAYER, sub or DEFAULT_SUBLEVEL)
-  attach(frame, region, node.attrs)
+  attach(frame, region, node.attrs, w.ui.state[region])
   M.body(w, region, node, session)
   return region
 end

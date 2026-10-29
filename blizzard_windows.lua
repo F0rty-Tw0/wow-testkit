@@ -1,0 +1,189 @@
+-- Blizzard's own windows on the opt-in layer (Phase 12): which window addons exist in the extract, which load at startup
+-- (Ruling C3), and loading one on demand with the addon that defines ShowUIPanel. Data in blizzard_window_specs.lua.
+local M = {}
+
+local BlizzardUi = require("blizzard_ui")
+local Specs = require("blizzard_window_specs")
+local State = require("game.state")
+local TalentsClassic = require("game.talents_classic")
+local XmlParse = require("ui.xml_parse")
+local fs = require("fs")
+
+M.WINDOWS, M.BASE, M.SHARED, M.FIRST = Specs.WINDOWS, Specs.BASE, Specs.SHARED, Specs.FIRST
+
+local function specsOf(w)
+  return w.windowSpecs or M.WINDOWS[w.flavor]
+end
+
+-- The window's spec on w's flavor (w.windowSpecs, when set, replaces the flavor's whole table), or nil.
+function M.spec(w, window)
+  return specsOf(w)[window]
+end
+
+-- Enum.PlayerInteractionType[name] as the world installed it (never a literal here), or nil.
+function M.interaction(name)
+  local types = _G.Enum and _G.Enum.PlayerInteractionType
+  return types and types[name] or nil
+end
+
+local function inExtract(w, addon)
+  return w.client ~= nil and fs.isdir(w.client.dir .. "/code/addons/" .. addon:lower())
+end
+
+local function sortedNames(specs)
+  local names = {}
+  for name in pairs(specs) do
+    names[#names + 1] = name
+  end
+  table.sort(names)
+  return names
+end
+
+-- Sorted names of the windows whose addon folder is in the extract; {} without the layer.
+function M.available(w)
+  local found = {}
+  if w.blizzard then
+    local specs = specsOf(w)
+    for _, name in ipairs(sortedNames(specs)) do
+      if inExtract(w, specs[name].addon) then
+        found[#found + 1] = name
+      end
+    end
+  end
+  return found
+end
+
+-- The addons of FIRST the extract has: they load before the layer's default targets (BU16).
+function M.first(w)
+  local names = {}
+  for _, addon in ipairs(M.FIRST[w.flavor]) do
+    if inExtract(w, addon) then
+      names[#names + 1] = addon
+    end
+  end
+  return names
+end
+
+-- Ruling C3: the addons that load with the layer, in order: SHARED, then the addon of every window with lod == false (in
+-- window-name order), each once and only when its folder is in the extract.
+function M.startup(w)
+  local names, seen = {}, {}
+  local function add(addon)
+    if not seen[addon] and inExtract(w, addon) then
+      seen[addon] = true
+      names[#names + 1] = addon
+    end
+  end
+  for _, addon in ipairs(M.SHARED[w.flavor]) do
+    add(addon)
+  end
+  local specs = specsOf(w)
+  for _, name in ipairs(sortedNames(specs)) do
+    if specs[name].lod == false then
+      add(specs[name].addon)
+    end
+  end
+  return names
+end
+
+-- source: assumed the kit's ShowUIPanel / HideUIPanel when no loaded addon defines them: they show and hide the frame
+-- (the real ones also position it among the panels).
+local function installPanelFallbacks(w)
+  if _G.ShowUIPanel == nil then
+    State.define(w, "ShowUIPanel", function(frame)
+      frame:Show()
+    end, State.ALL)
+  end
+  if _G.HideUIPanel == nil then
+    State.define(w, "HideUIPanel", function(frame)
+      frame:Hide()
+    end, State.ALL)
+  end
+end
+
+local ENGINE = "blizzard"
+local UIPARENT_XML = "/code/addons/blizzard_uiparent/classic/uiparent.xml"
+
+-- The first element named tag under node (depth first), or nil.
+local function descend(node, tag, name)
+  for _, child in ipairs(node.children) do
+    local found = child.tag == tag and (name == nil or child.attrs.name == name) and child or descend(child, tag, name)
+    if found then
+      return found
+    end
+  end
+end
+
+-- source: assumed (row BU17) the classic panel manager reads UIParent's attributes (TOP_OFFSET, LEFT_OFFSET, ...,
+-- UIParentPanelManager.lua:586), which the extract's UIParent.xml sets (`<Frame name="UIParent"><Attributes>`) and the layer
+-- never loads (Blizzard_UIParent). A window opened on the classic family copies them from that file, string, number and
+-- boolean typed, unless the world already has them.
+local function installUiParentAttributes(w)
+  local parent = _G.UIParent
+  local text = TalentsClassic.isClassic(w) and w.client and fs.readFile(w.client.dir .. UIPARENT_XML)
+  local root = text and XmlParse.parse(text)
+  local frame = root and descend(root, "frame", "UIParent")
+  local attributes = frame and descend(frame, "attributes")
+  for _, attribute in ipairs(attributes and attributes.children or {}) do
+    local name, kind, value = attribute.attrs.name, attribute.attrs.type, attribute.attrs.value
+    if name and parent:GetAttribute(name) == nil then
+      local typed = value
+      if kind == "number" then
+        typed = tonumber(value)
+      elseif kind == "boolean" then
+        typed = value == "true"
+      end
+      w:run(ENGINE, parent.SetAttributeNoHandler, parent, name, typed)
+    end
+  end
+end
+
+-- source: assumed the kit's OpenAllBags / CloseAllBags when no loaded addon defines them: the bags are not modelled. Retail's
+-- ContainerFrame.lua stops at line 3 (Constants.InventoryConstants.NumBagSlots is in no installed data) and the merchant window
+-- calls both (merchantframe.lua:147, :165; tbc :88, :101); a call that raises would stop its OnShow before the stock is drawn.
+local function installBagFallbacks(w)
+  for _, name in ipairs({ "OpenAllBags", "CloseAllBags" }) do
+    if _G[name] == nil then
+      State.define(w, name, function() end, State.ALL)
+    end
+  end
+end
+
+-- source: assumed a closed StoreFrame when Blizzard_StoreUI defined StoreFrame_IsShown but not the frame: its secure file
+-- stops at Enum.VasServiceType, which no installed data lists, so the frame never loads, and ShowUIPanel
+-- (uiparentpanelmanager.lua:205) reads StoreFrame:GetAttribute("isshown") before it places any panel.
+local function installStoreFrame()
+  if type(_G.StoreFrame_IsShown) == "function" and _G.StoreFrame == nil then
+    _G.CreateFrame("Frame", "StoreFrame", _G.UIParent):Hide()
+  end
+end
+
+-- Loads BASE, then the window's addon and its `also` addons (an addon already loaded stays, B3). A BASE or `also` addon
+-- the extract lacks is skipped with a note; only the window's own addon missing returns nil, "MISSING".
+function M.loadFor(w, window)
+  local spec = M.spec(w, window)
+  local function load(addon)
+    local ok, reason = BlizzardUi.loadOne(w, addon)
+    if not ok then
+      table.insert(w.blizzard.notes, "Blizzard windows: " .. addon .. " " .. tostring(reason))
+    end
+    return ok, reason
+  end
+  for _, addon in ipairs(M.BASE[w.flavor]) do
+    load(addon)
+  end
+  local ok, reason = load(spec.addon)
+  if not ok then
+    return nil, reason
+  end
+  for _, addon in ipairs(spec.also or {}) do
+    load(addon)
+  end
+  installPanelFallbacks(w)
+  installUiParentAttributes(w)
+  installBagFallbacks(w)
+  installStoreFrame()
+  return true
+end
+
+return M

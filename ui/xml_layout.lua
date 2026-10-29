@@ -3,6 +3,7 @@
 local M = {}
 
 local AddonEnv = require("addon_env")
+local Templates = require("ui.templates")
 local XmlBuild = require("ui.xml_build")
 
 local handlers = XmlBuild.handlers
@@ -55,6 +56,37 @@ function handlers.size(_, obj, _, node, session)
   if y then
     obj:SetHeight(y)
   end
+end
+
+-- The width and height a frame built from template `name` takes from <Size>: each template it inherits, in order, then
+-- its own <Size>, an axis a later link names replacing the earlier (the order TemplateApply.applyList and handlers.size
+-- apply them). nil for an axis no link names. `path` guards a template that inherits itself.
+function M.templateSize(w, name, path)
+  path = path or {}
+  local virtual, entry = w.ui.virtuals[name], Templates.TEMPLATES[name]
+  if path[name] or not (virtual or entry and (not entry.flavors or entry.flavors[w.flavor])) then
+    return nil, nil
+  end
+  path[name] = true
+  local width, height
+  local inherits = virtual and { virtual.node.attrs.inherits } or entry.inherits
+  for _, list in ipairs(inherits) do
+    for parent in list:gmatch("[^,%s]+") do
+      local parentWidth, parentHeight = M.templateSize(w, parent, path)
+      width, height = parentWidth or width, parentHeight or height
+    end
+  end
+  path[name] = nil
+  local x, y
+  if virtual then
+    local size = M.childNamed(virtual.node, "size")
+    if size then
+      x, y = M.dimension(size)
+    end
+  elseif entry.size then
+    x, y = entry.size[1], entry.size[2]
+  end
+  return x or width, y or height
 end
 
 -- Anchors -------------------------------------------------------------------------------------------------------
@@ -165,6 +197,20 @@ end
 
 -- Values ----------------------------------------------------------------------------------------------------------
 
+-- source: confirmed (row X26) a global KeyValue names a dotted path (`MoneyDenominationDisplayType.Copper`, `AuctionHouseFrameDisplayMode.Buy`):
+-- the first part is a global, each later part a field of the table before it; assumed a missing or non-table link gives nil.
+local function globalPath(w, path)
+  local first, rest = path:match("^([^.]*)(.*)$")
+  local current = AddonEnv.global(w, first, true)
+  for part in rest:gmatch("[^.]+") do
+    if type(current) ~= "table" then
+      return nil
+    end
+    current = current[part]
+  end
+  return current
+end
+
 -- source: wiki XML/KeyValues, example comments: `boolean` "0" is false and "on" true, `number` "two" is 0, `nil` gives
 -- nil. `global` stores the global the value names (row X11, assumed); `local` is not modelled.
 local KEY_TYPES = {
@@ -179,7 +225,7 @@ local KEY_TYPES = {
   end,
   ["nil"] = function() end,
   global = function(value, w)
-    return AddonEnv.global(w, value, true)
+    return globalPath(w, value)
   end,
 }
 

@@ -33,6 +33,8 @@ def signed(value, width):
 
 
 def read_infos(data, pos, count):
+    if len(data) < pos + STORAGE.size * count:
+        raise ValueError("DB2 field storage info runs past the end of the file")
     return [Info(*STORAGE.unpack_from(data, pos + STORAGE.size * n)) for n in range(count)]
 
 

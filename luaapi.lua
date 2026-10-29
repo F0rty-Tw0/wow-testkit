@@ -6,6 +6,7 @@
 local M = {}
 
 local Luaext = require("luaext")
+local LuaTable = require("luatable")
 local WorldApi = require("world_api")
 
 -- Localized: addon code may assign a global named select.
@@ -139,31 +140,17 @@ local HELPERS = {
   strlenutf8 = function(str)
     return select(2, str:gsub("[^\128-\191]", ""))
   end,
-  ["table.count"] = function(t)
-    local n = 0
-    for _ in pairs(t) do
-      n = n + 1
-    end
-    return n
-  end,
-  ["table.create"] = function()
-    return {}
-  end,
   Round = function(value)
     return math.floor(value + ROUND_HALF)
   end,
   Clamp = function(value, low, high)
     return math.min(math.max(value, low), high)
   end,
-  tIndexOf = function(tbl, item)
-    for i, v in ipairs(tbl) do
-      if v == item then
-        return i
-      end
-    end
-    return nil
-  end,
+  tIndexOf = LuaTable.indexof,
 }
+for name, fn in pairs(LuaTable) do
+  HELPERS["table." .. name] = fn
+end
 
 -- The kit's function for a Ketho LuaAPI name, or nil when it has none.
 local function implementation(name)
@@ -187,12 +174,27 @@ function M.of(w, name)
   return implementation(name) or unscriptedStub(w, name)
 end
 
+-- Retail 70575's docs document every table.* extension, but the pinned mirror's list (12.1.0.69933) predates eight of them;
+-- Blizzard's TableUtil aliases them (tContains = table.contains), so retail gets the rest too (row BU20).
+local function installRetailTableExtensions(w)
+  if w.flavor ~= "retail" then
+    return
+  end
+  for name, fn in pairs(LuaTable) do
+    local full = "table." .. name
+    if not w.globals.lua[full] then
+      w:install(full, fn)
+    end
+  end
+end
+
 function M.install(w)
   for name in pairs(w.globals.lua) do
     if not w:hostHas(name) then
       w:install(name, M.of(w, name))
     end
   end
+  installRetailTableExtensions(w)
 end
 
 return M

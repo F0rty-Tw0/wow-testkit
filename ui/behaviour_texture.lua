@@ -169,6 +169,11 @@ local function getNumMaskTextures(_, _, st)
   return #(M.read(st).masks or {})
 end
 
+-- source: confirmed (row W75) the doc types both wrap modes cstring, but Blizzard code passes booleans: tbc
+-- `blizzard_sharedxml/backdrop.lua:266` (`SetTexture(file, tileVerts, tileVerts)`), retail and tbc
+-- `blizzard_nameplates/blizzard_nameplateunitframe.lua:58` (`SetTexture(path, true, true)`). Read by lenient in ui/widgets.lua.
+M.uncheckedArgs = { SetTexture = { wrapModeHorizontal = "boolean", wrapModeVertical = "boolean" } }
+
 local TEXTURE_BASE_METHODS = {
   SetTexture = setTexture,
   GetTexture = getField("file", nil),
