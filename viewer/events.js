@@ -7,6 +7,7 @@ window.TK = window.TK || {};
   'use strict';
 
   const events = (TK.events = {});
+  const LOAD_ERROR = 'Events: ';
 
   function bad(type, text) {
     return new Error(`bad ${type}: ${text}`);
@@ -112,10 +113,10 @@ window.TK = window.TK || {};
       const reply = await TK.api('events', {});
       ui.byName = new Map((reply.events || []).map((event) => [event.name, event]));
       dom.list.replaceChildren(...[...ui.byName.keys()].map((name) => el('option', { value: name })));
-      if (!ui.loaded) dom.status.textContent = '';
+      if (dom.status.textContent.startsWith(LOAD_ERROR)) dom.status.textContent = ''; // keeps a "Fired X" line
       ui.loaded = true;
     } catch (err) {
-      dom.status.textContent = 'Events: ' + err.message;
+      dom.status.textContent = LOAD_ERROR + err.message;
     }
   }
 
