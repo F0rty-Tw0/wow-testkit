@@ -80,6 +80,19 @@ git_ reset --hard FETCH_HEAD
 git_ sparse-checkout set --no-cone "/version.txt" "$DOCS_PATH/" "${REFERENCE_PATHS[@]}"
 
 [[ -z $(git_ status --porcelain) ]] || die "checkout of $branch is not clean: $(git_ status --porcelain | head -5)"
+# A reference file Blizzard moved leaves its pattern matching nothing; stop instead of leaving the files the docs cite
+# silently missing.
+shopt -s globstar
+for path in "${REFERENCE_PATHS[@]}"; do
+  found=false
+  for match in "$gethe_dir"/$path; do
+    if [[ -e $match ]]; then
+      found=true
+      break
+    fi
+  done
+  $found || die "$branch: reference path $path matches no file; did Blizzard move it?"
+done
 doc_count=$(find "$gethe_dir/$DOCS_PATH" -maxdepth 1 -name '*.lua' | wc -l)
 ((doc_count > MIN_DOC_FILES)) || die "$branch has only $doc_count doc files (expected > $MIN_DOC_FILES)"
 git_ rev-parse HEAD >"$gethe_dir/COMMIT"
