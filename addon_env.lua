@@ -88,6 +88,8 @@ local function answer(overrides, key, raw)
   local value = overrides[key]
   if hidden(overrides, key) then
     return nil
+  elseif value == Names.FALSE then
+    return false
   elseif value then
     return value
   elseif raw then

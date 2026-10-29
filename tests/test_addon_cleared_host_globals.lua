@@ -40,9 +40,10 @@ local function test_kit_functions_still_work_after_an_addon_clears_select_and_xp
   A.same({ errors, seen }, { {}, { true, "string", true, 7, 2, true, 1 } })
 end
 
--- Loads addon "Typed" (Core.lua = source) in a retail scenario, logs in, calls ns.run and advances a second.
--- Returns the namespace and the world's recorded error messages; a failure carries those messages.
-local function runAddon(source)
+-- Loads addon "Typed" (Core.lua = source) in a retail scenario, logs in, calls ns.run, advances a second, then calls
+-- after(s) when given (kit code, while the world still runs). Returns the namespace and the world's recorded error
+-- messages; a failure carries those messages.
+local function runAddon(source, after)
   local root = Tmp.dir("addon") .. "/Typed"
   fs.mkdirp(root)
   fs.writeFile(root .. "/Typed.toc", "## Interface: " .. Flavors.get("retail").tocVersion .. "\n\nCore.lua\n")
@@ -52,6 +53,9 @@ local function runAddon(source)
     s:login()
     s.ns.run()
     s:advance(1)
+    if after then
+      after(s)
+    end
   end)
   local errors = {}
   for i, entry in ipairs(s.w.errors) do
@@ -132,6 +136,39 @@ ns.cleared = tostring
   A.same({ errors, ns.sees, ns.calls, ns.hooks, tostring(ns.cleared), ns.timer }, { {}, "number2", 1, 11, "nil", true })
 end
 
+-- A false written to a base-library name reads back as false, apart from a cleared (nil) one, as on any table.
+local function test_a_false_written_to_a_base_library_name_reads_back_as_false()
+  local ns, errors = runAddon([[
+local _, ns = ...
+type = false
+ns.sees, ns.raw = type, rawget(_G, "type")
+for k, v in pairs(_G) do
+  if k == "type" then ns.listed = v end
+end
+type = nil
+ns.cleared = type
+]] .. CALLS_KIT)
+  A.same({ errors, ns.sees, ns.raw, ns.listed, tostring(ns.cleared), ns.timer }, { {}, false, false, false, "nil", true })
+end
+
+-- hooksecurefunc(_G, name, hook) given the _G addon code sees hooks the global itself, as the name-only form does: kit
+-- code calling the global fires the hook too.
+local function test_a_hook_through_the_g_view_fires_for_kit_callers_too()
+  local ns, errors = runAddon(
+    [[
+local _, ns = ...
+ns.hooks = 0
+function TKViewHooked() return "original" end
+hooksecurefunc(_G, "TKViewHooked", function() ns.hooks = ns.hooks + 1 end)
+ns.run = function() ns.result = TKViewHooked() end
+]],
+    function()
+      _G.TKViewHooked()
+    end
+  )
+  A.same({ errors, ns.result, ns.hooks }, { {}, "original", 2 })
+end
+
 return function()
   test_kit_functions_still_work_after_an_addon_clears_select_and_xpcall()
   test_kit_functions_still_work_after_an_addon_clears_type()
@@ -139,4 +176,6 @@ return function()
   test_a_cleared_name_stays_cleared_for_rawget_and_pairs_assumed()
   test_an_addon_rawset_wrapping_the_original_still_clears_type()
   test_a_hooked_base_library_name_fires_for_the_addons_calls_only()
+  test_a_false_written_to_a_base_library_name_reads_back_as_false()
+  test_a_hook_through_the_g_view_fires_for_kit_callers_too()
 end

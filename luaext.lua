@@ -105,7 +105,8 @@ end
 -- its errors go to the error handler, so the original's results still return. A global name must exist as addon code
 -- sees it (AddonEnv.global), so a host-only global (require, io, ...) is refused and never rewritten. A base-library
 -- name (Names.KEPT: type, setfenv, ...) hooked on _G or the addon view wraps the view's value and stays in the view, so
--- the addon's calls fire the hook and kit code reading _G keeps the host function.
+-- the addon's calls fire the hook and kit code reading _G keeps the host function. Any other name hooked on the view
+-- hooks _G's slot, the one global addon and kit code both call (the client has one _G).
 local function hooksecurefunc(w, tbl, name, hook)
   local original
   if type(tbl) == "table" then
@@ -128,6 +129,8 @@ local function hooksecurefunc(w, tbl, name, hook)
   end
   if kept then
     return AddonEnv.keep(w, name, wrapper)
+  elseif w.addonEnvs and w.addonEnvs[tbl] then
+    tbl = _G
   end
   -- source: assumed (row TS7) installing a hook leaves the slot's taint as it was (a secure slot stays secure, one an addon
   -- wrote stays that addon's); the hook runs after the original with its own taint.

@@ -13,9 +13,16 @@ for name in KEPT_NAMES:gmatch("%S+") do
   M.KEPT[name] = true
 end
 
--- Stores an addon write to a KEPT name as the view's override; nil or false hides the name (addon_env.lua's hidden
--- compares _G with hostValues), so the view answers nil while _G keeps the host value for kit code.
+-- The override standing for a false an addon wrote, apart from false, which marks a cleared name.
+M.FALSE = {}
+
+-- Stores an addon write to a KEPT name as the view's override; nil hides the name (addon_env.lua's hidden compares _G
+-- with hostValues), so the view answers nil while _G keeps the host value for kit code; false is stored as M.FALSE.
 function M.keep(overrides, hostValues, key, value)
+  if value == false then
+    overrides[key] = M.FALSE
+    return
+  end
   overrides[key] = value or false
   if not value then
     hostValues[key] = hostRawget(_G, key)
