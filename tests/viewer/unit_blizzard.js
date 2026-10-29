@@ -1,6 +1,6 @@
 // The Blizzard panel's pure parts (viewer/blizzard.js): TK.blizzard.describe writes the status line, layoutOptions lists
 // the Edit Mode layouts (the two client presets first, so a value is the client's activeLayout), parseActions reads the
-// actions line and wtfText the WTF import line.
+// actions line, wtfText the WTF import line and windowOptions lists the window picker's choices.
 (function () {
   'use strict';
 
@@ -54,6 +54,24 @@
       const wtf = { cvars: 297, bindings: 1, saved: 0, layouts: 2 };
       A.eq(TK.blizzard.wtfText(wtf), 'WTF import: 297 CVars, 1 binding, 0 saved variables, 2 layouts');
       A.eq(TK.blizzard.wtfText(undefined), '');
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'blizzard.windowOptions puts none first and selects the open window',
+    fn() {
+      A.same(TK.blizzard.windowOptions({ windows: ['mail', 'merchant'], open: 'mail' }), [
+        { value: 'none', label: 'none' },
+        { value: 'mail', label: 'mail', selected: true },
+        { value: 'merchant', label: 'merchant' },
+      ]);
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'blizzard.windowOptions says no Blizzard windows when there are none',
+    fn() {
+      A.same(TK.blizzard.windowOptions({ windows: [] }), [{ value: 'none', label: 'no Blizzard windows', disabled: true }]);
     },
   });
 })();

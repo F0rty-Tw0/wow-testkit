@@ -138,6 +138,14 @@ def check_blizzard(root):
         raise AssertionError("no 'no client extract' hint in %r" % panel.text()[:200])
 
 
+def check_window_picker(root):
+    panel = element(root, "blizzard")
+    select = one(panel, lambda n: n.tag == "select" and n.attrs.get("id") == "blizzard-window", "#blizzard select#blizzard-window")
+    labels = [n.text() for n in find(select, lambda n: n.tag == "option")]
+    if labels != ["no Blizzard windows"] or "disabled" not in select.attrs:
+        raise AssertionError("#blizzard-window %r disabled=%s" % (labels, "disabled" in select.attrs))
+
+
 # (name, check, which DOM: 0 = live.html, 1 = live-select.html)
 CHECKS = [
     ("ready flag, live snapshot drawn", check_ready, 0),
@@ -152,6 +160,7 @@ CHECKS = [
     ("#dev lists SessionDemo under a Memory (estimate) header", check_dev, 0),
     ("#combat has the preset options and the race select; #combatlog exists", check_combat, 0),
     ("#blizzard has the toggle (disabled, no extract), the layout select and the actions line", check_blizzard, 0),
+    ("#blizzard-window offers no Blizzard windows (disabled) without the layer", check_window_picker, 0),
 ]
 
 

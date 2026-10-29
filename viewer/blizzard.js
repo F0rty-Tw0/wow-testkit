@@ -1,9 +1,10 @@
 // Blizzard UI panel (live mode): a toggle that reloads the session with Blizzard's UI layer on or off (#blizzard-toggle,
 // disabled with the hint "no client extract" when the session has none), the layer's status line, the WTF import
-// counts, an Edit Mode layout select (#blizzard-layout, posting editMode.active), an action slots line
-// (#blizzard-actions: "slot texture [count]" or "slot off", comma-separated, posting actions) and the first load errors.
-// It reads the session info (TK.api('info')) after every snapshot and reload event. Classic script; describe,
-// layoutOptions, parseActions and wtfText are pure for tests/viewer/unit_blizzard.js.
+// counts, an Edit Mode layout select (#blizzard-layout, posting editMode.active), a window picker (#blizzard-window: the
+// Blizzard windows the session can open, posting window, or "close" for none), an action slots line (#blizzard-actions:
+// "slot texture [count]" or "slot off", comma-separated, posting actions) and the first load errors. It reads the
+// session info (TK.api('info')) after every snapshot and reload event. Classic script; describe, layoutOptions,
+// windowOptions, parseActions and wtfText are pure for tests/viewer/unit_blizzard.js.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -17,6 +18,7 @@ window.TK = window.TK || {};
   const MAX_SLOT = 180;
   const WHOLE = /^\d+$/;
   const NO_EXTRACT = 'no client extract';
+  const NO_WINDOWS = 'no Blizzard windows';
   const ACTIONS_HINT = 'Actions: "slot texture [count]" or "slot off", comma-separated; slots 1-180';
 
   function counted(count, noun) {
@@ -42,6 +44,20 @@ window.TK = window.TK || {};
 
       return option;
     });
+  };
+
+  // The window picker's options: none (closes the open window), then the session's windows; the open one is selected.
+  blizzard.windowOptions = (info) => {
+    const windows = info.windows || [];
+    if (windows.length === 0) return [{ value: 'none', label: NO_WINDOWS, disabled: true }];
+    const options = windows.map((name) => {
+      const option = { value: name, label: name };
+      if (name === info.open) option.selected = true;
+
+      return option;
+    });
+
+    return [{ value: 'none', label: 'none' }, ...options];
   };
 
   function parseGroup(group) {
@@ -100,6 +116,18 @@ window.TK = window.TK || {};
     dom.layout.disabled = !info.enabled;
   }
 
+  function showWindows(info) {
+    const choices = blizzard.windowOptions(info);
+    const options = choices.map((o) => el('option', { value: o.value, textContent: o.label, selected: o.selected === true }));
+    dom.window.replaceChildren(...options);
+    dom.window.disabled = choices[0].disabled === true;
+  }
+
+  function sendWindow() {
+    const picked = dom.window.value === 'none' ? 'close' : dom.window.value;
+    send('state', { window: picked });
+  }
+
   function show(info) {
     dom.toggle.checked = info.enabled;
     dom.toggle.disabled = !info.available;
@@ -107,6 +135,7 @@ window.TK = window.TK || {};
     dom.status.textContent = blizzard.describe(info);
     dom.wtf.textContent = blizzard.wtfText(info.wtf);
     showLayouts(info);
+    showWindows(info);
     dom.actions.disabled = !info.enabled;
     const errors = (info.firstErrors || []).map((e) => el('li', { textContent: `${e.addon}: ${e.message}` }));
     dom.errors.replaceChildren(...errors);
@@ -154,16 +183,19 @@ window.TK = window.TK || {};
     dom.status.setAttribute('role', 'status');
     dom.wtf = el('p', { className: 'hint' });
     dom.layout = labelled(el('select', { id: 'blizzard-layout', disabled: true }), 'Edit Mode layout');
+    dom.window = labelled(el('select', { id: 'blizzard-window', disabled: true }), 'Blizzard window');
+    dom.window.append(el('option', { value: 'none', textContent: NO_WINDOWS }));
     const placeholder = 'slot texture [count], e.g. 1 136235 3 or 1 off';
     dom.actions = labelled(el('input', { id: 'blizzard-actions', type: 'text', placeholder, disabled: true }), 'Action slots');
     dom.message = el('p', { className: 'hint' });
     dom.errors = el('ul', { className: 'errors' });
-    section.append(title, label, dom.status, dom.wtf, dom.layout, dom.actions, dom.message, dom.errors);
+    section.append(title, label, dom.status, dom.wtf, dom.layout, dom.window, dom.actions, dom.message, dom.errors);
     const panels = document.getElementById('panels');
     panels.append(section);
     panels.hidden = false;
     dom.toggle.addEventListener('change', () => send('reload', { blizzardUi: dom.toggle.checked }));
     dom.layout.addEventListener('change', () => send('state', { editMode: { active: Number(dom.layout.value) } }));
+    dom.window.addEventListener('change', sendWindow);
     dom.actions.addEventListener('keydown', sendActions);
   }
 
