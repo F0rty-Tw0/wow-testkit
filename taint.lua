@@ -196,11 +196,11 @@ local function sweepKeys(w, entry, taint)
   for i = 1, same and #keys or 0 do
     if shadow[keys[i]] ~= tbl[keys[i]] then
       same = false
+      break
     end
   end
   for i = 1, same and 0 or #keys do
-    local k = keys[i]
-    local old, v = shadow[k], rawget(tbl, k)
+    local k, old, v = keys[i], shadow[keys[i]], rawget(tbl, keys[i])
     if not rawequal(old, v) then
       M.attribute(w, tbl, k, old ~= nil, taint)
       shadow[k], entry.plain = v, entry.plain and type(v) ~= "table" and type(v) ~= "userdata"
