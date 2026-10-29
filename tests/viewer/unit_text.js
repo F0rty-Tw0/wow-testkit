@@ -100,8 +100,10 @@
     try {
       await fn(log);
     } finally {
-      // The fake faces leave document.fonts through the fake delete, a task later, before the real one is back.
+      // The fake faces leave document.fonts through the fake delete (an empty load drops the forgotten faces, a
+      // microtask later) before the real one is back.
       V.forgetFonts();
+      await V.loadFonts({}, location.href);
       await new Promise((resolve) => setTimeout(resolve, 0));
       window.FontFace = RealFontFace;
       delete document.fonts.add;
@@ -129,11 +131,13 @@
   });
 
   TK_TESTS.push({
-    name: 'forgetFonts drops every face from document.fonts and the next loadFonts loads each url under a new family',
+    name: 'after forgetFonts the next loadFonts loads each url under a new family, then drops the old faces',
     async fn() {
       await withFakeFonts(async (log) => {
         const before = await V.loadFonts(TWO_FONTS, location.href);
         V.forgetFonts();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        A.same(log.deleted, [], 'the drawn stage keeps its faces until the next load');
         const after = await V.loadFonts(TWO_FONTS, location.href);
         A.eq(log.built.length, 4, 'FontFace count');
         A.same(log.deleted, log.built.slice(0, 2), 'dropped faces');

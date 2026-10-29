@@ -37,10 +37,13 @@
     if (face) families.set(ref, `"${face.family}", ${FALLBACK_FAMILY}`);
   }
 
-  // A session reload can serve new font bytes at the same url (tools/preview_assets.py names files by ref): drops every
-  // face, also from document.fonts, so the next loadFonts fetches each url again.
+  // Faces forgotten but still in document.fonts: the drawn stage uses them until the next loadFonts has loaded the new.
+  let retired = [];
+
+  // A session reload can serve new font bytes at the same url (tools/preview_assets.py names files by ref): forgets
+  // every face, so the next loadFonts fetches each url again and then removes the old faces from document.fonts.
   V.forgetFonts = function () {
-    for (const pending of faces.values()) pending.then((face) => face && document.fonts.delete(face));
+    retired.push(...faces.values());
     faces.clear();
   };
 
@@ -50,6 +53,9 @@
     const ctx = { assets, baseUrl };
     const refs = Object.keys(assets).filter((ref) => assets[ref].kind === 'font' && V.assetUrl(ctx, ref));
     await Promise.all(refs.map((ref) => loadFont(ref, V.assetUrl(ctx, ref), families)));
+    const old = retired;
+    retired = [];
+    for (const pending of old) pending.then((face) => face && document.fonts.delete(face));
 
     return families;
   };

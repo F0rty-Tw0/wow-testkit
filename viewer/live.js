@@ -128,7 +128,7 @@ window.TK = window.TK || {};
   TK.start = async () => {
     const stream = new URLSearchParams(location.search).get('stream') !== '0';
     if (!TK.transport.current) TK.transport.use(TK.transport.http(location.origin, { stream }));
-    // Before refresh below: a reloaded or restarted session may serve new font bytes at an old url.
+    // A reloaded or restarted session may serve new font bytes at an old url.
     TK.on('reload', window.Viewer.forgetFonts);
     TK.on('restart', window.Viewer.forgetFonts);
     TK.on('snapshot', (data) => {
