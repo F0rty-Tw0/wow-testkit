@@ -90,9 +90,76 @@ local function test_nan_delay_never_fires_and_blocks_nothing()
   end)
 end
 
+-- Small LCG (Numerical Recipes constants, mod 2^32): fixed sequence, no math.random state shared with other tests.
+local function lcg(seed)
+  local state = seed
+  return function(n)
+    state = (state * 1664525 + 1013904223) % 4294967296
+    return math.floor(state / 65536) % n + 1
+  end
+end
+
+-- 300 random schedule/cancel rounds on one world; cancelling from the middle of the heap moves its last timer into the
+-- hole, and only a sift up (not just down) keeps the order when that timer is due earlier than the hole's new parent.
+-- Survivors must fire by (due, creation).
+local function test_random_cancels_from_the_middle_keep_due_order()
+  withWorld("retail", function(w)
+    local random, bad = lcg(13), {}
+    for trial = 1, 300 do
+      local fired, delays, handles, alive = {}, {}, {}, {}
+      local n = random(36) + 4
+      for i = 1, n do
+        delays[i] = random(50) / 10
+        handles[i] = _G.C_Timer.NewTimer(delays[i], function()
+          fired[#fired + 1] = i
+        end)
+        alive[i] = true
+      end
+      for _ = 1, random(n) do
+        local i = random(n)
+        handles[i]:Cancel()
+        alive[i] = false
+      end
+      local expected = {}
+      for i = 1, n do
+        if alive[i] then
+          expected[#expected + 1] = i
+        end
+      end
+      table.sort(expected, function(a, b)
+        return delays[a] < delays[b] or (delays[a] == delays[b] and a < b)
+      end)
+      w:advance(10)
+      if table.concat(fired, ",") ~= table.concat(expected, ",") then
+        bad[#bad + 1] = trial
+      end
+    end
+    A.same(bad, {})
+    A.eq(#w.timers, 0)
+  end)
+end
+
+-- The heap index is private to the kit: an addon writing .slot on the handle it was given cannot misplace the timer.
+local function test_addon_written_slot_field_does_not_break_cancel()
+  withWorld("retail", function(w)
+    local n = 0
+    _G.C_Timer.NewTicker(0.5, counter().fn)
+    local ticker = _G.C_Timer.NewTicker(1, function()
+      n = n + 1
+    end)
+    w:advance(2.1)
+    ticker.slot = 7
+    ticker:Cancel()
+    w:advance(5)
+    A.same({ n, ticker:IsCancelled(), #w.timers }, { 2, true, 1 })
+  end)
+end
+
 return function()
   test_many_timers_fire_in_due_order_skipping_cancelled()
   test_tickers_interleave_by_due_time()
   test_cancel_after_fire_twice_or_from_own_callback_keeps_other_timers()
   test_nan_delay_never_fires_and_blocks_nothing()
+  test_random_cancels_from_the_middle_keep_due_order()
+  test_addon_written_slot_field_does_not_break_cancel()
 end

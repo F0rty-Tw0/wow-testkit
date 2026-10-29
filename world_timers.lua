@@ -14,15 +14,17 @@ M.methods = methods
 local Timer = {}
 Timer.__index = Timer
 
--- The pending timers are a binary min-heap in w.timers ordered by (due, creation); timer.slot is its index there, so
--- the next due timer is timers[1] and schedule, cancel and re-queue cost O(log n) (a scan per fire was O(n^2)).
+-- The pending timers are a binary min-heap in w.timers ordered by (due, creation); timer[SLOT] is its index there, so
+-- the next due timer is timers[1] and schedule, cancel and re-queue cost O(log n) (a scan per fire was O(n^2)). SLOT is
+-- a private key: the handle is addon-visible, and an addon-written field named slot must not steer the heap.
+local SLOT = {}
 local function before(a, b)
   return a.due < b.due or (a.due == b.due and a.seq < b.seq)
 end
 
 local function place(timers, i, timer)
   timers[i] = timer
-  timer.slot = i
+  timer[SLOT] = i
 end
 
 local function siftUp(timers, i)
@@ -56,16 +58,16 @@ end
 
 -- Drops timer from the heap; a timer that is not in it (fired, cancelled, or from a reset world) is left alone.
 local function removeTimer(timers, timer)
-  local i = timer.slot
+  local i = timer[SLOT]
   if timers[i] ~= timer then
     return
   end
   local last = table.remove(timers)
-  timer.slot = nil
+  timer[SLOT] = nil
   if last ~= timer then
     place(timers, i, last)
     siftUp(timers, i)
-    siftDown(timers, last.slot)
+    siftDown(timers, last[SLOT])
   end
 end
 
@@ -117,7 +119,7 @@ local function fireTimer(w, timer)
     removeTimer(w.timers, timer)
   else
     timer.due = timer.due + math.max(timer.interval, FRAME)
-    siftDown(w.timers, timer.slot)
+    siftDown(w.timers, timer[SLOT])
   end
   local outer = w.firingTimer
   w.firingTimer = true
