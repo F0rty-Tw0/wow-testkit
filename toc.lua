@@ -284,14 +284,14 @@ local function addFile(path, files, report)
   end
 end
 
--- Ordered Lua and XML paths (relative to the addon root) the flavor loads, and a report of what the kit ignored.
+-- Ordered Lua and XML paths (relative to the addon root, [Family]/[Game] expanded) the flavor loads, and what was ignored.
 function M.filesFor(parsed, flavor)
   local row = Flavors.get(flavor)
   local files, report = {}, {}
   for _, file in ipairs(parsed.files) do
     reportIgnoredDirectives(file, report)
     if allowedOn(file, row, report) then
-      addFile(file.path, files, report)
+      addFile(Flavors.expandTocPath(flavor, file.path), files, report)
     end
   end
   return files, report

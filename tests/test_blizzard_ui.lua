@@ -173,8 +173,8 @@ local function test_flavor_suffixed_toc_is_found_in_lowercase()
   end)
 end
 
--- source: assumed (row BU3) on retail [Family] is the Mainline folder and [Game] the Standard one.
-local function test_family_and_game_path_tokens_resolve_assumed()
+-- source: confirmed (row BU3) on retail [Family] is the Mainline folder and [Game] the Standard one.
+local function test_family_and_game_path_tokens_resolve()
   local toc = "## Interface: 120100\n[Family]\\Fam.lua\n[Game]\\Gam.lua\n"
   local files = { ["mainline/fam.lua"] = "MiniFam = true", ["standard/gam.lua"] = "MiniGam = true" }
   B.run(B.mini({ blizzard_minitokens = { toc = toc, files = files } }), { targets = { "Blizzard_MiniTokens" } }, function(s)
@@ -286,7 +286,7 @@ return function()
   test_missing_target_is_skipped_not_raised()
   test_dependencies_of_other_game_types_are_dropped_assumed()
   test_flavor_suffixed_toc_is_found_in_lowercase()
-  test_family_and_game_path_tokens_resolve_assumed()
+  test_family_and_game_path_tokens_resolve()
   test_loaded_blizzard_addons_count_as_loaded()
   test_bindings_xml_registers_commands_and_runs_them()
   test_default_bindings_xml_loads_with_the_layer_assumed()

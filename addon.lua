@@ -19,11 +19,13 @@ M.gc = collectgarbage
 -- The load-time clock: os.clock, the one debugprofilestop reads (luaext.lua); a field so tests can fake it.
 M.clock = os.clock
 
--- Reads a TOC- or XML-listed file. A missing one is a packaging bug in the addon, so it is an error.
-local function readListed(w, ctx, relative)
+-- Reads a file the TOC lists, or the XML file listedBy (its path) names. A missing one is a packaging bug in the addon,
+-- so it is an error naming whichever file listed it.
+local function readListed(w, ctx, relative, listedBy)
   local text = fs.readFile(ctx.root .. "/" .. relative)
   if not text then
-    w:reportError("TOC lists missing file: addon:" .. ctx.name .. "/" .. relative)
+    local lister = listedBy and "addon:" .. ctx.name .. "/" .. listedBy or "TOC"
+    w:reportError(lister .. " lists missing file: addon:" .. ctx.name .. "/" .. relative)
   end
   return text
 end
@@ -53,9 +55,10 @@ local function runChunk(w, ctx, source, chunkName)
   end
 end
 
--- Runs a TOC- or XML-listed Lua file, relative to the addon root, read through ctx.readFile.
-function M.runFile(w, ctx, relative)
-  local source = ctx.readFile(relative)
+-- Runs a TOC- or XML-listed Lua file, relative to the addon root, read through ctx.readFile (listedBy: the XML file
+-- that names it, nil for the TOC).
+function M.runFile(w, ctx, relative, listedBy)
+  local source = ctx.readFile(relative, listedBy)
   if not source then
     ctx.report[#ctx.report + 1] = relative .. ": cannot read file; skipped"
     return
@@ -69,19 +72,20 @@ local function padded(source, line)
   return string.rep("\n", line - 1) .. source
 end
 
--- The per-addon load context: { name, root, ns, env, report, readFile(relative) -> text | nil, exists(relative),
--- runFile(relative), runSource(source, chunkName, line), compile(source, chunkName, line) -> chunk | nil (the chunk is
--- not run) }. report is the list of what the kit ignored; M.load replaces it with the TOC's.
+-- The per-addon load context: { name, root, ns, env, report, readFile(relative, listedBy) -> text | nil,
+-- exists(relative), runFile(relative, listedBy), runSource(source, chunkName, line), compile(source, chunkName, line) ->
+-- chunk | nil (the chunk is not run) }. listedBy is the XML file naming the file, nil for the TOC. report is the list of
+-- what the kit ignored; M.load replaces it with the TOC's.
 function M.context(w, name, root)
   local ctx = { name = name, root = root, ns = {}, env = AddonEnv.newEnv(w), report = {} }
-  function ctx.readFile(relative)
-    return readListed(w, ctx, relative)
+  function ctx.readFile(relative, listedBy)
+    return readListed(w, ctx, relative, listedBy)
   end
   function ctx.exists(relative)
     return fs.exists(ctx.root .. "/" .. relative)
   end
-  function ctx.runFile(relative)
-    M.runFile(w, ctx, relative)
+  function ctx.runFile(relative, listedBy)
+    M.runFile(w, ctx, relative, listedBy)
   end
   function ctx.runSource(source, chunkName, line)
     runChunk(w, ctx, padded(source, line), chunkName)

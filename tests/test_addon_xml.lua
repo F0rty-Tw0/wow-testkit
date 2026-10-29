@@ -35,7 +35,7 @@ local function test_xml_builds_at_its_toc_position()
   end)
 end
 
--- Loads an addon whose TOC lists Ui.xml (the given text) then Late.lua; returns the world, ns and the report in fn.
+-- Loads an addon whose TOC lists Ui.xml (the given text) then Late.lua; passes the world, ns and the load info to fn.
 local function withBrokenXml(xml, fn)
   local root = Tmp.dir("addon") .. "/XmlBad"
   fs.mkdirp(root)
@@ -43,8 +43,8 @@ local function withBrokenXml(xml, fn)
   fs.writeFile(root .. "/Ui.xml", xml)
   fs.writeFile(root .. "/Late.lua", "local _, ns = ...; ns.late = true")
   H.withFrameXML("retail", function(w)
-    local ns = Addon.load(w, { name = "XmlBad", root = root })
-    fn(w, ns)
+    local ns, info = Addon.load(w, { name = "XmlBad", root = root })
+    fn(w, ns, info)
   end, { screen = SCREEN })
 end
 
@@ -95,6 +95,30 @@ local function test_a_template_inheriting_itself_through_another_is_reported_and
   end)
 end
 
+-- source: confirmed (row X27) UI.xsd types an <Anchor> point and relativePoint FRAMEPOINT and frameStrata FRAMESTRATA;
+-- assumed: another value is reported at the element's line and ignored (the anchor is skipped, the strata stays the
+-- default), the element and its children still build, and case is not checked.
+local function test_a_bogus_anchor_point_or_frame_strata_is_reported_and_ignored_assumed()
+  local xml = [[<Ui>
+<Frame name="BadPoint"><Anchors><Anchor point="BOGUS"/><Anchor point="TOP" relativePoint="NOPE"/></Anchors></Frame>
+<Frame name="BadStrata" frameStrata="BOGUS"><Frames><Frame name="BadStrataChild"/></Frames></Frame>
+<Frame name="LowerOk" frameStrata="dialog"><Anchors><Anchor point="center"/></Anchors></Frame>
+<Frame name="HighTpl" virtual="true" frameStrata="HIGH"/>
+<Frame name="InheritOk" inherits="HighTpl" frameStrata="PARENT"/></Ui>]]
+  withBrokenXml(xml, function(w, ns, info)
+    A.same(w.errors, {})
+    local report = table.concat(info.report, "\n")
+    A.contains(report, "Ui.xml:2: <Anchor> point 'BOGUS' is not a FRAMEPOINT; anchor skipped")
+    A.contains(report, "Ui.xml:2: <Anchor> relativePoint 'NOPE' is not a FRAMEPOINT; anchor skipped")
+    A.contains(report, "Ui.xml:3: frameStrata 'BOGUS' is not a FRAMESTRATA; ignored")
+    A.eq(report:find("dialog", 1, true) or report:find("center", 1, true) or report:find("PARENT", 1, true), nil)
+    A.eq(_G.InheritOk:GetFrameStrata(), "MEDIUM") -- PARENT drops the template's HIGH and inherits UIParent's
+    A.same({ _G.BadPoint:GetNumPoints(), _G.BadStrata:GetFrameStrata(), _G.LowerOk:GetNumPoints() }, { 0, "MEDIUM", 1 })
+    A.eq(_G.BadStrataChild:GetParent(), _G.BadStrata)
+    A.eq(ns.late, true)
+  end)
+end
+
 -- Loads a temp addon XmlRoot whose TOC lists `listed` and whose other files are `files` (path -> text); returns ns, w.
 local function loadTree(listed, files, fn)
   local root = Tmp.dir("addon") .. "/XmlRoot"
@@ -134,8 +158,14 @@ end
 
 local function test_script_file_missing_from_both_places_is_still_reported_assumed()
   loadTree("Sub/Ui.xml", { ["Sub/Ui.xml"] = '<Ui><Script file="Gone.lua"/></Ui>' }, function(_, w)
-    A.eq(#w.errors, 1)
-    A.contains(w.errors[1].message, "addon:XmlRoot/Sub/Gone.lua")
+    A.same({ #w.errors, tostring(w.errors[1].message) }, { 1, "addon:XmlRoot/Sub/Ui.xml lists missing file: addon:XmlRoot/Sub/Gone.lua" })
+  end)
+end
+
+-- An <Include file> the XML names is reported against that XML file, not the TOC.
+local function test_an_included_xml_that_is_missing_names_the_including_file()
+  loadTree("Ui.xml", { ["Ui.xml"] = '<Ui><Include file="Gone.xml"/></Ui>' }, function(_, w)
+    A.same({ #w.errors, tostring(w.errors[1].message) }, { 1, "addon:XmlRoot/Ui.xml lists missing file: addon:XmlRoot/Gone.xml" })
   end)
 end
 
@@ -143,6 +173,8 @@ return function()
   test_script_file_falls_back_to_the_addon_root_assumed()
   test_script_file_prefers_the_xml_folder_assumed()
   test_script_file_missing_from_both_places_is_still_reported_assumed()
+  test_an_included_xml_that_is_missing_names_the_including_file()
+  test_a_bogus_anchor_point_or_frame_strata_is_reported_and_ignored_assumed()
   test_a_frame_anchored_to_itself_is_reported_and_the_load_goes_on()
   test_an_anchor_cycle_between_two_frames_is_reported_and_the_load_goes_on()
   test_a_template_inheriting_itself_through_another_is_reported_and_the_load_goes_on()

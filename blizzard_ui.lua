@@ -154,26 +154,15 @@ local function lowerReader(root, name, notes)
   end
 end
 
--- source: assumed (row BU3) "[Family]\X.lua" and "[Game]\X.lua" in a Blizzard TOC: the family folder is the flavor's
--- last TOC suffix (Mainline, Classic), the game folder its first (Standard, Mists).
-local function withFolders(path, flavor)
-  local suffixes = Flavors.get(flavor).tocSuffixes
-  local folders = { family = suffixes[#suffixes], game = suffixes[1] }
-  return (path:gsub("%[(%a+)%]", function(token)
-    local suffix = folders[token:lower()]
-    return suffix and (suffix:gsub("^[_%-]", ""))
-  end))
-end
-
--- Runs entry's TOC files for w's flavor, registers its bindings.xml, records it as loaded and fires ADDON_LOADED.
+-- Runs entry's TOC files for w's flavor ([Family] and [Game] expanded by Toc.filesFor, row BU3), registers its
+-- bindings.xml, records it as loaded and fires ADDON_LOADED.
 local function loadEntry(w, entry, report, fire)
   local ctx = Addon.context(w, entry.name, entry.root)
   ctx.readFile = lowerReader(entry.root, entry.name, report.notes)
   function ctx.exists(relative)
     return fs.exists(entry.root .. "/" .. lowerPath(relative))
   end
-  for _, listed in ipairs((Toc.filesFor(entry.parsed, w.flavor))) do
-    local path = withFolders(listed, w.flavor)
+  for _, path in ipairs((Toc.filesFor(entry.parsed, w.flavor))) do
     if path:lower():match("%.xml$") then
       Xml.loadFile(w, path, ctx)
     else

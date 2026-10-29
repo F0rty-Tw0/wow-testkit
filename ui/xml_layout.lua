@@ -165,14 +165,34 @@ local function forget(session, obj)
   session.anchors = kept
 end
 
+-- source: confirmed (row X27) Blizzard_SharedXML/UI.xsd:4-16 FRAMEPOINT, the type of <Anchor> point and relativePoint
+-- (:593, :596); assumed: another value, in any case, is reported and the anchor skipped.
+local FRAMEPOINT = {}
+for _, point in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "TOP", "BOTTOM", "LEFT", "RIGHT", "CENTER" }) do
+  FRAMEPOINT[point] = true
+end
+
+-- The name of the first of point and relativePoint that is no FRAMEPOINT, and its value; nil when both are.
+local function badPoint(attrs)
+  for _, key in ipairs({ "point", "relativePoint" }) do
+    local value = attrs[key:lower()]
+    if value and not FRAMEPOINT[value:upper()] then
+      return key, value
+    end
+  end
+end
+
 -- The element's own <Anchors> replace the points already set, queued ones included (row X4, assumed). An anchor whose
 -- target is built later waits in session.anchors for XmlBuild.settle.
 function handlers.anchors(w, obj, _, node, session)
   obj:ClearAllPoints()
   forget(session, obj)
   for _, anchor in ipairs(node.children) do
+    local key, value = badPoint(anchor.attrs)
     if anchor.tag ~= "anchor" or not anchor.attrs.point then
       session.reportAt(anchor.line, "<" .. anchor.rawTag .. "> in <Anchors> needs a point; ignored")
+    elseif key then
+      session.reportAt(anchor.line, "<Anchor> " .. key .. " '" .. value .. "' is not a FRAMEPOINT; anchor skipped")
     else
       local entry = anchorEntry(w, session, obj, anchor)
       if not entry.try() then
