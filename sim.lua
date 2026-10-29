@@ -133,6 +133,48 @@ function M.restore(w, _simState)
   SimKeys.install(w)
 end
 
+local function inGroup(actor)
+  return actor.inParty == true or actor.inRaid == true
+end
+
+-- Every actor that is neither the player nor in the group leaves the world.
+local function removeStrangers(w)
+  local order = w.combat.order
+  for i = #order, 1, -1 do
+    local actor = w.combat.actors[order[i]]
+    if actor ~= w.sim.player and not inGroup(actor) then
+      Actors.remove(w, actor)
+    end
+  end
+end
+
+-- Puts the world back to a fresh login: strangers gone, no target, full health, the class's start power, the spawn place,
+-- no walk, then the reset hooks. With class the player becomes that class first (raises like Sim.options, before
+-- anything changes). Combat state is not forced off: the 5 s drop timer ends it.
+function M.reset(w, class)
+  if class ~= nil then
+    M.options({ class = class })
+  end
+  local sim = w.sim
+  local player = sim.player
+  Actors.setTarget(w, player, nil)
+  removeStrangers(w)
+  if class ~= nil then
+    M.applyClass(w, player, class)
+    sim.class = class
+  end
+  Actors.setDead(w, player, false)
+  Actors.setHealth(w, player, player.healthMax)
+  Actors.setPower(w, player, M.CLASSES[sim.class].power)
+  Actors.setPos(w, player, M.SPAWN.x, M.SPAWN.y)
+  SimMove.setFacing(w, M.SPAWN.facing)
+  sim.intents, sim.moving, sim.speed = {}, false, 0
+  bumpActivity(w)
+  for _, fn in ipairs(sim.hooks.reset) do
+    fn(w)
+  end
+end
+
 -- Runs seconds of the sim clock: whole 1/60 s frames (the remainder carries to the next step), each running the frame
 -- hooks and then the world clock; then the player's map place follows the walk, and one OnUpdate pass runs with the
 -- whole step as elapsed. Returns whether the world changed and how many OnUpdate scripts ran.

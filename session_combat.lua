@@ -109,6 +109,9 @@ local ACTIONS = {
     return true
   end,
   step = function(sess, req)
+    if sess.w.sim then
+      error("sim clock owns time", 0)
+    end
     local seconds = req.seconds
     if type(seconds) ~= "number" or not (seconds > 0 and seconds <= MAX_STEP) then
       fail("seconds must be a number above 0 and at most %d", MAX_STEP)

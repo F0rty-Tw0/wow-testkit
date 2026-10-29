@@ -72,7 +72,11 @@ local function advance(sess, arg)
     Console.push(sess.w, "system", "Usage: /advance <seconds> (0 to " .. MAX_ADVANCE .. ")")
     return
   end
-  sess.s:advance(seconds)
+  if sess.w.sim then
+    sess.s:simStep(seconds)
+  else
+    sess.s:advance(seconds)
+  end
 end
 
 local COMMANDS = { ["/run"] = run, ["/script"] = run, ["/dump"] = dump, ["/reload"] = reload, ["/advance"] = advance }
