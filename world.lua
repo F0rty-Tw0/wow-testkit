@@ -100,9 +100,19 @@ function World:hostHas(name)
   return tbl ~= nil and not self.created[tbl] and rawget(tbl, key) ~= nil
 end
 
+-- hostHas and set in one namespace walk (~6700 stubs per world, the walk was ~1/4 of World.new). Creating missing
+-- namespaces first never hides a host-defined name: a table the walk creates is new and empty.
 function World:installStub(name, signature)
-  if not self:hostHas(name) then
-    self:set(name, WorldApi.wrap(self, name, signature, nil))
+  local tbl, key = self:parentOf(name, true)
+  if tbl and not self.created[tbl] and rawget(tbl, key) ~= nil then
+    return
+  end
+  -- A namespace on the path that is not a table (tbl is nil) raises in set, as before.
+  local stub = WorldApi.wrap(self, name, signature, nil)
+  if tbl then
+    self:rawWrite(tbl, key, stub)
+  else
+    self:set(name, stub)
   end
 end
 
