@@ -267,6 +267,24 @@ local function test_a_handle_ignores_an_addon_edit_of_the_class_method_table() -
   end)
 end
 
+-- The kit's own methods added to a class after it was built (the Classic GameTooltip Hide that forgets the unit) are the
+-- class methods a handle calls. The tooltip is shown but not visible, so only that Hide forgets the unit.
+local function test_a_handle_calls_a_method_the_kit_added_to_the_class_later() -- TS15
+  H.withTaint("tbc", function(w)
+    local h = handler("TKHTip", "SecureHandlerBaseTemplate")
+    local holder = _G.CreateFrame("Frame", "TKHTipHolder", _G.UIParent)
+    holder:Hide()
+    h:SetFrameRef("tip", _G.GameTooltip)
+    _G.GameTooltip:SetParent(holder)
+    _G.GameTooltip:SetOwner(holder, "ANCHOR_NONE")
+    _G.GameTooltip:Show()
+    w:unit("target", { name = "Boss" })
+    _G.GameTooltip:SetUnit("target")
+    SecureEnv.run(w, h, "self:GetFrameRef('tip'):Hide()")
+    A.same({ _G.GameTooltip:IsShown(), _G.GameTooltip:GetUnit() }, { false })
+  end)
+end
+
 local function test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet() -- TS15
   H.withTaint("retail", function(w)
     local h = handler("TKHBase", "SecureHandlerBaseTemplate")
@@ -633,6 +651,7 @@ return function()
   test_a_snippet_calling_an_addon_replaced_namespace_function_runs_it_tainted_assumed()
   test_a_handle_calls_the_class_method_not_an_addon_field()
   test_a_handle_ignores_an_addon_edit_of_the_class_method_table()
+  test_a_handle_calls_a_method_the_kit_added_to_the_class_later()
   test_snippet_globals_ignore_an_addon_replacement_made_before_the_first_snippet()
   test_snippet_globals_ignore_an_addon_replacement_of_a_luaapi_name()
   test_snippets_see_a_string_name_the_kit_only_stubs()

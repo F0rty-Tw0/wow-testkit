@@ -63,7 +63,9 @@ local function forgetOnClassicHide(w, tooltip, tipOf)
       forget(tipOf(w, self, hideLabel))
     end
   end)
+  -- The class methods (w.ui.classMethods), which secure kit code calls, get the same wrappers.
   local index = getmetatable(tooltip).__index
+  local own = w.ui.classMethods[w.ui.state[tooltip].plan]
   for _, name in ipairs(HIDERS) do
     local original = index[name]
     local label = TOOLTIP_NAME .. ":" .. name
@@ -77,6 +79,7 @@ local function forgetOnClassicHide(w, tooltip, tipOf)
         forget(tip)
       end
     end
+    own[name] = index[name]
   end
 end
 
