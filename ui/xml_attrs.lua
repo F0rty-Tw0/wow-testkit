@@ -43,13 +43,17 @@ end
 local function skip() end
 
 -- source: confirmed (row X27) Blizzard_SharedXML/UI.xsd:18-30 FRAMESTRATA, the type of frameStrata (:836); assumed:
--- another value, in any case, is reported and ignored, so the frame keeps its strata.
+-- another value, in any case, is reported and ignored, so the frame keeps its strata. PARENT (tbc 70577 UI.xsd:18-31, the
+-- default) means inherit, so it sets nothing; assumed the same on retail, whose UI.xsd leaves it out.
 local FRAMESTRATA = {}
 for _, strata in ipairs({ "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP", "BLIZZARD" }) do
   FRAMESTRATA[strata] = true
 end
 
 local function frameStrata(_, frame, _, value, node, session)
+  if value:upper() == "PARENT" then
+    return
+  end
   if FRAMESTRATA[value:upper()] then
     return callIfPresent(frame, "SetFrameStrata", value)
   end

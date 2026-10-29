@@ -102,14 +102,15 @@ local function test_a_bogus_anchor_point_or_frame_strata_is_reported_and_ignored
   local xml = [[<Ui>
 <Frame name="BadPoint"><Anchors><Anchor point="BOGUS"/><Anchor point="TOP" relativePoint="NOPE"/></Anchors></Frame>
 <Frame name="BadStrata" frameStrata="BOGUS"><Frames><Frame name="BadStrataChild"/></Frames></Frame>
-<Frame name="LowerOk" frameStrata="dialog"><Anchors><Anchor point="center"/></Anchors></Frame></Ui>]]
+<Frame name="LowerOk" frameStrata="dialog"><Anchors><Anchor point="center"/></Anchors></Frame>
+<Frame name="InheritOk" frameStrata="PARENT"/></Ui>]]
   withBrokenXml(xml, function(w, ns, info)
     A.same(w.errors, {})
     local report = table.concat(info.report, "\n")
     A.contains(report, "Ui.xml:2: <Anchor> point 'BOGUS' is not a FRAMEPOINT; anchor skipped")
     A.contains(report, "Ui.xml:2: <Anchor> relativePoint 'NOPE' is not a FRAMEPOINT; anchor skipped")
     A.contains(report, "Ui.xml:3: frameStrata 'BOGUS' is not a FRAMESTRATA; ignored")
-    A.eq(report:find("dialog", 1, true) or report:find("center", 1, true), nil)
+    A.eq(report:find("dialog", 1, true) or report:find("center", 1, true) or report:find("PARENT", 1, true), nil)
     A.same({ _G.BadPoint:GetNumPoints(), _G.BadStrata:GetFrameStrata(), _G.LowerOk:GetNumPoints() }, { 0, "MEDIUM", 1 })
     A.eq(_G.BadStrataChild:GetParent(), _G.BadStrata)
     A.eq(ns.late, true)
