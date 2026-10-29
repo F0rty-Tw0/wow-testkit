@@ -153,14 +153,15 @@ function M.install(w)
     return false
   end, State.ALL)
   -- source: assumed (row BU10) no installed data lists the members of Enum.GameRule, so none is invented: the table is empty,
-  -- Enum.GameRule.<Name> is nil and C_GameRules.IsGameRuleActive(nil) answers nothing, i.e. no rule is active.
+  -- Enum.GameRule.<Name> is nil and C_GameRules.IsGameRuleActive(nil) answers nothing, i.e. no rule is active. Every
+  -- flavor's GameRules doc types values as GameRule, and the classic Lua reads it too.
   if w.manifest.enums.GameRule == nil then
-    define(w, "Enum.GameRule", {}, { "retail", "forever" })
+    define(w, "Enum.GameRule", {}, State.ALL)
   end
   -- source: confirmed (row G28) the members of Ketho's retail LuaEnum dump; no API doc lists Enum.GameMode, but every
   -- flavor's GameRules doc types values as GameMode; assumed the same members off retail.
   if w.manifest.enums.GameMode == nil then
-    w:install("Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 })
+    define(w, "Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 }, State.ALL)
   end
   -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
   -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
