@@ -188,7 +188,9 @@ end
 -- source: confirmed (row X25) retail MailFrame.xml:173 `<Button name="SendMailAttachment" parentArray=
 -- "SendMailAttachments" virtual="true">`, used as `<Button name="SendMailAttachment1" inherits="SendMailAttachment">`
 -- (:697-700, no parentArray of their own), and MailFrame.lua:965 reads `SendMailFrame.SendMailAttachments[i]`: the
--- template root's parentKey / parentArray reach obj's parent. The element's own, then the nearest template's, win (assumed).
+-- template root's parentKey / parentArray reach obj's parent when a frame inherits it in XML. Assumed: the same for a
+-- `CreateFrame(type, name, parent, "T")` template and for region templates (XML or CreateTexture / CreateFontString);
+-- the element's own, then the nearest template's, win.
 function M.applyTemplate(w, obj, node, origin)
   local session = M.session(origin.ctx, origin.file)
   local st = w.ui.state[obj]
