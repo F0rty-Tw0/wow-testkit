@@ -168,6 +168,25 @@ local function test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
   end)
 end
 
+-- The wrapper WrapScript puts on OnAttributeChanged takes the same attribute-set route: its pre and post bodies run secure
+-- for a tainted SetAttribute, and the handler it wrapped keeps its own (the addon's) taint.
+local function test_a_tainted_attribute_set_runs_the_wrapped_onattributechanged_bodies_assumed() -- TS15, TS20
+  H.withTaint("retail", function(w, Taint)
+    local hdr = _G.CreateFrame("Frame", "TKWrapAttrHdr", _G.UIParent, "SecureHandlerBaseTemplate")
+    local f = _G.CreateFrame("Frame", "TKWrapAttr", _G.UIParent)
+    H.probe(w, Taint)
+    H.run(w, "Foo", "TKWrapAttr:SetScript('OnAttributeChanged', function(_, name) if name == 'x' then TK_Orig = TK_Seen() end end)")
+    hdr:WrapScript(
+      f,
+      "OnAttributeChanged",
+      "if name == 'x' then self:SetAttribute('pre', value); return nil, 'm' end",
+      "self:SetAttribute('post', message)"
+    )
+    H.run(w, "Foo", "TKWrapAttr:SetAttribute('x', 5)")
+    A.same({ f:GetAttribute("pre"), f:GetAttribute("post"), _G.TK_Orig, #w.errors }, { 5, "m", "Foo", 0 })
+  end)
+end
+
 -- The client's behaviour, not a regression: only the attribute-set route runs a snippet secure for tainted callers.
 local function test_a_tainted_show_errors_in_the_onshow_snippet_as_the_client_does() -- TS15
   H.withTaint("retail", function(w)
@@ -606,6 +625,7 @@ return function()
   test_a_tainted_firing_of_any_non_attribute_script_cannot_run_its_snippet()
   test_a_tainted_click_in_combat_changes_no_protected_frame()
   test_a_tainted_state_attribute_runs_the_onstate_snippet_assumed()
+  test_a_tainted_attribute_set_runs_the_wrapped_onattributechanged_bodies_assumed()
   test_a_tainted_show_errors_in_the_onshow_snippet_as_the_client_does()
   test_a_tainted_state_attribute_in_combat_is_blocked_before_the_snippet()
   test_restricted_environment_hides_globals()
