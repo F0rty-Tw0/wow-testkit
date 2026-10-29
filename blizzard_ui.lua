@@ -201,6 +201,16 @@ local function loadDefaultBindings(w, extract, report)
   report.defaultBindings = path
 end
 
+local function isLoaded(report, name)
+  local key = name:lower()
+  for _, loaded in ipairs(report.loaded) do
+    if loaded:lower() == key then
+      return true
+    end
+  end
+  return false
+end
+
 -- Loads opts.targets (default M.TARGETS) and their dependencies from extract into w, in M.order, after the flavor's
 -- default bindings file; opts.fire(event, ...) fires ADDON_LOADED (default w:fire). Returns the report, also stored as
 -- w.blizzard: { loaded = { name... }, errors = { { addon, message } }, skipped = { { name, reason } }, notes,
@@ -226,8 +236,10 @@ function M.load(w, extract, opts)
   report.handler = keepErrors(w, report)
   loadDefaultBindings(w, extract, report)
   for _, entry in ipairs(entries) do
-    loadEntry(w, entry, report, fire)
-    w.errorHandler = report.handler
+    if not isLoaded(report, entry.name) then -- an ADDON_LOADED handler may have loaded it through LoadAddOn
+      loadEntry(w, entry, report, fire)
+      w.errorHandler = report.handler
+    end
   end
   return report
 end
@@ -236,16 +248,6 @@ local function append(target, list)
   for _, item in ipairs(list) do
     target[#target + 1] = item
   end
-end
-
-local function isLoaded(report, name)
-  local key = name:lower()
-  for _, loaded in ipairs(report.loaded) do
-    if loaded:lower() == key then
-      return true
-    end
-  end
-  return false
 end
 
 -- Loads name (and the dependencies M.order puts first, those already loaded skipped) into w after M.load ran, fires

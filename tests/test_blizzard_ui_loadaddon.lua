@@ -45,8 +45,21 @@ local function test_a_blizzard_addon_the_layer_lacks_falls_back_to_the_catalog_a
   end)
 end
 
+-- (B3: nothing reloads, assumed) an ADDON_LOADED handler that loads a later layer target during the layer load.
+local function test_a_target_loaded_early_by_an_addon_loaded_handler_loads_once()
+  local early = 'local f = CreateFrame("Frame")\nf:RegisterEvent("ADDON_LOADED")\n'
+    .. 'f:SetScript("OnEvent", function(_, _, name) if name == "Blizzard_MiniBase" then '
+    .. 'C_AddOns.LoadAddOn("Blizzard_MiniBar") end end)\n'
+  local addons = B.mini({ blizzard_minibase = { files = { ["minibase.lua"] = B.MINI.blizzard_minibase.files["minibase.lua"] .. early } } })
+  B.run(addons, { targets = { "Blizzard_MiniBar" } }, function(s)
+    A.same(_G.MiniLog, { "base", "adl:Blizzard_MiniBase", "bar", "more", "adl:Blizzard_MiniBar", "adl:Probe" })
+    A.same(s.w.blizzard.loaded, { "Blizzard_MiniBase", "Blizzard_MiniBar" })
+  end)
+end
+
 return function()
   test_a_runtime_load_keeps_the_handler_the_caller_set()
+  test_a_target_loaded_early_by_an_addon_loaded_handler_loads_once()
   test_a_scripted_blizzard_addon_answers_as_scripted_with_the_layer_on_assumed()
   test_a_blizzard_addon_the_layer_lacks_falls_back_to_the_catalog_assumed()
 end
