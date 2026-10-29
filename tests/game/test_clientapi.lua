@@ -145,14 +145,15 @@ local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
 end
 
 -- ActionButton.lua (Blizzard_ActionBar) compares C_GameRules.GetActiveGameMode() with Enum.GameMode.Plunderstorm on
--- every button update; source: row G28, the member values of Ketho's LuaEnum dump.
+-- every button update, and tbc's GameRulesUtil.lua indexes it at file scope; source: row G28, the member values of
+-- Ketho's retail LuaEnum dump (assumed the same off retail).
 local function test_game_mode_enum_has_the_client_members()
-  G.withGame("retail", function()
-    A.same({ _G.Enum.GameMode.Standard, _G.Enum.GameMode.Plunderstorm, _G.Enum.GameMode.WoWHack }, { 1, 2, 3 })
-  end)
-  G.withGame("tbc", function()
-    A.eq(_G.Enum.GameMode, nil) -- no classic source lists it; the kit adds none
-  end)
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    G.withGame(flavor, function()
+      local mode = _G.Enum.GameMode
+      A.same({ mode.Standard, mode.Plunderstorm, mode.WoWHack }, { 1, 2, 3 }, flavor)
+    end)
+  end
 end
 
 -- EventUtil.lua (Blizzard_SharedXML) asserts C_EventUtils.IsEventValid on each event ContinueAfterAllEvents waits for.

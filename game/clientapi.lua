@@ -157,9 +157,10 @@ function M.install(w)
   if w.manifest.enums.GameRule == nil then
     define(w, "Enum.GameRule", {}, { "retail", "forever" })
   end
-  -- source: confirmed (row G28) the members of Ketho's retail LuaEnum dump; no API doc lists Enum.GameMode.
+  -- source: confirmed (row G28) the members of Ketho's retail LuaEnum dump; no API doc lists Enum.GameMode, but every
+  -- flavor's GameRules doc types values as GameMode; assumed the same members off retail.
   if w.manifest.enums.GameMode == nil then
-    define(w, "Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 }, { "retail" })
+    w:install("Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 })
   end
   -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
   -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
