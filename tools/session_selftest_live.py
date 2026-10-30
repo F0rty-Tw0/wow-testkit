@@ -230,6 +230,20 @@ def test_sim_flag_serves_a_world_over_http(tmp):
         assert post_json(live, "/input", {"kind": "keyup", "key": "W"})[1]["ok"] is True
 
 
+def test_sim_world_survives_a_file_save(tmp):
+    root = demo_copy(tmp)
+    with running(tmp, root, watch=True, sim="WARRIOR") as live:
+        post_json(live, "/input", {"kind": "keydown", "key": "W"})
+        post_json(live, "/call/sim", {"action": "step", "seconds": 0.25})
+        post_json(live, "/input", {"kind": "keyup", "key": "W"})
+        before = post_json(live, "/call/sim", {"action": "world"})[1]["world"]["player"]["pos"]
+        assert before != {"x": 0, "y": -10}, before
+        main = root / "Main.lua"
+        main.write_text(main.read_text(encoding="utf-8").replace('"idle"', '"edited"'), encoding="utf-8")
+        assert wait_for_loads(live, 2), "no reload after a save"
+        assert post_json(live, "/call/sim", {"action": "world"})[1]["world"]["player"]["pos"] == before
+
+
 TESTS = [
     test_input_fire_slash_state_round_trip,
     test_point_click_over_http,
@@ -248,4 +262,5 @@ TESTS = [
     test_several_quick_saves_reload_once,
     test_shutdown_writes_the_file,
     test_sim_flag_serves_a_world_over_http,
+    test_sim_world_survives_a_file_save,
 ]
