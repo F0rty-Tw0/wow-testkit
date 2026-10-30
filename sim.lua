@@ -8,6 +8,7 @@ local Combat = require("combat")
 local SimKeys = require("sim_keys")
 local SimMove = require("sim_move")
 local SimRange = require("sim_range")
+local SimState = require("sim_state")
 local SimUpdate = require("sim_update")
 
 local DEFAULT_CLASS = "WARRIOR"
@@ -116,7 +117,7 @@ function M.install(w, sim)
     intents = {},
     clock = { t0 = w.now, carry = 0 },
     activity = 0,
-    hooks = { frame = {}, reset = {} },
+    hooks = { frame = {}, reset = {}, persist = {} },
   }
   countActivity(w)
   for _, unit in ipairs(UNITS) do
@@ -128,10 +129,18 @@ function M.install(w, sim)
 end
 
 -- Phase 2: what a login or a hot reload puts back on a world that phase 1 built: the fallback key commands and default
--- keys. simState (the saved sim of a hot reload) is Task 1.6's; nil is a fresh world.
-function M.restore(w, _simState)
+-- keys, then simState (Sim.export of the world a hot reload left, sim_state.lua) when given; nil is a fresh world.
+function M.restore(w, simState)
   SimKeys.install(w)
+  if simState then
+    SimState.restore(w, simState)
+  end
 end
+
+-- The world as plain data for a hot reload (SimState.export), and the hook a unit registers its own state on
+-- (SimState.persist: { export = fn(w) -> data, restore = fn(w, data) }).
+M.export = SimState.export
+M.persist = SimState.persist
 
 local function inGroup(actor)
   return actor.inParty == true or actor.inRaid == true

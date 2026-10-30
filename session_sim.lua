@@ -2,6 +2,7 @@
 -- (sim_world.lua) and reset puts the player back at the spawn. Later slices add actions to ACTIONS.
 local M = {}
 
+local SessionOptions = require("session_options")
 local Sim = require("sim")
 local SimWorld = require("sim_world")
 
@@ -73,6 +74,13 @@ function M.install(opts)
   local o = Sim.options(opts.sim)
 
   return { class = o.class, level = o.level, twoPhase = true }
+end
+
+-- Keeps sess's sim world for the session a reload opens with opts: sess.simState is its export when both have the sim and
+-- open on the same flavor ("auto" included), else nil, so a toggled sim or another flavor opens a fresh world.
+function M.carry(sess, opts)
+  local same = sess.w.sim and opts.sim and sess.w.flavor == SessionOptions.flavorOf(opts)
+  sess.simState = same and Sim.export(sess.w) or nil
 end
 
 -- Phase 2 of the install, after the bindings are in: what a login or a reload puts back on the sim world. prior is the

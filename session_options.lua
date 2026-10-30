@@ -102,11 +102,27 @@ local function toggleLayer(out, opts, on)
   out.blizzardUi = on and (out.blizzardLayer or true)
 end
 
+-- The sim a reload asks for: false is none, true or { class?, level? } Sim.options' answer. Raises "reload: sim...".
+local function simOf(sim)
+  if sim == false then
+    return nil
+  end
+  if sim ~= true and type(sim) ~= "table" then
+    error("reload: sim must be true, false or { class?, level? }", 0)
+  end
+  local ok, options = pcall(require("sim").options, sim)
+  if not ok then
+    error("reload: " .. tostring(options), 0)
+  end
+
+  return options
+end
+
 -- The options a reload of a session opened with opts uses: over's flavor ("auto" or a name in Flavors.list) and size
--- (a preset name or { width, height }) or screen, and blizzardUi (true or false: the layer on or off; on needs
--- opts.extract, so the layer never falls back to Client.find's extract); over's other fields are ignored, so the addon
--- folder, extract and session folder stay the process's. Raises, naming the field, on anything a world would refuse, so
--- a caller can run it before it touches the current world.
+-- (a preset name or { width, height }) or screen, blizzardUi (true or false: the layer on or off; on needs
+-- opts.extract, so the layer never falls back to Client.find's extract) and sim (simOf; nil keeps the session's own);
+-- over's other fields are ignored, so the addon folder, extract and session folder stay the process's. Raises, naming
+-- the field, on anything a world would refuse, so a caller can run it before it touches the current world.
 function M.reopen(opts, over)
   if over.keepSaved ~= nil and type(over.keepSaved) ~= "boolean" then
     error("reload: keepSaved must be true or false", 0)
@@ -138,6 +154,9 @@ function M.reopen(opts, over)
   end
   if over.blizzardUi ~= nil then
     toggleLayer(out, opts, over.blizzardUi)
+  end
+  if over.sim ~= nil then
+    out.sim = simOf(over.sim)
   end
   Screen.normalize(out.screen)
   return out
