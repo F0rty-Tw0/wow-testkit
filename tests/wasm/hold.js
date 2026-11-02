@@ -1,8 +1,9 @@
 // Keeps the load event of a test page open, so a headless dump waits for the tests. A dump fires at load, and
 // --virtual-time-budget and --timeout both dump while a worker still runs. An iframe document that stays open holds
-// load; it is closed when #out gets data-done (or after 50 s, so the dump still happens). Load listeners cannot run
-// while load is held, so the ones the page registers (tests/viewer/unit.js) run at DOMContentLoaded instead.
-// TKPage.load(name) loads the script a ?name=<file:/// url> query points at (a generated fixture, fixture_js.py).
+// load; it is closed when #out gets data-done (or after 50 s, or the ms of ?hold=, so the dump still happens). Load
+// listeners cannot run while load is held, so the ones the page registers (tests/viewer/unit.js) run at
+// DOMContentLoaded instead. TKPage.load(name) loads the script a ?name=<file:/// url> query points at (a generated
+// fixture, fixture_js.py).
 (function () {
   'use strict';
 
@@ -13,7 +14,8 @@
   hold.open();
   hold.write('<p>holding');
   const release = () => hold.close();
-  setTimeout(release, 50000);
+  const holdMs = Number(new URLSearchParams(location.search).get('hold')) || 50000;
+  setTimeout(release, holdMs);
 
   window.TKPage = {
     load(name) {
