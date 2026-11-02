@@ -30,6 +30,7 @@ require("scenario_snapshot").extend(Scenario)
 require("scenario_combat").extend(Scenario)
 require("scenario_taint").extend(Scenario)
 require("scenario_windows").extend(Scenario)
+require("scenario_sim").extend(Scenario)
 ScenarioBlizzard.extend(Scenario)
 
 -- Raised by s:login when the addon is skipped on the flavor: it ends the run, and the matrix reports the flavor
@@ -168,6 +169,9 @@ end
 
 function Scenario:advance(seconds)
   local w = self.w
+  if w.sim then
+    error("sim clock owns time; use s:simStep", 2)
+  end
   w:run(ENGINE, w.advance, w, seconds)
 end
 

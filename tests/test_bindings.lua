@@ -36,7 +36,7 @@ local function test_xml_binding_runs_its_body_with_keystate()
   end)
 end
 
-local function test_run_on_up_attribute_runs_on_key_up_only()
+local function test_run_on_up_attribute_runs_on_key_down_and_up()
   local up = '<Binding name="UP_TEST" runOnUp="true">UpTestLog = (UpTestLog or "") .. keystate .. ";"</Binding>'
   local down = '<Binding name="DOWN_TEST">DownTestLog = (DownTestLog or "") .. keystate .. ";"</Binding>'
   local xml = "<Bindings>" .. up .. down .. "</Bindings>"
@@ -46,7 +46,7 @@ local function test_run_on_up_attribute_runs_on_key_up_only()
     _G.SetBinding("D", "DOWN_TEST")
     Keys.press(sess.w, "U", {})
     Keys.press(sess.w, "D", {})
-    A.eq(_G.UpTestLog, "up;")
+    A.eq(_G.UpTestLog, "down;up;")
     A.eq(_G.DownTestLog, "down;")
   end)
 end
@@ -113,7 +113,7 @@ return function()
   test_wtf_lines_bind_keys()
   test_wtf_ignores_other_lines_and_lists_every_key()
   test_xml_binding_runs_its_body_with_keystate()
-  test_run_on_up_attribute_runs_on_key_up_only()
+  test_run_on_up_attribute_runs_on_key_down_and_up()
   test_click_binding_clicks_the_frame()
   test_set_binding_without_command_unbinds()
   test_override_binding_wins_and_clears()

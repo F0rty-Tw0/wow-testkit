@@ -5,11 +5,17 @@ local M = {}
 
 local Actors = require("combat_actors")
 local Combat = require("combat")
+local SimMove = require("sim_move")
+local SimUpdate = require("sim_update")
 
 local DEFAULT_CLASS = "WARRIOR"
 local DEFAULT_LEVEL = 10
 local MAX_LEVEL = 100
 local PLAYER = "player"
+local FRAME = 1 / 60
+
+-- The units that hang their state, fakes and frame steps on a new sim world, in this order.
+local UNITS = { SimMove }
 
 -- source: assumed the kit's one map: the whole sim world is this uiMapID, and the player stands at map (0.5, 0.6).
 M.MAP_ID = 1
@@ -112,8 +118,34 @@ function M.install(w, sim)
     hooks = { frame = {}, reset = {} },
   }
   countActivity(w)
+  for _, unit in ipairs(UNITS) do
+    unit.install(w)
+  end
   w:setMock({ zone = { mapID = M.MAP_ID, position = { x = MAP_POSITION.x, y = MAP_POSITION.y } } })
   return w.sim
+end
+
+-- Runs seconds of the sim clock: whole 1/60 s frames (the remainder carries to the next step), each running the frame
+-- hooks and then the world clock; then one OnUpdate pass with the whole step as elapsed. Returns whether the world
+-- changed and how many OnUpdate scripts ran.
+function M.step(w, seconds)
+  if type(seconds) ~= "number" or not (seconds >= 0 and seconds < math.huge) then
+    error("Sim.step: seconds must be a finite non-negative number, got " .. tostring(seconds), 2)
+  end
+  local clock = w.sim.clock
+  local before = w.sim.activity
+  local acc = clock.carry + seconds
+  local frames = math.floor(acc * 60 + 1e-9)
+  clock.carry = acc - frames * FRAME
+  for _ = 1, frames do
+    for _, fn in ipairs(w.sim.hooks.frame) do
+      fn(w, FRAME)
+    end
+    w:advance(FRAME)
+  end
+  local updates = SimUpdate.run(w, seconds)
+
+  return w.sim.activity ~= before or updates > 0, updates
 end
 
 return M

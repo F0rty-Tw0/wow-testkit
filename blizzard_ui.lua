@@ -24,6 +24,8 @@ M.TARGETS = { "Blizzard_ActionBar", "Blizzard_UnitFrame", "Blizzard_EditMode" }
 M.BINDINGS_FILES = {
   retail = "addons/blizzard_framexml/bindings_standard.xml",
   mists = "addons/blizzard_framexml/bindings_mists.xml",
+  tbc = "addons/blizzard_framexml/bindings_tbc.xml",
+  vanilla = "addons/blizzard_framexml/bindings_vanilla.xml",
 }
 
 local ENGINE = "blizzard"

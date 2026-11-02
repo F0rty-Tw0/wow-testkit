@@ -179,15 +179,16 @@ local function clickBinding(w, target, keystate)
   end
 end
 
--- source: assumed (K3) a command runs on key down with keystate "down"; one marked runOnUp runs on key up only, with
--- "up". A command the kit does not know (a spell, an action) does nothing.
+-- source: confirmed (retail 70575 bindings_standard.xml:79,990,1200,1221) a command runs on key down with keystate
+-- "down"; one marked runOnUp runs on down and on key up, with "up", and branches on keystate itself. A command the kit
+-- does not know (a spell, an action) does nothing.
 function M.run(w, command, keystate)
   local target = command:match("^" .. CLICK .. "%s+(.+)$")
   if target then
     return clickBinding(w, target, keystate)
   end
   local entry = w.bindings.commands[command]
-  if entry and entry.runOnUp == (keystate == "up") then
+  if entry and (keystate == "down" or entry.runOnUp) then
     w:callAsAddon(entry.chunk, keystate)
   end
 end
