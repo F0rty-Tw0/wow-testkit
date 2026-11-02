@@ -207,8 +207,8 @@ local function restoreActors(w, state)
   return byGuid
 end
 
--- A saved roster is set again and a saved kind with no roster is set as the kind alone; a world saved in no group
--- leaves the group a session state gave the fresh one.
+-- A saved roster is set again and a saved kind with no roster is set as the kind alone; a world saved in no group clears
+-- the group a session state gave the fresh one.
 local function restoreGroup(w, g, byGuid)
   if not g then
     Group.clear(w)
