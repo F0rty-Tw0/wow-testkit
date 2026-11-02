@@ -106,6 +106,25 @@ function M.apply(w, actor, spec)
   return aura
 end
 
+-- Puts a reloaded world's auras back on actor without the "aura" hook: saved = { auras = { AuraData... }, auraSeq }, each
+-- aura a plain copy whose expiry timer is re-armed with what is left of it; an aura already expired stays off.
+function M.restore(w, actor, saved)
+  for _, kept in ipairs(saved.auras or {}) do
+    local left = kept.expirationTime - w.now
+    if kept.duration <= 0 or left > 0 then
+      local aura = State.merge({}, kept)
+      actor.auras[#actor.auras + 1] = aura
+      if kept.duration > 0 then
+        timers[aura] = Combat.later(w, left, function()
+          M.remove(w, actor, aura)
+        end)
+      end
+    end
+  end
+  actor.auraSeq = saved.auraSeq
+  M.sumAbsorbs(actor)
+end
+
 function M.remove(w, actor, aura)
   local at = indexOf(actor, aura)
   if not at then

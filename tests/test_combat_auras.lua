@@ -152,6 +152,20 @@ local function test_despawn_cancels_the_expiry_timers()
   end)
 end
 
+local function test_restore_puts_live_auras_back_silently_and_drops_expired_ones()
+  H.withCombat("retail", function(w)
+    local ann = H.pair(w)
+    local log = H.watch(w, { "UNIT_AURA" })
+    local live = { spellId = H.SPELLS.CURSE, auraInstanceID = 4, duration = 10, expirationTime = w.now + 3 }
+    local gone = { spellId = H.SPELLS.WARD, auraInstanceID = 2, duration = 10, expirationTime = w.now - 1 }
+    Auras.restore(w, ann, { auras = { gone, live }, auraSeq = 4 })
+    A.same({ #ann.auras, ann.auras[1].auraInstanceID, ann.auraSeq, #log }, { 1, 4, 4, 0 })
+    A.truthy(ann.auras[1] ~= live, "a copy, not the saved table")
+    w:advance(3)
+    A.eq(#ann.auras, 0, "the re-armed timer ends it")
+  end)
+end
+
 local function test_buff_and_debuff_data_by_index_match_unit_aura()
   H.withCombat("vanilla", function(w)
     local ann = H.pair(w)
@@ -188,6 +202,7 @@ return function()
   test_hook_payload_names_the_changed_instance()
   test_auras_follow_the_actor_across_tokens()
   test_despawn_cancels_the_expiry_timers()
+  test_restore_puts_live_auras_back_silently_and_drops_expired_ones()
   test_buff_and_debuff_data_by_index_match_unit_aura()
   test_every_flavor_installs_the_readers()
 end

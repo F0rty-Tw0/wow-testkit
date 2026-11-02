@@ -110,8 +110,9 @@ function M.tokens(w, actor)
 end
 
 -- spec: { kind, name, token?, hostile?, level?, health?, healthMax?, power?, powerMax?, powerType? = "MANA", className?,
--- classFile?, raceName?, raceFile?, faction?, role?, pos? = { x, y }, npcId? }. Health and power default to their maximum,
--- a maximum to the value given, else 100 health and 0 power.
+-- classFile?, raceName?, raceFile?, faction?, role?, pos? = { x, y }, npcId?, guid? }. Health and power default to their
+-- maximum, a maximum to the value given, else 100 health and 0 power. guid is for a restored actor only (sim_state.lua):
+-- it keeps that GUID instead of counting a new one.
 function M.add(w, spec)
   local c = w.combat
   if not GUID_TYPES[spec.kind] then
@@ -145,7 +146,7 @@ function M.add(w, spec)
     powerType = powerNumber(powerToken),
     pos = spec.pos and { x = spec.pos.x, y = spec.pos.y } or nil,
   }
-  actor.guid = newGuid(c, spec.kind, actor.npcId)
+  actor.guid = spec.guid or newGuid(c, spec.kind, actor.npcId)
   State.fill(actor, DEFAULTS)
   register(c, actor)
   if spec.token then
