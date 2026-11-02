@@ -13,7 +13,7 @@ local Nameplates = require("combat_nameplates")
 local State = require("combat_state")
 
 local VERSION = 1
-local PLAYER, MOUSEOVER = "player", "mouseover"
+local MOUSEOVER = "mouseover"
 
 local function copy(t)
   return GameState.merge({}, t)
@@ -209,6 +209,8 @@ local function restoreBindings(w, state, byGuid)
       members[i] = byGuid[guid]
     end
     Group.set(w, members, { raid = g.raid, leader = g.leader })
+  else
+    Group.clear(w)
   end
   Actors.setTarget(w, w.sim.player, byGuid[state.player.targetGuid])
   local mouseover = byGuid[state.mouseover]
@@ -229,7 +231,8 @@ local function hasLiveHostileFoe(w, actor)
 end
 
 -- The fights again, then the AI of every fighting actor that has one (its timers start over from now); a player still in
--- combat with no live hostile foe gets the drop that was pending.
+-- combat with no live hostile foe gets the drop that was pending, and a player out of combat leaves a combat the session
+-- state turned on.
 local function restoreCombat(w, state, byGuid)
   for _, saved in ipairs(state.actors) do
     for _, guid in ipairs(saved.foes) do
@@ -245,8 +248,11 @@ local function restoreCombat(w, state, byGuid)
       Ai.start(w, actor)
     end
   end
-  if state.combat.flag and not hasLiveHostileFoe(w, w.unitState.byToken[PLAYER]) then
+  local flag = state.combat.flag
+  if flag and not hasLiveHostileFoe(w, w.sim.player) then
     State.restoreDrop(w, state.combat.dropIn)
+  elseif not flag and w.mock.combat then
+    State.restoreOff(w)
   end
 end
 

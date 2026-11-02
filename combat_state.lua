@@ -95,6 +95,13 @@ function M.restoreDrop(w, seconds)
   end
 end
 
+-- Takes a reloaded world out of a combat the saved world was not in, without PLAYER_REGEN_ENABLED (the addon never saw
+-- it begin); the "lockdown" hook still runs.
+function M.restoreOff(w)
+  w:setMock({ combat = false })
+  Combat.emit(w, "lockdown", false)
+end
+
 local function cancelDrop(c)
   if c.dropTimer then
     c.dropTimer:Cancel()
