@@ -19,6 +19,7 @@ local SessionDev = require("session_dev")
 local SessionInput = require("session_input")
 local SessionOptions = require("session_options")
 local SessionSaved = require("session_saved")
+local SessionSim = require("session_sim")
 local SessionSlash = require("session_slash")
 local SessionState = require("session_state")
 local SessionView = require("session_view")
@@ -103,6 +104,7 @@ local function open(opts, prior)
   end
   local sopts = { addon = name, root = root, flavor = flavor, screen = opts.screen, client = extract, saved = saved }
   sopts.blizzardUi = opts.blizzardUi
+  sopts.sim = SessionSim.install(opts)
   local s = Scenario.new(sopts)
   local folder = folderName(root)
   local sess = setmetatable({ opts = opts, s = s, w = s.w, folder = folder, addon = name or folder, seq = 0, loads = 1 }, Session)
@@ -118,6 +120,7 @@ local function open(opts, prior)
     SessionState.apply(sess, opts.state)
   end
   loadBindings(sess, opts)
+  SessionSim.restore(sess, prior)
   if name then
     login(sess, prior ~= nil)
     if not sess.skipped then
@@ -129,10 +132,11 @@ local function open(opts, prior)
   return sess
 end
 
--- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state?, blizzardUi? } (flavor
+-- opts: { addonDir, flavor? = "auto", screen?, sessionDir?, bindingsFile?, extract?, state?, blizzardUi?, sim? } (flavor
 -- "auto" is Session.autoFlavor's pick from the TOC; extract is a directory of tools/client's output; sessionDir holds
--- saved.lua; blizzardUi as Scenario.new's, and needs extract). Raises only when no world can be built (an unknown flavor,
--- another world still active) or on blizzardUi without extract, which SessionOptions.reopen refuses on a reload too.
+-- saved.lua; blizzardUi as Scenario.new's, and needs extract; sim as Scenario.new's, installed in two phases,
+-- session_sim.lua). Raises only when no world can be built (an unknown flavor, another world still active) or on
+-- blizzardUi without extract, which SessionOptions.reopen refuses on a reload too.
 function M.new(opts)
   if opts.blizzardUi and not opts.extract then
     error("Session.new: blizzardUi needs extract, so the layer never falls back to Client.find's extract", 0)
@@ -248,6 +252,7 @@ local METHODS = {
   end,
   combat = SessionCombat.combat,
   combatlog = SessionCombat.log,
+  sim = SessionSim.call,
 }
 
 -- The reply table for method: { ok = false, error } for an unknown method, a malformed request or a raise.

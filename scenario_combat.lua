@@ -44,7 +44,7 @@ function M.extend(Scenario)
     w:run(ENGINE, Ai.pull, w, enemy)
   end
 
-  -- entries: see combat_timeline.lua. Each runs that many seconds from now, as s:advance moves the clock.
+  -- entries: see combat_timeline.lua. Each runs that many seconds from now, as the clock moves (s:advance, or s:simStep on a sim world).
   function Scenario:combat(entries)
     local w = self.w
     Combat.install(w)
