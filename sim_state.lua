@@ -1,5 +1,5 @@
 -- SimState: a sim world as plain data and back, for a hot reload (session_sim.lua carries it to the fresh world). export
--- reads the clock, the player, the other actors with their auras and fights, the group, the held keys and every state a
+-- reads the clock, the player and the other actors with their auras and fights, the group, the held keys and every state a
 -- unit registered with persist; restore puts it back in phase 2 of the fresh world's install. A cast or a channel is never
 -- kept: the reload ends it, and no UNIT_SPELLCAST_STOP is sent for it.
 local M = {}
@@ -65,6 +65,8 @@ local function exportPlayer(player)
     healthMax = player.healthMax,
     power = player.power,
     powerMax = player.powerMax,
+    auras = copy(player.auras),
+    auraSeq = player.auraSeq,
     targetGuid = player.targetGuid,
   }
 end
@@ -155,7 +157,7 @@ local function resumeClock(w, state)
   w.sim.clock.carry = state.carry
 end
 
--- The player's place, class, level, health and power, set without hooks; the saved class wins over the session's.
+-- The player's place, class, level, health, power and auras, set without hooks; the saved class wins over the session's.
 local function restorePlayer(w, state)
   local sim, saved = w.sim, state.player
   local player = sim.player
@@ -165,6 +167,7 @@ local function restorePlayer(w, state)
   player.facing = saved.facing
   player.healthMax, player.health = saved.healthMax, saved.health
   player.powerMax, player.power = saved.powerMax, saved.power
+  Auras.restore(w, player, saved)
 end
 
 local function restoreActor(w, saved)
