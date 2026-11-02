@@ -72,10 +72,12 @@ local function exportPlayer(player)
   }
 end
 
+-- The roster, or { kind } for a group kind a state request set with no roster behind it, or nil when the player is in no
+-- group.
 local function exportGroup(w)
   local g = w.combat.group
   if not g then
-    return nil
+    return w.mock.group ~= "none" and { kind = w.mock.group } or nil
   end
   local members = {}
   for i, actor in ipairs(g.members) do
@@ -205,17 +207,24 @@ local function restoreActors(w, state)
   return byGuid
 end
 
-local function restoreBindings(w, state, byGuid)
-  local g = state.group
-  if g then
+-- A saved roster is set again and a saved kind with no roster is set as the kind alone; a world saved in no group
+-- leaves the group a session state gave the fresh one.
+local function restoreGroup(w, g, byGuid)
+  if not g then
+    Group.clear(w)
+  elseif not g.members then
+    w:setMock({ group = g.kind })
+  else
     local members = {}
     for i, guid in ipairs(g.members) do
       members[i] = byGuid[guid]
     end
     Group.set(w, members, { raid = g.raid, leader = g.leader })
-  else
-    Group.clear(w)
   end
+end
+
+local function restoreBindings(w, state, byGuid)
+  restoreGroup(w, state.group, byGuid)
   Actors.setTarget(w, w.sim.player, byGuid[state.player.targetGuid])
   local mouseover = byGuid[state.mouseover]
   if mouseover then

@@ -64,6 +64,16 @@ local function test_a_flavor_change_leaves_the_sim_combat_behind()
   end)
 end
 
+-- A group kind set only through a state request has no roster in the sim world; the reload keeps it.
+local function test_a_group_set_by_a_state_request_survives_a_reload()
+  H.withSession({ sim = {} }, function(sess)
+    sess:call("state", { group = "party" })
+    reloaded(sess, function(fresh)
+      A.same({ _G.IsInGroup(), fresh.state.group }, { true, "party" })
+    end)
+  end)
+end
+
 -- Sim.restore straight on a world that a session state put in combat and in a party: the saved world had neither.
 local function test_restore_turns_off_the_combat_and_group_the_saved_world_lacks()
   local state
@@ -112,6 +122,7 @@ return function()
   test_a_combat_the_sim_dropped_stays_dropped_after_a_reload()
   test_a_group_the_sim_cleared_stays_cleared_after_a_reload()
   test_a_flavor_change_leaves_the_sim_combat_behind()
+  test_a_group_set_by_a_state_request_survives_a_reload()
   test_restore_turns_off_the_combat_and_group_the_saved_world_lacks()
   test_a_restore_that_raises_falls_back_to_a_fresh_sim_world()
 end
