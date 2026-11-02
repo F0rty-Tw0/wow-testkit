@@ -88,7 +88,7 @@ local function test_the_players_auras_survive_with_their_time_left()
   end)
 end
 
-local function test_a_walk_survives_and_the_viewer_keyup_stops_it()
+local function test_a_walk_survives_and_the_viewer_keyup_stops_it_assumed()
   withSim(function(sess)
     sess:call("input", { kind = "keydown", key = "W" })
     sess:call("sim", { action = "step", seconds = 0.25 })
@@ -281,7 +281,7 @@ end
 return function()
   test_the_world_survives_a_reload()
   test_the_players_auras_survive_with_their_time_left()
-  test_a_walk_survives_and_the_viewer_keyup_stops_it()
+  test_a_walk_survives_and_the_viewer_keyup_stops_it_assumed()
   test_a_pending_combat_drop_resumes()
   test_a_fighting_ai_swings_again_after_the_reload()
   test_pending_timers_keep_their_time_left()

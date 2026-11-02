@@ -8,9 +8,9 @@ local Bindings = require("bindings")
 local ADDON = "SimKit"
 local ACTION_BUTTONS = 12
 
--- source: confirmed (retail 70575 bindings_standard.xml:79,990,1200,1221) movement, action buttons and
--- TARGETNEARESTENEMY are runOnUp and branch on keystate; TOGGLEAUTORUN, OPENALLBAGS and TOGGLEGAMEMENU are not runOnUp
--- (a runOnUp toggle would open on down and close on up). Every body is guarded: a missing global does nothing.
+-- source: confirmed (row SM10) movement, action buttons and TARGETNEARESTENEMY are runOnUp and branch on keystate;
+-- TOGGLEAUTORUN, OPENALLBAGS and TOGGLEGAMEMENU are not runOnUp (a runOnUp toggle would open on down and close on up).
+-- Every body is guarded: a missing global does nothing.
 -- NAME -> { body, runOnUp }.
 M.COMMANDS = {
   TOGGLEAUTORUN = { body = "if ToggleAutoRun then ToggleAutoRun() end" },
@@ -22,7 +22,7 @@ M.COMMANDS = {
   },
 }
 
--- source: confirmed (retail 70575 bindings_standard.xml:79,990) command -> the Start and Stop calls of its walk.
+-- source: confirmed (row SM10) command -> the Start and Stop calls of its walk.
 local MOVEMENT = {
   MOVEFORWARD = "MoveForward",
   MOVEBACKWARD = "MoveBackward",
@@ -42,7 +42,7 @@ for n = 1, ACTION_BUTTONS do
   M.COMMANDS["ACTIONBUTTON" .. n] = { body = pick:format(n), runOnUp = true }
 end
 
--- source: assumed (spec 6.1) the retail default keys of these commands: WASD, Q and E to strafe, NUMLOCK for autorun, TAB
+-- source: assumed (row SM9) the retail default keys of these commands: WASD, Q and E to strafe, NUMLOCK for autorun, TAB
 -- for the next enemy, B for the bags, ESCAPE for the game menu and 1 to 0, - and = for the twelve action buttons.
 -- KEY -> command.
 M.KEYS = {
@@ -88,8 +88,8 @@ end
 -- Loads the fallback commands the world lacks (an addon's or Blizzard's command of the same name stays) and binds each
 -- default key nothing has bound.
 function M.install(w)
-  -- source: assumed (row R6) the client runs a Blizzard binding secure, so
-  -- it may call a protected function; the fallback commands stand in for Blizzard's and run secure too.
+  -- source: assumed (Ruling R6) the client runs a Blizzard binding secure, so it may call a protected function; the
+  -- fallback commands stand in for Blizzard's and run secure too.
   if w.taint then
     w.taint.secureAddons[ADDON] = true
   end

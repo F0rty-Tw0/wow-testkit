@@ -219,7 +219,7 @@ local function test_default_bindings_xml_loads_with_the_layer_assumed()
   s.w:destroy()
 end
 
--- source: assumed (row BU1) the extract names a bindings file for tbc and vanilla too; forever has none (spec 11 R3).
+-- source: assumed (row BU1) the extract names a bindings file for tbc and vanilla too; forever has none (Ruling R3).
 local function test_default_bindings_files_cover_tbc_and_vanilla_assumed()
   A.eq(BlizzardUi.BINDINGS_FILES.tbc, "addons/blizzard_framexml/bindings_tbc.xml")
   A.eq(BlizzardUi.BINDINGS_FILES.vanilla, "addons/blizzard_framexml/bindings_vanilla.xml")

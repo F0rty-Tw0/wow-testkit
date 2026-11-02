@@ -63,7 +63,7 @@ local function walk(w, frame, elapsed, marked)
   return count
 end
 
--- source: assumed (spec 4.4) one OnUpdate call per sim step, with the whole step as elapsed, not one per 1/60 frame.
+-- source: assumed (row SM14) one OnUpdate call per sim step, with the whole step as elapsed, not one per 1/60 frame.
 -- Returns how many OnUpdate scripts ran.
 function M.run(w, elapsed)
   local count = 0

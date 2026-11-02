@@ -36,7 +36,7 @@ local function keyboardFrame(propagate)
   return seen
 end
 
-local function test_default_keys_name_their_commands()
+local function test_default_keys_name_their_commands_assumed()
   H.each({}, function()
     for key, command in pairs(DEFAULT_KEYS) do
       A.eq(_G.GetBindingAction(key), command, key)
@@ -276,7 +276,7 @@ local function test_key_needs_a_sim_world_and_a_state()
 end
 
 return function()
-  test_default_keys_name_their_commands()
+  test_default_keys_name_their_commands_assumed()
   test_movement_commands_run_on_up_and_toggles_do_not()
   test_a_toggle_runs_once_per_press()
   test_a_missing_global_does_nothing()

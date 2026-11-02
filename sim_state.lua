@@ -260,7 +260,7 @@ local function restoreCombat(w, state, byGuid)
   end
 end
 
--- source: assumed (spec 6.1) a key held across a reload stays held: the walk goes on, and the viewer's keyup (which runs
+-- source: assumed (row SM15) a key held across a reload stays held: the walk goes on, and the viewer's keyup (which runs
 -- the command's up half) stops it. Only the command is kept; the frames its down reached are gone with the old world.
 local function restoreInput(w, state)
   SimMove.set(w, state.intents)

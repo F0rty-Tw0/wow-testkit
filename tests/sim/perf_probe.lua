@@ -1,4 +1,4 @@
--- AC6 probe: the CPU cost of one `sim step` call on a walking player (spec 13). Usage (python tools/run51.py --script):
+-- AC6 probe: the CPU cost of one `sim step` call on a walking player. Usage (python tools/run51.py --script):
 -- perf_probe.lua <addon-dir> <extract-dir|->
 -- With an extract the session loads Blizzard's UI as well. Prints `sim step median=<ms> p95=<ms> blizzardUi=<bool>`.
 -- os.clock ticks in whole milliseconds, so 300 steps are too fast to time one by one: the probe runs ROUNDS x 300

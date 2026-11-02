@@ -27,14 +27,14 @@ local function ally(w, y)
   return ann
 end
 
-local function test_distance_subtracts_both_reaches()
+local function test_distance_subtracts_both_reaches_assumed()
   H.near(SimRange.distance(at(0, -10), at(0, 10)), 17)
   H.near(SimRange.distance(at(0, -10), at(0, 10, { reach = 0 })), 18.5)
   A.eq(SimRange.distance(at(0, -10), at(0, -9)), 0)
   A.eq(SimRange.REACH, 1.5)
 end
 
-local function test_to_wow_swaps_the_axes()
+local function test_to_wow_swaps_the_axes_assumed()
   A.same({ SimRange.toWow({ x = 3, y = 7 }) }, { 7, -3 })
 end
 
@@ -54,7 +54,7 @@ local function test_in_front_follows_the_facing()
   A.eq(SimRange.inFront(north, at(0, 0)), true)
 end
 
-local function test_unit_position_swaps_the_axes_for_the_player_only()
+local function test_unit_position_swaps_the_axes_for_the_player_only_assumed()
   H.each({}, function(w, s)
     mob(w, 10)
     s:place(3, 7)
@@ -70,7 +70,7 @@ local function test_unit_position_of_a_party_member()
   end)
 end
 
-local function test_unit_in_range_is_forty_yards_for_the_group()
+local function test_unit_in_range_is_forty_yards_for_the_group_assumed()
   H.each({}, function(w)
     local ann = ally(w, 45)
     mob(w, 10)
@@ -81,7 +81,7 @@ local function test_unit_in_range_is_forty_yards_for_the_group()
   end)
 end
 
-local function test_check_interact_distance_uses_the_index_range()
+local function test_check_interact_distance_uses_the_index_range_assumed()
   H.each({}, function(w)
     local boss = mob(w, -10 + 3 + 8) -- 8 yd after both reaches
     A.eq(_G.CheckInteractDistance("boss1", 3), true)
@@ -131,7 +131,7 @@ local function test_spell_range_reads_the_record()
   end)
 end
 
-local function test_spell_min_range_and_the_global_form()
+local function test_spell_min_range_and_the_global_form_assumed()
   H.each({}, function(w, s)
     w:setMock({ spells = { [900103] = { name = "Kit Far", minRange = 8, maxRange = 30 } } })
     mob(w, 10)
@@ -159,16 +159,16 @@ local function test_item_range_needs_a_max_range()
 end
 
 return function()
-  test_distance_subtracts_both_reaches()
-  test_to_wow_swaps_the_axes()
+  test_distance_subtracts_both_reaches_assumed()
+  test_to_wow_swaps_the_axes_assumed()
   test_to_map_follows_the_map_rect()
   test_in_front_follows_the_facing()
-  test_unit_position_swaps_the_axes_for_the_player_only()
+  test_unit_position_swaps_the_axes_for_the_player_only_assumed()
   test_unit_position_of_a_party_member()
-  test_unit_in_range_is_forty_yards_for_the_group()
-  test_check_interact_distance_uses_the_index_range()
+  test_unit_in_range_is_forty_yards_for_the_group_assumed()
+  test_check_interact_distance_uses_the_index_range_assumed()
   test_player_map_position_follows_the_walk()
   test_spell_range_reads_the_record()
-  test_spell_min_range_and_the_global_form()
+  test_spell_min_range_and_the_global_form_assumed()
   test_item_range_needs_a_max_range()
 end

@@ -21,20 +21,20 @@ local FRAME = 1 / 60
 -- The units that hang their state, fakes and frame steps on a new sim world, in this order.
 local UNITS = { SimMove, SimRange }
 
--- source: assumed the kit's one map: the whole sim world is this uiMapID.
+-- source: assumed (row SM7) the kit's one map: the whole sim world is this uiMapID.
 M.MAP_ID = 1
 
 -- The player's place on login: facing 0 is north (+y).
 M.SPAWN = { x = 0, y = -10, facing = 0 }
 
--- source: assumed the kit's two classes: a Warrior starts at 0 of 100 rage, a Mage at 100 of 100 mana.
+-- source: assumed (row SM8) the kit's two classes: a Warrior starts at 0 of 100 rage, a Mage at 100 of 100 mana.
 -- grug: minimal kit, Task 5.6 moves it to sim_classes.lua
 M.CLASSES = {
   WARRIOR = { className = "Warrior", powerToken = "RAGE", powerMax = 100, power = 0 },
   MAGE = { className = "Mage", powerToken = "MANA", powerMax = 100, power = 100 },
 }
 
--- source: assumed the world is a 100 x 100 square centred on the origin, and the map shows it whole: map x =
+-- source: assumed (row SM7) the world is a 100 x 100 square centred on the origin, and the map shows it whole: map x =
 -- (pos.x - left) / size, map y = (top - pos.y) / size.
 local BOUNDS = { minX = -50, maxX = 50, minY = -50, maxY = 50 }
 local MAP_RECT = { left = -50, top = 50, size = 100 }

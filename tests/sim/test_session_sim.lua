@@ -155,7 +155,7 @@ local function test_reset_returns_the_player_to_the_spawn()
   end)
 end
 
-local function test_reset_while_walking_stops_and_a_fresh_w_walks_again()
+local function test_reset_while_walking_stops_and_a_fresh_w_walks_again_assumed()
   withSim(function(sess)
     local w = sess.w
     local log = CombatH.watch(w, { "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING" })
@@ -244,7 +244,7 @@ return function()
   test_step_runs_an_onupdate_under_the_engine_context()
   test_world_lists_actors_in_spawn_order()
   test_reset_returns_the_player_to_the_spawn()
-  test_reset_while_walking_stops_and_a_fresh_w_walks_again()
+  test_reset_while_walking_stops_and_a_fresh_w_walks_again_assumed()
   test_reset_with_a_class_changes_the_class()
   test_a_refused_class_leaves_the_world_alone()
   test_reset_runs_the_reset_hooks_under_the_engine_context()
