@@ -71,6 +71,7 @@ function M.options(sim)
   if not wholeLevel(level) then
     error("sim: level must be a whole number 1-100", 2)
   end
+
   return { class = class, level = level, twoPhase = given.twoPhase }
 end
 
@@ -126,6 +127,7 @@ function M.install(w, sim)
   end
   w:setMock({ zone = { mapID = M.MAP_ID } })
   SimRange.syncMap(w)
+
   return w.sim
 end
 

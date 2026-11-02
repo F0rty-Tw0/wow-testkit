@@ -107,6 +107,7 @@ local function speedOf(intents, along, across)
   elseif along < 0 and across == 0 then
     return M.SPEEDS.back
   end
+
   return intents.walk and M.SPEEDS.walk or M.SPEEDS.run
 end
 
