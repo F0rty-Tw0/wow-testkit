@@ -31,12 +31,19 @@ local function holding(w, req, fn)
   return Keys.holding(w, req.mods, w.run, w, ENGINE, fn, w, req.key, req.mods or {})
 end
 
+-- The reply of a press, keydown or keyup: the frame that took the key and the command that ran.
+local function keyReply(w, result)
+  local reply = { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }
+
+  return reply
+end
+
 local function press(sess, req)
   checkKey(req)
   local w = sess.w
   local result = holding(w, req, Keys.press)
 
-  return { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }, true
+  return keyReply(w, result), true
 end
 
 -- source: assumed (K3) a key can go down and come up in separate requests; a key already down ignores a second keydown,
@@ -45,7 +52,7 @@ local function keydown(sess, req)
   checkKey(req)
   local w = sess.w
   local result = holding(w, req, Keys.down)
-  local reply = { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }
+  local reply = keyReply(w, result)
   reply.ignored = result.ignored
 
   return reply, not result.ignored
@@ -54,10 +61,10 @@ end
 local function keyup(sess, req)
   checkKey(req)
   local w = sess.w
-  local held = w.input.heldKeys[req.key:upper()] ~= nil
+  local held = Keys.isHeld(w, req.key)
   local result = holding(w, req, Keys.up)
 
-  return { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }, held
+  return keyReply(w, result), held
 end
 
 local function wheel(sess, req)
