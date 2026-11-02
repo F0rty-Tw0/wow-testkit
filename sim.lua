@@ -7,6 +7,7 @@ local Actors = require("combat_actors")
 local Combat = require("combat")
 local SimKeys = require("sim_keys")
 local SimMove = require("sim_move")
+local SimRange = require("sim_range")
 local SimUpdate = require("sim_update")
 
 local DEFAULT_CLASS = "WARRIOR"
@@ -16,11 +17,10 @@ local PLAYER = "player"
 local FRAME = 1 / 60
 
 -- The units that hang their state, fakes and frame steps on a new sim world, in this order.
-local UNITS = { SimMove }
+local UNITS = { SimMove, SimRange }
 
--- source: assumed the kit's one map: the whole sim world is this uiMapID, and the player stands at map (0.5, 0.6).
+-- source: assumed the kit's one map: the whole sim world is this uiMapID.
 M.MAP_ID = 1
-local MAP_POSITION = { x = 0.5, y = 0.6 }
 
 -- The player's place on login: facing 0 is north (+y).
 M.SPAWN = { x = 0, y = -10, facing = 0 }
@@ -122,7 +122,8 @@ function M.install(w, sim)
   for _, unit in ipairs(UNITS) do
     unit.install(w)
   end
-  w:setMock({ zone = { mapID = M.MAP_ID, position = { x = MAP_POSITION.x, y = MAP_POSITION.y } } })
+  w:setMock({ zone = { mapID = M.MAP_ID } })
+  SimRange.syncMap(w)
   return w.sim
 end
 
@@ -133,8 +134,8 @@ function M.restore(w, _simState)
 end
 
 -- Runs seconds of the sim clock: whole 1/60 s frames (the remainder carries to the next step), each running the frame
--- hooks and then the world clock; then one OnUpdate pass with the whole step as elapsed. Returns whether the world
--- changed and how many OnUpdate scripts ran.
+-- hooks and then the world clock; then the player's map place follows the walk, and one OnUpdate pass runs with the
+-- whole step as elapsed. Returns whether the world changed and how many OnUpdate scripts ran.
 function M.step(w, seconds)
   if type(seconds) ~= "number" or not (seconds >= 0 and seconds < math.huge) then
     error("Sim.step: seconds must be a finite non-negative number, got " .. tostring(seconds), 2)
@@ -150,6 +151,7 @@ function M.step(w, seconds)
     end
     w:advance(FRAME)
   end
+  SimRange.syncMap(w)
   local updates = SimUpdate.run(w, seconds)
 
   return w.sim.activity ~= before or updates > 0, updates

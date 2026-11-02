@@ -1,4 +1,4 @@
--- Nameplates: a plate frame for every actor the nameplate CVars allow in range of the origin. Each plate is a
+-- Nameplates: a plate frame for every actor the nameplate CVars allow in range of the player. Each plate is a
 -- NamePlate<N> frame under WorldFrame holding a kit stand-in UnitFrame, and binds the actor to a nameplate<N> token, so
 -- every Unit* API answers for it. Plates sync on the spawn, despawn, moved and cvar hooks and follow the actor's health.
 -- c.plates maps token -> { frame, token, index, actor, forbidden }; c.platePool lists the frames waiting for reuse.
@@ -18,6 +18,7 @@ local PLATE_WIDTH, PLATE_HEIGHT = 110, 45
 local CVAR_DEFAULTS = { nameplateshowenemies = "1", nameplateshowfriends = "0", nameplatemaxdistance = "60.000000" }
 local DEFAULT_DISTANCE = 60
 local PLAYER = "player"
+local ORIGIN = { x = 0, y = 0 }
 -- The stand-in ground plane: the camera looks along +y from five units behind the origin.
 local CAMERA_BACK, FOV_SCALE, HORIZON, GROUND_DROP = 5, 0.9, 0.55, 2
 
@@ -66,7 +67,10 @@ local function forbiddenFor(w, actor)
     return nil
   end
   local pos = actor.pos
-  if math.sqrt(pos.x * pos.x + pos.y * pos.y) > (tonumber(cvars.nameplatemaxdistance) or DEFAULT_DISTANCE) then
+  local from = w.unitState.byToken[PLAYER]
+  local origin = from and from.pos or ORIGIN
+  local dx, dy = pos.x - origin.x, pos.y - origin.y
+  if math.sqrt(dx * dx + dy * dy) > (tonumber(cvars.nameplatemaxdistance) or DEFAULT_DISTANCE) then
     return nil
   end
   return not actor.isEnemy and w.mock.instance.type ~= "none"
