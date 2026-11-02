@@ -77,16 +77,19 @@ function M.install(opts)
 end
 
 -- Keeps sess's sim world for the session a reload opens with opts: sess.simState is its export when both have the sim and
--- open on the same flavor ("auto" included), else nil, so a toggled sim or another flavor opens a fresh world. A sim
--- world first writes its combat flag and group into sess.state: the sim changes both after the last state request, and
--- the reload applies sess.state before the sim world.
+-- open on the same flavor ("auto" included), else nil, so a toggled sim or another flavor opens a fresh world. A carried
+-- world first writes its combat flag and group into sess.state: the sim changes both after the last state request, the
+-- reload applies sess.state before the sim world, and Sim.restore settles them against the export. A world that is not
+-- carried keeps sess.state as the last state request left it, since nothing on the fresh world would drop its combat.
 function M.carry(sess, opts)
   local w = sess.w
-  if w.sim then
-    sess.state.combat, sess.state.group = w.mock.combat, w.mock.group
-  end
   local same = w.sim and opts.sim and w.flavor == SessionOptions.flavorOf(opts)
-  sess.simState = same and Sim.export(w) or nil
+  if not same then
+    sess.simState = nil
+    return
+  end
+  sess.state.combat, sess.state.group = w.mock.combat, w.mock.group
+  sess.simState = Sim.export(w)
 end
 
 -- Phase 2 of the install, after the bindings are in: what a login or a reload puts back on the sim world. prior is the

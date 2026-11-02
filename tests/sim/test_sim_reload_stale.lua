@@ -50,6 +50,20 @@ local function test_a_group_the_sim_cleared_stays_cleared_after_a_reload()
   end)
 end
 
+-- Another flavor opens a fresh sim world with no foe, so the old world's combat must not reach it through sess.state.
+local function test_a_flavor_change_leaves_the_sim_combat_behind()
+  H.withSession({ sim = {} }, function(sess)
+    local w = sess.w
+    local mob = Actors.add(w, { kind = "npc", name = "Brute", hostile = true, pos = { x = 0, y = 0 } })
+    State.engage(w, mob, w.sim.player)
+    local fresh, failure = Session.reload(sess, { flavor = w.flavor == "retail" and "tbc" or "retail" })
+    A.eq(failure, nil, failure)
+    local got = { _G.InCombatLockdown(), fresh.state.combat }
+    fresh:shutdown()
+    A.same(got, { false, false })
+  end)
+end
+
 -- Sim.restore straight on a world that a session state put in combat and in a party: the saved world had neither.
 local function test_restore_turns_off_the_combat_and_group_the_saved_world_lacks()
   local state
@@ -97,6 +111,7 @@ end
 return function()
   test_a_combat_the_sim_dropped_stays_dropped_after_a_reload()
   test_a_group_the_sim_cleared_stays_cleared_after_a_reload()
+  test_a_flavor_change_leaves_the_sim_combat_behind()
   test_restore_turns_off_the_combat_and_group_the_saved_world_lacks()
   test_a_restore_that_raises_falls_back_to_a_fresh_sim_world()
 end
