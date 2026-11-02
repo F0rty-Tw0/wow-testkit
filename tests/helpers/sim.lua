@@ -33,4 +33,14 @@ function M.near(a, b, msg)
   end
 end
 
+-- The event names of a list of { event, ... } records, in order.
+function M.names(log)
+  local names = {}
+  for i, record in ipairs(log) do
+    names[i] = record[1]
+  end
+
+  return names
+end
+
 return M

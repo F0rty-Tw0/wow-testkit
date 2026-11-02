@@ -143,3 +143,9 @@ files["tests/fixtures/docs*/*.lua"] = {
 files["tests/fixtures/addons/WtfDemo/*.lua"] = {
   globals = { "WtfDemoDB", "WtfDemoCharDB" },
 }
+
+-- Sim probe addon (canaries/SimProbe): logs the sim's events into its own global, written like a real addon.
+files["canaries/SimProbe/*.lua"] = {
+  globals = { "SimProbe", "SimProbeLog" },
+  read_globals = { "CreateFrame" },
+}
