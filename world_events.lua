@@ -79,6 +79,7 @@ function M.reset(w)
   w.timers = {}
   w.timerSeq = 0
   w.scripts = setmetatable({}, { __mode = "k" })
+  w.onUpdate = setmetatable({}, { __mode = "k" })
   w.eventFrames = {}
   w.unitFilters = {}
   w.chunks = {}
@@ -129,7 +130,12 @@ end
 
 -- Scripts -----------------------------------------------------------------------------------------------------
 
+-- w.onUpdate: every object SetScript or HookScript named OnUpdate for, so the sim's per-step pass (sim_update) visits
+-- those and not every frame. Entries are never removed here; the pass skips and drops the ones with no handler left.
 local function scriptEntry(w, obj, scriptName)
+  if scriptName == "OnUpdate" then
+    w.onUpdate[obj] = true
+  end
   local byName = w.scripts[obj]
   if not byName then
     byName = {}
