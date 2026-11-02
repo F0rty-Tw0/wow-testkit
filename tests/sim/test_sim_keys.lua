@@ -21,18 +21,6 @@ local DEFAULT_KEYS = {
 }
 local ACTION_KEYS = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=" }
 
-local function recordMoves()
-  local seen = {}
-  local frame = _G.CreateFrame("Frame")
-  frame:RegisterEvent("PLAYER_STARTED_MOVING")
-  frame:RegisterEvent("PLAYER_STOPPED_MOVING")
-  frame:SetScript("OnEvent", function(_, event)
-    seen[#seen + 1] = event
-  end)
-
-  return seen
-end
-
 local function keyboardFrame(propagate)
   local seen = { down = 0, up = 0 }
   local frame = _G.CreateFrame("Frame", nil, _G.UIParent)
@@ -125,7 +113,7 @@ end
 
 local function test_walk_key_moves_until_released()
   H.each({}, function(_, s, flavor)
-    local seen = recordMoves()
+    local seen = H.recordMoves()
     local p = s.w.sim.player
     s:key("W", "down")
     s:simStep(1)
@@ -167,9 +155,7 @@ local function test_key_up_ignores_the_modifiers_it_is_given()
     A.eq(w.sim.intents.forward, true)
     s:key("W", "up", { shift = true })
     A.eq(w.sim.intents.forward, nil)
-    A.eq(_G.IsShiftKeyDown(), false)
-    A.eq(_G.IsControlKeyDown(), false)
-    A.eq(_G.IsAltKeyDown(), false)
+    A.same({ _G.IsShiftKeyDown(), _G.IsControlKeyDown(), _G.IsAltKeyDown() }, { false, false, false })
   end)
 end
 

@@ -4,17 +4,6 @@ local H = require("tests.helpers.sim")
 local Sim = require("sim")
 local SimMove = require("sim_move")
 
-local function recordMoves()
-  local seen = {}
-  local frame = _G.CreateFrame("Frame")
-  frame:RegisterEvent("PLAYER_STARTED_MOVING")
-  frame:RegisterEvent("PLAYER_STOPPED_MOVING")
-  frame:SetScript("OnEvent", function(_, event)
-    seen[#seen + 1] = event
-  end)
-  return seen
-end
-
 local function test_forward_walks_north_at_run_speed()
   H.each({}, function(_, s)
     local p = s.w.sim.player
@@ -30,7 +19,7 @@ end
 
 local function test_moving_events_fire_on_transitions_only()
   H.withSim("retail", {}, function(_, s)
-    local seen = recordMoves()
+    local seen = H.recordMoves()
     s:move({ forward = true })
     s:simStep(0.5)
     s:simStep(0.5)
@@ -46,7 +35,7 @@ end
 local function test_turning_alone_is_not_moving()
   H.each({}, function(_, s)
     local p = s.w.sim.player
-    local seen = recordMoves()
+    local seen = H.recordMoves()
     s:move({ turnLeft = true })
     local changed = s:simStep(0.5)
     H.near(_G.GetPlayerFacing(), math.pi / 2)

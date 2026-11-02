@@ -33,6 +33,19 @@ function M.near(a, b, msg)
   end
 end
 
+-- A frame on PLAYER_STARTED_MOVING and PLAYER_STOPPED_MOVING; returns the list of the event names it sees, in order.
+function M.recordMoves()
+  local seen = {}
+  local frame = _G.CreateFrame("Frame")
+  frame:RegisterEvent("PLAYER_STARTED_MOVING")
+  frame:RegisterEvent("PLAYER_STOPPED_MOVING")
+  frame:SetScript("OnEvent", function(_, event)
+    seen[#seen + 1] = event
+  end)
+
+  return seen
+end
+
 -- The event names of a list of { event, ... } records, in order.
 function M.names(log)
   local names = {}
