@@ -49,6 +49,7 @@ local function powerNumber(token)
   local enum = _G.Enum and _G.Enum.PowerType
   return enum and enum[key]
 end
+M.powerNumber = powerNumber
 
 local function number(value, what)
   if type(value) ~= "number" then

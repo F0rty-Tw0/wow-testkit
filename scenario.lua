@@ -10,6 +10,7 @@ local Input = require("input")
 local ScenarioAddons = require("scenario_addons")
 local ScenarioBlizzard = require("scenario_blizzard")
 local ScenarioSmoke = require("scenario_smoke")
+local Sim = require("sim")
 local Units = require("units")
 local Widgets = require("ui.widgets")
 local World = require("world")
@@ -47,21 +48,24 @@ local function copyList(list)
   return out
 end
 
-local function installWorld(w)
+local function installWorld(w, opts)
   Units.install(w)
   Game.install(w)
   Widgets.install(w)
   FrameXML.installStage1(w)
+  if opts.sim then
+    Sim.install(w, opts.sim)
+  end
 end
 
 -- opts: { addon, root, addonsDir?, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario,
--- update }, client?, blizzardUi? = true | { targets }, findClient? } (scenario_blizzard.lua); addonsDir (the folder
+-- update }, sim? = true | { class?, level? } (sim.lua), client?, blizzardUi? = true | { targets }, findClient? } (scenario_blizzard.lua); addonsDir (the folder
 -- that holds the addon and its dependencies) defaults to the parent of root.
 -- s.ns / s.info / s.deps exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden
 -- mode.
 function M.new(opts)
   local w = World.new({ flavor = opts.flavor, screen = opts.screen, client = ScenarioBlizzard.client(opts) })
-  local ok, err = pcall(installWorld, w)
+  local ok, err = pcall(installWorld, w, opts)
   if not ok then
     w:destroy()
     error(err, 0)
