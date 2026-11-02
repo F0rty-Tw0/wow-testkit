@@ -90,10 +90,17 @@ function M.carry(sess, opts)
 end
 
 -- Phase 2 of the install, after the bindings are in: what a login or a reload puts back on the sim world. prior is the
--- session this one follows, or nil.
+-- session this one follows, or nil. A restore that raises destroys the world first, so the reload's fallback can build
+-- its own.
 function M.restore(sess, prior)
-  if sess.w.sim then
-    Sim.restore(sess.w, prior and prior.simState)
+  local w = sess.w
+  if not w.sim then
+    return
+  end
+  local ok, err = pcall(Sim.restore, w, prior and prior.simState)
+  if not ok then
+    w:destroy()
+    error(err, 0)
   end
 end
 

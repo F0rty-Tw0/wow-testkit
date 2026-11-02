@@ -1,5 +1,6 @@
 -- Sim reload over stale session state: a state request copies the world's combat flag and group into sess.state, and
--- the sim changes both later. The reload takes them from the world, and Sim.restore wins over them.
+-- the sim changes both later. The reload takes them from the world, Sim.restore wins over them, and a restore that raises
+-- still leaves a session.
 local A = require("assert")
 local Actors = require("combat_actors")
 local Combat = require("combat")
@@ -9,6 +10,8 @@ local Session = require("session")
 local Sim = require("sim")
 local SimH = require("tests.helpers.sim")
 local State = require("combat_state")
+
+local SPAWN = { x = 0, y = -10 }
 
 -- Reloads sess and runs fn(fresh); fresh is always shut down.
 local function reloaded(sess, fn)
@@ -64,8 +67,36 @@ local function test_restore_turns_off_the_combat_and_group_the_saved_world_lacks
   end)
 end
 
+local function test_a_restore_that_raises_falls_back_to_a_fresh_sim_world()
+  H.withSession({ sim = {} }, function(sess)
+    sess.s:place(12, 3)
+    local spec = {
+      export = function()
+        return {}
+      end,
+      restore = function()
+        error("restore broke", 0)
+      end,
+    }
+    Sim.persist(sess.w, "broken", spec)
+    local restore = Sim.restore
+    Sim.restore = function(w, simState)
+      Sim.persist(w, "broken", spec)
+      restore(w, simState)
+    end
+    local ok, fresh, failure = pcall(Session.reload, sess, nil)
+    Sim.restore = restore
+    A.eq(ok, true, fresh)
+    A.truthy(fresh, failure)
+    local pos = fresh.w.sim.player.pos
+    fresh:shutdown()
+    A.same({ failure, pos }, { "restore broke", SPAWN })
+  end)
+end
+
 return function()
   test_a_combat_the_sim_dropped_stays_dropped_after_a_reload()
   test_a_group_the_sim_cleared_stays_cleared_after_a_reload()
   test_restore_turns_off_the_combat_and_group_the_saved_world_lacks()
+  test_a_restore_that_raises_falls_back_to_a_fresh_sim_world()
 end
