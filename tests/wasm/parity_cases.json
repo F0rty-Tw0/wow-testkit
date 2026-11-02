@@ -12,5 +12,17 @@
   { "method": "reload", "req": {} },
   { "method": "console", "req": { "since": 0 } },
   { "method": "dev", "req": {} },
+  { "method": "snapshot", "req": {} },
+  { "method": "reload", "req": { "sim": { "class": "WARRIOR", "level": 10 } } },
+  { "method": "input", "req": { "kind": "keydown", "key": "W" } },
+  { "method": "sim", "req": { "action": "step", "seconds": 0.25 } },
+  { "method": "sim", "req": { "action": "step", "seconds": 0.25 } },
+  { "method": "sim", "req": { "action": "step", "seconds": 0.25 } },
+  { "method": "sim", "req": { "action": "step", "seconds": 0.25 } },
+  { "method": "input", "req": { "kind": "keyup", "key": "W" } },
+  { "method": "sim", "req": { "action": "step", "seconds": 0.25 } },
+  { "method": "sim", "req": { "action": "world" } },
+  { "method": "reload", "req": {} },
+  { "method": "sim", "req": { "action": "world" } },
   { "method": "snapshot", "req": {} }
 ]
