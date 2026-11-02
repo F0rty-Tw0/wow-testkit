@@ -37,6 +37,8 @@ local KEYS = {
   TurnRightStop = { "turnRight", false },
   StrafeLeftStart = { "strafeLeft", true },
   StrafeLeftStop = { "strafeLeft", false },
+  StrafeRightStart = { "strafeRight", true },
+  StrafeRightStop = { "strafeRight", false },
 }
 
 -- 1 when only positive holds, -1 when only negative holds, else 0.

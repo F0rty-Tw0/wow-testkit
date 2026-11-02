@@ -1,6 +1,7 @@
--- Session input that needs no frame target: a key press, the mouse wheel at a point, and a drag between two points.
--- session_input.lua hands a request here when handlerFor names one; each handler returns the reply and whether the world
--- was touched, like the kinds there. A malformed request raises, and Session:call turns that into { ok = false, error }.
+-- Session input that needs no frame target: a key press, keydown and keyup, the mouse wheel at a point, and a drag
+-- between two points. session_input.lua hands a request here when handlerFor names one; each handler returns the reply
+-- and whether the world was touched, like the kinds there. A malformed request raises, and Session:call turns that into
+-- { ok = false, error }.
 local M = {}
 
 local Ids = require("session_ids")
@@ -16,32 +17,47 @@ local function checkPoint(name, point)
   end
 end
 
--- source: assumed (K3) the modifiers a press names are the ones held while it runs: IsShiftKeyDown and the others read
--- them in OnKeyDown, OnKeyUp and the binding; the held state from a state request comes back afterwards.
-local function pressHolding(w, req)
-  local mods = req.mods or {}
-  local held = w.mock.modifiers
-  w.mock.modifiers = { shift = mods.shift == true, ctrl = mods.ctrl == true, alt = mods.alt == true }
-  local ok, result = pcall(w.run, w, ENGINE, Keys.press, w, req.key, mods)
-  w.mock.modifiers = held
-  if not ok then
-    error(result, 0)
-  end
-
-  return result
-end
-
-local function press(sess, req)
+local function checkKey(req)
   if type(req.key) ~= "string" then
-    error("input: key must be a string for press", 0)
+    error("input: key must be a string for " .. req.kind, 0)
   end
   if req.mods ~= nil and type(req.mods) ~= "table" then
     error("input: mods must be { shift?, ctrl?, alt? }", 0)
   end
+end
+
+-- The held state from a state request comes back after the key runs (Keys.holding).
+local function holding(w, req, fn)
+  return Keys.holding(w, req.mods, w.run, w, ENGINE, fn, w, req.key, req.mods or {})
+end
+
+local function press(sess, req)
+  checkKey(req)
   local w = sess.w
-  local result = pressHolding(w, req)
+  local result = holding(w, req, Keys.press)
 
   return { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }, true
+end
+
+-- source: assumed (K3) a key can go down and come up in separate requests; a key already down ignores a second keydown,
+-- and a keyup of a key that is not down does nothing.
+local function keydown(sess, req)
+  checkKey(req)
+  local w = sess.w
+  local result = holding(w, req, Keys.down)
+  local reply = { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }
+  reply.ignored = result.ignored
+
+  return reply, not result.ignored
+end
+
+local function keyup(sess, req)
+  checkKey(req)
+  local w = sess.w
+  local held = w.input.heldKeys[req.key:upper()] ~= nil
+  local result = holding(w, req, Keys.up)
+
+  return { ok = true, target = Ids.target(w, result.consumedBy), binding = result.binding }, held
 end
 
 local function wheel(sess, req)
@@ -68,9 +84,10 @@ local function drag(sess, req)
   return reply, result.frame ~= nil and result.ok
 end
 
-local HANDLERS = { wheel = wheel, drag = drag }
+local HANDLERS = { wheel = wheel, drag = drag, keydown = keydown, keyup = keyup }
 
--- The handler for req, or nil: wheel, drag, and a press without a target (a press with one stays in session_input.lua).
+-- The handler for req, or nil: wheel, drag, keydown, keyup, and a press without a target (a press with one stays in
+-- session_input.lua).
 function M.handlerFor(req)
   if req.kind == "press" and req.target == nil then
     return press
