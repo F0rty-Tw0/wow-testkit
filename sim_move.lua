@@ -180,11 +180,20 @@ local function defineReaders(w)
   end, State.ALL)
 end
 
--- Adds the walk state to w.sim, hangs the frame step on the frame hooks and defines the key fakes.
+-- Stops the walk: no intent (walk included), speed 0, and PLAYER_STOPPED_MOVING when the player was moving.
+function M.stop(w)
+  w.sim.intents = {}
+  w.sim.speed = 0
+  setMoving(w, false)
+end
+
+-- Adds the walk state to w.sim, hangs the frame step on the frame hooks and the stop on the reset hooks, and defines the
+-- key fakes.
 function M.install(w)
   w.sim.moving = false
   w.sim.speed = 0
   table.insert(w.sim.hooks.frame, M.frame)
+  table.insert(w.sim.hooks.reset, M.stop)
   defineKeys(w)
   defineReaders(w)
 end

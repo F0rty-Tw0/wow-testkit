@@ -10,6 +10,7 @@ local Auras = require("combat_auras")
 local GameState = require("game.state")
 local Group = require("combat_group")
 local Nameplates = require("combat_nameplates")
+local SimMove = require("sim_move")
 local State = require("combat_state")
 
 local VERSION = 1
@@ -262,7 +263,7 @@ end
 -- source: assumed (spec 6.1) a key held across a reload stays held: the walk goes on, and the viewer's keyup (which runs
 -- the command's up half) stops it. Only the command is kept; the frames its down reached are gone with the old world.
 local function restoreInput(w, state)
-  w.sim.intents = copy(state.intents)
+  SimMove.set(w, state.intents)
   for key, command in pairs(state.held) do
     w.input.heldKeys[key] = { reached = {}, command = command }
   end

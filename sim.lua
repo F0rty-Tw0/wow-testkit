@@ -5,6 +5,7 @@ local M = {}
 
 local Actors = require("combat_actors")
 local Combat = require("combat")
+local Keys = require("input_keys")
 local SimKeys = require("sim_keys")
 local SimMove = require("sim_move")
 local SimRange = require("sim_range")
@@ -158,8 +159,9 @@ local function removeStrangers(w)
 end
 
 -- Puts the world back to a fresh login: strangers gone, no target, full health, the class's start power, the spawn place,
--- no walk, then the reset hooks. With class the player becomes that class first (raises like Sim.options, before
--- anything changes). Combat state is not forced off: the 5 s drop timer ends it.
+-- no held key, then the reset hooks (SimMove's stops the walk and fires PLAYER_STOPPED_MOVING when the player was
+-- moving). With class the player becomes that class first (raises like Sim.options, before anything changes). Combat
+-- state is not forced off: the 5 s drop timer ends it.
 function M.reset(w, class)
   if class ~= nil then
     M.options({ class = class })
@@ -177,7 +179,7 @@ function M.reset(w, class)
   Actors.setPower(w, player, M.CLASSES[sim.class].power)
   Actors.setPos(w, player, M.SPAWN.x, M.SPAWN.y)
   SimMove.setFacing(w, M.SPAWN.facing)
-  sim.intents, sim.moving, sim.speed = {}, false, 0
+  Keys.forgetHeld(w)
   bumpActivity(w)
   for _, fn in ipairs(sim.hooks.reset) do
     fn(w)
