@@ -148,8 +148,12 @@ local function remove(w, c, plate)
 end
 
 -- Brings one non-player actor's plate in line with the actor: added, removed or placed again as its state says. What
--- decides a plate (the CVars, the instance, the actor's own flags and place) is the only thing that changed.
+-- decides a plate (the CVars, the instance, the actor's own flags and place) is the only thing that changed. An actor
+-- that is no longer in the world gets nothing: a late moved or flags hook must not give a despawned actor a plate.
 local function syncActor(w, c, actor)
+  if c.actors[actor.guid] ~= actor then
+    return
+  end
   local wanted = forbiddenFor(w, actor)
   local plate = c.plateOf[actor]
   if plate and (wanted == nil or wanted ~= plate.forbidden) then
