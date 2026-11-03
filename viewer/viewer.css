@@ -155,6 +155,29 @@ body.bare #combat {
   height: 100%;
 }
 
+html[data-sim] #stage {
+  background: transparent;
+}
+
+#sim {
+  grid-column: 2;
+}
+
+#sim-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#sim-status {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+#sim-status:empty {
+  display: none;
+}
+
 #scene-notice {
   position: absolute;
   top: 8px;

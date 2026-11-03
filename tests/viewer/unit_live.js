@@ -5,8 +5,9 @@
 // Pull puts the session in combat in a party, which the Mock state panel must show; a step that leaves combat on must
 // not re-read the state, a step that ends it must, and a second Pull's re-read keeps a fixture edit not yet applied.
 // A hover outline placed before a zoom in keeps its share of the stage. The combat log takes the second panel
-// column, not the inspector's. Writes PASS/FAIL lines
-// into #out like unit.js, for check_unit.py.
+// column, not the inspector's. The sim scripts load as on the page, with no sim world: the pointer and keys still get
+// their sim deps, a snapshot burst under a 100 ms live.gapMs draws twice, and each reload, restart and hello re-asks
+// the sim world. Writes PASS/FAIL lines into #out like unit.js, for check_unit.py.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -15,6 +16,7 @@ window.TK = window.TK || {};
   const calls = [];
   const marks = { beforeSnapshot2: 0, statesBeforeStep: 0 };
   const attached = [];
+  const attachedDeps = {};
   const server = { boot: 'a', seq: 5, snapshotFailures: 1, infoFailures: 2, eventsFailures: 1, mock: { combat: false, group: 'none' } };
   const NEW_2 = { seq: 2, kind: 'print', text: 'new-2' };
   const LINES = { a: [{ seq: 1, kind: 'print', text: 'old-1' }], b: [{ seq: 1, kind: 'print', text: 'new-1' }, NEW_2] };
@@ -62,6 +64,7 @@ window.TK = window.TK || {};
     const original = TK[module].attach;
     TK[module].attach = (...args) => {
       attached.push(name);
+      attachedDeps[name] = args[1];
 
       return original(...args);
     };
@@ -114,6 +117,15 @@ window.TK = window.TK || {};
     const column = (id) => getComputedStyle(document.getElementById(id)).gridColumnStart;
     check(out, 'the hover outline keeps half the stage width after a zoom in', marks.hoverRatio, 0.5);
     check(out, "the combat log sits beside the inspector, not under it, so it leaves the inspector's details room", column('combatlog'), '2');
+    const pointerSimDeps = ['world', 'claim', 'afterWheel'].map((key) => typeof attachedDeps.pointer[key]);
+    const allFunctions = ['function', 'function', 'function'];
+    check(out, "the pointer gets the sim's world, claim and afterWheel deps", pointerSimDeps, allFunctions);
+    const simActive = TK.sim.active;
+    TK.sim.active = () => true;
+    const keysSim = [attachedDeps.keys.sim()];
+    TK.sim.active = simActive;
+    keysSim.push(attachedDeps.keys.sim());
+    check(out, 'the keys follow sim mode: held keys while the sim is on, presses when off', keysSim, [true, false]);
   }
 
   // Wrapped before TK.start (DOMContentLoaded) registers it; a reload runs after report, as it re-reads the panels.
@@ -124,9 +136,12 @@ window.TK = window.TK || {};
     forgetFonts();
   };
 
-  function reportFonts() {
+  function reportLate() {
     const out = document.getElementById('out');
     check(out, 'a restart and a reload each drop the loaded fonts', forgets, 2);
+    check(out, 'snapshot events within live.gapMs draw once, then once more at the gap end', marks.gapDraws, [1, 2]);
+    // The page load, the hellos at 200 and 600 ms, the restart at 600 ms and the reload each ask for the sim world.
+    check(out, 'the sim panel re-asks the sim world on each reload, restart and hello', count('sim'), 5);
     out.setAttribute('data-done', '1');
   }
 
@@ -173,8 +188,23 @@ window.TK = window.TK || {};
       marks.hoverRatio = Math.round((100 * width('hover')) / width('stage')) / 100;
     });
     at(1600, report);
+    // Sim mode's gap: the snapshot at 1650 ms waits for the gap the one at 1620 ms opened.
+    at(1620, () => {
+      marks.snapshotsBeforeGap = count('snapshot');
+      TK.live.gapMs = 100;
+      emit('snapshot', { seq: 3 });
+    });
+    at(1650, () => emit('snapshot', { seq: 4 }));
+    const gapDraws = () => count('snapshot') - marks.snapshotsBeforeGap;
+    at(1690, () => {
+      marks.gapDraws = [gapDraws()];
+    });
     at(1700, () => emit('reload', {}));
-    at(1800, reportFonts);
+    at(1760, () => {
+      marks.gapDraws.push(gapDraws());
+      TK.live.gapMs = 0;
+    });
+    at(1800, reportLate);
   }
 
   spy('pointer', 'pointer');
