@@ -224,6 +224,67 @@
   });
 
   TK_TESTS.push({
+    name: 'detect: of two overlapping detects the later one applies, though the earlier answers last',
+    async fn() {
+      const none = () => Promise.resolve({ ok: false });
+      let answer;
+      const slow = () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        });
+      try {
+        const first = TK.sim.detect(slow, { noClock: true });
+        await TK.sim.detect(none, { noClock: true });
+        answer({ ok: true, world: { player: pl('p', 0), actors: [] } });
+        A.eq(await first, true, 'the earlier detect saw a world');
+        A.eq(TK.sim.active(), false, 'the later detect, with no world, stands');
+      } finally {
+        await TK.sim.detect(none, { noClock: true });
+      }
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'a reset reply becomes the world the Pack of 3 spawns around',
+    async fn() {
+      const panels = Object.assign(document.createElement('aside'), { id: 'panels' });
+      const asked = [];
+      const savedApi = TK.api;
+      const reset = { player: { pos: { x: 0, y: -10 }, facing: 0 }, actors: [] };
+      const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+      document.body.append(panels);
+      TK.api = (method, req) => {
+        asked.push(req);
+
+        return Promise.resolve(req.action === 'reset' ? { ok: true, world: reset } : { ok: true });
+      };
+      try {
+        TK.sim.mount();
+        await TK.sim.detect(() => Promise.resolve({ ok: true, world: { player: pl('p', 0), actors: [] } }), {
+          noClock: true,
+        });
+        panels.querySelector('#sim-reset').click();
+        await settle();
+        asked.length = 0;
+        panels.querySelector('#sim-pack').click();
+        await settle();
+        A.same(
+          asked.map((req) => [req.pos.x, req.pos.y]),
+          [
+            [-3, 10],
+            [0, 10],
+            [3, 10],
+          ],
+        );
+      } finally {
+        await TK.sim.detect(() => Promise.resolve({ ok: false }), { noClock: true });
+        TK.api = savedApi;
+        panels.remove();
+      }
+    },
+  });
+
+  TK_TESTS.push({
     name: 'panel controls hand the keyboard back to the stage after use',
     async fn() {
       const root = document.createElement('div');
