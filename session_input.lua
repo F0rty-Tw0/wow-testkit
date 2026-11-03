@@ -117,11 +117,13 @@ local function validateWorld(world)
   if type(world) ~= "table" then
     error("input: world must be a table", 0)
   end
-  if world.guid ~= nil and type(world.guid) ~= "string" then
+  local guidIsBad = world.guid ~= nil and type(world.guid) ~= "string"
+  if guidIsBad then
     error("input: world.guid must be a string", 0)
   end
   local ground = world.ground
-  if ground ~= nil and not (type(ground) == "table" and type(ground.x) == "number" and type(ground.y) == "number") then
+  local groundIsPoint = type(ground) == "table" and type(ground.x) == "number" and type(ground.y) == "number"
+  if ground ~= nil and not groundIsPoint then
     error("input: world.ground needs numbers x and y", 0)
   end
 end
