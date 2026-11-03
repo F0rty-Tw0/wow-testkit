@@ -245,6 +245,8 @@ local function restore(w, data)
 end
 
 function M.install(w)
+  -- source: assumed (spec 5.7): mobs cannot kill the sim player; install runs on every reopened world, so a reload keeps it.
+  w.sim.player.healthFloor = 1
   table.insert(w.sim.hooks.frame, M.step)
   SimState.persist(w, "mobs", { export = export, restore = restore })
 end
