@@ -78,9 +78,10 @@ end
 
 -- Keeps sess's sim world for the session a reload opens with opts: sess.simState is its export when both have the sim and
 -- open on the same flavor ("auto" included), else nil, so a toggled sim or another flavor opens a fresh world. A carried
--- world first writes its combat flag and group into sess.state: the sim changes both after the last state request, the
--- reload applies sess.state before the sim world, and Sim.restore settles them against the export. A world that is not
--- carried keeps sess.state as the last state request left it, since nothing on the fresh world would drop its combat.
+-- world replaces opts.state with a copy holding its combat flag and group: the sim changes both after the last state
+-- request, the reload applies opts.state before the sim world, and Sim.restore settles them against the export.
+-- sess.state stays as the last state request left it, so a world that is not carried, or the fresh world a failed
+-- reload falls back to, gets no combat that nothing on it would drop.
 function M.carry(sess, opts)
   local w = sess.w
   local same = w.sim and opts.sim and w.flavor == SessionOptions.flavorOf(opts)
@@ -88,8 +89,12 @@ function M.carry(sess, opts)
     sess.simState = nil
     return
   end
-  sess.state.combat, sess.state.group = w.mock.combat, w.mock.group
-  sess.simState = Sim.export(w)
+  local state = {}
+  for key, value in pairs(opts.state) do
+    state[key] = value
+  end
+  state.combat, state.group = w.mock.combat, w.mock.group
+  opts.state, sess.simState = state, Sim.export(w)
 end
 
 -- Phase 2 of the install, after the bindings are in: what a login or a reload puts back on the sim world. prior is the

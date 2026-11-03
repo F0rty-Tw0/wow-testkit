@@ -148,7 +148,7 @@ end
 -- same mock state and the same sim world (SessionSim.carry), counting one more load. The old one logs out first and,
 -- unless over.keepSaved, writes its saved variables; keepSaved loads what saved.lua already holds. A refused option
 -- raises before sess is shut down, so it stays whole;
--- after that nothing raises: a new world that cannot be built reopens sess's own options on a fresh sim world, returned with why the reload
+-- after that nothing raises: a new world that cannot be built reopens sess's own options and state on a fresh sim world, returned with why the reload
 -- failed, or nil and "session lost: <why>" when that fails too. seq keeps counting, so a viewer never sees it go back.
 function M.reload(sess, over)
   over = over or {}

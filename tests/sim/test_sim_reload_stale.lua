@@ -72,6 +72,12 @@ local function test_a_group_set_by_a_state_request_survives_a_reload()
       A.same({ _G.IsInGroup(), fresh.state.group }, { true, "party" })
     end)
   end)
+  H.withSession({ sim = {} }, function(sess)
+    sess:call("state", { group = "raid" })
+    reloaded(sess, function(fresh)
+      A.same({ _G.IsInRaid(), fresh.state.group }, { true, "raid" })
+    end)
+  end)
 end
 
 -- Sim.restore straight on a world that a session state put in combat and in a party: the saved world had neither.
@@ -118,6 +124,29 @@ local function test_a_restore_that_raises_falls_back_to_a_fresh_sim_world()
   end)
 end
 
+-- The fallback's fresh world has no foe or roster, so it reopens on the state as the last state request left it, not
+-- on the sim's combat and group that the failed reload carried.
+local function test_a_fallback_after_a_failed_restore_leaves_the_sim_combat_and_group_behind()
+  H.withSession({ sim = {} }, function(sess)
+    local w = sess.w
+    local mob = Actors.add(w, { kind = "npc", name = "Brute", hostile = true, pos = { x = 0, y = 0 } })
+    State.engage(w, mob, w.sim.player)
+    Group.set(w, { w.sim.player, Actors.add(w, { kind = "player", name = "Ann" }) })
+    local restore = Sim.restore
+    Sim.restore = function()
+      Sim.restore = restore
+      error("restore broke", 0)
+    end
+    local ok, fresh, failure = pcall(Session.reload, sess, nil)
+    Sim.restore = restore
+    A.eq(ok, true, fresh)
+    A.truthy(fresh, failure)
+    local got = { failure, _G.InCombatLockdown(), _G.IsInGroup(), fresh.state.combat, fresh.state.group }
+    fresh:shutdown()
+    A.same(got, { "restore broke", false, false, false, "none" })
+  end)
+end
+
 return function()
   test_a_combat_the_sim_dropped_stays_dropped_after_a_reload()
   test_a_group_the_sim_cleared_stays_cleared_after_a_reload()
@@ -125,4 +154,5 @@ return function()
   test_a_group_set_by_a_state_request_survives_a_reload()
   test_restore_turns_off_the_combat_and_group_the_saved_world_lacks()
   test_a_restore_that_raises_falls_back_to_a_fresh_sim_world()
+  test_a_fallback_after_a_failed_restore_leaves_the_sim_combat_and_group_behind()
 end
