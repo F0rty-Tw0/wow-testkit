@@ -1,5 +1,6 @@
 local A = require("assert")
 local Resolve = require("combat_resolve")
+local Scenario = require("scenario")
 local SH = require("tests.helpers.sim_combat")
 local SimTarget = require("sim_target")
 
@@ -123,15 +124,19 @@ local function test_pointer_click_on_ground_or_unknown_guid_clears_the_target()
 end
 
 local function test_click_unit_needs_a_sim_world()
-  local Scenario = require("scenario")
   local s = Scenario.new({ addon = "T", root = "T", flavor = "retail" })
-  A.errors(function()
-    s:clickUnit({})
-  end, "s:clickUnit: needs Scenario.new{sim=...}")
-  A.errors(function()
-    s:clickGround(0, 0)
-  end, "needs Scenario.new{sim=...}")
+  local ok, err = pcall(function()
+    A.errors(function()
+      s:clickUnit({})
+    end, "s:clickUnit: needs Scenario.new{sim=...}")
+    A.errors(function()
+      s:clickGround(0, 0)
+    end, "needs Scenario.new{sim=...}")
+  end)
   s.w:destroy()
+  if not ok then
+    error(err, 0)
+  end
 end
 
 local function test_click_unit_and_ground_drive_the_pointer()

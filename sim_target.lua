@@ -34,6 +34,7 @@ function M.target(w, actor)
 end
 
 -- Puts the mouseover token on actor (nil clears). Returns whether it changed; UPDATE_MOUSEOVER_UNIT fires only then.
+-- source: assumed (spec 5.1) the event fires on a change of the hovered unit, not on every pointer move over it.
 function M.hover(w, actor)
   if Actors.get(w, MOUSEOVER) == actor then
     return false
@@ -51,8 +52,10 @@ end
 local function isCandidate(w, actor)
   local player = w.sim.player
   local reachable = SimRange.distance(player, actor) <= M.TAB_RANGE
+  local inFront = SimRange.inFront(player, actor)
+  local livingEnemy = actor.isEnemy and not actor.isDead
 
-  return actor.isEnemy and not actor.isDead and SimRange.inFront(player, actor) and reachable
+  return livingEnemy and inFront and reachable
 end
 
 -- Spawn order of every actor by guid, to break a tie in distance.
@@ -66,6 +69,7 @@ local function spawnRanks(w)
 end
 
 -- The live enemies in front of the player and within TAB_RANGE, nearest first, ties in spawn order.
+-- source: assumed (spec 5.1) the nearest-first, spawn-order tie-break ordering of TargetNearestEnemy.
 local function candidates(w)
   local ranks = spawnRanks(w)
   local player = w.sim.player
@@ -76,19 +80,21 @@ local function candidates(w)
       list[#list + 1] = actor
     end
   end
-  table.sort(list, function(a, b)
+  local function byDistanceThenSpawn(a, b)
     local da, db = SimRange.distance(player, a), SimRange.distance(player, b)
     if da == db then
       return ranks[a.guid] < ranks[b.guid]
     end
 
     return da < db
-  end)
+  end
+  table.sort(list, byDistanceThenSpawn)
 
   return list
 end
 
 -- The candidate after the current target, wrapping; the nearest when the target is not one. nil without candidates.
+-- source: assumed (spec 5.1) repeated presses walk the candidates in order and wrap after the last.
 function M.nearestEnemy(w)
   local list = candidates(w)
   local current = w.sim.player.targetGuid
@@ -156,7 +162,8 @@ end
 -- on the ground or an unknown guid clears the target. A click without world (a frame was hit) does nothing. Returns
 -- whether the world changed.
 function M.pointer(w, kind, world, button)
-  local actor = world and world.guid and w.combat.actors[world.guid]
+  local guid = world and world.guid
+  local actor = guid and w.combat.actors[guid]
   if kind == "enter" then
     return M.hover(w, actor)
   end
@@ -166,7 +173,9 @@ function M.pointer(w, kind, world, button)
   if actor then
     return M.interact(w, actor, button)
   end
-  if (button or "LeftButton") == "LeftButton" then
+  local pressed = button or "LeftButton"
+  -- source: assumed (spec 5.1) a left click on the ground or an unknown guid clears the target; other buttons do nothing.
+  if pressed == "LeftButton" then
     return M.target(w, nil)
   end
 
