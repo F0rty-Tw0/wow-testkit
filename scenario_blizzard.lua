@@ -42,6 +42,7 @@ function M.extend(Scenario)
       self:fireIfKnown(...)
     end
     local report = w:run(ENGINE, BlizzardUi.load, w, w.client, opts)
+    w:run(ENGINE, BlizzardWindows.installClientFrames, w)
     for _, text in ipairs(report.notes) do
       self:note(text)
     end
@@ -66,9 +67,12 @@ function M.extend(Scenario)
   end
 
   -- What s:login runs between PLAYER_LOGIN and PLAYER_ENTERING_WORLD: the client announces its layouts to the loaded
-  -- Blizzard UI. Silent without the layer or with no saved layouts.
+  -- Blizzard UI. Silent without the layer.
+  -- source: assumed (row G22) it fires with no saved layouts too: Blizzard's edit-mode systems get their layout info only
+  -- from this event (retail blizzard_editmode/shared/editmodemanager.lua:187-192, UpdateLayoutInfo prepends the presets at
+  -- :946-947), and LootFrameMixin:Open reads that info unguarded (editmodesystemtemplates.lua:375).
   function Scenario:fireEditMode()
-    if self.blizzardUi and #self.w.mock.editMode.layouts > 0 then
+    if self.blizzardUi then
       fireLayouts(self)
     end
   end

@@ -48,7 +48,8 @@ local function test_money_frame_loads_before_the_default_targets()
 end
 
 -- (BU17, assumed) the classic panel manager reads UIParent's attributes (UIParentPanelManager.lua:586), which UIParent.xml
--- sets and the layer never loads; opening a window sets them from the extract's file.
+-- sets and the layer never loads; the layer sets them from the extract's file when it loads, so a panel shown outside a kit
+-- window (the loot frame) is placed too.
 local UIPARENT = {
   blizzard_uiparent = {
     toc = "## Interface: 20506\n",
@@ -59,18 +60,12 @@ local UIPARENT = {
     },
   },
 }
-local function test_opening_a_classic_window_sets_the_uiparent_attributes_assumed()
-  B.run(B.mini(UIPARENT), {
-    flavor = "tbc",
-    targets = { "Blizzard_MiniBase" },
-    before = function(s)
-      s.w.windowSpecs = SPEC
-    end,
-  }, function(s)
-    A.eq(_G.UIParent:GetAttribute("TOP_OFFSET"), nil)
-    s:openWindow("merchant", STOCK)
+local function test_the_classic_layer_sets_the_uiparent_attributes_assumed()
+  local opts = { flavor = "tbc", header = "Interface-TBC: 20506", targets = { "Blizzard_MiniBase" } }
+  local report = B.run(B.mini(UIPARENT), opts, function()
     A.same({ _G.UIParent:GetAttribute("TOP_OFFSET"), _G.UIParent:GetAttribute("LEFT_OFFSET"), _G.UIParent:GetAttribute("Kit_Flag") }, { -7, 5, true })
   end)
+  A.eq(report.status, "pass") -- not "skipped": the probe declares tbc
   B.run(B.mini(UIPARENT), {
     targets = { "Blizzard_MiniBase" },
     before = function(s)
@@ -86,5 +81,5 @@ return function()
   test_merchant_window_shows_the_stock()
   test_classic_layer_loads_the_money_frame_addon_first()
   test_money_frame_loads_before_the_default_targets()
-  test_opening_a_classic_window_sets_the_uiparent_attributes_assumed()
+  test_the_classic_layer_sets_the_uiparent_attributes_assumed()
 end
