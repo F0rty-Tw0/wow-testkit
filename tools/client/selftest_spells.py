@@ -8,7 +8,7 @@ from tools.client.selftest_r5 import home
 BUILD = "BUILD 12.0.0.0-12.9.9.99999\n"
 EFFECT_COLUMNS = (
     "ID SpellID EffectIndex Effect EffectAura EffectBasePoints EffectRadiusIndex[2] EffectMiscValue EffectTriggerSpell "
-    "EffectAuraPeriod ImplicitTarget[2]"
+    "EffectAuraPeriod ImplicitTarget[2] DifficultyID"
 ).split()
 RANGE_COLUMNS = "ID RangeMin[2] RangeMax[2]".split()
 
@@ -31,19 +31,21 @@ def table_file(columns, rows, layout):
     return text, make_wdc5(dbd.parse(text)[0].fields, rows, layout_hash=int(layout, 16))
 
 
-def effect_row(row_id, spell_id, index, effect, target):
+def effect_row(row_id, spell_id, index, effect, target, difficulty=0):
     row = {"ID": row_id, "SpellID": spell_id, "EffectIndex": index, "Effect": effect, "EffectAura": 0}
     row.update(EffectBasePoints=19, EffectRadiusIndex=[0, 0], EffectMiscValue=0, EffectTriggerSpell=0)
-    row.update(EffectAuraPeriod=0, ImplicitTarget=[target, 0])
+    row.update(EffectAuraPeriod=0, ImplicitTarget=[target, 0], DifficultyID=difficulty)
     return row
 
 
-def export_fixture(tmp, drop=None):
-    """Exports SpellEffect (rows 11 and 12 share SpellID 900001) and SpellRange (row 5 reaches [40, 40]); returns
-    (out dir, ctx). `drop` names an EffectBasePoints-sibling column the DBD lacks."""
-    columns = [c for c in EFFECT_COLUMNS if c != drop]
-    rows = [effect_row(11, 900001, 0, 2, 6), effect_row(12, 900001, 1, 6, 6)]
-    rows = [{k: v for k, v in row.items() if k != drop} for row in rows]
+def export_fixture(tmp, drop=None, rename=None, extra=()):
+    """Exports SpellEffect (rows 11 and 12 share SpellID 900001, `extra` adds rows) and SpellRange (row 5 reaches
+    [40, 40]); returns (out dir, ctx). `drop` names a SpellEffect column the DBD lacks, `rename` maps a column to the
+    name a newer layout gives it."""
+    rename = rename or {}
+    columns = [rename.get(c, c) for c in EFFECT_COLUMNS if c != drop]
+    rows = [effect_row(11, 900001, 0, 2, 6), effect_row(12, 900001, 1, 6, 6), *extra]
+    rows = [{rename.get(k, k): v for k, v in row.items() if k != drop} for row in rows]
     effect_dbd, effect_db2 = table_file(columns, rows, "0000E001")
     range_dbd, range_db2 = table_file(RANGE_COLUMNS, [{"ID": 5, "RangeMin": [0, 0], "RangeMax": [40, 40]}], "0000E002")
     ctx = home(tmp, SpellEffect=effect_dbd, SpellRange=range_dbd)
@@ -73,6 +75,20 @@ def test_a_column_the_dbd_lacks_is_noted_not_fatal(tmp):
     assert any("EffectMiscValue is not in the DBD" in note for note in ctx.notes), ctx.notes
 
 
+def test_the_difficulty_of_a_row_is_exported_and_a_layout_without_it_is_noted_not_fatal(tmp):
+    out, _ = export_fixture(tmp / "retail", extra=[effect_row(13, 900001, 0, 2, 6, difficulty=1)])
+    effects = lua_value(out / "db2" / "spelleffect" / "0.lua")
+    assert [effects[11]["DifficultyID"], effects[13]["DifficultyID"]] == [0, 1]
+    out, ctx = export_fixture(tmp / "classic", drop="DifficultyID")
+    assert any("DifficultyID is not in the DBD" in note for note in ctx.notes), ctx.notes
+    assert "DifficultyID" not in lua_value(out / "db2" / "spelleffect" / "0.lua")[11]
+
+
+def test_a_newer_layout_with_float_base_points_still_exports_them(tmp):
+    out, _ = export_fixture(tmp, rename={"EffectBasePoints": "EffectBasePointsF"})
+    assert lua_value(out / "db2" / "spelleffect" / "0.lua")[11]["EffectBasePointsF"] == 19
+
+
 def test_the_seven_spell_tables_are_exported_with_the_pinned_columns(tmp):
     tables = db2_export.WINDOW_TABLES
     assert tables["SpellEffect"]["chunked"] and tables["SpellEffect"]["index"] == ("SpellID",)
@@ -87,5 +103,7 @@ def test_the_seven_spell_tables_are_exported_with_the_pinned_columns(tmp):
 TESTS = [
     test_spell_tables_export_with_spell_id_index,
     test_a_column_the_dbd_lacks_is_noted_not_fatal,
+    test_the_difficulty_of_a_row_is_exported_and_a_layout_without_it_is_noted_not_fatal,
+    test_a_newer_layout_with_float_base_points_still_exports_them,
     test_the_seven_spell_tables_are_exported_with_the_pinned_columns,
 ]

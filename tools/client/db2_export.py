@@ -58,10 +58,13 @@ WINDOW_TABLES = {
     "ItemAppearance": window("ID DefaultIconFileDataID", chunked=True),
     "ItemClass": window("ID ClassName_lang ClassID"),
     "ItemSubClass": window("ID DisplayName_lang VerboseName_lang ClassID SubClassID"),
-    # The simulation's spell engine (sim_spell_data.lua) normalizes these seven into its spell records.
+    # The simulation's spell engine (sim_spell_data.lua) normalizes these seven into its spell records. EffectBasePoints
+    # is the classic layouts' column and EffectBasePointsF the retail one; each layout lacks the other (noted, not fatal).
+    # DifficultyID is the retail row-per-difficulty column (the classic layouts lack it, also noted): the engine plays
+    # the rows of difficulty 0 only.
     "SpellEffect": window(
-        "ID SpellID EffectIndex Effect EffectAura EffectBasePoints EffectRadiusIndex EffectMiscValue EffectTriggerSpell "
-        "EffectAuraPeriod ImplicitTarget",
+        "ID SpellID EffectIndex Effect EffectAura EffectBasePoints EffectBasePointsF EffectRadiusIndex EffectMiscValue "
+        "EffectTriggerSpell EffectAuraPeriod ImplicitTarget DifficultyID",
         index="SpellID",
         chunked=True,
     ),
