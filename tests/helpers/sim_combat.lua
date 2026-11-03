@@ -4,6 +4,7 @@ local Actors = require("combat_actors")
 local Log = require("combat_log")
 local Session = require("session")
 local SimHelper = require("tests.helpers.sim")
+local SimMelee = require("sim_melee")
 
 local M = {}
 
@@ -53,6 +54,26 @@ function M.record(w, events)
   end)
 
   return log
+end
+
+-- Holds forward until the player is within melee range of mob (10 s at most), then lets go.
+function M.walkIntoMelee(s, mob)
+  local guard = 0
+  s:move({ forward = true })
+  while not SimMelee.inRange(s.w.sim.player, mob) and guard < 300 do
+    s:simStep(1 / 30)
+    guard = guard + 1
+  end
+  s:move({})
+end
+
+-- Steps in quarter seconds until mob is dead (150 s at most).
+function M.fightUntilDead(s, mob)
+  local guard = 0
+  while not mob.isDead and guard < 600 do
+    s:simStep(0.25)
+    guard = guard + 1
+  end
 end
 
 -- Reloads sess (Session.reload with over), runs fn(fresh) and always shuts the fresh session down.

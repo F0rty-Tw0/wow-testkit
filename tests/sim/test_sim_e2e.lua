@@ -5,9 +5,8 @@ local A = require("assert")
 local Actors = require("combat_actors")
 local Group = require("combat_group")
 local H = require("tests.helpers.sim")
-local Sim = require("sim")
-local SimMelee = require("sim_melee")
 local SH = require("tests.helpers.sim_combat")
+local Sim = require("sim")
 
 local SPELL = 900101
 
@@ -81,24 +80,6 @@ local function test_party_range_follows_the_member()
   end)
 end
 
-local function walkIntoMelee(s, player, mob)
-  local guard = 0
-  s:move({ forward = true })
-  while not SimMelee.inRange(player, mob) and guard < 300 do
-    s:simStep(1 / 30)
-    guard = guard + 1
-  end
-  s:move({})
-end
-
-local function fightUntilDead(s, mob)
-  local guard = 0
-  while not mob.isDead and guard < 600 do
-    s:simStep(0.25)
-    guard = guard + 1
-  end
-end
-
 local function indexOfDeath(entries, mob)
   local found
   for i, entry in ipairs(entries) do
@@ -119,6 +100,14 @@ local function countEvents(seen)
   return counts
 end
 
+local function firstOf(seen, event)
+  for _, entry in ipairs(seen) do
+    if entry.event == event then
+      return entry
+    end
+  end
+end
+
 local function test_melee_kill_sequence(w, s, flavor)
   local entries, player = w.combat.log.entries, w.sim.player
   local seen = SH.record(w, {
@@ -131,8 +120,8 @@ local function test_melee_kill_sequence(w, s, flavor)
   local mob = s:spawn({ health = 20 })
   s:clickUnit(mob, "RightButton")
   A.eq(_G.UnitGUID("target"), mob.guid, flavor)
-  walkIntoMelee(s, player, mob)
-  fightUntilDead(s, mob)
+  SH.walkIntoMelee(s, mob)
+  SH.fightUntilDead(s, mob)
   A.eq(mob.isDead, true, flavor)
   local died = indexOfDeath(entries, mob)
   A.same({ entries[died - 2][2], entries[died - 1][2] }, { "SWING_DAMAGE", "PARTY_KILL" }, flavor)
@@ -146,7 +135,8 @@ local function test_melee_kill_sequence(w, s, flavor)
     counts.PLAYER_REGEN_DISABLED,
     counts.PLAYER_REGEN_ENABLED,
     counts.UI_ERROR_MESSAGE,
-  }, { 1, 1, 1, 1, 1 }, flavor) -- the one error is ERR_BADATTACKPOS
+  }, { 1, 1, 1, 1, 1 }, flavor)
+  A.eq(firstOf(seen, "UI_ERROR_MESSAGE")[4], _G.ERR_BADATTACKPOS, flavor) -- the walk in is out of range, not out of facing
   A.same({ last.event, math.abs((last.ts - entries[died][1]) - 5) < 0.02 }, { "PLAYER_REGEN_ENABLED", true }, flavor)
 end
 
