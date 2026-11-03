@@ -2,8 +2,9 @@
 // world; an installed sim steps every STEP_MS (createClock, one `sim step` in flight), draws the 3D scene behind the
 // stage between the last two replies (sim_math.js), slows the snapshot redraws to TK.live.gapMs and turns the combat
 // Play controls off. The #sim panel in #panels holds the Sim checkbox (#sim-toggle, a reload with or without the sim),
-// the class select and, while installed, the spawn, pack, raid and reset buttons with a status line. A session
-// without the sim changes nothing. Classic script; reloadRequest and requests are pure, createClock owns its timers,
+// the class select and, while installed, the spawn, pack, raid and reset buttons with a status line. With ?live=1 the
+// panel always mounts, so the Sim checkbox can turn the sim on; past that panel a session without the sim changes
+// nothing. Classic script; reloadRequest and requests are pure, createClock owns its timers,
 // all checked by tests/viewer/unit_sim.js (detect takes opts.noClock so the tests run without a clock or draw loop).
 window.TK = window.TK || {};
 
