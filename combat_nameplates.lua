@@ -147,12 +147,35 @@ local function remove(w, c, plate)
   c.platePool[#c.platePool + 1] = frame
 end
 
+-- Brings one non-player actor's plate in line with the actor: added, removed or placed again as its state says. What
+-- decides a plate (the CVars, the instance, the actor's own flags and place) is the only thing that changed.
+local function syncActor(w, c, actor)
+  local wanted = forbiddenFor(w, actor)
+  local plate = c.plateOf[actor]
+  if plate and (wanted == nil or wanted ~= plate.forbidden) then
+    remove(w, c, plate)
+    plate = nil
+  end
+  if wanted ~= nil and not plate then
+    add(w, c, actor, wanted)
+  elseif plate and not plate.removing then
+    place(w, plate)
+  end
+end
+
 -- Brings the plates in line with the actors, the CVars and the instance: removals first, then additions in spawn order
--- (each placed as it comes), then the places: of moved's plate alone when moved is given (the player has none, and only
--- the plated actor's own place moves a plate), else of every plate.
-function M.sync(w, moved)
+-- (each placed as it comes), then the places of every plate. With a non-player actor `changed` given (it moved, or its flags
+-- changed) only that actor's plate is reconciled, with no walk over the other actors: nobody else's plate depends on its
+-- state. With the player given (it moved) the add and remove pass runs over every actor, since the range origin moved,
+-- but no plate is placed again: the camera stays at the origin, so the player's own place never moves a plate.
+function M.sync(w, changed)
   local c = w.combat
   local player = w.unitState.byToken[PLAYER]
+  if changed and changed ~= player then
+    syncActor(w, c, changed)
+
+    return
+  end
   local wanted = {}
   for _, guid in ipairs(c.order) do
     local actor = c.actors[guid]
@@ -171,11 +194,7 @@ function M.sync(w, moved)
       add(w, c, actor, wanted[actor])
     end
   end
-  local only = moved and c.plateOf[moved]
-  if moved then
-    if only and not only.removing then
-      place(w, only)
-    end
+  if changed then
     return
   end
   local world = Layout.rect(w, _G.WorldFrame)
@@ -194,12 +213,13 @@ function M.install(w)
     M.sync(w)
   end
   Combat.listen(w, "spawn", sync)
-  Combat.listen(w, "moved", function(actor)
+  local function syncOne(actor)
     M.sync(w, actor)
-  end)
+  end
+  Combat.listen(w, "moved", syncOne)
   Combat.listen(w, "cvar", sync)
   Combat.listen(w, "death", sync)
-  Combat.listen(w, "flags", sync)
+  Combat.listen(w, "flags", syncOne)
   -- The despawn hook runs before the actor's tokens are unbound, so its plate still resolves while REMOVED is delivered.
   Combat.listen(w, "despawn", function(actor)
     local plate = c.plateOf[actor]

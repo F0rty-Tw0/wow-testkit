@@ -241,6 +241,74 @@ local function test_a_player_step_anchors_only_the_plate_it_adds()
   end, true)
 end
 
+-- A step of one non-player actor is its own business: with the actor list emptied behind its back, a full sync would
+-- drop every plate, so the plates left standing prove the sync looked at the mover alone.
+local function withoutTheActorList(w, fn)
+  local c = w.combat
+  local order = c.order
+  c.order = {}
+  local ok, err = pcall(fn)
+  c.order = order
+  if not ok then
+    error(err, 0)
+  end
+end
+
+local function plateTokens()
+  local tokens = {}
+  for i, frame in ipairs(_G.C_NamePlate.GetNamePlates()) do
+    tokens[i] = frame.namePlateUnitToken
+  end
+
+  return tokens
+end
+
+local function test_a_non_player_move_reconciles_only_that_plate()
+  H.withCombat("retail", function(w)
+    local first, second = grunt(w, "First", 0, 10), grunt(w, "Second", 0, 20)
+    grunt(w, "Third", 0, 30)
+    local before = plateTokens()
+    local anchored = {}
+    for _, frame in ipairs(_G.C_NamePlate.GetNamePlates()) do
+      _G.hooksecurefunc(frame, "SetPoint", function(self)
+        anchored[#anchored + 1] = self.namePlateUnitToken
+      end)
+    end
+    withoutTheActorList(w, function()
+      Actors.setPos(w, second, 4, 20)
+    end)
+    A.same({ plateTokens(), anchored }, { before, { "nameplate2" } })
+    local plate = _G.C_NamePlate.GetNamePlateForUnit("nameplate2")
+    A.same({ Layout.rect(w, plate).left }, { Nameplates.project(w, second) - 55 })
+    withoutTheActorList(w, function()
+      Actors.setPos(w, first, 0, 70) -- out of range: only its plate goes
+    end)
+    A.same({ plateTokens(), _G.UnitExists("nameplate1") }, { { "nameplate2", "nameplate3" }, false })
+    withoutTheActorList(w, function()
+      Actors.setPos(w, first, 0, 15) -- back in range: it takes the lowest free token again
+    end)
+    A.same(plateTokens(), { "nameplate1", "nameplate2", "nameplate3" })
+  end, true)
+end
+
+local function test_a_flags_hook_reconciles_only_its_actor_plate()
+  H.withCombat("retail", function(w)
+    local near = grunt(w, "Near", 0, 10)
+    grunt(w, "Other", 0, 20)
+    local before = plateTokens()
+    withoutTheActorList(w, function()
+      Combat.emit(w, "flags", near)
+    end)
+    A.same(plateTokens(), before)
+    Actors.setDead(w, near, true)
+    A.same(plateTokens(), { "nameplate2" })
+    withoutTheActorList(w, function()
+      Actors.setDead(w, near, false)
+    end)
+    A.same(plateTokens(), before, "the revive's flags hook gave the plate back")
+  end, true)
+end
+
 return function()
   test_plate_rect_follows_the_ground_projection()
   test_lifecycle_order_and_frame_reuse()
@@ -257,4 +325,6 @@ return function()
   test_the_player_has_no_plate()
   test_plate_range_is_measured_from_the_player()
   test_a_player_step_anchors_only_the_plate_it_adds()
+  test_a_non_player_move_reconciles_only_that_plate()
+  test_a_flags_hook_reconciles_only_its_actor_plate()
 end
