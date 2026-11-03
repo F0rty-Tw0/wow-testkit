@@ -56,6 +56,17 @@ local function test_tab_with_only_a_rear_foe_changes_nothing()
   end)
 end
 
+local function test_tab_breaks_a_distance_tie_by_spawn_order()
+  SH.withSim("retail", function(w, s)
+    local first, second = SH.foe(w, 3, 0), SH.foe(w, -3, 0) -- the same distance from the player
+    for _, expected in ipairs({ first, second }) do
+      s:key("TAB", "down")
+      s:key("TAB", "up")
+      A.eq(_G.UnitGUID("target"), expected.guid)
+    end
+  end)
+end
+
 -- Spec 5.1 right-click table; loot range 5 reduced: a corpse at y=-2 (centre 8) is in, y=-1.9 is out.
 local function test_right_click_rules()
   SH.withSim("retail", function(w)
@@ -154,6 +165,7 @@ return function()
   test_hover_binds_mouseover_and_fires_on_change_only()
   test_tab_picks_nearest_in_front_then_cycles()
   test_tab_with_only_a_rear_foe_changes_nothing()
+  test_tab_breaks_a_distance_tie_by_spawn_order()
   test_right_click_rules()
   test_left_click_targets_without_acting()
   test_ui_error_carries_the_string_and_the_error_type()
