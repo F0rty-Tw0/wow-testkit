@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Viewer unit checks: runs tests/viewer/unit.html, and unit_live.html in live mode against a fake backend, in headless
-# Chrome over file:// and checks the dumped DOMs.
+# Chrome over file:// and checks the dumped DOMs; check_vendor.py checks the vendored three bundle and models.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT="${1:?usage: unit.sh <scratch-dir>}"
@@ -16,4 +16,5 @@ dump "$BASE/unit_live.html?live=1" "$OUT/unit-live.html"
 status=0
 python tests/viewer/check_unit.py "$OUT/unit.html" || status=1
 python tests/viewer/check_unit.py "$OUT/unit-live.html" || status=1
+python -I tests/viewer/check_vendor.py || status=1
 exit $status
