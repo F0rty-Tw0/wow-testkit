@@ -48,6 +48,7 @@ end
 
 local function test_session_spawn_refuses_a_bad_mob_before_adding_anything()
   local BAD = {
+    { { ai = "x" }, "ai must be a table or false" },
     { { ai = { swing = "x" } }, "ai.swing" },
     { { ai = { swing = { damage = 3 } } }, "ai.swing" },
     { { ai = { swing = { every = 2 } } }, "ai.swing.damage" },

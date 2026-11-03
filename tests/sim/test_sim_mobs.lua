@@ -61,6 +61,7 @@ local function test_bad_options_raise_before_anything_is_added_and_without_a_fil
       A.eq(string.find(message, ".lua:", 1, true), nil, message)
       A.eq(#w.combat.order, 1, needle) -- the player only
     end
+    refused({ ai = "x" }, "SimMobs.spawn: ai must be a table or false")
     refused({ ai = { swing = "x" } }, "SimMobs.spawn: ai.swing must be a table")
     refused({ ai = { swing = { damage = 3 } } }, "SimMobs.spawn: ai.swing: a rule's every")
     refused({ ai = { swing = { every = 2, damage = "x" } } }, "SimMobs.spawn: ai.swing.damage must be a number")
