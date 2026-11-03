@@ -51,6 +51,8 @@
       win.dispatchEvent(new Event('blur'));
       win.dispatchEvent(new Event('blur'));
       A.same(posts.slice(2).map((r) => r.kind + r.key).sort(), ['keyupA', 'keyupW']);
+      key('keydown', 'KeyW', { repeat: true }); // W still held when the window comes back
+      A.eq(posts.length, 4, 'an OS repeat after blur starts no walk');
       key('keydown', 'KeyS');
       Object.defineProperty(doc, 'visibilityState', { value: 'hidden' });
       doc.dispatchEvent(new Event('visibilitychange'));
@@ -184,6 +186,9 @@
       A.eq(I.pickActor(ray, [at('far', 6), at('near', 0)]), 'near', 'nearest actor');
       A.eq(I.pickActor(ray, [at('side', 0, false, 9)]), null, 'off the ray');
       A.eq(I.pickActor(ray, [at('c', 0, true)]), 'c', 'corpse');
+      const low = { o: { x: 0.8, y: -10, z: 0.3 }, d: { x: 0, y: 1, z: 0 } }; // grazes the wide, low corpse sphere
+      const still = (dead) => ({ guid: 'a', pos: { x: 0, y: 0 }, dead });
+      A.same([I.pickActor(low, [still(true)]), I.pickActor(low, [still(false)])], ['a', null], 'corpse shape');
       A.eq(I.worldFor(mid, SCREEN, pose, [at('near', 0)]).guid, 'near', 'world hit');
       A.eq(I.worldFor({ x: 959.5, y: 5 }, SCREEN, pose, []), null, 'sky');
       A.eq(I.groundAt({ o: { x: 0, y: 0, z: 5 }, d: { x: 1, y: 0, z: -0.01 } }), null, 'hit beyond ±50');
