@@ -123,8 +123,10 @@ function M.damage(w, src, dst, spec)
   local dealt, absorbed, touched = soak(w, src, dst, spec, reduced(dst, spec.amount))
   local old = dst.health
   -- source: assumed (spec 5.7): a health floor stops the fall; the log keeps the full hit and nothing counts as overkill.
+  -- A floor above the current health does not heal: the actor stays where it was (so `floor == 0` below is not dead: a floor
+  -- over a health of 0 leaves it at 0 without a kill).
   local floor = dst.healthFloor or 0
-  dst.health = math.max(floor, old - dealt)
+  dst.health = math.max(math.min(floor, old), old - dealt)
   local lethal = dealt > 0 and dst.health == 0 and floor == 0
   result.dealt, result.absorbed = dealt, absorbed
   result.overkill = floor == 0 and math.max(0, dealt - old) or 0

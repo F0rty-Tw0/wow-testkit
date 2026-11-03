@@ -104,6 +104,16 @@ local function test_health_floor_holds_logs_full_damage_and_no_death()
   end)
 end
 
+local function test_a_health_floor_above_the_current_health_never_heals()
+  H.withCombat("retail", function(w)
+    local ann, brute = H.pair(w)
+    Actors.setHealth(w, ann, 300)
+    ann.healthFloor = 500
+    local r = Resolve.damage(w, brute, ann, { amount = 100 })
+    A.same({ r.dealt, ann.health, ann.isDead }, { 100, 300, false })
+  end)
+end
+
 local function test_threat_uses_the_source_modifier()
   H.withCombat("retail", function(w)
     local ann, brute = H.pair(w)
@@ -176,6 +186,7 @@ return function()
   test_player_kill_logs_party_kill_before_unit_died()
   test_only_player_and_group_kills_log_party_kill()
   test_health_floor_holds_logs_full_damage_and_no_death()
+  test_a_health_floor_above_the_current_health_never_heals()
   test_threat_uses_the_source_modifier()
   test_heal_caps_at_max_and_reports_overheal()
   test_revive_restores_health_and_clears_dead()
