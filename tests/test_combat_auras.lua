@@ -198,6 +198,16 @@ local function test_root_and_stun_are_kit_fields_hidden_from_addons()
   end)
 end
 
+local function test_has_answers_whether_an_aura_holds_a_kit_field()
+  H.withCombat("retail", function(w)
+    local ann = H.pair(w)
+    A.same({ Auras.has(ann, "stun"), Auras.has(ann, "root") }, { false, false })
+    Auras.apply(w, ann, { spellID = H.SPELLS.WARD })
+    Auras.apply(w, ann, { spellID = H.SPELLS.CURSE, stun = true })
+    A.same({ Auras.has(ann, "stun"), Auras.has(ann, "root") }, { true, false })
+  end)
+end
+
 return function()
   test_instance_ids_count_from_one_and_answer_by_index()
   test_aura_data_carries_the_documented_fields_and_no_kit_extras()
@@ -215,4 +225,5 @@ return function()
   test_buff_and_debuff_data_by_index_match_unit_aura()
   test_every_flavor_installs_the_readers()
   test_root_and_stun_are_kit_fields_hidden_from_addons()
+  test_has_answers_whether_an_aura_holds_a_kit_field()
 end
