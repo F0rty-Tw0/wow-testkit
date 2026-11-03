@@ -9,6 +9,14 @@ SimProbe = {
     "PLAYER_REGEN_DISABLED",
     "PLAYER_REGEN_ENABLED",
     "UI_ERROR_MESSAGE",
+    "LOOT_READY",
+    "LOOT_OPENED",
+    "BAG_UPDATE",
+    "BAG_UPDATE_DELAYED",
+    "ITEM_PUSH",
+    "CHAT_MSG_LOOT",
+    "LOOT_SLOT_CLEARED",
+    "LOOT_CLOSED",
   },
 }
 SimProbeLog = {}
