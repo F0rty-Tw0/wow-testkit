@@ -3,7 +3,7 @@
 -- them. A swing or spell rule repeats every rule.every seconds from the start; a cooldown rule applies its aura once when the
 -- health fraction falls below rule.below. The AI stops itself when the actor dies or despawns.
 --
--- actor.ai = { swing = { every, damage, school? }, spells = { { spellID, every, castTime?, damage?, heal?, interruptible? } },
+-- actor.ai = { swing = { every, damage, school?, gate?, onSwing? }, spells = { { spellID, every, castTime?, damage?, heal?, interruptible? } },
 -- targets = "threat" | "random" (enemies), role = "tank" | "healer" | "dps" (a label), cooldowns = { { spellID, below, aura } } }
 local M = {}
 
@@ -60,6 +60,8 @@ local function damageTarget(w, actor)
   return foes[1]
 end
 
+M.target = damageTarget
+
 -- The living ally (same side, itself included) with the lowest health fraction, nil when every ally is at full health.
 local function healTarget(w, actor)
   local best, bestFraction = nil, 1
@@ -73,10 +75,15 @@ local function healTarget(w, actor)
   return best
 end
 
+-- rule.gate(w, actor, target) -> false skips the tick; rule.onSwing(w, actor, target) runs after a swing that landed.
+-- The sim's mobs set both (sim_mobs.lua); a scenario's own rule has neither.
 local function swing(w, actor, rule)
   local target = damageTarget(w, actor)
-  if target then
-    Resolve.damage(w, actor, target, { amount = rule.damage, school = rule.school })
+  if target and (not rule.gate or rule.gate(w, actor, target)) then
+    local result = Resolve.damage(w, actor, target, { amount = rule.damage, school = rule.school })
+    if rule.onSwing and not result.missed then
+      rule.onSwing(w, actor, target)
+    end
   end
 end
 

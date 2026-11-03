@@ -181,6 +181,32 @@ local function test_ai_numbers_are_the_rules_numbers()
   end)
 end
 
+local function test_swing_gate_skips_and_on_swing_counts()
+  H.withCombat("retail", function(w, c)
+    local ann, brute = H.pair(w)
+    local allow, counted = false, 0
+    brute.ai = {
+      swing = {
+        every = 2,
+        damage = 10,
+        gate = function()
+          return allow
+        end,
+        onSwing = function()
+          counted = counted + 1
+        end,
+      },
+    }
+    Threat.add(w, brute, ann, 1)
+    Ai.start(w, brute)
+    w:advance(2)
+    A.same({ #c.log.entries, counted }, { 0, 0 })
+    allow = true
+    w:advance(2)
+    A.same({ #c.log.entries, counted, Ai.target(w, brute) == ann }, { 1, 1, true })
+  end)
+end
+
 return function()
   test_enemy_swings_on_its_timer_at_top_threat()
   test_a_second_start_adds_no_second_timer()
@@ -193,4 +219,5 @@ return function()
   test_death_stops_the_ai()
   test_a_despawn_stops_the_ai()
   test_ai_numbers_are_the_rules_numbers()
+  test_swing_gate_skips_and_on_swing_counts()
 end
