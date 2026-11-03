@@ -6,6 +6,7 @@ local M = {}
 local Ids = require("session_ids")
 local Input = require("input")
 local SessionInputKeys = require("session_input_keys")
+local SimTarget = require("sim_target")
 
 local ENGINE = "blizzard"
 local DEFAULT_BUTTON = "LeftButton"
@@ -108,9 +109,27 @@ local function validateTarget(kind, target)
   end
 end
 
+-- world = { guid?, ground = { x, y }? } names what a pointer is over in the sim world (a click or enter).
+local function validateWorld(world)
+  if world == nil then
+    return
+  end
+  if type(world) ~= "table" then
+    error("input: world must be a table", 0)
+  end
+  if world.guid ~= nil and type(world.guid) ~= "string" then
+    error("input: world.guid must be a string", 0)
+  end
+  local ground = world.ground
+  if ground ~= nil and not (type(ground) == "table" and type(ground.x) == "number" and type(ground.y) == "number") then
+    error("input: world.ground needs numbers x and y", 0)
+  end
+end
+
 -- Raises on a request that is malformed whatever the world holds.
 local function validate(kind, req)
   validateTarget(kind, req.target)
+  validateWorld(req.world)
   if req.kind == "type" and type(req.text) ~= "string" then
     error("input: text must be a string for type", 0)
   end
@@ -156,22 +175,35 @@ local function hover(w, point)
   return frame, reason, old ~= nil
 end
 
+-- The sim world's share of a pointer: req.world counts only over empty space, so a frame under the point hides the
+-- world behind it. No sim, no change. Returns whether the world changed.
+local function pointInWorld(w, kind, frame, req)
+  if not w.sim then
+    return false
+  end
+  local world = not frame and req.world or nil
+
+  return SimTarget.pointer(w, kind, world, req.button)
+end
+
 -- enter and click at a point: P1, then (click, P2) the click on the frame hit; empty space is ok with no target.
 local POINTS = {
   enter = function(w, req)
     local frame, reason, moved = hover(w, req.target)
     local reply = { ok = not reason, reason = reason, target = Ids.target(w, frame) }
+    local inWorld = pointInWorld(w, "enter", frame, req)
 
-    return reply, moved
+    return reply, moved or inWorld
   end,
   click = function(w, req)
     local frame, _, moved = hover(w, req.target)
+    local inWorld = pointInWorld(w, "click", frame, req)
     if not frame then
-      return { ok = true }, moved
+      return { ok = true }, moved or inWorld
     end
     local reply, clicked = perform(w, KINDS.click, frame, req)
 
-    return reply, moved or clicked
+    return reply, moved or clicked or inWorld
   end,
 }
 
