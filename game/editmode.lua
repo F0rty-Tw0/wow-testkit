@@ -55,9 +55,35 @@ local function installLayouts(w)
   end)
 end
 
+-- source: assumed (row G22) every setting of Enum.EditModeAccountSetting is listed, 0 unless set, GridSpacing
+-- Constants.EditModeConsts.EditModeDefaultGridSpacing; Blizzard indexes each one unguarded at login
+-- (editmodemanager.lua:859-893).
+local function accountSettingsOf(w)
+  local settings = w.mock.editMode.accountSettings or {}
+  local consts = w.manifest.constants.EditModeConsts or {}
+  local gridSpacing = w.manifest.enums.EditModeAccountSetting.GridSpacing
+  local list = {}
+  for _, setting in pairs(w.manifest.enums.EditModeAccountSetting) do
+    local default = setting == gridSpacing and consts.EditModeDefaultGridSpacing or 0
+    local value = settings[setting] or default
+    list[#list + 1] = { setting = setting, value = value }
+  end
+  table.sort(list, function(a, b)
+    return a.setting < b.setting
+  end)
+
+  return list
+end
+
 local function installQueries(w)
   define(w, "C_EditMode.GetAccountSettings", function()
-    return {}
+    return accountSettingsOf(w)
+  end)
+  -- source: assumed (row G22) the value is kept and answered by GetAccountSettings.
+  define(w, "C_EditMode.SetAccountSetting", function(setting, value)
+    local mock = w.mock.editMode
+    mock.accountSettings = mock.accountSettings or {}
+    mock.accountSettings[setting] = value
   end)
   -- source: assumed (row G22) a name is valid when it is not empty after trimming.
   define(w, "C_EditMode.IsValidLayoutName", function(name)

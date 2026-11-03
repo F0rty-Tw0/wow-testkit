@@ -24,6 +24,10 @@ M.STRINGS = {
   COPPER_AMOUNT = "%d Copper",
   LARGE_NUMBER_SEPERATOR = ",",
   ERR_LOOT_TOO_FAR = "Too far away to loot",
+  ERR_INV_FULL = "Bags are full",
+  LOOT_ITEM_SELF = "You loot: %s",
+  LOOT_ITEM_SELF_MULTIPLE = "You loot: %sx%d",
+  YOU_LOOT_MONEY = "You loot %s",
   ERR_BADATTACKPOS = "Target is out of melee range",
   ERR_BADATTACKFACING = "You are not facing the target",
 }

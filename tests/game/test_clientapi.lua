@@ -31,13 +31,34 @@ end
 local function test_quality_colors_carry_the_color_mixin_assumed()
   G.withGame("retail", function(w)
     local plain = _G.C_ColorOverrides.GetColorForQuality(4)
-    A.same({ plain.r, plain.g, plain.b, plain.a }, { 0.64, 0.21, 0.93, 1 })
+    A.same({ plain.r, plain.g, plain.b, plain.a }, { 163 / 255, 53 / 255, 238 / 255, 1 })
     w:setGlobal("ColorMixin", {
       GetRGB = function(self)
         return self.r, self.g, self.b
       end,
     })
     A.same({ _G.C_ColorOverrides.GetColorForQuality(1):GetRGB() }, { 1, 1, 1 })
+  end)
+end
+
+-- The money row of the retail loot window colours its text through ColorManager.GetDefaultColorDataForItemQuality
+-- (colormanager.lua:63-67): the default colour is the same colour object, as the kit keeps no overrides.
+local function test_default_quality_colors_match_the_quality_colors_assumed()
+  G.withGame("retail", function()
+    local default = _G.C_ColorOverrides.GetDefaultColorForQuality(0)
+    A.same({ default.r, default.g, default.b, default.a }, { 157 / 255, 157 / 255, 157 / 255, 1 })
+  end)
+end
+
+-- Retail paints loot names through C_ColorOverrides, classic through C_Item.GetItemQualityColor: one item gets one
+-- colour on every flavor.
+local function test_override_colors_equal_the_item_quality_colors_assumed()
+  G.withGame("retail", function()
+    for quality = 0, 8 do
+      local override = _G.C_ColorOverrides.GetColorForQuality(quality)
+      local r, g, b = _G.C_Item.GetItemQualityColor(quality)
+      A.same({ override.r, override.g, override.b }, { r, g, b }, "quality " .. quality)
+    end
   end)
 end
 
@@ -71,9 +92,33 @@ end
 -- TransmogUtil.GetSlotID raised "table index is nil" and the transmog window built no slot.
 local function test_inventory_slot_names_ignore_case()
   G.withGame("retail", function()
-    A.same({ _G.C_PaperDollInfo.GetInventorySlotInfo("HEADSLOT"), _G.C_PaperDollInfo.GetInventorySlotInfo("shoulderslot") }, { 1, 3 })
+    local head, shoulder = _G.C_PaperDollInfo.GetInventorySlotInfo("HEADSLOT"), _G.C_PaperDollInfo.GetInventorySlotInfo("shoulderslot")
+    A.same({ head, shoulder }, { 1, 3 })
     A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo("NOSUCHSLOT"), nil)
     A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo(nil), nil)
+  end)
+end
+
+-- The classic SecureTemplates.lua (tbc build 70577, :457-460) keys CANCELABLE_ITEMS by the global
+-- GetInventorySlotInfo("MainHandSlot"); a nil key aborted the file before SecureActionButtonMixin:CalculateAction
+-- (:664), so every classic action button raised ActionButton.lua:530.
+local function test_classic_global_inventory_slot_lookup_answers_the_slot_ids_assumed()
+  for _, flavor in ipairs({ "vanilla", "tbc", "mists" }) do
+    G.withGame(flavor, function()
+      local mainHand, offHand = _G.GetInventorySlotInfo("MainHandSlot"), _G.GetInventorySlotInfo("SecondaryHandSlot")
+      A.same({ mainHand, offHand }, { 16, 17 }, flavor)
+    end)
+  end
+end
+
+-- The classic PaperDollItemSlotButton_OnLoad (tbc paperdollframe.lua:1292-1296) reads `id, textureName, checkRelic`
+-- and paints the empty slot with textureName; retail documents the same three returns (api/retail/PaperDollInfo.lua).
+local function test_inventory_slot_lookup_answers_the_empty_slot_texture_assumed()
+  G.withGame("tbc", function()
+    A.same({ _G.GetInventorySlotInfo("HeadSlot") }, { 1, 136516, false })
+  end)
+  G.withGame("retail", function()
+    A.same({ _G.C_PaperDollInfo.GetInventorySlotInfo("BackSlot") }, { 15, 136512, false })
   end)
 end
 
@@ -145,6 +190,18 @@ local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
   end)
 end
 
+-- retail GameRulesUtil.lua:41-44 indexes Constants.AccountStoreConsts at file scope; a nil there stopped the file before
+-- AllowBelowMinimumActionBarIcons, which edit mode calls for every action bar (editmodesystemtemplates.lua:1063).
+local function test_account_store_constants_name_two_store_fronts_assumed()
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    G.withGame(flavor, function()
+      local consts = _G.Constants.AccountStoreConsts
+      A.same({ type(consts.PlunderstormStoreFrontID), type(consts.WowhackStoreFrontID) }, { "number", "number" }, flavor)
+      A.truthy(consts.PlunderstormStoreFrontID ~= consts.WowhackStoreFrontID, flavor)
+    end)
+  end
+end
+
 -- ActionButton.lua (Blizzard_ActionBar) compares C_GameRules.GetActiveGameMode() with Enum.GameMode.Plunderstorm on
 -- every button update, and tbc's GameRulesUtil.lua indexes it at file scope; source: row G28, the member values of
 -- Ketho's retail LuaEnum dump (assumed the same off retail).
@@ -172,6 +229,7 @@ end
 
 return function()
   test_game_mode_enum_has_the_client_members()
+  test_account_store_constants_name_two_store_fronts_assumed()
   test_event_is_valid_when_the_flavor_knows_the_event_assumed()
   test_legacy_item_quality_names_alias_enum_item_quality_assumed()
   test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
@@ -181,8 +239,12 @@ return function()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
   test_inventory_slot_names_answer_their_ids_assumed()
   test_inventory_slot_names_ignore_case()
+  test_classic_global_inventory_slot_lookup_answers_the_slot_ids_assumed()
+  test_inventory_slot_lookup_answers_the_empty_slot_texture_assumed()
   test_metatable_getters_answer_the_widget_class_metatable_assumed()
   test_quality_colors_carry_the_color_mixin_assumed()
+  test_default_quality_colors_match_the_quality_colors_assumed()
+  test_override_colors_equal_the_item_quality_colors_assumed()
   test_curve_object_evaluates_its_points_assumed()
   test_get_current_environment_is_the_addon_global_table_assumed()
 end

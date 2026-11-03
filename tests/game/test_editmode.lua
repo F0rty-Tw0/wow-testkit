@@ -17,6 +17,16 @@ local function recordUpdates()
   return seen
 end
 
+-- C_EditMode.GetAccountSettings as { [setting] = value }.
+local function accountValues()
+  local values = {}
+  for _, info in ipairs(_G.C_EditMode.GetAccountSettings()) do
+    values[info.setting] = info.value
+  end
+
+  return values
+end
+
 local function test_get_layouts_returns_the_mock_assumed()
   G.withGame("retail", function(w)
     w:setMock({ editMode = { layouts = { LAYOUT_A, LAYOUT_B }, active = 4 } })
@@ -76,7 +86,24 @@ local function test_layout_name_validity_assumed()
   G.withGame("retail", function()
     A.same({ _G.C_EditMode.IsValidLayoutName(""), _G.C_EditMode.IsValidLayoutName("   ") }, { false, false })
     A.eq(_G.C_EditMode.IsValidLayoutName("Raid"), true)
-    A.same(_G.C_EditMode.GetAccountSettings(), {})
+  end)
+end
+
+-- Blizzard reads every account setting by enum value at login (editmodemanager.lua:859-893); a missing one is nil.
+local function test_account_settings_list_every_setting_assumed()
+  G.withGame("retail", function()
+    local ids = _G.Enum.EditModeAccountSetting
+    local values = accountValues()
+    A.same({ values[ids.ShowGrid], values[ids.GridSpacing], values[ids.ShowLossOfControl] }, { 0, 100, 0 })
+  end)
+end
+
+local function test_set_account_setting_is_kept_assumed()
+  G.withGame("retail", function()
+    local ids = _G.Enum.EditModeAccountSetting
+    _G.C_EditMode.SetAccountSetting(ids.ShowGrid, 1)
+    local values = accountValues()
+    A.eq(values[ids.ShowGrid], 1)
   end)
 end
 
@@ -101,6 +128,8 @@ return function()
   test_save_layouts_drops_the_presets_assumed()
   test_set_active_layout_fires_and_ignores_bad_indexes_assumed()
   test_layout_name_validity_assumed()
+  test_account_settings_list_every_setting_assumed()
+  test_set_account_setting_is_kept_assumed()
   test_profile_strings_stay_unscripted_assumed()
   test_every_flavor_with_the_names_gets_them_assumed()
 end

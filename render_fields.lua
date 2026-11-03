@@ -120,6 +120,12 @@ local function fontFields(w, st, item, assets)
     addEscapes(assets, item.text)
   end
   item.color = Read.color(FontChain.inherited(w, st, "textColor"), WHITE)
+  -- source: assumed (row W80) SetVertexColor on a FontString tints its text colour channel by channel; the classic loot
+  -- window colours item names that way (tbc lootframe.lua:205).
+  local tint = Read.stored(st, "VertexColor")
+  for i = 1, tint and 4 or 0 do
+    item.color[i] = item.color[i] * (tint[i] or 1)
+  end
 end
 
 local function fontStringFields(w, obj, st, item, assets)
