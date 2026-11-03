@@ -11,7 +11,7 @@ local DB2 = {
   spellname = "return { [900001] = { Name_lang = 'Kit Bolt' } }",
   spellmisc = "return { [900001] = { SpellID = 900001, SpellIconFileDataID = 132337, SchoolMask = 4, CastingTimeIndex = 7, DurationIndex = 3, RangeIndex = 5 } }",
   spellcasttimes = "return { [7] = { Base = 2500 } }",
-  spellrange = "return { [5] = { RangeMin = {0, 0}, RangeMax = {40, 40} } }",
+  spellrange = "return { [5] = { RangeMin = {0, 3}, RangeMax = {40, 30} } }",
   spellduration = "return { [3] = { Duration = 8000 } }",
   spellcooldowns = "return { [1] = { SpellID = 900001, RecoveryTime = 10000, StartRecoveryTime = 1500 } }",
   spellpower = "return { [1] = { SpellID = 900001, PowerType = 0, ManaCost = 30 } }",
@@ -132,6 +132,47 @@ local function test_an_unlisted_aura_is_dummy_and_a_trigger_names_its_spell_assu
   end)
 end
 
+local function test_a_retail_layout_stores_base_points_as_a_float_column_assumed()
+  local db2 = db2With({
+    spelleffect = "return { [41] = { SpellID = 900001, EffectIndex = 0, Effect = 2, EffectBasePointsF = 12.5, ImplicitTarget = {6, 0} } }",
+  })
+  W.withWindows("retail", { db2 = db2, index = { ["spelleffect.spellid"] = "return { [900001] = { 41 } }" } }, function(w)
+    A.eq(SimSpellData.get(w, KIT).effects[1].base, 12.5)
+  end)
+end
+
+local function test_a_literal_with_a_ground_effect_is_a_ground_spell_with_or_without_an_extract()
+  local literal = { id = KIT, effects = { { type = "damage", base = 3, target = "areaDest", radius = 8 } } }
+  W.withWindows("retail", {}, function(w)
+    SimSpellData.put(w, literal)
+    A.eq(SimSpellData.get(w, KIT).ground, true)
+  end)
+  withKit("retail", DB2, function(w)
+    SimSpellData.put(w, literal)
+    A.eq(SimSpellData.get(w, KIT).ground, true)
+  end)
+end
+
+local function test_only_the_base_difficulty_rows_of_an_effect_play_assumed()
+  local db2 = db2With({
+    spelleffect = "return { [51] = { SpellID = 900001, EffectIndex = 0, Effect = 2, EffectBasePoints = 5, DifficultyID = 0, ImplicitTarget = {6, 0} },"
+      .. " [52] = { SpellID = 900001, EffectIndex = 0, Effect = 2, EffectBasePoints = 50, DifficultyID = 1, ImplicitTarget = {6, 0} },"
+      .. " [53] = { SpellID = 900001, EffectIndex = 0, Effect = 2, EffectBasePoints = 500, DifficultyID = 2, ImplicitTarget = {6, 0} },"
+      .. " [54] = { SpellID = 900001, EffectIndex = 1, Effect = 2, EffectBasePoints = 7, ImplicitTarget = {6, 0} } }",
+  })
+  W.withWindows("retail", { db2 = db2, index = { ["spelleffect.spellid"] = "return { [900001] = { 54, 52, 51, 53 } }" } }, function(w)
+    local effects = SimSpellData.get(w, KIT).effects
+    A.same({ #effects, effects[1].base, effects[2].base }, { 2, 5, 7 }) -- a layout without the column keeps its rows
+  end)
+end
+
+local function test_a_zero_cost_row_is_no_cost_assumed()
+  local db2 = db2With({ spellpower = "return { [1] = { SpellID = 900001, PowerType = 0, ManaCost = 0 } }" }) -- retail Fireball: percent-costed
+  withKit("retail", db2, function(w)
+    A.eq(SimSpellData.get(w, KIT).cost, nil)
+  end)
+end
+
 local function test_rage_cost_is_stored_times_ten_and_a_missing_cooldown_row_is_zero_assumed()
   local db2 = db2With({ spellpower = "return { [1] = { SpellID = 900001, PowerType = 1, ManaCost = 150 } }" })
   db2.spellcooldowns = nil
@@ -146,7 +187,15 @@ local function test_without_an_extract_get_returns_only_put_literals()
   W.withWindows("retail", {}, function(w)
     A.eq(SimSpellData.get(w, KIT), nil)
     SimSpellData.put(w, { id = KIT, name = "Literal", castTime = 0, effects = { { type = "damage", base = 3, target = "enemy" } } })
-    A.same(SimSpellData.get(w, KIT), { id = KIT, name = "Literal", castTime = 0, effects = { { type = "damage", base = 3, target = "enemy" } } })
+    A.same(SimSpellData.get(w, KIT), {
+      id = KIT,
+      name = "Literal",
+      castTime = 0,
+      cooldown = 0,
+      gcd = 0,
+      ground = false,
+      effects = { { type = "damage", base = 3, target = "enemy" } },
+    })
     SimSpellData.publish(w, KIT)
     A.same({ w.mock.spells[KIT].name, w.mock.spells[KIT].castTime }, { "Literal", 0 })
     SimSpellData.publish(w, 424242) -- no record: nothing written
@@ -161,6 +210,10 @@ return function()
   test_ground_and_radius_come_from_the_effect_row_assumed()
   test_effect_and_aura_and_target_numbers_assumed()
   test_an_unlisted_aura_is_dummy_and_a_trigger_names_its_spell_assumed()
+  test_a_retail_layout_stores_base_points_as_a_float_column_assumed()
+  test_a_literal_with_a_ground_effect_is_a_ground_spell_with_or_without_an_extract()
+  test_only_the_base_difficulty_rows_of_an_effect_play_assumed()
+  test_a_zero_cost_row_is_no_cost_assumed()
   test_rage_cost_is_stored_times_ten_and_a_missing_cooldown_row_is_zero_assumed()
   test_without_an_extract_get_returns_only_put_literals()
 end

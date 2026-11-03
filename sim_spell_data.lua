@@ -6,47 +6,38 @@ local M = {}
 
 local BlizzardData = require("blizzard_data")
 local CombatSpells = require("combat_spells")
+local State = require("game.state")
 local WorldApi = require("world_api")
 
--- source: assumed (TrinityCore SharedDefines numbers; Task 5.1 Step 6 checks them against real rows) SpellEffect.Effect
--- -> record effect type. An id not listed is skipped and counted in w.unscripted["sim:effect:<n>"].
-M.EFFECT = { [2] = "damage", [6] = "aura", [17] = "damage", [27] = "persistent", [30] = "energize", [96] = "charge", [64] = "trigger" }
+local RULES = {
+  -- source: assumed (TrinityCore SharedDefines numbers; Task 5.1 Step 6 checks them against real rows) SpellEffect.Effect
+  -- -> record effect type. An id not listed is skipped and counted in w.unscripted["sim:effect:<n>"].
+  EFFECT = { [2] = "damage", [6] = "aura", [17] = "damage", [27] = "persistent", [30] = "energize", [96] = "charge", [64] = "trigger" },
+  -- source: assumed (TrinityCore SharedDefines numbers; Step 6 checks them) SpellEffect.EffectAura -> record aura; any
+  -- other aura is "dummy".
+  AURA = { [3] = "periodic", [12] = "stun", [26] = "root" },
+  -- source: assumed (TrinityCore SharedDefines numbers: TARGET_UNIT_CASTER 1, TARGET_UNIT_TARGET_ENEMY 6,
+  -- TARGET_UNIT_SRC_AREA_ENEMY 22 and 16, TARGET_DEST_DEST 18, TARGET_DEST_TARGET_ENEMY 15; Step 6 checks them)
+  -- ImplicitTarget[1] -> record target.
+  TARGET = { [1] = "caster", [6] = "enemy", [22] = "areaSource", [16] = "areaSource", [15] = "areaDest", [18] = "areaDest" },
+  -- source: assumed (DB2 SpellPower.PowerType; Step 6 checks Heroic Strike) 0 is mana, 1 is rage.
+  POWER = { [0] = "MANA", [1] = "RAGE" },
+  -- source: assumed (Step 6 checks Heroic Strike) a rage cost is stored times ten.
+  RAGE_SCALE = 10,
+  -- source: confirmed (retail 70688 extract: no (SpellID, EffectIndex) pair repeats among the DifficultyID 0 rows);
+  -- assumed (a layout without the column has base rows only) a SpellEffect row of another difficulty is skipped.
+  BASE_DIFFICULTY = 0,
+  -- The record fields publish copies into w.mock.spells (SimRange.IsSpellInRange reads maxRange and minRange there).
+  PUBLISHED = { "name", "icon", "castTime", "minRange", "maxRange" },
+}
 
--- source: assumed (TrinityCore SharedDefines numbers; Step 6 checks them) SpellEffect.EffectAura -> record aura; any
--- other aura is "dummy".
-M.AURA = { [3] = "periodic", [12] = "stun", [26] = "root" }
-
--- source: assumed (TrinityCore SharedDefines numbers: TARGET_UNIT_CASTER 1, TARGET_UNIT_TARGET_ENEMY 6,
--- TARGET_UNIT_SRC_AREA_ENEMY 22 and 16, TARGET_DEST_DEST 18, TARGET_DEST_TARGET_ENEMY 15; Step 6 checks them)
--- ImplicitTarget[1] -> record target.
-local TARGET = { [1] = "caster", [6] = "enemy", [22] = "areaSource", [16] = "areaSource", [15] = "areaDest", [18] = "areaDest" }
-
--- source: assumed (DB2 SpellPower.PowerType; Step 6 checks Heroic Strike) 0 is mana, 1 is rage.
-local POWER = { [0] = "MANA", [1] = "RAGE" }
-
--- source: assumed (Step 6 checks Heroic Strike) a rage cost is stored times ten.
-local RAGE_SCALE = 10
-
--- The record fields publish copies into w.mock.spells (SimRange.IsSpellInRange reads maxRange and minRange there).
-local PUBLISHED = { "name", "icon", "castTime", "minRange", "maxRange" }
+M.EFFECT, M.AURA = RULES.EFFECT, RULES.AURA
 
 -- Kit literals per world (put). Weak by world, so a bare window world needs no w.sim; every world's install puts its own.
 local literals = setmetatable({}, { __mode = "k" })
 
 function M.target(n)
-  return TARGET[n]
-end
-
-local function copy(value)
-  if type(value) ~= "table" then
-    return value
-  end
-  local out = {}
-  for key, item in pairs(value) do
-    out[key] = copy(item)
-  end
-
-  return out
+  return RULES.TARGET[n]
 end
 
 -- An array column's first element (the hostile one); a scalar column answers itself.
@@ -88,6 +79,16 @@ local function positive(value)
   return value and value > 0 and value or nil
 end
 
+-- The record aura of an aura or persistent effect row, "dummy" for an aura the sim does not know; nil for any other effect.
+local function auraOf(kind, effect)
+  local holdsAura = kind == "aura" or kind == "persistent"
+  if not (holdsAura and effect.EffectAura) then
+    return nil
+  end
+
+  return RULES.AURA[effect.EffectAura] or "dummy"
+end
+
 -- One record effect from a SpellEffect row, or nil (and a count) when its Effect id is not scripted.
 local function effectOf(w, effect)
   local kind = M.EFFECT[effect.Effect]
@@ -96,8 +97,10 @@ local function effectOf(w, effect)
 
     return nil
   end
-  local out = { type = kind, base = effect.EffectBasePoints or 0, target = M.target(first(effect.ImplicitTarget)) }
-  out.aura = (kind == "aura" or kind == "persistent") and effect.EffectAura and (M.AURA[effect.EffectAura] or "dummy") or nil
+  -- source: assumed (Step 6: the retail layout has EffectBasePointsF only, the classic ones EffectBasePoints only)
+  local base = effect.EffectBasePoints or effect.EffectBasePointsF or 0
+  local out = { type = kind, base = base, target = M.target(first(effect.ImplicitTarget)) }
+  out.aura = auraOf(kind, effect)
   out.radius = radiusOf(w, effect)
   out.period = positive(effect.EffectAuraPeriod)
   out.trigger = positive(effect.EffectTriggerSpell)
@@ -109,12 +112,18 @@ local function byEffectIndex(a, b)
   return (a.EffectIndex or 0) < (b.EffectIndex or 0)
 end
 
+local function isBaseRow(effect)
+  return effect.DifficultyID == nil or effect.DifficultyID == RULES.BASE_DIFFICULTY
+end
+
 local function effectsOf(w, id)
   local rows = BlizzardData.rowsBy(w, "SpellEffect", "SpellID", id)
   table.sort(rows, byEffectIndex)
   local effects = {}
   for _, effect in ipairs(rows) do
-    effects[#effects + 1] = effectOf(w, effect)
+    if isBaseRow(effect) then
+      effects[#effects + 1] = effectOf(w, effect)
+    end
   end
 
   return effects
@@ -130,16 +139,20 @@ local function hasGround(effects)
   return false
 end
 
--- { type, amount } from the spell's first SpellPower row, or nil for a free spell or a power the sim does not play.
+-- { type, amount } from the spell's first SpellPower row, or nil for a free spell, a power the sim does not play, or a
+-- row without a flat cost. source: assumed (Step 6: retail Fireball and Frost Nova rows hold ManaCost 0, their cost is a
+-- percentage this export does not carry, so a kit literal states it).
 local function costOf(w, id)
   local power = firstBy(w, "SpellPower", id)
-  local kind = power and POWER[power.PowerType]
-  if not kind then
+  local kind = power and RULES.POWER[power.PowerType]
+  local amount = positive(power and power.ManaCost)
+  if not (kind and amount) then
     return nil
   end
-  local amount = power.ManaCost or 0
 
-  return { type = kind, amount = kind == "RAGE" and amount / RAGE_SCALE or amount }
+  local flat = kind == "RAGE" and amount / RULES.RAGE_SCALE or amount
+
+  return { type = kind, amount = flat }
 end
 
 -- source: assumed (Step 6 checks) RecoveryTime is the spell's own cooldown in ms, CategoryRecoveryTime stands in when it
@@ -183,7 +196,7 @@ end
 -- source: assumed (retail effect scaling is not modeled; the kit literal states the amounts we play) a literal's
 -- effects replace the DB2 effects; every other DB2 number replaces the literal's.
 local function merge(literal, derived)
-  local record = copy(literal) or {}
+  local record = State.merge({}, literal or {})
   for key, value in pairs(derived) do
     if key ~= "effects" or not record.effects then
       record[key] = value
@@ -200,11 +213,11 @@ end
 local function build(w, id)
   local literal = literals[w] and literals[w][id]
   local derived = fromDb2(w, id)
-  if not derived then
-    return literal and copy(literal) or nil
+  if not derived and not literal then
+    return nil
   end
 
-  return merge(literal, derived)
+  return merge(literal, derived or {})
 end
 
 local function cache(w)
@@ -234,7 +247,7 @@ end
 -- Registers a kit literal (record.id names the spell); it fills what the extract lacks and states the effects.
 function M.put(w, record)
   literals[w] = literals[w] or {}
-  literals[w][record.id] = copy(record)
+  literals[w][record.id] = State.merge({}, record)
   local store = cache(w)
   if store then
     store[record.id] = nil
@@ -250,7 +263,7 @@ function M.publish(w, id)
   end
   local target = w.mock.spells[id] or {}
   w.mock.spells[id] = target
-  for _, field in ipairs(PUBLISHED) do
+  for _, field in ipairs(RULES.PUBLISHED) do
     if target[field] == nil then
       target[field] = record[field]
     end
