@@ -9,13 +9,13 @@ local define = State.define
 
 local PLAYER, TARGET = "player", "target"
 
--- source: assumed (spec 3.3) every actor reaches 1.5 yards from its centre; actor.reach overrides it.
+-- source: assumed (row SM3) every actor reaches 1.5 yards from its centre; actor.reach overrides it.
 M.REACH = 1.5
 
--- source: assumed (spec 4.3) UnitInRange reaches 40 yards.
+-- source: assumed (row SM4) UnitInRange reaches 40 yards.
 local GROUP_RANGE = 40
 
--- source: assumed (spec 4.3) CheckInteractDistance's index -> yards: 1 inspect, 2 trade, 3 duel, 4 follow.
+-- source: assumed (row SM5) CheckInteractDistance's index -> yards: 1 inspect, 2 trade, 3 duel, 4 follow.
 local INTERACT = { [1] = 28, [2] = 11.11, [3] = 9.9, [4] = 28 }
 
 local function reach(actor)
@@ -30,8 +30,8 @@ function M.distance(a, b)
   return math.max(0, gap)
 end
 
--- source: confirmed (HereBeDragons) UnitPosition's first return is the north coordinate and its second is west of the
--- map's east edge. Kit +x is east and +y north, so wowX = pos.y and wowY = -pos.x.
+-- source: assumed (row SM6, from HereBeDragons' `local y, x = UnitPosition(unit)`) UnitPosition's first return is the
+-- north coordinate and its second is west of the map's east edge. Kit +x is east and +y north, so wowX = pos.y and wowY = -pos.x.
 function M.toWow(pos)
   return pos.y, -pos.x
 end

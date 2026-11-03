@@ -14,7 +14,7 @@ local function test_install_places_the_player()
   end)
 end
 
-local function test_default_class_is_a_warrior_with_rage()
+local function test_default_class_is_a_warrior_with_rage_assumed()
   H.each({}, function(w)
     local name, file = _G.UnitClass("player")
     A.same({ name, file }, { "Warrior", "WARRIOR" })
@@ -23,18 +23,18 @@ local function test_default_class_is_a_warrior_with_rage()
   end)
 end
 
-local function test_world_state_fields()
+local function test_world_state_fields_assumed()
   H.each({}, function(w)
     A.same(w.sim.bounds, { minX = -50, maxX = 50, minY = -50, maxY = 50 })
     A.same(w.sim.mapRect, { left = -50, top = 50, size = 100 })
     A.same({ w.sim.intents, w.sim.activity, w.sim.clock }, { {}, 0, { t0 = w.now, carry = 0 } })
-    A.same(w.sim.hooks, { frame = { SimMove.frame }, reset = {}, persist = {} })
+    A.same(w.sim.hooks, { frame = { SimMove.frame }, reset = { SimMove.stop }, persist = {} })
     A.eq(w.mock.zone.mapID, Sim.MAP_ID)
     A.same(w.mock.zone.position, { x = 0.5, y = 0.6 })
   end)
 end
 
-local function test_mage_at_level_20()
+local function test_mage_at_level_20_assumed()
   H.withSim("retail", { class = "MAGE", level = 20 }, function(w)
     local p = Actors.get(w, "player")
     local name, file = _G.UnitClass("player")
@@ -84,9 +84,9 @@ end
 
 return function()
   test_install_places_the_player()
-  test_default_class_is_a_warrior_with_rage()
-  test_world_state_fields()
-  test_mage_at_level_20()
+  test_default_class_is_a_warrior_with_rage_assumed()
+  test_world_state_fields_assumed()
+  test_mage_at_level_20_assumed()
   test_no_sim_leaves_the_kit_unchanged()
   test_activity_counts_world_changes()
   test_second_install_raises()

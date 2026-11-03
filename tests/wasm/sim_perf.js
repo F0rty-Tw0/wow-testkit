@@ -1,4 +1,4 @@
-// AC6 probe, the WASM half (spec 13): opens SessionDemo in the worker, reloads it with a sim world, holds W and times 300
+// AC6 probe, the WASM half: opens SessionDemo in the worker, reloads it with a sim world, holds W and times 300
 // `sim step` calls two ways: page side, each round trip with performance.now (`page`), then worker side, a batch of
 // tk_call + tk_drain timed one by one inside the worker by a test hook (`worker`, the Lua cost without postMessage).
 // Writes {"mode", "flavor", "blizzardErrors", "page": {median_ms, p95_ms}, "worker": {...}, ...} into #out;

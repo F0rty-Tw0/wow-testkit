@@ -1,5 +1,5 @@
 -- SimState: a sim world as plain data and back, for a hot reload (session_sim.lua carries it to the fresh world). export
--- reads the clock, the player, the other actors with their auras and fights, the group, the held keys and every state a
+-- reads the clock, the player and the other actors with their auras and fights, the group, the held keys and every state a
 -- unit registered with persist; restore puts it back in phase 2 of the fresh world's install. A cast or a channel is never
 -- kept: the reload ends it, and no UNIT_SPELLCAST_STOP is sent for it.
 local M = {}
@@ -10,10 +10,11 @@ local Auras = require("combat_auras")
 local GameState = require("game.state")
 local Group = require("combat_group")
 local Nameplates = require("combat_nameplates")
+local SimMove = require("sim_move")
 local State = require("combat_state")
 
 local VERSION = 1
-local PLAYER, MOUSEOVER = "player", "mouseover"
+local MOUSEOVER = "mouseover"
 
 local function copy(t)
   return GameState.merge({}, t)
@@ -65,14 +66,18 @@ local function exportPlayer(player)
     healthMax = player.healthMax,
     power = player.power,
     powerMax = player.powerMax,
+    auras = copy(player.auras),
+    auraSeq = player.auraSeq,
     targetGuid = player.targetGuid,
   }
 end
 
+-- The roster, or { kind } for a group kind a state request set with no roster behind it, or nil when the player is in no
+-- group.
 local function exportGroup(w)
   local g = w.combat.group
   if not g then
-    return nil
+    return w.mock.group ~= "none" and { kind = w.mock.group } or nil
   end
   local members = {}
   for i, actor in ipairs(g.members) do
@@ -155,7 +160,7 @@ local function resumeClock(w, state)
   w.sim.clock.carry = state.carry
 end
 
--- The player's place, class, level, health and power, set without hooks; the saved class wins over the session's.
+-- The player's place, class, level, health, power and auras, set without hooks; the saved class wins over the session's.
 local function restorePlayer(w, state)
   local sim, saved = w.sim, state.player
   local player = sim.player
@@ -165,6 +170,7 @@ local function restorePlayer(w, state)
   player.facing = saved.facing
   player.healthMax, player.health = saved.healthMax, saved.health
   player.powerMax, player.power = saved.powerMax, saved.power
+  Auras.restore(w, player, saved)
 end
 
 local function restoreActor(w, saved)
@@ -201,15 +207,24 @@ local function restoreActors(w, state)
   return byGuid
 end
 
-local function restoreBindings(w, state, byGuid)
-  local g = state.group
-  if g then
+-- A saved roster is set again and a saved kind with no roster is set as the kind alone; a world saved in no group clears
+-- the group a session state gave the fresh one.
+local function restoreGroup(w, g, byGuid)
+  if not g then
+    Group.clear(w)
+  elseif not g.members then
+    w:setMock({ group = g.kind })
+  else
     local members = {}
     for i, guid in ipairs(g.members) do
       members[i] = byGuid[guid]
     end
     Group.set(w, members, { raid = g.raid, leader = g.leader })
   end
+end
+
+local function restoreBindings(w, state, byGuid)
+  restoreGroup(w, state.group, byGuid)
   Actors.setTarget(w, w.sim.player, byGuid[state.player.targetGuid])
   local mouseover = byGuid[state.mouseover]
   if mouseover then
@@ -229,7 +244,8 @@ local function hasLiveHostileFoe(w, actor)
 end
 
 -- The fights again, then the AI of every fighting actor that has one (its timers start over from now); a player still in
--- combat with no live hostile foe gets the drop that was pending.
+-- combat with no live hostile foe gets the drop that was pending, and a player out of combat leaves a combat the session
+-- state turned on.
 local function restoreCombat(w, state, byGuid)
   for _, saved in ipairs(state.actors) do
     for _, guid in ipairs(saved.foes) do
@@ -245,15 +261,18 @@ local function restoreCombat(w, state, byGuid)
       Ai.start(w, actor)
     end
   end
-  if state.combat.flag and not hasLiveHostileFoe(w, w.unitState.byToken[PLAYER]) then
+  local flag = state.combat.flag
+  if flag and not hasLiveHostileFoe(w, w.sim.player) then
     State.restoreDrop(w, state.combat.dropIn)
+  elseif not flag and w.mock.combat then
+    State.restoreOff(w)
   end
 end
 
--- source: assumed (spec 6.1) a key held across a reload stays held: the walk goes on, and the viewer's keyup (which runs
+-- source: assumed (row SM15) a key held across a reload stays held: the walk goes on, and the viewer's keyup (which runs
 -- the command's up half) stops it. Only the command is kept; the frames its down reached are gone with the old world.
 local function restoreInput(w, state)
-  w.sim.intents = copy(state.intents)
+  SimMove.set(w, state.intents)
   for key, command in pairs(state.held) do
     w.input.heldKeys[key] = { reached = {}, command = command }
   end

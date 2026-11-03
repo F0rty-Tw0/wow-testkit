@@ -9,10 +9,10 @@ local State = require("game.state")
 
 local TAU = 2 * math.pi
 
--- source: assumed (spec 3.3) the speeds in yards per second: run 7, walk 2.5, backpedal 4.5, swim 4.722222 (the client's
+-- source: assumed (row SM1) the speeds in yards per second: run 7, walk 2.5, backpedal 4.5, swim 4.722222 (the client's
 -- swim speed), flight 7.
 M.SPEEDS = { run = 7, walk = 2.5, back = 4.5, swim = 4.722222, flight = 7 }
--- source: assumed (spec 3.3) a full turn takes two seconds.
+-- source: assumed (row SM2) a full turn takes two seconds.
 M.TURN = math.pi
 
 local INTENTS = { "forward", "backward", "turnLeft", "turnRight", "strafeLeft", "strafeRight", "autorun", "walk" }
@@ -22,7 +22,7 @@ for _, name in ipairs(INTENTS) do
 end
 local VALID_LIST = table.concat(INTENTS, ", ")
 
--- A key press that moves along the facing takes the character off autorun.
+-- source: assumed (row SM12) a key press that moves along the facing takes the character off autorun.
 local CANCELS_AUTORUN = { forward = true, backward = true }
 
 -- Fake name -> { intent, on } for the key calls that only set one.
@@ -107,6 +107,7 @@ local function speedOf(intents, along, across)
   elseif along < 0 and across == 0 then
     return M.SPEEDS.back
   end
+
   return intents.walk and M.SPEEDS.walk or M.SPEEDS.run
 end
 
@@ -180,11 +181,20 @@ local function defineReaders(w)
   end, State.ALL)
 end
 
--- Adds the walk state to w.sim, hangs the frame step on the frame hooks and defines the key fakes.
+-- Stops the walk: no intent (walk included), speed 0, and PLAYER_STOPPED_MOVING when the player was moving.
+function M.stop(w)
+  w.sim.intents = {}
+  w.sim.speed = 0
+  setMoving(w, false)
+end
+
+-- Adds the walk state to w.sim, hangs the frame step on the frame hooks and the stop on the reset hooks, and defines the
+-- key fakes.
 function M.install(w)
   w.sim.moving = false
   w.sim.speed = 0
   table.insert(w.sim.hooks.frame, M.frame)
+  table.insert(w.sim.hooks.reset, M.stop)
   defineKeys(w)
   defineReaders(w)
 end

@@ -63,8 +63,8 @@ local function installWorld(w, opts)
 end
 
 -- opts: { addon, root, addonsDir?, flavor, saved, config, screen?, preview? = { out }, golden? = { root, scenario,
--- update }, sim? = true | { class?, level? } (sim.lua), client?, blizzardUi? = true | { targets }, findClient? } (scenario_blizzard.lua); addonsDir (the folder
--- that holds the addon and its dependencies) defaults to the parent of root.
+-- update }, sim? = true | { class?, level? } (sim.lua), client?, blizzardUi? = true | { targets }, findClient? }
+-- (scenario_blizzard.lua); addonsDir (the folder that holds the addon and its dependencies) defaults to the parent of root.
 -- s.ns / s.info / s.deps exist only after s:login. With golden, s:snapshot checks goldens and the world runs in golden
 -- mode.
 function M.new(opts)

@@ -2,6 +2,7 @@
 -- a sim world, and the two guards that keep the sim clock the only clock.
 local A = require("assert")
 local Actors = require("combat_actors")
+local CombatH = require("tests.helpers.combat")
 local H = require("tests.helpers.session")
 local Near = require("tests.helpers.sim")
 local Session = require("session")
@@ -154,6 +155,18 @@ local function test_reset_returns_the_player_to_the_spawn()
   end)
 end
 
+local function test_reset_while_walking_stops_and_a_fresh_w_walks_again_assumed()
+  withSim(function(sess)
+    local w = sess.w
+    local log = CombatH.watch(w, { "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING" })
+    walkNorth(sess)
+    sim(sess, { action = "reset" })
+    A.same({ Near.names(log), _G.IsPlayerMoving(), w.input.heldKeys.W }, { { "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING" }, false, nil })
+    walkNorth(sess)
+    Near.near(w.sim.player.pos.y, -3, "the second W walks")
+  end)
+end
+
 local function test_reset_with_a_class_changes_the_class()
   withSim(function(sess)
     local r = sim(sess, { action = "reset", class = "MAGE" })
@@ -231,6 +244,7 @@ return function()
   test_step_runs_an_onupdate_under_the_engine_context()
   test_world_lists_actors_in_spawn_order()
   test_reset_returns_the_player_to_the_spawn()
+  test_reset_while_walking_stops_and_a_fresh_w_walks_again_assumed()
   test_reset_with_a_class_changes_the_class()
   test_a_refused_class_leaves_the_world_alone()
   test_reset_runs_the_reset_hooks_under_the_engine_context()

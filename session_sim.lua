@@ -77,17 +77,38 @@ function M.install(opts)
 end
 
 -- Keeps sess's sim world for the session a reload opens with opts: sess.simState is its export when both have the sim and
--- open on the same flavor ("auto" included), else nil, so a toggled sim or another flavor opens a fresh world.
+-- open on the same flavor ("auto" included), else nil, so a toggled sim or another flavor opens a fresh world. A carried
+-- world replaces opts.state with a copy holding its combat flag and group: the sim changes both after the last state
+-- request, the reload applies opts.state before the sim world, and Sim.restore settles them against the export.
+-- sess.state stays as the last state request left it, so a world that is not carried, or the fresh world a failed
+-- reload falls back to, gets no combat that nothing on it would drop.
 function M.carry(sess, opts)
-  local same = sess.w.sim and opts.sim and sess.w.flavor == SessionOptions.flavorOf(opts)
-  sess.simState = same and Sim.export(sess.w) or nil
+  local w = sess.w
+  local same = w.sim and opts.sim and w.flavor == SessionOptions.flavorOf(opts)
+  if not same then
+    sess.simState = nil
+    return
+  end
+  local state = {}
+  for key, value in pairs(opts.state) do
+    state[key] = value
+  end
+  state.combat, state.group = w.mock.combat, w.mock.group
+  opts.state, sess.simState = state, Sim.export(w)
 end
 
 -- Phase 2 of the install, after the bindings are in: what a login or a reload puts back on the sim world. prior is the
--- session this one follows, or nil.
+-- session this one follows, or nil. A restore that raises destroys the world first, so the reload's fallback can build
+-- its own.
 function M.restore(sess, prior)
-  if sess.w.sim then
-    Sim.restore(sess.w, prior and prior.simState)
+  local w = sess.w
+  if not w.sim then
+    return
+  end
+  local ok, err = pcall(Sim.restore, w, prior and prior.simState)
+  if not ok then
+    w:destroy()
+    error(err, 0)
   end
 end
 

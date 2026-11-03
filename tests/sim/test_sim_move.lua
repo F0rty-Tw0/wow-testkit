@@ -4,18 +4,7 @@ local H = require("tests.helpers.sim")
 local Sim = require("sim")
 local SimMove = require("sim_move")
 
-local function recordMoves()
-  local seen = {}
-  local frame = _G.CreateFrame("Frame")
-  frame:RegisterEvent("PLAYER_STARTED_MOVING")
-  frame:RegisterEvent("PLAYER_STOPPED_MOVING")
-  frame:SetScript("OnEvent", function(_, event)
-    seen[#seen + 1] = event
-  end)
-  return seen
-end
-
-local function test_forward_walks_north_at_run_speed()
+local function test_forward_walks_north_at_run_speed_assumed()
   H.each({}, function(_, s)
     local p = s.w.sim.player
     s:move({ forward = true })
@@ -28,9 +17,9 @@ local function test_forward_walks_north_at_run_speed()
   end)
 end
 
-local function test_moving_events_fire_on_transitions_only()
+local function test_moving_events_fire_on_transitions_only_assumed()
   H.withSim("retail", {}, function(_, s)
-    local seen = recordMoves()
+    local seen = H.recordMoves()
     s:move({ forward = true })
     s:simStep(0.5)
     s:simStep(0.5)
@@ -43,10 +32,10 @@ local function test_moving_events_fire_on_transitions_only()
   end)
 end
 
-local function test_turning_alone_is_not_moving()
+local function test_turning_alone_is_not_moving_assumed()
   H.each({}, function(_, s)
     local p = s.w.sim.player
-    local seen = recordMoves()
+    local seen = H.recordMoves()
     s:move({ turnLeft = true })
     local changed = s:simStep(0.5)
     H.near(_G.GetPlayerFacing(), math.pi / 2)
@@ -82,7 +71,7 @@ local function test_strafe_left_goes_west()
   end)
 end
 
-local function test_backward_and_walk_speeds()
+local function test_backward_and_walk_speeds_assumed()
   H.withSim("retail", {}, function(_, s)
     local p = s.w.sim.player
     s:move({ backward = true })
@@ -99,7 +88,7 @@ local function test_backward_and_walk_speeds()
   end)
 end
 
-local function test_forward_and_backward_cancel()
+local function test_forward_and_backward_cancel_assumed()
   H.withSim("retail", {}, function(_, s)
     s:move({ forward = true, backward = true })
     s:simStep(1)
@@ -131,7 +120,7 @@ local function test_place_and_walls_clamp()
   end)
 end
 
-local function test_key_fakes_drive_the_intents()
+local function test_key_fakes_drive_the_intents_assumed()
   H.withSim("retail", {}, function(_, s)
     local p = s.w.sim.player
     _G.MoveForwardStart()
@@ -209,7 +198,7 @@ local function test_idle_step_changes_nothing()
   end)
 end
 
-local function test_on_update_walks_shown_frames_in_order()
+local function test_on_update_walks_shown_frames_in_order_assumed()
   H.each({}, function(_, s)
     local calls = {}
     local function track(name)
@@ -250,23 +239,23 @@ local function test_transmog_opener_does_not_trip_the_guard()
 end
 
 return function()
-  test_forward_walks_north_at_run_speed()
-  test_moving_events_fire_on_transitions_only()
-  test_turning_alone_is_not_moving()
+  test_forward_walks_north_at_run_speed_assumed()
+  test_moving_events_fire_on_transitions_only_assumed()
+  test_turning_alone_is_not_moving_assumed()
   test_turn_right_wraps_to_the_circle()
   test_diagonal_is_normalized()
   test_strafe_left_goes_west()
-  test_backward_and_walk_speeds()
-  test_forward_and_backward_cancel()
+  test_backward_and_walk_speeds_assumed()
+  test_forward_and_backward_cancel_assumed()
   test_face_turns_the_forward_vector()
   test_place_and_walls_clamp()
-  test_key_fakes_drive_the_intents()
+  test_key_fakes_drive_the_intents_assumed()
   test_unknown_intent_raises()
   test_other_units_do_not_move()
   test_step_time_and_carry()
   test_step_rejects_a_bad_duration()
   test_idle_step_changes_nothing()
-  test_on_update_walks_shown_frames_in_order()
+  test_on_update_walks_shown_frames_in_order_assumed()
   test_advance_is_guarded_on_a_sim_world()
   test_transmog_opener_does_not_trip_the_guard()
 end

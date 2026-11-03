@@ -222,6 +222,25 @@ local function test_plate_range_is_measured_from_the_player()
   end, true)
 end
 
+-- The camera stays at the origin, so a player step only adds and removes plates; it never anchors one again.
+local function test_a_player_step_anchors_only_the_plate_it_adds()
+  H.withCombat("retail", function(w)
+    local player = Actors.get(w, "player")
+    local near = grunt(w, "Near", 0, 10)
+    grunt(w, "Far", 0, 70)
+    local anchored = {}
+    for _, plate in ipairs(_G.C_NamePlate.GetNamePlates()) do
+      _G.hooksecurefunc(plate, "SetPoint", function(frame)
+        anchored[#anchored + 1] = frame.namePlateUnitToken
+      end)
+    end
+    Actors.setPos(w, player, 0, 15)
+    A.same({ anchored, (_G.UnitName("nameplate2")) }, { {}, "Far" })
+    Actors.setPos(w, near, 2, 10)
+    A.same(anchored, { "nameplate1" }, "a plated actor's own step anchors its plate")
+  end, true)
+end
+
 return function()
   test_plate_rect_follows_the_ground_projection()
   test_lifecycle_order_and_frame_reuse()
@@ -237,4 +256,5 @@ return function()
   test_actor_behind_the_camera_has_no_projection()
   test_the_player_has_no_plate()
   test_plate_range_is_measured_from_the_player()
+  test_a_player_step_anchors_only_the_plate_it_adds()
 end

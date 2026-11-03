@@ -154,6 +154,16 @@ function M.up(w, key)
   return { consumedBy = held.stopper, binding = held.command }
 end
 
+-- Whether key is held: its down ran and its up has not come yet.
+function M.isHeld(w, key)
+  return w.input.heldKeys[key:upper()] ~= nil
+end
+
+-- Forgets every held key without running its up half, for a world the sim resets: the next down of any key runs again.
+function M.forgetHeld(w)
+  w.input.heldKeys = {}
+end
+
 -- A key press, down then up; returns down's reply.
 function M.press(w, key, mods)
   local reply = M.down(w, key, mods)

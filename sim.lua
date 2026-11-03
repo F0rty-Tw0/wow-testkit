@@ -5,6 +5,7 @@ local M = {}
 
 local Actors = require("combat_actors")
 local Combat = require("combat")
+local Keys = require("input_keys")
 local SimKeys = require("sim_keys")
 local SimMove = require("sim_move")
 local SimRange = require("sim_range")
@@ -20,20 +21,20 @@ local FRAME = 1 / 60
 -- The units that hang their state, fakes and frame steps on a new sim world, in this order.
 local UNITS = { SimMove, SimRange }
 
--- source: assumed the kit's one map: the whole sim world is this uiMapID.
+-- source: assumed (row SM7) the kit's one map: the whole sim world is this uiMapID.
 M.MAP_ID = 1
 
 -- The player's place on login: facing 0 is north (+y).
 M.SPAWN = { x = 0, y = -10, facing = 0 }
 
--- source: assumed the kit's two classes: a Warrior starts at 0 of 100 rage, a Mage at 100 of 100 mana.
+-- source: assumed (row SM8) the kit's two classes: a Warrior starts at 0 of 100 rage, a Mage at 100 of 100 mana.
 -- grug: minimal kit, Task 5.6 moves it to sim_classes.lua
 M.CLASSES = {
   WARRIOR = { className = "Warrior", powerToken = "RAGE", powerMax = 100, power = 0 },
   MAGE = { className = "Mage", powerToken = "MANA", powerMax = 100, power = 100 },
 }
 
--- source: assumed the world is a 100 x 100 square centred on the origin, and the map shows it whole: map x =
+-- source: assumed (row SM7) the world is a 100 x 100 square centred on the origin, and the map shows it whole: map x =
 -- (pos.x - left) / size, map y = (top - pos.y) / size.
 local BOUNDS = { minX = -50, maxX = 50, minY = -50, maxY = 50 }
 local MAP_RECT = { left = -50, top = 50, size = 100 }
@@ -70,6 +71,7 @@ function M.options(sim)
   if not wholeLevel(level) then
     error("sim: level must be a whole number 1-100", 2)
   end
+
   return { class = class, level = level, twoPhase = given.twoPhase }
 end
 
@@ -125,6 +127,7 @@ function M.install(w, sim)
   end
   w:setMock({ zone = { mapID = M.MAP_ID } })
   SimRange.syncMap(w)
+
   return w.sim
 end
 
@@ -158,8 +161,9 @@ local function removeStrangers(w)
 end
 
 -- Puts the world back to a fresh login: strangers gone, no target, full health, the class's start power, the spawn place,
--- no walk, then the reset hooks. With class the player becomes that class first (raises like Sim.options, before
--- anything changes). Combat state is not forced off: the 5 s drop timer ends it.
+-- no held key, then the reset hooks (SimMove's stops the walk and fires PLAYER_STOPPED_MOVING when the player was
+-- moving). With class the player becomes that class first (raises like Sim.options, before anything changes). Combat
+-- state is not forced off: the 5 s drop timer ends it.
 function M.reset(w, class)
   if class ~= nil then
     M.options({ class = class })
@@ -177,7 +181,7 @@ function M.reset(w, class)
   Actors.setPower(w, player, M.CLASSES[sim.class].power)
   Actors.setPos(w, player, M.SPAWN.x, M.SPAWN.y)
   SimMove.setFacing(w, M.SPAWN.facing)
-  sim.intents, sim.moving, sim.speed = {}, false, 0
+  Keys.forgetHeld(w)
   bumpActivity(w)
   for _, fn in ipairs(sim.hooks.reset) do
     fn(w)

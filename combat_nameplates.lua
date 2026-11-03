@@ -1,7 +1,8 @@
 -- Nameplates: a plate frame for every actor the nameplate CVars allow in range of the player. Each plate is a
 -- NamePlate<N> frame under WorldFrame holding a kit stand-in UnitFrame, and binds the actor to a nameplate<N> token, so
 -- every Unit* API answers for it. Plates sync on the spawn, despawn, moved and cvar hooks and follow the actor's health.
--- c.plates maps token -> { frame, token, index, actor, forbidden }; c.platePool lists the frames waiting for reuse.
+-- c.plates maps token -> { frame, token, index, actor, forbidden }, c.plateOf actor -> the same plate; c.platePool lists
+-- the frames waiting for reuse.
 local M = {}
 
 local Actors = require("combat_actors")
@@ -33,21 +34,14 @@ local function ordered(c)
   return list
 end
 
-local function plateOf(c, actor)
-  for _, plate in pairs(c.plates) do
-    if plate.actor == actor then
-      return plate
-    end
-  end
-end
-
--- Stand-in ground projection in WorldFrame UI units; nil when the actor is behind the camera.
-function M.project(w, actor)
+-- Stand-in ground projection in WorldFrame UI units (world: WorldFrame's rect, read when not given); nil when the actor is
+-- behind the camera. The camera stays at the origin, so the player's own place never moves a plate.
+function M.project(w, actor, world)
   local distance = actor.pos.y + CAMERA_BACK
   if distance <= 0 then
     return nil
   end
-  local world = Layout.rect(w, _G.WorldFrame)
+  world = world or Layout.rect(w, _G.WorldFrame)
   local scale = FOV_SCALE * world.height
   return world.width / 2 + scale * actor.pos.x / distance, HORIZON * world.height - scale * GROUND_DROP / distance
 end
@@ -87,8 +81,8 @@ local function newFrame(w, c)
   return frame
 end
 
-local function place(w, plate)
-  local x, y = M.project(w, plate.actor)
+local function place(w, plate, world)
+  local x, y = M.project(w, plate.actor, world)
   if not x then
     plate.frame:Hide()
     return
@@ -125,6 +119,7 @@ local function add(w, c, actor, forbidden)
   local token = "nameplate" .. index
   local plate = { frame = frame, token = token, index = index, actor = actor, forbidden = forbidden }
   c.plates[token] = plate
+  c.plateOf[actor] = plate
   Actors.bind(w, actor, token)
   local unitFrame = frame.UnitFrame
   frame.namePlateUnitToken = token
@@ -144,6 +139,7 @@ local function remove(w, c, plate)
   Combat.fire(w, (plate.forbidden and "FORBIDDEN_" or "") .. "NAME_PLATE_UNIT_REMOVED", plate.token)
   Actors.unbind(w, plate.token)
   c.plates[plate.token] = nil
+  c.plateOf[plate.actor] = nil
   local frame = plate.frame
   frame.namePlateUnitToken = nil
   frame.UnitFrame.unit, frame.UnitFrame.displayedUnit = nil, nil
@@ -151,9 +147,10 @@ local function remove(w, c, plate)
   c.platePool[#c.platePool + 1] = frame
 end
 
--- Brings the plates in line with the actors, the CVars and the instance: removals first, then additions in spawn order,
--- then every plate's place.
-function M.sync(w)
+-- Brings the plates in line with the actors, the CVars and the instance: removals first, then additions in spawn order
+-- (each placed as it comes), then the places: of moved's plate alone when moved is given (the player has none, and only
+-- the plated actor's own place moves a plate), else of every plate.
+function M.sync(w, moved)
   local c = w.combat
   local player = w.unitState.byToken[PLAYER]
   local wanted = {}
@@ -170,38 +167,48 @@ function M.sync(w)
   end
   for _, guid in ipairs({ unpack(c.order) }) do
     local actor = c.actors[guid]
-    if actor and wanted[actor] ~= nil and not plateOf(c, actor) then
+    if actor and wanted[actor] ~= nil and not c.plateOf[actor] then
       add(w, c, actor, wanted[actor])
     end
   end
+  local only = moved and c.plateOf[moved]
+  if moved then
+    if only and not only.removing then
+      place(w, only)
+    end
+    return
+  end
+  local world = Layout.rect(w, _G.WorldFrame)
   for _, plate in ipairs(ordered(c)) do
     if not plate.removing then
-      place(w, plate)
+      place(w, plate, world)
     end
   end
 end
 
 function M.install(w)
   local c = w.combat
-  c.plates, c.platePool, c.plateCount = {}, {}, 0
+  c.plates, c.plateOf, c.platePool, c.plateCount = {}, {}, {}, 0
   State.fill(w.mock.cvars, CVAR_DEFAULTS)
   local function sync()
     M.sync(w)
   end
   Combat.listen(w, "spawn", sync)
-  Combat.listen(w, "moved", sync)
+  Combat.listen(w, "moved", function(actor)
+    M.sync(w, actor)
+  end)
   Combat.listen(w, "cvar", sync)
   Combat.listen(w, "death", sync)
   Combat.listen(w, "flags", sync)
   -- The despawn hook runs before the actor's tokens are unbound, so its plate still resolves while REMOVED is delivered.
   Combat.listen(w, "despawn", function(actor)
-    local plate = plateOf(c, actor)
+    local plate = c.plateOf[actor]
     if plate then
       remove(w, c, plate)
     end
   end)
   local function follow(actor)
-    local plate = plateOf(c, actor)
+    local plate = c.plateOf[actor]
     if plate then
       updateHealth(plate)
     end
