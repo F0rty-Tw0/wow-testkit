@@ -1,10 +1,10 @@
 -- Player safety: mobs cannot kill the sim player (health floor 1, spec 5.7) and the floor survives a reload.
 local A = require("assert")
+local H = require("tests.helpers.session")
 local SH = require("tests.helpers.sim_combat")
 local SimMobs = require("sim_mobs")
 
 local function test_mob_hits_cannot_kill_the_player_and_the_floor_survives_a_reload()
-  local H = require("tests.helpers.session")
   H.withSession({ addonDir = H.CLICKY, sim = {} }, function(sess)
     local w = sess.w
     local player = w.sim.player

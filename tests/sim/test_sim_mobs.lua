@@ -3,6 +3,7 @@
 local A = require("assert")
 local Actors = require("combat_actors")
 local Auras = require("combat_auras")
+local H = require("tests.helpers.session")
 local Json = require("json")
 local Resolve = require("combat_resolve")
 local SH = require("tests.helpers.sim_combat")
@@ -160,7 +161,6 @@ end
 
 -- Review Focus 2: a reload in combat keeps the engaged mob chasing and swinging.
 local function test_engaged_mobs_survive_reload()
-  local H = require("tests.helpers.session")
   H.withSession({ addonDir = H.CLICKY, sim = {} }, function(sess)
     local mob = SimMobs.spawn(sess.w, { pos = { x = 0, y = 0 } })
     for _ = 1, 12 do

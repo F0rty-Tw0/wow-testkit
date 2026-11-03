@@ -1,6 +1,7 @@
 -- Sim mobs over the scenario and the session: s:spawn, s:spawnPack and the session's spawn action.
 local A = require("assert")
 local H = require("tests.helpers.session")
+local Scenario = require("scenario")
 local SH = require("tests.helpers.sim_combat")
 
 local function test_scenario_spawn_and_spawn_pack_and_a_friendly_mob()
@@ -15,11 +16,16 @@ local function test_scenario_spawn_and_spawn_pack_and_a_friendly_mob()
       s:spawnPack(11)
     end, "n must be a whole number 1-10")
   end)
-  local plain = require("scenario").new({ addon = "T", root = "T", flavor = "retail" })
-  A.errors(function()
-    plain:spawn({})
-  end, "needs Scenario.new{sim=...}")
+  local plain = Scenario.new({ addon = "T", root = "T", flavor = "retail" })
+  local ok, err = pcall(function()
+    A.errors(function()
+      plain:spawn({})
+    end, "needs Scenario.new{sim=...}")
+  end)
   plain.w:destroy()
+  if not ok then
+    error(err, 0)
+  end
 end
 
 local function test_session_spawn_action_and_world_reply()

@@ -24,8 +24,11 @@ local ENGAGED = "engaged"
 M.RULES = { aggro = 10, social = 8, chase = 7, ahead = 20, gap = 3, maxPack = 10 }
 
 -- Kit mobs hit lightly (spec 5.7).
+-- source: assumed (spec 5.7) a default mob swings for 3 every 2 seconds; the kit has no creature data.
 local function defaultAi()
-  return { swing = { every = 2, damage = 3 } }
+  local rule = { every = 2, damage = 3 }
+
+  return { swing = rule }
 end
 
 local OPTION_TYPES = { name = "string", level = "number", health = "number", hostile = "boolean" }
@@ -73,16 +76,20 @@ end
 -- option. spawn and pack run it before anything is added, so a refused mob leaves no actor behind.
 local function check(opts)
   for field, kind in pairs(OPTION_TYPES) do
-    if opts[field] ~= nil and type(opts[field]) ~= kind then
+    local value = opts[field]
+    local wrongType = value ~= nil and type(value) ~= kind
+    if wrongType then
       fail("%s must be a %s", field, kind)
     end
   end
   for _, field in ipairs(POSITIVE) do
-    if opts[field] ~= nil and opts[field] <= 0 then
+    local value = opts[field]
+    if value ~= nil and value <= 0 then
       fail("%s must be a number above 0", field)
     end
   end
-  if opts.pos ~= nil and not validPos(opts.pos) then
+  local badPos = opts.pos ~= nil and not validPos(opts.pos)
+  if badPos then
     fail("pos must be a table with a number x and y")
   end
   checkAi(opts.ai)
@@ -97,7 +104,9 @@ end
 local function ahead(player, yards)
   local facing = player.facing or 0
 
-  return { x = player.pos.x - math.sin(facing) * yards, y = player.pos.y + math.cos(facing) * yards }
+  local point = { x = player.pos.x - math.sin(facing) * yards, y = player.pos.y + math.cos(facing) * yards }
+
+  return point
 end
 
 -- The rule table a mob gets: nil is the default, false is none (a dummy), a table is copied (the rule gets the gate).
@@ -105,8 +114,11 @@ local function aiFor(given)
   if given == nil then
     return defaultAi()
   end
+  if not given then
+    return nil
+  end
 
-  return given and GameState.merge({}, given) or nil
+  return GameState.merge({}, given)
 end
 
 local function hasAura(actor, field)
@@ -120,8 +132,11 @@ local function hasAura(actor, field)
 end
 
 -- Whether mob's swing lands on target now: in melee range and not stunned.
+-- source: assumed (spec 5.3) a stun stops a mob's swings; a root does not.
 function M.canSwing(_, mob, target)
-  return SimMelee.inRange(mob, target) and not hasAura(mob, "stun")
+  local inRange = SimMelee.inRange(mob, target)
+
+  return inRange and not hasAura(mob, "stun")
 end
 
 local function countSwing(_, mob)
@@ -141,13 +156,14 @@ local function build(w, given)
   local player = w.sim.player
   local hostile = given.hostile ~= false
   local level = given.level or player.level
+  local pos = given.pos or ahead(player, M.RULES.ahead)
   local mob = Actors.add(w, {
     kind = "npc",
     name = given.name or "Training Foe",
     hostile = hostile,
     level = level,
     health = given.health or 10 * level,
-    pos = given.pos or ahead(player, M.RULES.ahead),
+    pos = pos,
   })
   mob.facing = facingAt(mob, player.pos.x, player.pos.y)
   mob.loot = given.loot
@@ -170,17 +186,19 @@ end
 -- n mobs (1 to RULES.maxPack) in a row along the player's right, RULES.gap apart, centred on opts.pos or the default point.
 function M.pack(w, n, opts)
   local max = M.RULES.maxPack
-  if type(n) ~= "number" or n < 1 or n > max or n ~= math.floor(n) then
+  local badSize = type(n) ~= "number" or n < 1 or n > max or n ~= math.floor(n)
+  if badSize then
     error(string.format("SimMobs.pack: n must be a whole number 1-%d", max), 0)
   end
-  check(opts or {})
+  local base = opts or {}
+  check(base)
   local player = w.sim.player
   local facing = player.facing or 0
-  local centre = (opts and opts.pos) or ahead(player, M.RULES.ahead)
+  local centre = base.pos or ahead(player, M.RULES.ahead)
   local mobs = {}
   for i = 1, n do
     local offset = (i - (n + 1) / 2) * M.RULES.gap
-    local given = GameState.merge({}, opts or {})
+    local given = GameState.merge({}, base)
     given.pos = { x = centre.x + math.cos(facing) * offset, y = centre.y + math.sin(facing) * offset }
     mobs[i] = build(w, given)
   end
@@ -194,7 +212,9 @@ local function engage(w, mob)
   local player = w.sim.player
   mob.mobState = ENGAGED
   State.engage(w, mob, player)
-  for _, member in ipairs(w.combat.group and w.combat.group.members or {}) do
+  local group = w.combat.group
+  local members = group and group.members or {}
+  for _, member in ipairs(members) do
     if member ~= player then
       State.engage(w, mob, member)
     end
@@ -215,7 +235,9 @@ local function pull(w, first)
     head = head + 1
     for _, guid in ipairs(w.combat.order) do
       local other = w.combat.actors[guid]
-      if canBePulled(other) and SimRange.distance(from, other) <= M.RULES.social then
+      local pullable = canBePulled(other)
+      local close = pullable and SimRange.distance(from, other) <= M.RULES.social
+      if close then
         engage(w, other)
         queue[#queue + 1] = other
       end
@@ -227,8 +249,16 @@ local function fightsPlayer(mob, player)
   return mob.foes ~= nil and mob.foes[player.guid] == true
 end
 
+-- source: assumed (spec 5.3) a mob with an AI sees the player inside the aggro radius and its own front 180 degrees; a
+-- dummy (no AI) sees nothing.
 local function seesPlayer(mob, player)
-  return mob.ai ~= nil and SimRange.distance(mob, player) <= M.RULES.aggro and SimRange.inFront(mob, player)
+  if mob.ai == nil then
+    return false
+  end
+  local close = SimRange.distance(mob, player) <= M.RULES.aggro
+  local inFront = SimRange.inFront(mob, player)
+
+  return close and inFront
 end
 
 -- Walks the engaged mob toward its target, facing it, and stops in melee range. A root stops the walk; a stun also
@@ -255,7 +285,9 @@ function M.step(w, dt)
   local player = w.sim.player
   for _, guid in ipairs(w.combat.order) do
     local mob = w.combat.actors[guid]
-    if mob.mobState == IDLE and not mob.isDead and (fightsPlayer(mob, player) or seesPlayer(mob, player)) then
+    local canWake = mob.mobState == IDLE and not mob.isDead
+    local wakes = canWake and (fightsPlayer(mob, player) or seesPlayer(mob, player))
+    if wakes then
       engage(w, mob)
       pull(w, mob)
     end
