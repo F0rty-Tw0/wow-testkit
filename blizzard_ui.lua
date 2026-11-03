@@ -18,7 +18,7 @@ local fs = require("fs")
 local debugTraceback = debug.traceback
 
 -- The client's spelling: Blizzard Lua compares addon names exactly.
-M.TARGETS = { "Blizzard_ActionBar", "Blizzard_UnitFrame", "Blizzard_EditMode" }
+M.TARGETS = { "Blizzard_ActionBar", "Blizzard_UnitFrame", "Blizzard_EditMode", "Blizzard_OverrideActionBar" }
 -- source: assumed (row BU1) the default key bindings per flavor, under <extract.dir>/code/. The extract has no
 -- bindings.xml: Blizzard_FrameXML holds one unlisted file per game type.
 M.BINDINGS_FILES = {

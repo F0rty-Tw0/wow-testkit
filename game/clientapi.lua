@@ -4,61 +4,56 @@ local M = {}
 
 local AddonEnv = require("addon_env")
 local Curve = require("game.curve")
+local Items = require("game.items")
 local Roster = require("combat_roster_data")
 local State = require("game.state")
 local define = State.define
 
 M.DEFAULTS = {}
 
--- source: assumed (row G21) the item quality colors by quality 0-8 (poor to wow token), the values of the client's
--- default UI.
-local QUALITY_COLORS = {
-  [0] = { 0.62, 0.62, 0.62 },
-  { 1, 1, 1 },
-  { 0.12, 1, 0 },
-  { 0, 0.44, 0.87 },
-  { 0.64, 0.21, 0.93 },
-  { 1, 0.5, 0 },
-  { 0.9, 0.8, 0.5 },
-  { 0, 0.8, 1 },
-  { 0, 0.8, 1 },
-}
-
--- A color table; once Blizzard's ColorMixin exists (Blizzard_SharedXMLBase) the table carries its methods.
-local function color(rgb)
-  local result = { r = rgb[1], g = rgb[2], b = rgb[3], a = 1 }
+-- A color table of quality's colour (game/items.lua, the kit's one quality colour table); once Blizzard's ColorMixin
+-- exists (Blizzard_SharedXMLBase) the table carries its methods.
+local function qualityColor(quality)
+  local r, g, b = Items.qualityRgb(quality)
+  local result = { r = r, g = g, b = b, a = 1 }
   local mixin = rawget(_G, "ColorMixin")
-  return type(mixin) == "table" and setmetatable(result, { __index = mixin }) or result
+  if type(mixin) ~= "table" then
+    return result
+  end
+
+  return setmetatable(result, { __index = mixin })
 end
 
--- source: assumed (row G21) the inventory slot ids by slot name (the wiki's InventorySlotId list, from memory).
+-- source: assumed (row G21) the inventory slot ids by slot name (the wiki's InventorySlotId list, from memory), and each
+-- slot's empty-slot texture: the fileIDs are confirmed (community listfile, interface/paperdoll/ui-paperdoll-slot-*.blp),
+-- the slot to texture pairing is assumed from the file names (the back slot shows the chest texture).
 local INVENTORY_SLOTS = {
-  HeadSlot = 1,
-  NeckSlot = 2,
-  ShoulderSlot = 3,
-  ShirtSlot = 4,
-  ChestSlot = 5,
-  WaistSlot = 6,
-  LegsSlot = 7,
-  FeetSlot = 8,
-  WristSlot = 9,
-  HandsSlot = 10,
-  Finger0Slot = 11,
-  Finger1Slot = 12,
-  Trinket0Slot = 13,
-  Trinket1Slot = 14,
-  BackSlot = 15,
-  MainHandSlot = 16,
-  SecondaryHandSlot = 17,
-  RangedSlot = 18,
-  TabardSlot = 19,
+  HeadSlot = { 1, 136516 },
+  NeckSlot = { 2, 136519 },
+  ShoulderSlot = { 3, 136526 },
+  ShirtSlot = { 4, 136525 },
+  ChestSlot = { 5, 136512 },
+  WaistSlot = { 6, 136529 },
+  LegsSlot = { 7, 136517 },
+  FeetSlot = { 8, 136513 },
+  WristSlot = { 9, 136530 },
+  HandsSlot = { 10, 136515 },
+  Finger0Slot = { 11, 136514 },
+  Finger1Slot = { 12, 136523 },
+  Trinket0Slot = { 13, 136528 },
+  Trinket1Slot = { 14, 136528 },
+  BackSlot = { 15, 136512 },
+  MainHandSlot = { 16, 136518 },
+  SecondaryHandSlot = { 17, 136524 },
+  RangedSlot = { 18, 136520 },
+  TabardSlot = { 19, 136527 },
 }
 
 -- source: confirmed (rows G21) Blizzard passes the same slot as "HEADSLOT" (blizzard_transmogshared.lua) and "MainHandSlot"
 -- (securetemplates.lua:464) to C_PaperDollInfo.GetInventorySlotInfo, so the lookup ignores case.
-local INVENTORY_SLOT_IDS = {}
-for name, id in pairs(INVENTORY_SLOTS) do
-  INVENTORY_SLOT_IDS[name:lower()] = id
+local INVENTORY_SLOT_INFO = {}
+for name, info in pairs(INVENTORY_SLOTS) do
+  INVENTORY_SLOT_INFO[name:lower()] = info
 end
 
 -- source: assumed (row G21) the engine's LE_EXPANSION_* values (classic 0 up to mists 4) and the expansion level each classic
@@ -100,6 +95,21 @@ local LEGACY_QUALITIES = {
 }
 local CLASSIC_FAMILY = { "vanilla", "tbc", "mists" }
 
+-- invSlot, slotTexture, checkRelic of a slot name; nothing for an unknown name.
+-- source: confirmed (row G21) the three returns (api/retail/PaperDollInfo.lua; the classic paperdollframe.lua:1292
+-- reads `id, textureName, checkRelic` from the global); assumed checkRelic false (no relic slot is modelled).
+local function inventorySlotInfo(slotName)
+  if type(slotName) ~= "string" then
+    return
+  end
+  local info = INVENTORY_SLOT_INFO[slotName:lower()]
+  if not info then
+    return
+  end
+
+  return info[1], info[2], false
+end
+
 -- Get<Type>Metatable name -> the widget type whose class metatable it answers.
 local METATABLES = {
   GetFrameMetatable = "Frame",
@@ -119,9 +129,11 @@ function M.install(w)
       return w.ui.classFor(w, typeName).meta
     end)
   end
-  define(w, "C_PaperDollInfo.GetInventorySlotInfo", function(slotName)
-    return type(slotName) == "string" and INVENTORY_SLOT_IDS[slotName:lower()] or nil
-  end)
+  -- source: confirmed (row G21) the classic flavors list the global (api/<flavor>/globals.lua) and call it where retail
+  -- calls C_PaperDollInfo's (tbc securetemplates.lua:457-460); define installs each name only where the flavor has it.
+  for _, name in ipairs({ "C_PaperDollInfo.GetInventorySlotInfo", "GetInventorySlotInfo" }) do
+    define(w, name, inventorySlotInfo)
+  end
   for name, value in pairs(UNIT_STATS) do
     define(w, name, value, State.ALL)
   end
@@ -163,6 +175,11 @@ function M.install(w)
   if w.manifest.enums.GameMode == nil then
     define(w, "Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 }, State.ALL)
   end
+  -- source: assumed (row G30) two distinct store front ids: an engine constant no API doc or dump lists, read only as
+  -- table keys and C_AccountStore arguments (retail gamerulesutil.lua:41-44, blizzard_accountstore.lua:4).
+  if w.manifest.constants.AccountStoreConsts == nil then
+    define(w, "Constants.AccountStoreConsts", { PlunderstormStoreFrontID = 1, WowhackStoreFrontID = 2 }, State.ALL)
+  end
   -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
   -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
   define(w, "C_EventUtils.IsEventValid", function(event)
@@ -178,9 +195,10 @@ function M.install(w)
     define(w, "NUM_LE_ITEM_QUALITYS", meta.NumValues, CLASSIC_FAMILY)
   end
   define(w, "C_CurveUtil.CreateCurve", Curve.new)
-  define(w, "C_ColorOverrides.GetColorForQuality", function(quality)
-    return color(QUALITY_COLORS[quality] or QUALITY_COLORS[1])
-  end)
+  -- source: assumed (row G21) the default colour is the colour: the kit keeps no colour overrides.
+  for _, name in ipairs({ "C_ColorOverrides.GetColorForQuality", "C_ColorOverrides.GetDefaultColorForQuality" }) do
+    define(w, name, qualityColor)
+  end
 end
 
 return M

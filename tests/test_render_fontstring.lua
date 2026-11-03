@@ -22,6 +22,15 @@ local function withText(fn)
   end)
 end
 
+-- The classic loot window colours item names with Name:SetVertexColor over a white text colour (tbc lootframe.lua:205).
+local function test_vertex_color_tints_the_text_color_assumed() -- W80
+  withText(function(fs, read)
+    fs:SetTextColor(1, 0.5, 1, 1)
+    fs:SetVertexColor(0.5, 0.5, 0.5)
+    A.same(read().color, { 0.5, 0.25, 0.5, 1 })
+  end)
+end
+
 local function test_font_object_values_show_in_the_item_assumed() -- W31
   withText(function(fs, read)
     local font = _G.CreateFont("T64Render")
@@ -90,6 +99,7 @@ local function test_button_text_item_uses_the_state_font_object_assumed() -- W22
 end
 
 return function()
+  test_vertex_color_tints_the_text_color_assumed()
   test_font_object_values_show_in_the_item_assumed()
   test_own_value_beats_the_font_object_assumed()
   test_truncated_only_when_text_is_truncated_assumed()

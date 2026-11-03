@@ -63,6 +63,18 @@ local function test_default_link_names_the_item_assumed() -- (G13)
   end)
 end
 
+-- The classic UIParent builds ITEM_QUALITY_COLORS from C_Item.GetItemQualityColor (tbc uiparent.lua:24-29) and the loot
+-- window paints item names with it (lootframe.lua:205); the colours are the ones the item links carry.
+local function test_item_quality_color_matches_the_link_colors_assumed() -- (G13)
+  G.withGame("tbc", function()
+    local color = _G.C_Item.GetItemQualityColor
+    A.same({ color(0) }, { 157 / 255, 157 / 255, 157 / 255, "ff9d9d9d" })
+    A.same({ color(1) }, { 1, 1, 1, "ffffffff" })
+    A.same({ color(2) }, { 30 / 255, 1, 0, "ff1eff00" })
+    A.same({ color(42) }, { 1, 1, 1, "ffffffff" }) -- an unknown quality reads as common
+  end)
+end
+
 local function test_money_and_specialization() -- (G13)
   G.withGame("retail", function(w)
     A.same({ _G.GetMoney(), _G.C_SpecializationInfo.GetSpecialization() }, { 0 })
@@ -122,6 +134,7 @@ return function()
   test_item_names_absent_on_every_flavor()
   test_item_info_instant_count_and_icon()
   test_default_link_names_the_item_assumed()
+  test_item_quality_color_matches_the_link_colors_assumed()
   test_money_and_specialization()
   test_num_specializations_counts_the_spec_records_assumed()
   test_specialization_fallbacks_only_on_retail_and_forever()

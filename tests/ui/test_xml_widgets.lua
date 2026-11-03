@@ -73,7 +73,69 @@ local function test_legacy_backdrop_needs_the_backdrop_template()
   end)
 end
 
+-- The classic ItemButtonTemplate declares its icon with no Size and no Anchors (tbc itembuttontemplate.xml:10) and the
+-- live client draws it filling the button (bag and loot icons).
+local ANCHORLESS = [[
+<Ui><Button name="IbTemplate" virtual="true"><Size x="37" y="37"/><Layers><Layer level="BORDER">
+  <Texture name="$parentIconTexture" parentKey="icon"/>
+  <Texture parentKey="Sized"><Size x="8" y="8"/></Texture>
+  <Texture parentKey="Placed"><Anchors><Anchor point="CENTER"/></Anchors></Texture>
+</Layer></Layers></Button></Ui>]]
+
+local function withAnchorless(fn)
+  H.withXml({ ["Ui.xml"] = ANCHORLESS }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local button = _G.CreateFrame("Button", "Ib", _G.UIParent, "IbTemplate")
+    button:SetPoint("CENTER")
+    fn(button)
+  end)
+end
+
+local function test_a_texture_with_no_size_or_anchors_fills_its_frame_assumed() -- X28
+  withAnchorless(function(button)
+    local icon = button.icon
+    A.same({ icon:GetLeft(), icon:GetTop(), icon:GetWidth(), icon:GetHeight() }, { button:GetLeft(), button:GetTop(), 37, 37 })
+  end)
+end
+
+local function test_the_fill_stores_no_points_assumed() -- X28
+  withAnchorless(function(button)
+    A.same({ button.icon:GetNumPoints(), button.icon:GetPoint(1) }, { 0 })
+  end)
+end
+
+local function test_a_texture_with_its_own_size_or_anchors_does_not_fill() -- X28
+  withAnchorless(function(button)
+    A.same({ button.Sized:GetNumPoints(), button.Placed:GetNumPoints() }, { 0, 1 })
+    A.same({ button.Sized:GetWidth(), button.Sized:GetHeight() }, { 8, 8 })
+  end)
+end
+
+local function test_lua_that_sizes_and_places_the_texture_replaces_the_fill_assumed() -- X28
+  withAnchorless(function(button)
+    local icon = button.icon
+    icon:SetSize(10, 10)
+    icon:SetPoint("CENTER")
+    A.same({ icon:GetNumPoints(), icon:GetWidth(), icon:GetHeight() }, { 1, 10, 10 })
+  end)
+end
+
+-- source: assumed (row X28) tbc 70577 blizzard_characterframe/cata/paperdollframe.xml:242-246 presses the anchorless
+-- DeleteButton texture by moving its TOPLEFT alone.
+local function test_a_texture_moved_by_one_point_keeps_the_frame_size_assumed() -- X28
+  withAnchorless(function(button)
+    local icon = button.icon
+    icon:SetPoint("TOPLEFT", 1, -1)
+    A.same({ icon:GetLeft(), icon:GetTop(), icon:GetWidth(), icon:GetHeight() }, { button:GetLeft() + 1, button:GetTop() - 1, 37, 37 })
+  end)
+end
+
 return function()
+  test_a_texture_with_no_size_or_anchors_fills_its_frame_assumed()
+  test_the_fill_stores_no_points_assumed()
+  test_a_texture_with_its_own_size_or_anchors_does_not_fill()
+  test_lua_that_sizes_and_places_the_texture_replaces_the_fill_assumed()
+  test_a_texture_moved_by_one_point_keeps_the_frame_size_assumed()
   test_button_state_textures_belong_to_the_button()
   test_state_texture_alpha_mode_sets_the_blend_mode_assumed()
   test_state_texture_runs_its_own_children()

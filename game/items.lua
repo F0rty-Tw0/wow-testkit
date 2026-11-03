@@ -16,15 +16,30 @@ local unpack = unpack
 
 M.DEFAULTS = { items = {}, money = 0, specs = {}, itemClasses = {} }
 
--- source: assumed (row G13) the client's quality colours; no page lists them (the extract sets them in the engine).
+-- source: assumed (row G13) the client's quality colours, the kit's one table for them (links, C_Item and
+-- C_ColorOverrides); no page or extract file lists them (the engine sets them: retail colormanager.lua:20-23 reads
+-- C_ColorOverrides, the classic uiparent.lua:24-29 reads C_Item.GetItemQualityColor).
 local QUALITY_COLORS = { [0] = "9d9d9d", "ffffff", "1eff00", "0070dd", "a335ee", "ff8000", "e6cc80", "00ccff", "00ccff" }
+
+local function qualityHex(quality)
+  return QUALITY_COLORS[quality] or QUALITY_COLORS[1]
+end
+
+-- The colour of quality (an unknown quality reads as common): r, g, b (each byte / 255) and the hex "ffrrggbb".
+function M.qualityRgb(quality)
+  local hex = qualityHex(quality)
+  local r, g, b = tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16)
+
+  return r / 255, g / 255, b / 255, "ff" .. hex
+end
 
 -- source: assumed (row G13) an item with no link field gets the client's link shape with no suffix or bonus data.
 local function itemLink(id, record)
   if record.link ~= nil or record.name == nil then
     return record.link
   end
-  local color = QUALITY_COLORS[record.quality] or QUALITY_COLORS[1]
+  local color = qualityHex(record.quality)
+
   return string.format("|cff%s|Hitem:%d::::::::::::|h[%s]|h|r", color, id, record.name)
 end
 
@@ -119,6 +134,9 @@ local function installItems(w)
       return record.icon
     end
   end)
+  -- source: confirmed (row G13) r, g, b, qualityString (api/<flavor>/Item.lua); assumed the link colours above (M.qualityRgb).
+  -- The classic UIParent builds ITEM_QUALITY_COLORS from it (tbc uiparent.lua:24-29).
+  define(w, "C_Item.GetItemQualityColor", M.qualityRgb)
 end
 
 -- source: confirmed (row BU22) C_Item.GetItemClassInfo(classID) -> name and GetItemSubClassInfo(classID, subClassID) ->

@@ -30,11 +30,13 @@ local function test_active_layout_places_the_blizzard_frame_assumed()
   end)
 end
 
-local function test_no_layouts_means_no_login_event_assumed()
-  local lua =
-    'EmLog = 0; local f = CreateFrame("Frame"); f:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED"); f:SetScript("OnEvent", function() EmLog = EmLog + 1 end)'
+-- Blizzard's edit-mode systems get their layout only from this event (EditModeManager.lua:187-192), and LootFrame:Open
+-- reads it unguarded (EditModeSystemTemplates.lua:375), so login fires it with the presets alone too.
+local function test_no_saved_layouts_still_fires_the_login_event_assumed()
+  local lua = 'EmSeen = {}; local f = CreateFrame("Frame"); f:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")'
+    .. '; f:SetScript("OnEvent", function(_, _, info) EmSeen[#EmSeen + 1] = { #info.layouts, info.activeLayout } end)'
   B.run(B.mini(), { targets = TARGETS, lua = lua }, function(s)
-    A.eq(_G.EmLog, 0)
+    A.same(_G.EmSeen, { { 0, 1 } })
     A.same(Layout.rect(s.w, _G.MiniBar), { left = 400, bottom = 45, width = 200, height = 40 })
   end)
 end
@@ -66,7 +68,7 @@ f:SetScript("OnEvent", function(_, _, info, reconcile) EmSeen[#EmSeen + 1] = { i
 ]]
   B.run(B.mini(), { lua = lua }, function(s)
     s:editMode({ layouts = LAYOUTS, active = 4 })
-    A.same(_G.EmSeen, { { 4, 2, false } })
+    A.same(_G.EmSeen, { { 1, 0, false }, { 4, 2, false } }) -- login's, then the patch's
   end)
 end
 
@@ -96,7 +98,7 @@ end
 
 return function()
   test_active_layout_places_the_blizzard_frame_assumed()
-  test_no_layouts_means_no_login_event_assumed()
+  test_no_saved_layouts_still_fires_the_login_event_assumed()
   test_login_fires_between_player_login_and_entering_world_assumed()
   test_edit_mode_fires_once_with_the_layouts_assumed()
   test_a_patched_layouts_list_replaces_the_old_one_assumed()

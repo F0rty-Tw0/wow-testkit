@@ -8,6 +8,7 @@ local M = {}
 
 local BehaviourRender = require("ui.behaviour_render")
 local Callsite = require("ui.callsite")
+local Defaults = require("ui.layout_defaults")
 local Shift = require("ui.layout_shift")
 local TextSize = require("ui.text_size")
 local TextState = require("ui.text_state")
@@ -152,24 +153,12 @@ local function clampShift(w, st, pixel, scale)
   return axisShift(left, right, w.screen.width, false), axisShift(bottom, top, w.screen.height, true)
 end
 
--- The anchors of region: the ones set on it, and for a ScrollFrame's scroll child with none, its top-left corner on the
--- frame's.
--- source: blizzard_sharedxml/securescrolltemplates.xml:160-168 (`FauxScrollFrameTemplate`) declares its scroll child with a
--- `<Size>` and no `<Anchors>`; assumed (W45) the frame places such a child at its own top-left.
-local function anchorsOf(w, region, st)
-  local parent = st.parent
-  if #st.points > 0 or not Shift.isScrollChild(parent and w.ui.state[parent], region) then
-    return st.points
-  end
-
-  return { { "TOPLEFT", parent, "TOPLEFT", 0, 0 } }
-end
-
--- The pixel positions of every anchor of region, in set order; nil when one has no position.
+-- The pixel positions of every anchor of region (its own, else ui/layout_defaults.lua's), in set order; nil when one has
+-- no position.
 local function positionsOf(w, region, st, scale, resolving)
   local shiftX, shiftY = Shift.of(w, region, st)
   local points = {}
-  for i, anchor in ipairs(anchorsOf(w, region, st)) do
+  for i, anchor in ipairs(Defaults.anchors(w, region, st)) do
     points[i] = anchorPosition(w, anchor, scale, resolving, shiftX, shiftY)
     if not points[i] then
       return nil
@@ -189,12 +178,13 @@ local function compute(w, region, st, resolving)
   if not points then
     return nil
   end
-  local explicitWidth = explicitSize(st, "x")
+  local fill = st.fillsParent and st.parent and M.entry(w, st.parent, resolving).pixel
+  local explicitWidth = explicitSize(st, "x") or Defaults.size(fill, "x", scale)
   local width = explicitWidth or M.autoSize(w, region, "x")
   local left, right, widthSet = solveAxis(points, "x", "ax", width, scale)
   local autoWidth = widthSet and not explicitWidth
   local wrap = wrapOf(st, left and not widthSet and (right - left) / scale)
-  local height = explicitSize(st, "y") or M.autoSize(w, region, "y", wrap)
+  local height = explicitSize(st, "y") or Defaults.size(fill, "y", scale) or M.autoSize(w, region, "y", wrap)
   local bottom, top, heightSet = solveAxis(points, "y", "ay", height, scale)
   if not (left and bottom) then
     return nil

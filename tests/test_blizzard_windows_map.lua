@@ -115,21 +115,22 @@ local function test_template_info_answers_the_size_through_the_inherits_chain()
 end
 
 -- ShowUIPanel (uiparentpanelmanager.lua:205) asks StoreFrame_IsShown() before it places a panel; the real StoreFrame never
--- loads here (its secure file stops at Enum.VasServiceType, which no installed data lists), so the layer stands one in.
+-- loads here (its secure file stops at Enum.VasServiceType, which no installed data lists), so the layer stands one in
+-- when it loads: retail's LootFrame goes through ShowUIPanel without any kit window opening.
 local STORE = {
   blizzard_ministore = {
     toc = "## Interface: 120100\nMiniStore.lua\n",
     files = { ["ministore.lua"] = 'function StoreFrame_IsShown() return StoreFrame:GetAttribute("isshown") end' },
   },
 }
-local function test_window_open_stands_in_a_closed_store_frame_assumed()
+local function test_the_layer_stands_in_a_closed_store_frame_assumed()
   B.run(B.mini(STORE), {
     targets = { "Blizzard_MiniBase", "Blizzard_MiniStore" },
     before = function(s)
       s.w.windowSpecs = MAP
     end,
   }, function(s)
-    A.eq(_G.StoreFrame, nil)
+    A.same({ _G.StoreFrame:IsShown(), _G.StoreFrame_IsShown() }, { false, nil })
     s:openWindow("map", { mapID = 37, maps = MAPS })
     A.same({ _G.StoreFrame:IsShown(), _G.StoreFrame_IsShown() }, { false, nil })
   end)
@@ -154,7 +155,7 @@ end
 
 return function()
   test_xml_script_by_game_root_path_reads_the_sibling_file_assumed()
-  test_window_open_stands_in_a_closed_store_frame_assumed()
+  test_the_layer_stands_in_a_closed_store_frame_assumed()
   test_template_info_answers_the_type_of_an_xml_template_assumed()
   test_template_info_answers_the_size_through_the_inherits_chain()
   test_world_map_window_draws_its_tiles()

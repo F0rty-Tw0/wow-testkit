@@ -6,6 +6,7 @@ local M = {}
 local Actors = require("combat_actors")
 local Combat = require("combat")
 local Keys = require("input_keys")
+local LayoutSize = require("ui.layout_size")
 local SimKeys = require("sim_keys")
 local SimMove = require("sim_move")
 local SimRange = require("sim_range")
@@ -211,8 +212,9 @@ function M.step(w, seconds)
   end
   SimRange.syncMap(w)
   local updates = SimUpdate.run(w, seconds)
+  local resized = LayoutSize.run(w)
 
-  return w.sim.activity ~= before or updates > 0, updates
+  return w.sim.activity ~= before or updates > 0 or resized > 0, updates
 end
 
 return M

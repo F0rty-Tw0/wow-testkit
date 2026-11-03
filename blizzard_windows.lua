@@ -158,6 +158,15 @@ local function installStoreFrame()
   end
 end
 
+-- source: assumed the UIParent attributes and the closed StoreFrame stand in for client state that exists from login on,
+-- so the layer installs them when it loads (Scenario:loadBlizzard) as well as when a window opens: panels outside the kit
+-- windows go through ShowUIPanel too (classic and retail LootFrame, uiparentpanelmanager.lua:601 and
+-- blizzard_shared_storeuiinbound.lua:19).
+function M.installClientFrames(w)
+  installUiParentAttributes(w)
+  installStoreFrame()
+end
+
 -- Loads BASE, then the window's addon and its `also` addons (an addon already loaded stays, B3). A BASE or `also` addon
 -- the extract lacks is skipped with a note; only the window's own addon missing returns nil, "MISSING".
 function M.loadFor(w, window)
@@ -180,9 +189,8 @@ function M.loadFor(w, window)
     load(addon)
   end
   installPanelFallbacks(w)
-  installUiParentAttributes(w)
   installBagFallbacks(w)
-  installStoreFrame()
+  M.installClientFrames(w)
   return true
 end
 

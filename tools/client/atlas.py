@@ -19,6 +19,16 @@ LOADER = (
     f"debug.sethook(function() error('atlas.lua ran too long', 0) end, '', {MAX_INSTRUCTIONS}); "
     "return chunk() end"
 )  # the hook stays set: every load gets a fresh runtime
+# source: assumed (row BU24) UiTextureAtlasMember.UiCanvasID 2 is 2x art drawn at half its pixels: every member on it
+# named "-2x" with an override (diamond-metal corners, micro menu buttons) overrides to exactly half (retail 70575),
+# and at half size the metal title bar sits behind LootFrame's title, not over its first row.
+CANVAS_SCALE = {2: 2}
+
+
+def _ui_size(pixels, scale):
+    size = pixels / scale
+
+    return int(size) if size == int(size) else size
 
 
 def build(sheets, members, elements):
@@ -36,11 +46,12 @@ def build(sheets, members, elements):
             continue
         left, right = member["CommittedLeft"], member["CommittedRight"]
         top, bottom = member["CommittedTop"], member["CommittedBottom"]
+        scale = CANVAS_SCALE.get(member.get("UiCanvasID"), 1)
         out[name.lower()] = {
             "name": name,
             "file": sheet["FileDataID"],
-            "width": member.get("OverrideWidth") or right - left,
-            "height": member.get("OverrideHeight") or bottom - top,
+            "width": member.get("OverrideWidth") or _ui_size(right - left, scale),
+            "height": member.get("OverrideHeight") or _ui_size(bottom - top, scale),
             "left": left / sheet["AtlasWidth"],
             "right": right / sheet["AtlasWidth"],
             "top": top / sheet["AtlasHeight"],

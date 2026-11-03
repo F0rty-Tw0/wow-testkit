@@ -60,23 +60,37 @@ end
 
 local CONTRIBUTE = { Alpha = alpha, Translation = translation, Scale = scale, Rotation = rotation }
 
+-- True when item ends its target's alpha over known (the item that did so far, or nil).
+local function replaces(item, known, reverse)
+  if not known then
+    return true
+  end
+  if reverse then
+    return item.order < known.order
+  end
+
+  return item.order >= known.order
+end
+
 -- source: W60 Blizzard_ActionBar/Shared/StatusTrackingManager.lua:249 and :262 read GetAlpha after setToFinalAlpha
 -- fades (StatusTrackingBar.xml:3, :11, :17), so a finished group that keeps its final alpha sets each target's own
 -- alpha; assumed: to the toAlpha of the group's last Alpha animation on that target (highest order, then latest created).
 -- The group is done and no longer active (ui/anim_play.lua), so a later SetAlpha or group replaces the alpha.
-function M.keepFinalAlpha(w, group)
-  local last = {}
+-- source: assumed (W79) a group played in reverse ends where the forward pass starts: the fromAlpha of its first Alpha
+-- animation on that target (lowest order, then earliest created).
+function M.keepFinalAlpha(w, group, reverse)
+  local ends = {}
   for _, item in ipairs(Anim.timeline(w, group).items) do
     if item.st.plan.type == "Alpha" then
       local target = Anim.target(w, item.animation)
       local isWidget = target ~= nil and w.ui.state[target] ~= nil
-      if isWidget and (not last[target] or item.order >= last[target].order) then
-        last[target] = item
+      if isWidget and replaces(item, ends[target], reverse) then
+        ends[target] = item
       end
     end
   end
-  for target, item in pairs(last) do
-    w.ui.state[target].alpha = Anim.value(item.st, "ToAlpha")
+  for target, item in pairs(ends) do
+    w.ui.state[target].alpha = Anim.value(item.st, reverse and "FromAlpha" or "ToAlpha")
   end
 end
 
