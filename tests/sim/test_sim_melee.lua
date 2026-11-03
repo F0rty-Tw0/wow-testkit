@@ -273,8 +273,10 @@ local function test_error_strings_and_reset()
     A.same({ type(_G.ERR_BADATTACKPOS), type(_G.ERR_BADATTACKFACING) }, { "string", "string" })
     engageAt(w, -2)
     SimMelee.start(w)
+    local melee = w.sim.melee
+    melee.timer = 2
     Sim.reset(w)
-    A.eq(w.sim.melee.on, false)
+    A.same({ melee.on, melee.timer }, { false, 0 })
   end)
 end
 

@@ -57,7 +57,7 @@ function M.stop(w)
 end
 
 -- A world reset also spends the timer: the next attack swings at once.
-local function reset(w)
+function M.reset(w)
   M.stop(w)
   w.sim.melee.timer = 0
 end
@@ -187,7 +187,7 @@ function M.install(w)
     M.stop(w)
   end)
   table.insert(w.sim.hooks.frame, M.step)
-  table.insert(w.sim.hooks.reset, reset)
+  table.insert(w.sim.hooks.reset, M.reset)
   Combat.listen(w, "death", function(actor)
     stopFor(w, actor)
   end)

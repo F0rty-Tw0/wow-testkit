@@ -30,7 +30,7 @@ local function test_world_state_fields_assumed()
     A.same(w.sim.mapRect, { left = -50, top = 50, size = 100 })
     A.same({ w.sim.intents, w.sim.activity, w.sim.clock }, { {}, 0, { t0 = w.now, carry = 0 } })
     A.same(w.sim.hooks.frame, { SimMove.frame, SimMelee.step })
-    A.same(w.sim.hooks.reset, { SimMove.stop, SimMelee.stop })
+    A.same(w.sim.hooks.reset, { SimMove.stop, SimMelee.reset })
     A.truthy(w.sim.hooks.persist.melee) -- the units' own reload state; their tests cover it
     A.eq(w.mock.zone.mapID, Sim.MAP_ID)
     A.same(w.mock.zone.position, { x = 0.5, y = 0.6 })
