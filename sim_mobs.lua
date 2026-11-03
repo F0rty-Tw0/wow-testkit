@@ -231,15 +231,17 @@ local function seesPlayer(mob, player)
   return mob.ai ~= nil and SimRange.distance(mob, player) <= M.RULES.aggro and SimRange.inFront(mob, player)
 end
 
--- Walks the engaged mob toward its target, facing it, and stops in melee range. A root or a stun stops the walk.
+-- Walks the engaged mob toward its target, facing it, and stops in melee range. A root stops the walk; a stun also
+-- stops the turn.
+-- source: assumed (spec 5.3) a stunned mob cannot walk or turn, a rooted one cannot walk but still turns.
 local function chase(w, mob, dt)
   local target = Ai.target(w, mob)
-  if not target then
+  if not target or hasAura(mob, "stun") then
     return
   end
   mob.facing = facingAt(mob, target.pos.x, target.pos.y)
-  local held = hasAura(mob, "root") or hasAura(mob, "stun")
-  if held or SimMelee.inRange(mob, target) then
+  local rooted = hasAura(mob, "root")
+  if rooted or SimMelee.inRange(mob, target) then
     return
   end
   local dx, dy = target.pos.x - mob.pos.x, target.pos.y - mob.pos.y
@@ -268,7 +270,7 @@ local function export(w)
   local out = {}
   for _, guid in ipairs(w.combat.order) do
     local mob = w.combat.actors[guid]
-    if mob.mobState or mob.loot then
+    if mob.mobState or mob.loot ~= nil then
       out[guid] = { mobState = mob.mobState, loot = mob.loot }
     end
   end
