@@ -170,7 +170,8 @@ end
 -- Brings the plates in line with the actors, the CVars and the instance: removals first, then additions in spawn order
 -- (each placed as it comes), then the places of every plate. With a non-player actor `changed` given (it moved, or its flags
 -- changed) only that actor's plate is reconciled, with no walk over the other actors: nobody else's plate depends on its
--- state. With the player given (it moved) the add and remove pass runs over every actor, since the range origin moved,
+-- state. So an instance change that fires no event (a mock flip) reaches another actor's plate only at the next full sync:
+-- a player move, a spawn, a cvar change or a death. With the player given (it moved) the add and remove pass runs over every actor, since the range origin moved,
 -- but no plate is placed again: the camera stays at the origin, so the player's own place never moves a plate.
 function M.sync(w, changed)
   local c = w.combat
