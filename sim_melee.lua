@@ -63,12 +63,13 @@ function M.reset(w)
 end
 
 -- source: assumed (spec 5.2) the first swing lands on the first in-range frame: the timer starts spent (0).
--- Starts the attack on the player's target. Returns false (nothing changes) without a living enemy target.
+-- Starts the attack on the player's target. Returns false (nothing changes) for a dead player or without a living enemy
+-- target.
 function M.start(w)
   local m = w.sim.melee
   local target = w.combat.actors[w.sim.player.targetGuid]
   local isLivingEnemy = target and target.isEnemy and not target.isDead
-  if not isLivingEnemy then
+  if w.sim.player.isDead or not isLivingEnemy then
     return false
   end
   local alreadyOnIt = m.on and m.targetGuid == target.guid
@@ -106,7 +107,7 @@ local function hold(w, reason)
   end
 end
 
--- One sim frame: the timer runs down and a due swing lands or fails.
+-- One sim frame: the timer runs down and a due swing lands or fails. A dead player's attack ends.
 -- source: assumed (spec 5.2) the swing timer keeps running while the attack is off, down to 0 and no further; a
 -- StopAttack or a retarget cannot reset it, and an attack started with a spent timer swings on its first frame.
 function M.step(w, dt)
@@ -116,11 +117,16 @@ function M.step(w, dt)
 
     return
   end
+  local player = w.sim.player
+  if player.isDead then
+    M.stop(w)
+
+    return
+  end
   m.timer = m.timer - dt
   if m.timer > 0 then
     return
   end
-  local player = w.sim.player
   local target = w.combat.actors[m.targetGuid]
   local reason = failure(player, target)
   if reason then
