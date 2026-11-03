@@ -2,8 +2,10 @@
 // TK.pointer.attach(stage, deps) wires the listeners; deps = { post(req), rect() -> stage client rect, screen() ->
 // { width, height }, now() -> ms }. Moves become enter requests at most every MOVE_MS, coalesced to the latest
 // position. A press that moved DRAG_PX or more becomes one drag request on mouseup (the click that follows is
-// swallowed); the wheel becomes +-1 at the point. Classic script; the mapping and naming are pure for
-// tests/viewer/unit_pointer.js and unit_keys.js.
+// swallowed); the wheel becomes +-1 at the point. Optional sim deps: world(point) -> { guid?, ground? } | null rides on
+// click and enter requests, claim(ev) -> true takes a press for the host (no drag, no click, no moves),
+// afterWheel(reply, ev) sees the wheel's reply; win (default window) hears a mouseup that ends a press off the stage.
+// Classic script; the mapping and naming are pure for tests/viewer/unit_pointer.js and unit_keys.js.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -37,13 +39,19 @@ window.TK = window.TK || {};
 
   pointer.attach = (stage, deps) => {
     const move = { last: null, sentAt: -Infinity, pending: null, timer: null };
-    const press = { from: null, button: null, swallow: false };
+    const press = { from: null, button: null, swallow: false, claimed: false };
 
     function pointOf(ev) {
       const screen = deps.screen();
       const point = pointer.toScreen(ev, deps.rect(), screen);
 
       return inside(point, screen) ? point : null;
+    }
+
+    function withWorld(req) {
+      const world = deps.world && deps.world(req.target);
+
+      return world ? { ...req, world } : req;
     }
 
     function sendMove() {
@@ -54,7 +62,7 @@ window.TK = window.TK || {};
       if (same) return;
       move.last = point;
       move.sentAt = deps.now();
-      deps.post({ kind: 'enter', target: point });
+      deps.post(withWorld({ kind: 'enter', target: point }));
     }
 
     function flushLater() {
@@ -68,7 +76,7 @@ window.TK = window.TK || {};
 
     function onMove(ev) {
       const point = pointOf(ev);
-      if (!point) return;
+      if (!point || press.claimed) return;
       move.pending = point;
       const due = deps.now() - move.sentAt >= pointer.MOVE_MS;
       if (due) sendMove();
@@ -80,18 +88,22 @@ window.TK = window.TK || {};
       if (!point) return;
       move.pending = null;
       move.last = point;
-      deps.post({ kind: 'click', target: point, button });
+      deps.post(withWorld({ kind: 'click', target: point, button }));
     }
 
     function onDown(ev) {
       press.swallow = false;
-      press.from = pointOf(ev);
+      press.claimed = Boolean(deps.claim && deps.claim(ev));
+      press.from = press.claimed ? null : pointOf(ev);
       press.button = pointer.buttonName(ev.button);
+      if (press.claimed) move.pending = null;
     }
 
     function onUp(ev) {
-      const { from, button } = press;
+      const { from, button, claimed } = press;
       press.from = null;
+      press.claimed = false;
+      if (claimed) press.swallow = true;
       const to = pointOf(ev);
       if (!from || !to || !pointer.isDrag(from, to)) return;
       press.swallow = true;
@@ -100,7 +112,7 @@ window.TK = window.TK || {};
       deps.post({ kind: 'drag', from, to, button });
     }
 
-    // The click (or contextmenu) that follows a drag's mouseup is not a click.
+    // The click (or contextmenu) that follows a drag's or a claimed press's mouseup is not a click.
     function swallowed() {
       const was = press.swallow;
       press.swallow = false;
@@ -112,13 +124,19 @@ window.TK = window.TK || {};
       const point = pointOf(ev);
       if (!point || ev.deltaY === 0) return;
       ev.preventDefault();
-      deps.post({ kind: 'wheel', target: point, delta: pointer.wheelDelta(ev) });
+      const sent = deps.post({ kind: 'wheel', target: point, delta: pointer.wheelDelta(ev) });
+      if (deps.afterWheel) Promise.resolve(sent).then((reply) => deps.afterWheel(reply, ev));
     }
 
     stage.addEventListener('mousemove', onMove);
     stage.addEventListener('mousedown', onDown);
     stage.addEventListener('mouseup', onUp);
     stage.addEventListener('wheel', onWheel, { passive: false });
+    // A press released anywhere else ends too, so a stale claim or drag origin cannot leak into the next gesture.
+    (deps.win || window).addEventListener('mouseup', () => {
+      press.from = null;
+      press.claimed = false;
+    });
     stage.addEventListener('mouseleave', () => {
       move.pending = null;
       move.last = null;

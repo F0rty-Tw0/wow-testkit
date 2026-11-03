@@ -1,6 +1,8 @@
 // Keyboard input in live mode: browser key events become the client's key names (TK.keys.toWow) and then a `type` or a
-// `press` request (TK.keys.plan); TK.keys.attach(doc, deps) wires the listener. deps = { post(req), focused() -> true when
-// the session has a focused EditBox }. Classic script; toWow and plan are pure for tests/viewer/unit_keys.js.
+// `press` request (TK.keys.plan); TK.keys.attach(doc, deps) wires the listener. deps = { post(req), focused() -> true
+// when the session has a focused EditBox, sim?() -> true in sim mode, win? = blur target (default window) }. In sim
+// mode a press posts keydown/keyup pairs instead (released on blur or tab hide). Classic script; toWow and plan are
+// pure for tests/viewer/unit_keys.js.
 window.TK = window.TK || {};
 
 (function (TK) {
@@ -81,12 +83,45 @@ window.TK = window.TK || {};
   }
 
   keys.attach = (doc, deps) => {
+    const held = new Set();
+    const win = deps.win || window;
+
+    function releaseAll() {
+      const names = [...held];
+      held.clear();
+      for (const key of names) deps.post({ kind: 'keyup', key, mods: {} });
+    }
+
+    // In sim mode (and no EditBox focus) a press becomes a keydown, once per hold, so the world can keep walking.
+    function simDown(plan, ev) {
+      if (ev.repeat || held.has(plan.key)) return;
+      held.add(plan.key);
+      deps.post({ kind: 'keydown', key: plan.key, mods: plan.mods });
+    }
+
     doc.addEventListener('keydown', (ev) => {
       if (inPanelField(ev)) return;
-      const plan = keys.plan(ev, deps.focused());
+      const focused = deps.focused();
+      const plan = keys.plan(ev, focused);
       if (!plan) return;
       if (swallows(plan, ev)) ev.preventDefault();
-      deps.post(plan);
+      const inSim = deps.sim ? deps.sim() : false;
+      const simPress = plan.kind === 'press' && !focused && inSim;
+      if (simPress) simDown(plan, ev);
+      else deps.post(plan);
+    });
+
+    // A held key is released whatever has focus or modifiers now; the mods are the ones at keyup time.
+    doc.addEventListener('keyup', (ev) => {
+      const named = keys.toWow(ev);
+      const wasHeld = named && held.delete(named.key);
+      if (!wasHeld) return;
+      deps.post({ kind: 'keyup', key: named.key, mods: named.mods });
+    });
+
+    win.addEventListener('blur', releaseAll);
+    doc.addEventListener('visibilitychange', () => {
+      if (doc.visibilityState === 'hidden') releaseAll();
     });
   };
 })(window.TK);
