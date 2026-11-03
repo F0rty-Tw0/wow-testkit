@@ -253,7 +253,7 @@
       const reset = { player: { pos: { x: 0, y: -10 }, facing: 0 }, actors: [] };
       const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
       document.body.append(panels);
-      TK.api = (method, req) => {
+      TK.api = (_method, req) => {
         asked.push(req);
 
         return Promise.resolve(req.action === 'reset' ? { ok: true, world: reset } : { ok: true });
