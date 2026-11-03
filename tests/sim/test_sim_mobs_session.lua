@@ -40,7 +40,43 @@ local function test_session_spawn_action_and_world_reply()
   end)
 end
 
+local function test_session_spawn_refuses_a_bad_mob_before_adding_anything()
+  local BAD = {
+    { { ai = { swing = "x" } }, "ai.swing" },
+    { { ai = { swing = { damage = 3 } } }, "ai.swing" },
+    { { ai = { swing = { every = 2 } } }, "ai.swing.damage" },
+    { { ai = { spells = { { every = 0 } } } }, "ai.spells" },
+    { { level = 0 }, "level" },
+    { { health = -5 }, "health" },
+    { { pack = 2, name = 5 }, "name must be a string" },
+  }
+  H.withSession({ addonDir = H.CLICKY, sim = {} }, function(sess)
+    for _, case in ipairs(BAD) do
+      local req = { action = "spawn" }
+      for key, value in pairs(case[1]) do
+        req[key] = value
+      end
+      local reply = sess:call("sim", req)
+      A.same({ reply.ok, string.find(reply.error, case[2], 1, true) ~= nil }, { false, true }, case[2])
+      A.eq(string.find(reply.error, ".lua:", 1, true), nil, reply.error) -- no file path leaks through the session
+      A.eq(#sess:call("sim", { action = "world" }).world.actors, 0, case[2])
+    end
+    A.eq(sess:call("sim", { action = "step", seconds = 0.25 }).ok, true)
+  end)
+end
+
+local function test_session_pack_rule_lives_in_sim_mobs()
+  H.withSession({ addonDir = H.CLICKY, sim = {} }, function(sess)
+    for _, bad in ipairs({ 0, 11, 1.5, "x" }) do
+      local reply = sess:call("sim", { action = "spawn", pack = bad })
+      A.same({ reply.ok, string.find(reply.error, "SimMobs.pack: n must be a whole number 1-10", 1, true) ~= nil }, { false, true })
+    end
+  end)
+end
+
 return function()
   test_scenario_spawn_and_spawn_pack_and_a_friendly_mob()
   test_session_spawn_action_and_world_reply()
+  test_session_spawn_refuses_a_bad_mob_before_adding_anything()
+  test_session_pack_rule_lives_in_sim_mobs()
 end

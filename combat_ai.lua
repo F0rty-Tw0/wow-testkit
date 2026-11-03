@@ -119,11 +119,22 @@ local function cast(w, actor, rule)
   })
 end
 
+-- Why a repeating rule cannot run (its every is not a number above 0), or nil. The one place that rule lives: Ai.start
+-- raises it and the sim's spawn checks a mob's rules with it before the mob exists.
+function M.ruleError(rule)
+  if type(rule.every) ~= "number" or rule.every <= 0 then
+    return "a rule's every must be a number above 0, got " .. tostring(rule.every)
+  end
+
+  return nil
+end
+
 -- Repeats act(w, actor, rule) every rule.every seconds. The next tick is armed first, so an action that raises does not
 -- end the rule.
 local function arm(w, actor, rule, act)
-  if type(rule.every) ~= "number" or rule.every <= 0 then
-    error("Ai.start: a rule's every must be a number above 0, got " .. tostring(rule.every), 3)
+  local problem = M.ruleError(rule)
+  if problem then
+    error("Ai.start: " .. problem, 3)
   end
   local function tick()
     if not actor.timers then

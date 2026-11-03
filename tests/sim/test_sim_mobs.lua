@@ -51,6 +51,29 @@ local function test_pack_and_option_validation()
   end)
 end
 
+local function test_bad_options_raise_before_anything_is_added_and_without_a_file_path()
+  SH.withSim("retail", function(w)
+    local function refused(opts, needle)
+      local message = A.errors(function()
+        SimMobs.spawn(w, opts)
+      end, needle)
+      A.eq(string.find(message, ".lua:", 1, true), nil, message)
+      A.eq(#w.combat.order, 1, needle) -- the player only
+    end
+    refused({ ai = { swing = "x" } }, "SimMobs.spawn: ai.swing must be a table")
+    refused({ ai = { swing = { damage = 3 } } }, "SimMobs.spawn: ai.swing: a rule's every")
+    refused({ ai = { swing = { every = 2, damage = "x" } } }, "SimMobs.spawn: ai.swing.damage must be a number")
+    refused({ level = 0 }, "SimMobs.spawn: level must be a number above 0")
+    refused({ health = -5 }, "SimMobs.spawn: health must be a number above 0")
+    local message = A.errors(function()
+      SimMobs.pack(w, 2, { name = 5 })
+    end, "SimMobs.spawn: name must be a string")
+    A.eq(string.find(message, ".lua:", 1, true), nil, message)
+    A.eq(#w.combat.order, 1)
+    A.eq(#SimMobs.pack(w, 1, { ai = false }), 1) -- a dummy is still allowed
+  end)
+end
+
 -- Mob (0,0), player (0,-10): reduced 7 <= 10 and the player is in front of the mob.
 local function test_aggro_chase_stop_in_range_then_swing_on_cadence()
   SH.withSim("retail", function(w, s)
@@ -159,6 +182,7 @@ end
 return function()
   test_default_spawn_is_level_matched_20_yd_ahead_facing_the_player_and_idle()
   test_pack_and_option_validation()
+  test_bad_options_raise_before_anything_is_added_and_without_a_file_path()
   test_aggro_chase_stop_in_range_then_swing_on_cadence()
   test_player_behind_the_mob_does_not_aggro_until_it_attacks()
   test_social_pull_takes_mobs_within_8_yd_only()

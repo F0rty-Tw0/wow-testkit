@@ -29,28 +29,63 @@ local function defaultAi()
 end
 
 local OPTION_TYPES = { name = "string", level = "number", health = "number", hostile = "boolean" }
+local POSITIVE = { "level", "health" }
 
+-- Level 0: no file position, so the message reads the same through a script, a scenario and the session's reply.
 local function fail(fmt, ...)
-  error(string.format("SimMobs.spawn: " .. fmt, ...), 4)
+  error(string.format("SimMobs.spawn: " .. fmt, ...), 0)
 end
 
 local function validPos(pos)
   return type(pos) == "table" and type(pos.x) == "number" and type(pos.y) == "number"
 end
 
--- Raises "SimMobs.spawn: <field> must be a <type>" for an option of the wrong type.
+-- Raises for a repeating rule (ai.swing, or one of ai.spells) that Ai.start would refuse or run into later.
+local function checkRule(rule, name)
+  if type(rule) ~= "table" then
+    fail("%s must be a table", name)
+  end
+  local problem = Ai.ruleError(rule)
+  if problem then
+    fail("%s: %s", name, problem)
+  end
+end
+
+local function checkAi(ai)
+  if ai == nil or ai == false then
+    return
+  end
+  if type(ai) ~= "table" then
+    fail("ai must be a table or false")
+  end
+  if ai.swing ~= nil then
+    checkRule(ai.swing, "ai.swing")
+    if type(ai.swing.damage) ~= "number" then
+      fail("ai.swing.damage must be a number")
+    end
+  end
+  for index, rule in ipairs(ai.spells or {}) do
+    checkRule(rule, "ai.spells[" .. index .. "]")
+  end
+end
+
+-- Raises "SimMobs.spawn: <field> must be a <type>" (or an above-0 number for level and health, or a runnable ai) for a bad
+-- option. spawn and pack run it before anything is added, so a refused mob leaves no actor behind.
 local function check(opts)
   for field, kind in pairs(OPTION_TYPES) do
     if opts[field] ~= nil and type(opts[field]) ~= kind then
       fail("%s must be a %s", field, kind)
     end
   end
+  for _, field in ipairs(POSITIVE) do
+    if opts[field] ~= nil and opts[field] <= 0 then
+      fail("%s must be a number above 0", field)
+    end
+  end
   if opts.pos ~= nil and not validPos(opts.pos) then
     fail("pos must be a table with a number x and y")
   end
-  if opts.ai ~= nil and opts.ai ~= false and type(opts.ai) ~= "table" then
-    fail("ai must be a table or false")
-  end
+  checkAi(opts.ai)
 end
 
 -- The direction an actor faces to look at the point (x, y): 0 is north, turning counter-clockwise; forward is (-sin, cos).
@@ -101,11 +136,8 @@ function M.rearm(_, actor)
   end
 end
 
--- Adds a mob. opts = { name?, level?, health?, hostile?, pos?, loot?, ai? }: see the defaults in the module's header. Raises
--- "SimMobs.spawn: <field> must be a <type>".
-function M.spawn(w, opts)
-  local given = opts or {}
-  check(given)
+-- Adds the mob that check already passed.
+local function build(w, given)
   local player = w.sim.player
   local hostile = given.hostile ~= false
   local level = given.level or player.level
@@ -126,12 +158,22 @@ function M.spawn(w, opts)
   return mob
 end
 
+-- Adds a mob. opts = { name?, level?, health?, hostile?, pos?, loot?, ai? }: see the defaults in the module's header. Raises
+-- "SimMobs.spawn: <field> must be a <type>" (see check) before the mob is built.
+function M.spawn(w, opts)
+  local given = opts or {}
+  check(given)
+
+  return build(w, given)
+end
+
 -- n mobs (1 to RULES.maxPack) in a row along the player's right, RULES.gap apart, centred on opts.pos or the default point.
 function M.pack(w, n, opts)
   local max = M.RULES.maxPack
   if type(n) ~= "number" or n < 1 or n > max or n ~= math.floor(n) then
-    error(string.format("SimMobs.pack: n must be a whole number 1-%d", max), 2)
+    error(string.format("SimMobs.pack: n must be a whole number 1-%d", max), 0)
   end
+  check(opts or {})
   local player = w.sim.player
   local facing = player.facing or 0
   local centre = (opts and opts.pos) or ahead(player, M.RULES.ahead)
@@ -140,7 +182,7 @@ function M.pack(w, n, opts)
     local offset = (i - (n + 1) / 2) * M.RULES.gap
     local given = GameState.merge({}, opts or {})
     given.pos = { x = centre.x + math.cos(facing) * offset, y = centre.y + math.sin(facing) * offset }
-    mobs[i] = M.spawn(w, given)
+    mobs[i] = build(w, given)
   end
 
   return mobs

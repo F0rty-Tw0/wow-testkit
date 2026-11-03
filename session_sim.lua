@@ -40,18 +40,10 @@ local ACTIONS = {
 
     return reply(sess), true
   end,
-  -- A pack of req.pack mobs (1 to SimMobs.RULES.maxPack) or one; the reply names the first.
+  -- A pack of req.pack mobs (1 to SimMobs.RULES.maxPack) or one; the reply names the first. SimMobs owns the rules for
+  -- the pack size and the mob's options, and raises before it adds anything.
   spawn = function(sess, req)
-    local pack, max = req.pack, SimMobs.RULES.maxPack
-    if pack ~= nil and (type(pack) ~= "number" or pack < 1 or pack > max or pack ~= math.floor(pack)) then
-      fail("pack must be a whole number 1-%d", max)
-    end
-    local mobs
-    if pack then
-      mobs = sess.w:run(ENGINE, SimMobs.pack, sess.w, pack, req)
-    else
-      mobs = { sess.w:run(ENGINE, SimMobs.spawn, sess.w, req) }
-    end
+    local mobs = sess.w:run(ENGINE, SimMobs.pack, sess.w, req.pack or 1, req)
     local out = reply(sess)
     out.guid = mobs[1].guid
 
