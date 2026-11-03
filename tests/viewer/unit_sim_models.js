@@ -228,6 +228,57 @@
     },
   });
 
+  const droppable = () => {
+    let resolve;
+    const pending = new Promise((r) => {
+      resolve = r;
+    });
+    const handle = { THREE, groups: { actors: new THREE.Group() }, loadModel: () => pending };
+    const raw = { guid: 'a', hostile: true, health: 10 };
+    const item = { raw, prevRaw: null, pos: { x: 0, y: 0 }, facing: 0, isPlayer: false };
+    TK.scene3d.sync(handle, { items: [item], dt: 0 });
+
+    return { handle, pending, resolve, root: handle.groups.actors.children[0] };
+  };
+
+  TK_TESTS.push({
+    name: 'scene3d.sync: a dropped actor disposes its stand-in body geometry',
+    fn() {
+      const { handle, root } = droppable();
+      let disposed = 0;
+      root.children[0].traverse((node) => {
+        if (node.geometry) node.geometry.addEventListener('dispose', () => disposed++);
+      });
+      TK.scene3d.sync(handle, { items: [], dt: 0 });
+      A.eq(disposed > 0, true, 'the primitive body geometry is disposed on drop');
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'scene3d.sync: a model that resolves after its actor was dropped is not attached',
+    async fn() {
+      const { handle, pending, resolve, root } = droppable();
+      TK.scene3d.sync(handle, { items: [], dt: 0 });
+      resolve({ scene: new THREE.Group(), animations: [] });
+      await pending;
+      A.eq(root.userData.body, 'primitive', 'the late model is not attached');
+      A.eq(root.children.length, 1, 'only the marks stay under the dropped root');
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'marks.apply lifts the body emissive while hovered and restores it after',
+    fn() {
+      const m = TK.scene3dMarks.make(THREE);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+      const base = mesh.material.emissive.r;
+      m.apply({ isMouseover: true }, 0, mesh);
+      A.eq(mesh.material.emissive.r > base, true, 'lifted while hovered');
+      m.apply({}, 0, mesh);
+      A.eq(near(mesh.material.emissive.r, base), true, 'restored after unhover');
+    },
+  });
+
   TK_TESTS.push({
     name: 'scene3dProps.modelSet fits a loaded tree to the primitive height; a missing rock stays primitive',
     fn() {
