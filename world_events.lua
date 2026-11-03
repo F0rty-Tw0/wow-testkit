@@ -80,6 +80,7 @@ function M.reset(w)
   w.timerSeq = 0
   w.scripts = setmetatable({}, { __mode = "k" })
   w.onUpdate = setmetatable({}, { __mode = "k" })
+  w.onSizeChanged = setmetatable({}, { __mode = "k" })
   w.eventFrames = {}
   w.unitFilters = {}
   w.chunks = {}
@@ -132,9 +133,13 @@ end
 
 -- w.onUpdate: every object SetScript or HookScript named OnUpdate for, so the sim's per-step pass (sim_update) visits
 -- those and not every frame. Entries are never removed here; the pass skips and drops the ones with no handler left.
+-- w.onSizeChanged: the same for OnSizeChanged, so the layout pass (ui/layout_size.lua) walks the frames that ever held
+-- it; never removed (a frame that held the script keeps its last told size).
 local function scriptEntry(w, obj, scriptName)
   if scriptName == "OnUpdate" then
     w.onUpdate[obj] = true
+  elseif scriptName == "OnSizeChanged" then
+    w.onSizeChanged[obj] = true
   end
   local byName = w.scripts[obj]
   if not byName then

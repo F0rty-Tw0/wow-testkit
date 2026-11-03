@@ -6,6 +6,7 @@ local M = {}
 local AddonEnv = require("addon_env")
 local Callsite = require("ui.callsite")
 local Layout = require("ui.layout")
+local LayoutSize = require("ui.layout_size")
 
 local unpack = unpack
 
@@ -144,23 +145,15 @@ function methods.SetHeight(_, _, st, height)
   st.height = height
 end
 
--- source: row LY13 (`ignoreRect`, default false), row LY5/LY6: with ignoreRect only the size the addon set counts;
--- otherwise a valid rect's size, else the set size, else a FontString's text size (row LY10), else 0.
+-- The getters read the size (ui/layout_size.lua) first, then let a frame holding OnSizeChanged hear a change the
+-- measurement found (row LY16); with ignoreRect no rect is resolved, so nothing is told.
 local function sizeOf(w, obj, st, axis, ignoreRect)
-  local rect = not ignoreRect and Layout.rect(w, obj)
-  if rect then
-    return rect[axis == "x" and "width" or "height"]
+  local size = LayoutSize.of(w, obj, st, axis, ignoreRect)
+  if not ignoreRect then
+    LayoutSize.measured(w, obj)
   end
-  local set
-  if axis == "x" then
-    set = st.width
-  else
-    set = st.height
-  end
-  if set then
-    return set
-  end
-  return not ignoreRect and Layout.autoSize(w, obj, axis, Layout.wrapWidth(w, obj)) or 0
+
+  return size
 end
 
 function methods.GetWidth(w, obj, st, ignoreRect)
@@ -177,44 +170,52 @@ end
 
 -- Rect ---------------------------------------------------------------------------------------------------------
 
+-- The rect of obj, after a frame holding OnSizeChanged heard a change the measurement found (row LY16).
+local function measuredRect(w, obj)
+  local rect = Layout.rect(w, obj)
+  LayoutSize.measured(w, obj)
+
+  return rect
+end
+
 -- source: row LY6: a region with no resolvable rect returns nothing (not nil) from these getters.
 function methods.GetLeft(w, obj)
-  local rect = Layout.rect(w, obj)
+  local rect = measuredRect(w, obj)
   if rect then
     return rect.left
   end
 end
 
 function methods.GetRight(w, obj)
-  local rect = Layout.rect(w, obj)
+  local rect = measuredRect(w, obj)
   if rect then
     return rect.left + rect.width
   end
 end
 
 function methods.GetBottom(w, obj)
-  local rect = Layout.rect(w, obj)
+  local rect = measuredRect(w, obj)
   if rect then
     return rect.bottom
   end
 end
 
 function methods.GetTop(w, obj)
-  local rect = Layout.rect(w, obj)
+  local rect = measuredRect(w, obj)
   if rect then
     return rect.bottom + rect.height
   end
 end
 
 function methods.GetCenter(w, obj)
-  local rect = Layout.rect(w, obj)
+  local rect = measuredRect(w, obj)
   if rect then
     return rect.left + rect.width / 2, rect.bottom + rect.height / 2
   end
 end
 
 function methods.GetRect(w, obj)
-  local rect = Layout.rect(w, obj)
+  local rect = measuredRect(w, obj)
   if rect then
     return rect.left, rect.bottom, rect.width, rect.height
   end
@@ -223,6 +224,7 @@ end
 -- source: row LY7: GetScaledRect is GetRect times the effective scale, i.e. the pixel rect.
 function methods.GetScaledRect(w, obj)
   local pixel = Layout.pixelRect(w, obj)
+  LayoutSize.measured(w, obj)
   if pixel then
     return pixel.left, pixel.bottom, pixel.right - pixel.left, pixel.top - pixel.bottom
   end
@@ -230,7 +232,7 @@ end
 
 -- assumed (row LY6): a region is valid exactly when its rect resolves.
 function methods.IsRectValid(w, obj)
-  return Layout.rect(w, obj) ~= nil
+  return measuredRect(w, obj) ~= nil
 end
 
 return M

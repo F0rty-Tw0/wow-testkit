@@ -4,6 +4,7 @@ local M = {}
 
 local AddonEnv = require("addon_env")
 local BehaviourLayout = require("ui.behaviour_layout")
+local Layout = require("ui.layout")
 local Templates = require("ui.templates")
 local XmlBuild = require("ui.xml_build")
 
@@ -199,6 +200,26 @@ function handlers.anchors(w, obj, _, node, session)
     end
   end
 end
+
+-- source: assumed (row X28) a <Texture> with no Size, no Anchors and no setAllPoints, here or in a template it inherits,
+-- fills its frame (classic ItemButtonTemplate icon, tbc itembuttontemplate.xml:10; the live client draws bag and loot
+-- icons filling the button), as a layout default (ui/layout_defaults.lua) that Lua placing the texture later replaces.
+local function fillFrameWhenUnsized(w, region, _, node)
+  if node.tag ~= "texture" then
+    return
+  end
+  local hasOwnLayout = node.attrs.setallpoints ~= nil
+  for _, child in ipairs(node.children) do
+    hasOwnLayout = hasOwnLayout or child.tag == "anchors" or child.tag == "size"
+  end
+  local st = w.ui.state[region]
+  local isUnsized = #st.points == 0 and (st.width or 0) == 0 and (st.height or 0) == 0
+  if not hasOwnLayout and isUnsized then
+    st.fillsParent = true
+    Layout.invalidate(w)
+  end
+end
+XmlBuild.regionFinishers[#XmlBuild.regionFinishers + 1] = fillFrameWhenUnsized
 
 -- Layers --------------------------------------------------------------------------------------------------------
 

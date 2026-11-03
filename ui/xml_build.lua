@@ -12,8 +12,9 @@ local XmlAttrs = require("ui.xml_attrs")
 
 -- handlers[tag] = fn(w, obj, st, node, session) for a child element of a frame or region (obj).
 M.handlers = {}
--- finishers[i] = fn(w, frame, st, node, session), run in order once the frame's children exist.
-M.finishers = {}
+-- finishers[i] = fn(w, frame, st, node, session), run in order once the frame's children exist; regionFinishers[i] =
+-- fn(w, region, frame, node) once a region's own children ran.
+M.finishers, M.regionFinishers = {}, {}
 
 -- source: wiki XML/Layer: `level` defaults to ARTWORK, `textureSubLevel` to 0 (row X10)
 local DEFAULT_LAYER = "ARTWORK"
@@ -283,6 +284,9 @@ function M.region(w, node, frame, session, layer, sub)
   region:SetDrawLayer(layer or DEFAULT_LAYER, sub or DEFAULT_SUBLEVEL)
   attach(frame, region, node.attrs, w.ui.state[region])
   M.body(w, region, node, session)
+  for _, finish in ipairs(M.regionFinishers) do
+    finish(w, region, frame, node)
+  end
   return region
 end
 
