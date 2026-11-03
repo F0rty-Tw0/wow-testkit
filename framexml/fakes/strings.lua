@@ -23,6 +23,7 @@ M.STRINGS = {
   SILVER_AMOUNT = "%d Silver",
   COPPER_AMOUNT = "%d Copper",
   LARGE_NUMBER_SEPERATOR = ",",
+  ERR_LOOT_TOO_FAR = "Too far away to loot",
 }
 
 function M.install(w)
