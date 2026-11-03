@@ -137,6 +137,14 @@ function M.frame(w, dt)
   if turn ~= 0 then
     M.setFacing(w, sim.player.facing + turn * M.TURN * dt)
   end
+  -- A spell that moves the player (Charge) sets sim.driven, its yards per second, and moves the player itself; the walk
+  -- intents wait, and the player counts as moving.
+  if sim.driven then
+    sim.speed = sim.driven
+    setMoving(w, true)
+
+    return
+  end
   local along = sign(intents.forward or intents.autorun, intents.backward)
   local across = sign(intents.strafeRight, intents.strafeLeft)
   local speed = speedOf(intents, along, across)

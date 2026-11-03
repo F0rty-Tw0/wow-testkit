@@ -223,6 +223,24 @@ local function test_on_update_walks_shown_frames_in_order_assumed()
   end)
 end
 
+local function test_a_driven_speed_stands_in_for_the_walk()
+  H.withSim("retail", {}, function(_, s)
+    local p = s.w.sim.player
+    local moves = H.recordMoves()
+    s.w.sim.driven = 20
+    s:move({ forward = true })
+    s:simStep(0.5)
+    A.same({ p.pos.x, p.pos.y }, { 0, -10 }) -- a spell moves the player itself; the walk intents wait
+    A.same({ select(1, _G.GetUnitSpeed("player")), _G.IsPlayerMoving(), moves }, { 20, true, { "PLAYER_STARTED_MOVING" } })
+    s.w.sim.driven = nil
+    s:simStep(1)
+    H.near(p.pos.y, -3)
+    s:move({})
+    s:simStep(0.1)
+    A.same({ _G.IsPlayerMoving(), moves }, { false, { "PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING" } })
+  end)
+end
+
 local function test_advance_is_guarded_on_a_sim_world()
   H.withSim("retail", {}, function(_, s)
     A.errors(function()
@@ -256,6 +274,7 @@ return function()
   test_step_rejects_a_bad_duration()
   test_idle_step_changes_nothing()
   test_on_update_walks_shown_frames_in_order_assumed()
+  test_a_driven_speed_stands_in_for_the_walk()
   test_advance_is_guarded_on_a_sim_world()
   test_transmog_opener_does_not_trip_the_guard()
 end
