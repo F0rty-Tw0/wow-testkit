@@ -1,10 +1,13 @@
 -- Sim slice 1 end to end: a held W walks the player toward a hostile dummy, the spell range, the moving events, the
--- position, the map and the party range all follow the one place.
+-- position, the map and the party range all follow the one place. Slice 3 adds a melee kill: spawn, move, strike, kill,
+-- PARTY_KILL before UNIT_DIED, and the combat ending 5 s later.
 local A = require("assert")
 local Actors = require("combat_actors")
 local Group = require("combat_group")
 local H = require("tests.helpers.sim")
 local Sim = require("sim")
+local SimMelee = require("sim_melee")
+local SH = require("tests.helpers.sim_combat")
 
 local SPELL = 900101
 
@@ -78,8 +81,80 @@ local function test_party_range_follows_the_member()
   end)
 end
 
+local function walkIntoMelee(s, player, mob)
+  local guard = 0
+  s:move({ forward = true })
+  while not SimMelee.inRange(player, mob) and guard < 300 do
+    s:simStep(1 / 30)
+    guard = guard + 1
+  end
+  s:move({})
+end
+
+local function fightUntilDead(s, mob)
+  local guard = 0
+  while not mob.isDead and guard < 600 do
+    s:simStep(0.25)
+    guard = guard + 1
+  end
+end
+
+local function indexOfDeath(entries, mob)
+  local found
+  for i, entry in ipairs(entries) do
+    if entry[2] == "UNIT_DIED" and entry[8] == mob.guid then
+      found = i
+    end
+  end
+
+  return found
+end
+
+local function countEvents(seen)
+  local counts = {}
+  for _, entry in ipairs(seen) do
+    counts[entry.event] = (counts[entry.event] or 0) + 1
+  end
+
+  return counts
+end
+
+local function test_melee_kill_sequence(w, s, flavor)
+  local entries, player = w.combat.log.entries, w.sim.player
+  local seen = SH.record(w, {
+    "PLAYER_STARTED_MOVING",
+    "PLAYER_STOPPED_MOVING",
+    "PLAYER_REGEN_DISABLED",
+    "PLAYER_REGEN_ENABLED",
+    "UI_ERROR_MESSAGE",
+  })
+  local mob = s:spawn({ health = 20 })
+  s:clickUnit(mob, "RightButton")
+  A.eq(_G.UnitGUID("target"), mob.guid, flavor)
+  walkIntoMelee(s, player, mob)
+  fightUntilDead(s, mob)
+  A.eq(mob.isDead, true, flavor)
+  local died = indexOfDeath(entries, mob)
+  A.same({ entries[died - 2][2], entries[died - 1][2] }, { "SWING_DAMAGE", "PARTY_KILL" }, flavor)
+  A.same({ entries[died - 2][4], entries[died - 1][4], entries[died - 1][8] }, { player.guid, player.guid, mob.guid }, flavor)
+  s:simStep(5.1)
+  local counts = countEvents(seen)
+  local last = seen[#seen]
+  A.same({
+    counts.PLAYER_STARTED_MOVING,
+    counts.PLAYER_STOPPED_MOVING,
+    counts.PLAYER_REGEN_DISABLED,
+    counts.PLAYER_REGEN_ENABLED,
+    counts.UI_ERROR_MESSAGE,
+  }, { 1, 1, 1, 1, 1 }, flavor) -- the one error is ERR_BADATTACKPOS
+  A.same({ last.event, math.abs((last.ts - entries[died][1]) - 5) < 0.02 }, { "PLAYER_REGEN_ENABLED", true }, flavor)
+end
+
 return function()
   test_holding_w_walks_into_spell_range()
   test_the_map_follows_the_walk()
   test_party_range_follows_the_member()
+  H.each({}, function(w, s, flavor)
+    test_melee_kill_sequence(w, s, flavor)
+  end)
 end
