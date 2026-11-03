@@ -1,6 +1,8 @@
 -- SimWorld: the sim world as a viewer or a script reads it, one plain table per call: the player, every other combat actor
--- in spawn order, and the effects list (empty until slice 5). Pure reads; positions and lists are copies.
+-- in spawn order, and the effects list (SimEffects.snapshot). Pure reads; positions and lists are copies.
 local M = {}
+
+local SimEffects = require("sim_effects")
 
 local function copyPos(pos)
   return { x = pos.x, y = pos.y }
@@ -74,7 +76,7 @@ function M.build(w)
     end
   end
 
-  return { player = playerEntry(w), actors = actors, effects = {} }
+  return { player = playerEntry(w), actors = actors, effects = SimEffects.snapshot(w) }
 end
 
 return M
