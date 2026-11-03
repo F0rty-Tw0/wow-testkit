@@ -58,6 +58,19 @@ WINDOW_TABLES = {
     "ItemAppearance": window("ID DefaultIconFileDataID", chunked=True),
     "ItemClass": window("ID ClassName_lang ClassID"),
     "ItemSubClass": window("ID DisplayName_lang VerboseName_lang ClassID SubClassID"),
+    # The simulation's spell engine (sim_spell_data.lua) normalizes these seven into its spell records.
+    "SpellEffect": window(
+        "ID SpellID EffectIndex Effect EffectAura EffectBasePoints EffectRadiusIndex EffectMiscValue EffectTriggerSpell "
+        "EffectAuraPeriod ImplicitTarget",
+        index="SpellID",
+        chunked=True,
+    ),
+    "SpellRange": window("ID RangeMin RangeMax"),
+    "SpellCastTimes": window("ID Base"),
+    "SpellCooldowns": window("ID SpellID RecoveryTime CategoryRecoveryTime StartRecoveryTime", index="SpellID"),
+    "SpellPower": window("ID SpellID PowerType ManaCost", index="SpellID"),
+    "SpellRadius": window("ID Radius"),
+    "SpellDuration": window("ID Duration"),
 }
 
 
