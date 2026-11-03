@@ -81,7 +81,17 @@ local function test_an_entry_needs_a_time_and_exactly_one_action()
   end)
 end
 
+local function test_a_lethal_damage_entry_from_the_player_logs_party_kill()
+  H.withCombat("retail", function(w, c)
+    H.pair(w)
+    Timeline.run(w, { { at = 1, damage = { from = "player", to = "boss1", amount = 6000, spell = S.STRIKE } } })
+    w:advance(1)
+    A.same(H.subevents(c), { "SPELL_DAMAGE", "PARTY_KILL", "UNIT_DIED" })
+  end)
+end
+
 return function()
+  test_a_lethal_damage_entry_from_the_player_logs_party_kill()
   test_entries_run_at_their_times_in_order()
   test_every_entry_kind_calls_its_resolve_action()
   test_a_pull_entry_engages_the_enemy()

@@ -67,6 +67,40 @@ local function test_lethal_damage_kills_in_order()
     A.eq(c.log.entries[1][13], 500) -- overkill
     A.same({ _G.UnitIsDeadOrGhost("party1"), _G.UnitHealth("party1"), #ann.auras }, { true, 0, 0 })
     A.eq(c.log.entries[2][4], "0000000000000000") -- no source
+    A.same(H.subevents(c), { "SWING_DAMAGE", "UNIT_DIED" }) -- an enemy's kill is no PARTY_KILL
+  end)
+end
+
+local function test_player_kill_logs_party_kill_before_unit_died()
+  H.withCombat("vanilla", function(w, c)
+    local _, brute = H.pair(w)
+    local player = Actors.get(w, "player")
+    local order = H.sequence(w, { "UNIT_HEALTH" })
+    Resolve.damage(w, player, brute, { amount = 6000 })
+    A.same(order, { "SWING_DAMAGE", "PARTY_KILL", "UNIT_DIED", "UNIT_HEALTH" })
+    A.same({ c.log.entries[2][4], c.log.entries[2][8] }, { player.guid, brute.guid })
+  end)
+end
+
+local function test_only_player_and_group_kills_log_party_kill()
+  H.withCombat("retail", function(w, c)
+    local ann, brute = H.pair(w)
+    local second = Actors.add(w, { kind = "npc", name = "Second", hostile = true, health = 10, healthMax = 10 })
+    Resolve.damage(w, ann, second, { amount = 50 }) -- Ann is not in a group yet
+    A.same(H.subevents(c), { "SWING_DAMAGE", "UNIT_DIED" })
+    ann.inParty = true
+    Resolve.damage(w, ann, brute, { amount = 6000 })
+    A.same(H.subevents(c), { "SWING_DAMAGE", "UNIT_DIED", "SWING_DAMAGE", "PARTY_KILL", "UNIT_DIED" })
+  end)
+end
+
+local function test_health_floor_holds_logs_full_damage_and_no_death()
+  H.withCombat("retail", function(w, c)
+    local ann, brute = H.pair(w)
+    ann.healthFloor = 1
+    local r = Resolve.damage(w, brute, ann, { amount = 1500 })
+    A.same({ r.dealt, r.overkill, ann.health, ann.isDead }, { 1500, 0, 1, false })
+    A.same({ H.subevents(c), c.log.entries[1][12] }, { { "SWING_DAMAGE" }, 1500 })
   end)
 end
 
@@ -139,6 +173,9 @@ return function()
   test_damage_order_log_before_unit_events()
   test_damage_log_before_threat_and_flags_events_assumed()
   test_lethal_damage_kills_in_order()
+  test_player_kill_logs_party_kill_before_unit_died()
+  test_only_player_and_group_kills_log_party_kill()
+  test_health_floor_holds_logs_full_damage_and_no_death()
   test_threat_uses_the_source_modifier()
   test_heal_caps_at_max_and_reports_overheal()
   test_revive_restores_health_and_clears_dead()

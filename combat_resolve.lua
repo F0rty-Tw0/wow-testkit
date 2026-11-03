@@ -76,9 +76,13 @@ local function soak(w, src, dst, spec, amount)
   return amount, absorbed, touched
 end
 
--- Marks the actor dead and logs UNIT_DIED; the state change that fires events is finishDeath.
-local function declareDead(w, actor)
+-- Marks the actor dead and logs UNIT_DIED; the state change that fires events is finishDeath. A kill by the player or a
+-- group member also logs PARTY_KILL just before it (source: inferred, spec 5.6); pets, friendly NPCs and enemies do not.
+local function declareDead(w, actor, killer)
   actor.isDead = true
+  if killer and killer ~= actor and (w.unitState.byToken.player == killer or killer.inParty or killer.inRaid) then
+    Log.emit(w, "PARTY_KILL", killer, actor)
+  end
   Log.emit(w, "UNIT_DIED", nil, actor)
 end
 
@@ -118,9 +122,12 @@ function M.damage(w, src, dst, spec)
   end
   local dealt, absorbed, touched = soak(w, src, dst, spec, reduced(dst, spec.amount))
   local old = dst.health
-  dst.health = math.max(0, old - dealt)
-  local lethal = dealt > 0 and dst.health == 0
-  result.dealt, result.absorbed, result.overkill = dealt, absorbed, math.max(0, dealt - old)
+  -- source: assumed (spec 5.7): a health floor stops the fall; the log keeps the full hit and nothing counts as overkill.
+  local floor = dst.healthFloor or 0
+  dst.health = math.max(floor, old - dealt)
+  local lethal = dealt > 0 and dst.health == 0 and floor == 0
+  result.dealt, result.absorbed = dealt, absorbed
+  result.overkill = floor == 0 and math.max(0, dealt - old) or 0
   Log.emit(w, prefix .. "_DAMAGE", src, dst, {
     spellID = spec.spellID,
     amount = dealt,
@@ -136,7 +143,7 @@ function M.damage(w, src, dst, spec)
   end
   State.engage(w, src, dst)
   if lethal then
-    declareDead(w, dst)
+    declareDead(w, dst, src)
   end
   for _, aura in ipairs(touched) do
     if aura.absorb > 0 then
