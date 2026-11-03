@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scene fixture</title>
+    <style>
+      body { margin: 0; background: #000; }
+      #background { width: 1280px; height: 720px; }
+    </style>
+  </head>
+  <body>
+    <div id="background"></div>
+    <!-- Headless Chrome under --virtual-time-budget never finishes GLTFLoader.parse on GLBs with embedded textures while
+         createImageBitmap exists; without it three.js decodes through <img>, which settles. -->
+    <script>delete window.createImageBitmap;</script>
+    <script src="../../viewer/vendor/three.bundle.js"></script>
+    <script src="../../viewer/scene3d_props.js"></script>
+    <script src="../../viewer/scene3d_marks.js"></script>
+    <script src="../../viewer/scene3d_models.js"></script>
+    <script src="../../viewer/scene3d_actors.js"></script>
+    <script src="../../viewer/scene3d.js"></script>
+    <script src="../../viewer/scene3d_input.js"></script>
+    <script src="scene_fixture.js"></script>
+  </body>
+</html>

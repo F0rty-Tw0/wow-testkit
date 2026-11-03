@@ -1,6 +1,7 @@
 // Live mode: index.html?live=1[&stream=0]. TK.start() installs the http transport unless a host page installed its
-// own first, draws the session snapshot with render(), draws it again on each snapshot event, and sends stage mouse
-// input and key presses to the session (pointer.js, keys.js). #hover outlines the frame the last input reply named.
+// own first, draws the session snapshot with render(), draws it again on each snapshot event (at most every
+// live.gapMs ms; sim mode sets it, see sim.js), and sends stage mouse input and key presses to the session (pointer.js,
+// keys.js). #hover outlines the frame the last input reply named.
 // stream=0 turns the event stream off. <html data-ready="1"> is set once the first snapshot is drawn or has failed.
 // The input handlers attach on the first snapshot drawn, so a session that was down at start gets them once it
 // answers. Each stream open says hello with the server's boot id; a boot unlike the last one seen is a restarted
@@ -64,6 +65,33 @@ window.TK = window.TK || {};
 
   TK.on('hello', live.hello);
 
+  // The least ms between the snapshot events' redraws; sim mode sets it, 0 draws on every event.
+  live.gapMs = 0;
+
+  // fn at once when its last run is gap() ms old or more, else one trailing run at the gap's end; calls in between
+  // coalesce into it. deps = { gap() -> ms, now(), setTimeout }.
+  live.throttle = (fn, deps) => {
+    const state = { last: -Infinity, scheduled: false };
+
+    function run() {
+      state.scheduled = false;
+      state.last = deps.now();
+      fn();
+    }
+
+    return function call() {
+      if (state.scheduled) return;
+      const wait = state.last + deps.gap() - deps.now();
+      if (wait <= 0) {
+        run();
+
+        return;
+      }
+      state.scheduled = true;
+      deps.setTimeout(run, wait);
+    };
+  };
+
   async function drawOnce() {
     const snapshot = await TK.api('snapshot', {});
     await window.render(snapshot, location.origin + '/');
@@ -109,16 +137,22 @@ window.TK = window.TK || {};
 
   function attachPointer() {
     const stage = document.getElementById('stage');
+    const simDeps = TK.sim ? TK.sim.pointerDeps() : {};
     TK.pointer.attach(stage, {
       post,
       rect: () => stage.getBoundingClientRect(),
       screen: () => TK.state.snapshot.screen,
       now: () => performance.now(),
+      ...simDeps,
     });
   }
 
   function attachKeys() {
-    TK.keys.attach(document, { post, focused: () => live.hasEditFocus(TK.state.snapshot) });
+    TK.keys.attach(document, {
+      post,
+      focused: () => live.hasEditFocus(TK.state.snapshot),
+      sim: () => Boolean(TK.sim && TK.sim.active()),
+    });
   }
 
   function attachInput() {
@@ -134,9 +168,14 @@ window.TK = window.TK || {};
     // A reloaded or restarted session may serve new font bytes at an old url.
     TK.on('reload', window.Viewer.forgetFonts);
     TK.on('restart', window.Viewer.forgetFonts);
+    const refreshSoon = live.throttle(refresh, {
+      gap: () => live.gapMs,
+      now: () => performance.now(),
+      setTimeout: (f, ms) => window.setTimeout(f, ms),
+    });
     TK.on('snapshot', (data) => {
       const newer = !data || data.seq > TK.state.seq;
-      if (newer) refresh();
+      if (newer) refreshSoon();
     });
     TK.on('restart', refresh);
     TK.on('hello', () => {
