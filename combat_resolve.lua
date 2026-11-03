@@ -129,7 +129,11 @@ function M.damage(w, src, dst, spec)
   dst.health = math.max(math.min(floor, old), old - dealt)
   local lethal = dealt > 0 and dst.health == 0 and floor == 0
   result.dealt, result.absorbed = dealt, absorbed
-  result.overkill = floor == 0 and math.max(0, dealt - old) or 0
+  local overkill = 0
+  if floor == 0 then
+    overkill = math.max(0, dealt - old)
+  end
+  result.overkill = overkill
   Log.emit(w, prefix .. "_DAMAGE", src, dst, {
     spellID = spec.spellID,
     amount = dealt,

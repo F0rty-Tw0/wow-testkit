@@ -76,14 +76,18 @@ local function healTarget(w, actor)
 end
 
 -- rule.gate(w, actor, target) -> false skips the tick; rule.onSwing(w, actor, target) runs after a swing that landed.
--- The sim's mobs set both (sim_mobs.lua); a scenario's own rule has neither.
 local function swing(w, actor, rule)
   local target = damageTarget(w, actor)
-  if target and (not rule.gate or rule.gate(w, actor, target)) then
-    local result = Resolve.damage(w, actor, target, { amount = rule.damage, school = rule.school })
-    if rule.onSwing and not result.missed then
-      rule.onSwing(w, actor, target)
-    end
+  if not target then
+    return
+  end
+  local blocked = rule.gate and not rule.gate(w, actor, target)
+  if blocked then
+    return
+  end
+  local result = Resolve.damage(w, actor, target, { amount = rule.damage, school = rule.school })
+  if rule.onSwing and not result.missed then
+    rule.onSwing(w, actor, target)
   end
 end
 
