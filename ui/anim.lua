@@ -133,16 +133,20 @@ function M.timeline(w, group)
 end
 
 -- The time inside the timeline at now, and the loop it is in (0 for a single pass). source: assumed (W58) REPEAT
--- restarts and BOUNCE runs every odd pass backwards. A timeline of length 0 plays once.
+-- restarts and BOUNCE runs every odd pass backwards. A timeline of length 0 plays once. source: assumed (W79) a group
+-- played in reverse (gs.reverse) runs every pass from the end back to the start.
 local function cycle(gs, looping, total, now)
   local elapsed = math.max((gs.pausedAt or now) - gs.startedAt, 0)
-  if looping == "NONE" or total <= 0 then
-    return elapsed, 0
+  local at, loop = elapsed, 0
+  if looping ~= "NONE" and total > 0 then
+    loop = math.max(math.floor(elapsed / total), gs.loops)
+    at = elapsed - loop * total
+    if looping == "BOUNCE" and loop % 2 == 1 then
+      at = total - at
+    end
   end
-  local loop = math.max(math.floor(elapsed / total), gs.loops)
-  local at = elapsed - loop * total
-  if looping == "BOUNCE" and loop % 2 == 1 then
-    at = total - at
+  if gs.reverse then
+    at = math.max(total - at, 0)
   end
 
   return at, loop
@@ -158,13 +162,13 @@ local function fraction(item, at)
 end
 
 -- { [animation] = 0..1 } of the timeline's animations at now: the linear progress of each. A group that never played or
--- was stopped has 0 everywhere, a finished one 1 (assumed).
+-- was stopped has 0 everywhere, a finished one 1, or 0 when it played in reverse (assumed).
 function M.progressOf(w, group, timeline, now)
   local st = w.ui.state[group]
   local gs = st.group
   local at
   if gs and gs.state == DONE then
-    at = timeline.total
+    at = gs.reverse and 0 or timeline.total
   elseif gs and (gs.state == PLAYING or gs.state == PAUSED) then
     at = cycle(gs, M.looping(st), timeline.total, now)
   end

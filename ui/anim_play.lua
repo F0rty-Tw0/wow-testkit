@@ -46,7 +46,7 @@ local function finish(w, group, st, requested)
   st.group.pendingFinish = false
   AnimEffects.deactivate(w, group)
   if Anim.value(st, "ToFinalAlpha") then
-    AnimEffects.keepFinalAlpha(w, group)
+    AnimEffects.keepFinalAlpha(w, group, st.group.reverse)
   end
   w:callScript(group, "OnFinished", requested)
 end
@@ -75,7 +75,9 @@ local function resume(w, group, st)
   schedule(w, group, st)
 end
 
-local function play(w, group, st)
+-- source: confirmed Play(reverse) (api/retail/SimpleAnimGroupAPI.lua Play, reverse default false); assumed (W79) a resume
+-- keeps the direction the group started with.
+local function play(w, group, st, reverse)
   local gs = st.group
   if gs and gs.state == PLAYING then
     return
@@ -83,7 +85,7 @@ local function play(w, group, st)
   if gs and gs.state == PAUSED then
     return resume(w, group, st)
   end
-  st.group = { state = PLAYING, startedAt = w.now, loops = 0, pendingFinish = false }
+  st.group = { state = PLAYING, startedAt = w.now, loops = 0, pendingFinish = false, reverse = reverse == true }
   AnimEffects.activate(w, group)
   schedule(w, group, st)
   w:callScript(group, "OnPlay")
@@ -163,6 +165,9 @@ Typed.add("GetDuration", "animationgroup", function(w, group)
 end)
 Typed.add("GetLooping", "animationgroup", function(_, _, st)
   return Anim.value(st, "Looping")
+end)
+Typed.add("IsReverse", "animationgroup", function(_, _, st)
+  return st.group ~= nil and st.group.reverse == true
 end)
 Typed.add("IsSetToFinalAlpha", "animationgroup", function(_, _, st)
   return Anim.value(st, "ToFinalAlpha")

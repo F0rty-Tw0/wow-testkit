@@ -200,7 +200,25 @@ local function test_to_final_alpha_defaults_to_false()
   end)
 end
 
+-- Play(reverse) (api SimpleAnimGroupAPI Play: reverse, default false) runs the timeline backwards and a kept final alpha
+-- is then where the forward pass starts: retail's LootFrame opens with ShowAnim:Play(true) on a 1 -> 0 fade
+-- (scrollingflatpanel.lua:64-68, scrollingflatpanel.xml:36-38) and must end visible.
+local function test_reverse_play_runs_backwards_and_keeps_the_from_alpha_assumed() -- W79
+  withWidgets("retail", function(w)
+    local frame, animGroup, alpha = group()
+    animGroup:SetToFinalAlpha(true)
+    animGroup:Play(true)
+    w:advance(0.25)
+    A.same({ alpha:GetProgress(), animGroup:IsReverse() }, { 0.75, true })
+    w:advance(1)
+    A.same({ animGroup:IsDone(), alpha:GetProgress(), frame:GetAlpha() }, { true, 0, 0 })
+    animGroup:Play()
+    A.eq(animGroup:IsReverse(), false)
+  end)
+end
+
 return function()
+  test_reverse_play_runs_backwards_and_keeps_the_from_alpha_assumed()
   test_orders_default_to_one_and_durations_to_zero()
   test_orders_sequence_and_equal_orders_overlap_assumed()
   test_orders_run_by_number_not_by_creation_assumed()
