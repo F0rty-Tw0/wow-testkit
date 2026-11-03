@@ -1,6 +1,10 @@
 local A = require("assert")
+local Actors = require("combat_actors")
+local Auras = require("combat_auras")
+local H = require("tests.helpers.session")
 local Resolve = require("combat_resolve")
 local SH = require("tests.helpers.sim_combat")
+local Sim = require("sim")
 local SimMelee = require("sim_melee")
 local SimTarget = require("sim_target")
 
@@ -11,12 +15,14 @@ local function swings(w, player) -- amounts of the player's SWING_DAMAGE lines (
       out[#out + 1] = e[12]
     end
   end
+
   return out
 end
 
 local function engageAt(w, y, extra) -- y=-2: centre 8, reduced 5, in front
   local foe = SH.foe(w, 0, y, extra or { health = 1000, healthMax = 1000 })
   SimTarget.target(w, foe)
+
   return foe
 end
 
@@ -97,12 +103,11 @@ local function test_attack_stops_on_death_clear_retarget_and_despawn()
     SimTarget.target(w, SH.foe(w, 5, 5))
   end)
   stopsWhen(function(w, foe)
-    require("combat_actors").remove(w, foe)
+    Actors.remove(w, foe)
   end)
 end
 
 local function test_attack_survives_a_reload()
-  local H = require("tests.helpers.session")
   H.withSession({ addonDir = H.CLICKY, sim = {} }, function(sess)
     local foe = engageAt(sess.w, -2)
     SimMelee.start(sess.w)
@@ -111,7 +116,7 @@ local function test_attack_survives_a_reload()
     SH.reloaded(sess, function(fresh)
       A.same({ fresh.w.sim.melee.on, fresh.w.sim.melee.targetGuid }, { true, guid })
       local function health()
-        return require("combat_actors").get(fresh.w, guid).health
+        return Actors.get(fresh.w, guid).health
       end
       for _ = 1, 3 do
         fresh:call("sim", { action = "step", seconds = 0.25 })
@@ -123,6 +128,106 @@ local function test_attack_survives_a_reload()
       A.truthy(health() < hp)
     end)
   end)
+end
+
+local function test_stop_and_restart_keeps_the_swing_timer_running()
+  SH.withSim("retail", function(w, s, player)
+    local speed = SimMelee.weapon(player).speed
+    engageAt(w, -2)
+    SimMelee.start(w)
+    s:simStep(0.1)
+    A.eq(#swings(w, player), 1)
+    for _ = 1, 3 do
+      SimMelee.stop(w)
+      SimMelee.start(w)
+      s:simStep(0.1)
+    end
+    A.eq(#swings(w, player), 1) -- the timer kept running: no free swing
+    s:simStep(speed)
+    A.eq(#swings(w, player), 2)
+  end)
+end
+
+local function test_switching_target_keeps_the_swing_timer_running()
+  SH.withSim("retail", function(w, s, player)
+    engageAt(w, -2)
+    SimMelee.start(w)
+    s:simStep(0.1)
+    SimTarget.target(w, SH.foe(w, 0, -2, { health = 1000, healthMax = 1000 }))
+    SimMelee.start(w)
+    s:simStep(0.1)
+    A.eq(#swings(w, player), 1)
+  end)
+end
+
+local function test_timer_runs_down_to_zero_while_the_attack_is_off()
+  SH.withSim("retail", function(w, s, player)
+    engageAt(w, -2)
+    SimMelee.start(w)
+    s:simStep(0.1)
+    SimMelee.stop(w)
+    s:simStep(SimMelee.weapon(player).speed + 5)
+    A.eq(w.sim.melee.timer, 0)
+    SimMelee.start(w)
+    s:simStep(0.1)
+    A.eq(#swings(w, player), 2) -- a fresh start with a spent timer swings at once
+  end)
+end
+
+local function test_a_missed_swing_spends_the_timer_and_is_not_counted()
+  SH.withSim("retail", function(w, s, player)
+    local foe = engageAt(w, -2)
+    Auras.apply(w, foe, { spellID = 900004, immune = true })
+    SimMelee.start(w)
+    s:simStep(0.1)
+    A.same({ player.swings or 0, w.sim.melee.timer > 1 }, { 0, true })
+    s:simStep(0.5)
+    A.eq(#swings(w, player), 0)
+  end)
+end
+
+local function test_reload_in_a_failure_streak_does_not_repeat_the_error()
+  H.withSession({ addonDir = H.CLICKY, sim = {} }, function(sess)
+    engageAt(sess.w, 10) -- out of range
+    local before = SH.record(sess.w, { "UI_ERROR_MESSAGE" })
+    SimMelee.start(sess.w)
+    sess:call("sim", { action = "step", seconds = 0.25 })
+    A.eq(#before, 1)
+    SH.reloaded(sess, function(fresh)
+      local errors = SH.record(fresh.w, { "UI_ERROR_MESSAGE" })
+      fresh:call("sim", { action = "step", seconds = 0.25 })
+      A.same({ fresh.w.sim.melee.on, #errors }, { true, 0 })
+    end)
+  end)
+end
+
+local function test_reload_drops_the_attack_when_the_target_is_no_longer_the_players_living_target()
+  local function attackAfterReload(break_)
+    local on
+    H.withSession({ addonDir = H.CLICKY, sim = {} }, function(sess)
+      local foe = engageAt(sess.w, -2)
+      SimMelee.start(sess.w)
+      break_(sess.w, foe) -- silent: sets the fields without the events that would stop the attack on its own
+      SH.reloaded(sess, function(fresh)
+        on = fresh.w.sim.melee.on
+      end)
+    end)
+
+    return on
+  end
+  A.eq(attackAfterReload(function() end), true)
+  A.eq(
+    attackAfterReload(function(w)
+      w.sim.player.targetGuid = SH.foe(w, 5, 5).guid
+    end),
+    false
+  )
+  A.eq(
+    attackAfterReload(function(_, foe)
+      foe.isDead = true
+    end),
+    false
+  )
 end
 
 local function test_right_click_starts_the_attack_and_leaves_a_corpse_alone()
@@ -168,7 +273,7 @@ local function test_error_strings_and_reset()
     A.same({ type(_G.ERR_BADATTACKPOS), type(_G.ERR_BADATTACKFACING) }, { "string", "string" })
     engageAt(w, -2)
     SimMelee.start(w)
-    require("sim").reset(w)
+    Sim.reset(w)
     A.eq(w.sim.melee.on, false)
   end)
 end
@@ -180,6 +285,12 @@ return function()
   test_wrong_facing_errors_then_swings_after_turning()
   test_attack_stops_on_death_clear_retarget_and_despawn()
   test_attack_survives_a_reload()
+  test_stop_and_restart_keeps_the_swing_timer_running()
+  test_switching_target_keeps_the_swing_timer_running()
+  test_timer_runs_down_to_zero_while_the_attack_is_off()
+  test_a_missed_swing_spends_the_timer_and_is_not_counted()
+  test_reload_in_a_failure_streak_does_not_repeat_the_error()
+  test_reload_drops_the_attack_when_the_target_is_no_longer_the_players_living_target()
   test_right_click_starts_the_attack_and_leaves_a_corpse_alone()
   test_attack_fakes_exist_on_every_flavor_and_flip_the_attack()
   test_attack_needs_a_living_enemy_target()

@@ -35,32 +35,44 @@ function M.inRange(a, b)
   return SimRange.distance(a, b) <= M.RANGE + 1e-6
 end
 
--- The ERR_ name that keeps the swing from landing, or nil: range first, then facing.
+-- The ERR_ name that keeps the swing from landing, or nil.
+-- source: assumed (spec 5.2) range is checked before facing.
 local function failure(player, target)
-  if not M.inRange(player, target) then
+  local inRange = M.inRange(player, target)
+  if not inRange then
     return "ERR_BADATTACKPOS"
   end
-  if not SimRange.inFront(player, target) then
+  local inFront = SimRange.inFront(player, target)
+  if not inFront then
     return "ERR_BADATTACKFACING"
   end
 
   return nil
 end
 
--- Ends the attack and clears its timer.
+-- Ends the attack. The swing timer keeps running (see step), so StopAttack and a retarget never grant a free swing.
 function M.stop(w)
   local m = w.sim.melee
-  m.on, m.targetGuid, m.timer, m.err = false, nil, 0, nil
+  m.on, m.targetGuid, m.err = false, nil, nil
 end
 
+-- A world reset also spends the timer: the next attack swings at once.
+local function reset(w)
+  M.stop(w)
+  w.sim.melee.timer = 0
+end
+
+-- source: assumed (spec 5.2) the first swing lands on the first in-range frame: the timer starts spent (0).
 -- Starts the attack on the player's target. Returns false (nothing changes) without a living enemy target.
 function M.start(w)
   local m = w.sim.melee
   local target = w.combat.actors[w.sim.player.targetGuid]
-  if not (target and target.isEnemy and not target.isDead) then
+  local isLivingEnemy = target and target.isEnemy and not target.isDead
+  if not isLivingEnemy then
     return false
   end
-  if m.on and m.targetGuid == target.guid then
+  local alreadyOnIt = m.on and m.targetGuid == target.guid
+  if alreadyOnIt then
     return true
   end
   M.stop(w)
@@ -69,8 +81,8 @@ function M.start(w)
   return true
 end
 
--- Lands one swing: deterministic damage from the kit row.
--- grug: deterministic so lupa/WASM parity and tests are exact.
+-- Lands one swing: deterministic damage from the kit row. The kit cycles min..max instead of rolling so lupa and WASM
+-- parity and tests are exact.
 local function swing(w, player, target)
   local weapon = M.weapon(player)
   local count = player.swings or 0
@@ -95,9 +107,13 @@ local function hold(w, reason)
 end
 
 -- One sim frame: the timer runs down and a due swing lands or fails.
+-- source: assumed (spec 5.2) the swing timer keeps running while the attack is off, down to 0 and no further; a
+-- StopAttack or a retarget cannot reset it, and an attack started with a spent timer swings on its first frame.
 function M.step(w, dt)
   local m = w.sim.melee
   if not m.on then
+    m.timer = math.max(0, m.timer - dt)
+
     return
   end
   m.timer = m.timer - dt
@@ -124,26 +140,30 @@ end
 -- source: inferred (spec 5.2) the attack stops when the player's target becomes another unit or none.
 local function onTarget(w, actor)
   local m = w.sim.melee
-  if actor == w.sim.player and m.on and actor.targetGuid ~= m.targetGuid then
+  local leftTheTarget = m.on and actor.targetGuid ~= m.targetGuid
+  if actor == w.sim.player and leftTheTarget then
     M.stop(w)
   end
 end
 
 local function export(w)
   local m = w.sim.melee
+  local saved = { on = m.on, targetGuid = m.targetGuid, timer = m.timer, err = m.err, swings = w.sim.player.swings }
 
-  return { on = m.on, targetGuid = m.targetGuid, timer = m.timer, swings = w.sim.player.swings }
+  return saved
 end
 
--- Puts the attack back when its target is still the player's living enemy target; else it stays off.
+-- Puts the timer back always; the attack itself only when its target is still the player's living enemy target.
 local function restore(w, data)
   local m = w.sim.melee
   w.sim.player.swings = data.swings
+  m.timer = data.timer
   local target = w.combat.actors[data.targetGuid]
-  if not (data.on and target and not target.isDead and w.sim.player.targetGuid == data.targetGuid) then
+  local isPlayersTarget = w.sim.player.targetGuid == data.targetGuid
+  if not (data.on and target and not target.isDead and isPlayersTarget) then
     return
   end
-  m.on, m.targetGuid, m.timer = true, data.targetGuid, data.timer
+  m.on, m.targetGuid, m.err = true, data.targetGuid, data.err
 end
 
 -- Defines StartAttack, AttackTarget and StopAttack, fills the attack action, and hooks the frame, the reset and the
@@ -167,7 +187,7 @@ function M.install(w)
     M.stop(w)
   end)
   table.insert(w.sim.hooks.frame, M.step)
-  table.insert(w.sim.hooks.reset, M.stop)
+  table.insert(w.sim.hooks.reset, reset)
   Combat.listen(w, "death", function(actor)
     stopFor(w, actor)
   end)
