@@ -79,6 +79,25 @@ def test_atlas_names_join_member_to_sheet_coords(tmp):
     assert list(atlas.build(sheets, members, elements)) == ["lower"]
 
 
+def _corner_2x(override_width, override_height):
+    """The size atlas.build gives a 150 px member on a 2x canvas (UiCanvasID 2) with the given override."""
+    sheets = {5: {"ID": 5, "FileDataID": 900, "AtlasWidth": 256, "AtlasHeight": 256}}
+    members = {1: {"ID": 1, "UiTextureAtlasID": 5, "CommittedName": "ui-frame-metal-cornertopleft-2x",
+                   "CommittedLeft": 1, "CommittedRight": 151, "CommittedTop": 1, "CommittedBottom": 151,
+                   "OverrideWidth": override_width, "OverrideHeight": override_height, "UiCanvasID": 2}}  # fmt: skip
+    entry = atlas.build(sheets, members, {})["ui-frame-metal-cornertopleft-2x"]
+
+    return entry["width"], entry["height"]
+
+
+def test_atlas_on_the_2x_canvas_is_half_its_pixels(tmp):
+    assert _corner_2x(0, 0) == (75, 75)
+
+
+def test_atlas_override_size_wins_on_the_2x_canvas(tmp):
+    assert _corner_2x(32, 41) == (32, 41)
+
+
 def test_atlas_crop_writes_the_member_rect_png(tmp):
     ex = tmp / "ex"
     ex.mkdir()
@@ -165,6 +184,8 @@ TESTS = [
     test_truncated_field_storage_info_is_a_value_error,
     test_dbd_block_picked_by_layout_hash,
     test_atlas_names_join_member_to_sheet_coords,
+    test_atlas_on_the_2x_canvas_is_half_its_pixels,
+    test_atlas_override_size_wins_on_the_2x_canvas,
     test_atlas_crop_writes_the_member_rect_png,
     test_atlas_crop_scales_each_side_by_its_own_axis,
     test_atlas_lua_quotes_a_string_file_or_size_never_writes_it_raw,
