@@ -127,6 +127,9 @@ function M.install(w, sim)
   end
   w:setMock({ zone = { mapID = M.MAP_ID } })
   SimRange.syncMap(w)
+  for _, name in ipairs(require("sim_units")) do
+    require(name).install(w)
+  end
 
   return w.sim
 end
