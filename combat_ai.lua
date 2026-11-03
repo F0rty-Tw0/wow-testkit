@@ -3,7 +3,7 @@
 -- them. A swing or spell rule repeats every rule.every seconds from the start; a cooldown rule applies its aura once when the
 -- health fraction falls below rule.below. The AI stops itself when the actor dies or despawns.
 --
--- actor.ai = { swing = { every, damage, school? }, spells = { { spellID, every, castTime?, damage?, heal?, interruptible? } },
+-- actor.ai = { swing = { every, damage, school?, gate?, onSwing? }, spells = { { spellID, every, castTime?, damage?, heal?, interruptible? } },
 -- targets = "threat" | "random" (enemies), role = "tank" | "healer" | "dps" (a label), cooldowns = { { spellID, below, aura } } }
 local M = {}
 
@@ -60,6 +60,8 @@ local function damageTarget(w, actor)
   return foes[1]
 end
 
+M.target = damageTarget
+
 -- The living ally (same side, itself included) with the lowest health fraction, nil when every ally is at full health.
 local function healTarget(w, actor)
   local best, bestFraction = nil, 1
@@ -73,10 +75,19 @@ local function healTarget(w, actor)
   return best
 end
 
+-- rule.gate(w, actor, target) -> false skips the tick; rule.onSwing(w, actor, target) runs after a swing that landed.
 local function swing(w, actor, rule)
   local target = damageTarget(w, actor)
-  if target then
-    Resolve.damage(w, actor, target, { amount = rule.damage, school = rule.school })
+  if not target then
+    return
+  end
+  local blocked = rule.gate and not rule.gate(w, actor, target)
+  if blocked then
+    return
+  end
+  local result = Resolve.damage(w, actor, target, { amount = rule.damage, school = rule.school })
+  if rule.onSwing and not result.missed then
+    rule.onSwing(w, actor, target)
   end
 end
 
@@ -112,11 +123,22 @@ local function cast(w, actor, rule)
   })
 end
 
+-- Why a repeating rule cannot run (its every is not a number above 0), or nil. The one place that rule lives: Ai.start
+-- raises it and the sim's spawn checks a mob's rules with it before the mob exists.
+function M.ruleError(rule)
+  if type(rule.every) ~= "number" or rule.every <= 0 then
+    return "a rule's every must be a number above 0, got " .. tostring(rule.every)
+  end
+
+  return nil
+end
+
 -- Repeats act(w, actor, rule) every rule.every seconds. The next tick is armed first, so an action that raises does not
 -- end the rule.
 local function arm(w, actor, rule, act)
-  if type(rule.every) ~= "number" or rule.every <= 0 then
-    error("Ai.start: a rule's every must be a number above 0, got " .. tostring(rule.every), 3)
+  local problem = M.ruleError(rule)
+  if problem then
+    error("Ai.start: " .. problem, 3)
   end
   local function tick()
     if not actor.timers then

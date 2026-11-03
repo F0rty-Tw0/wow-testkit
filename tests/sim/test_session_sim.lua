@@ -94,7 +94,7 @@ end
 local function test_unknown_action_lists_the_valid_ones()
   withSim(function(sess)
     local r = sim(sess, { action = "dance" })
-    A.same({ r.ok, r.error }, { false, "sim: unknown action 'dance'; valid: reset, step, world" })
+    A.same({ r.ok, r.error }, { false, "sim: unknown action 'dance'; valid: reset, spawn, step, world" })
   end)
 end
 

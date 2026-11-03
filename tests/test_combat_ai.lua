@@ -2,6 +2,7 @@
 local A = require("assert")
 local Actors = require("combat_actors")
 local Ai = require("combat_ai")
+local Auras = require("combat_auras")
 local H = require("tests.helpers.combat")
 local Log = require("combat_log")
 local Resolve = require("combat_resolve")
@@ -181,6 +182,53 @@ local function test_ai_numbers_are_the_rules_numbers()
   end)
 end
 
+local function test_swing_gate_skips_and_on_swing_counts()
+  H.withCombat("retail", function(w, c)
+    local ann, brute = H.pair(w)
+    local allow, counted = false, 0
+    brute.ai = {
+      swing = {
+        every = 2,
+        damage = 10,
+        gate = function()
+          return allow
+        end,
+        onSwing = function()
+          counted = counted + 1
+        end,
+      },
+    }
+    Threat.add(w, brute, ann, 1)
+    Ai.start(w, brute)
+    w:advance(2)
+    A.same({ #c.log.entries, counted }, { 0, 0 })
+    allow = true
+    w:advance(2)
+    A.same({ #c.log.entries, counted, Ai.target(w, brute) == ann }, { 1, 1, true })
+  end)
+end
+
+local function test_a_missed_swing_does_not_count_for_on_swing()
+  H.withCombat("retail", function(w, c)
+    local ann, brute = H.pair(w)
+    Auras.apply(w, ann, { spellID = H.SPELLS.WARD, immune = true })
+    local counted = 0
+    brute.ai = {
+      swing = {
+        every = 2,
+        damage = 10,
+        onSwing = function()
+          counted = counted + 1
+        end,
+      },
+    }
+    Threat.add(w, brute, ann, 1)
+    Ai.start(w, brute)
+    w:advance(2)
+    A.same({ H.subevents(c), counted }, { { "SWING_MISSED" }, 0 })
+  end)
+end
+
 return function()
   test_enemy_swings_on_its_timer_at_top_threat()
   test_a_second_start_adds_no_second_timer()
@@ -193,4 +241,6 @@ return function()
   test_death_stops_the_ai()
   test_a_despawn_stops_the_ai()
   test_ai_numbers_are_the_rules_numbers()
+  test_swing_gate_skips_and_on_swing_counts()
+  test_a_missed_swing_does_not_count_for_on_swing()
 end

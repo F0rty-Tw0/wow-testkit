@@ -1,9 +1,11 @@
 -- Session sim: the viewer's and a script's handle on a sim world. step runs the sim clock, world reads the world
--- (sim_world.lua) and reset puts the player back at the spawn. Later slices add actions to ACTIONS.
+-- (sim_world.lua), reset puts the player back at the spawn and spawn adds a mob or a pack. Later slices add actions to
+-- ACTIONS.
 local M = {}
 
 local SessionOptions = require("session_options")
 local Sim = require("sim")
+local SimMobs = require("sim_mobs")
 local SimWorld = require("sim_world")
 
 local ENGINE = "blizzard"
@@ -38,6 +40,15 @@ local ACTIONS = {
 
     return reply(sess), true
   end,
+  -- A pack of req.pack mobs (1 to SimMobs.RULES.maxPack) or one; the reply names the first. SimMobs owns the rules for
+  -- the pack size and the mob's options, and raises before it adds anything.
+  spawn = function(sess, req)
+    local mobs = sess.w:run(ENGINE, SimMobs.pack, sess.w, req.pack or 1, req)
+    local out = reply(sess)
+    out.guid = mobs[1].guid
+
+    return out, true
+  end,
 }
 M.ACTIONS = ACTIONS
 
@@ -51,7 +62,8 @@ local function validList()
   return table.concat(names, ", ")
 end
 
--- req = { action = "step", seconds } | { action = "world" } | { action = "reset", class? }. Replies { ok, world } and whether
+-- req = { action = "step", seconds } | { action = "world" } | { action = "reset", class? } | { action = "spawn", name?,
+-- level?, health?, hostile?, pos?, loot?, ai?, pack? }. Replies { ok, world } and whether
 -- the world changed. A bad request raises "sim: ...", which Session:call answers as { ok = false, error }.
 function M.call(sess, req)
   if not sess.w.sim then

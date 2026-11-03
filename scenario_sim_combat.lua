@@ -1,7 +1,8 @@
--- Scenario helpers for the sim world's combat units: s:clickUnit and s:clickGround. Each raises on a world without the
--- sim.
+-- Scenario helpers for the sim world's combat units: s:clickUnit, s:clickGround, s:spawn and s:spawnPack. Each raises on a
+-- world without the sim.
 local M = {}
 
+local SimMobs = require("sim_mobs")
 local SimTarget = require("sim_target")
 
 local ENGINE = "blizzard"
@@ -29,6 +30,20 @@ function M.extend(Scenario)
     local w = simWorld(self, "clickGround")
 
     return w:run(ENGINE, SimTarget.pointer, w, "click", { ground = { x = x, y = y } }, LEFT)
+  end
+
+  -- Adds a mob (SimMobs.spawn's opts) and returns its actor.
+  function Scenario:spawn(opts)
+    local w = simWorld(self, "spawn")
+
+    return w:run(ENGINE, SimMobs.spawn, w, opts)
+  end
+
+  -- Adds n mobs in a row (SimMobs.pack) and returns their actors.
+  function Scenario:spawnPack(n, opts)
+    local w = simWorld(self, "spawnPack")
+
+    return w:run(ENGINE, SimMobs.pack, w, n, opts)
   end
 end
 

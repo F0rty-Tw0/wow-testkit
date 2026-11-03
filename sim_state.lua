@@ -20,6 +20,20 @@ local function copy(t)
   return GameState.merge({}, t)
 end
 
+-- A copy of t without its functions: a rule's gate and onSwing are the owning unit's, which puts them back on restore.
+local function plain(t)
+  local out = {}
+  for key, value in pairs(t) do
+    if type(value) == "table" then
+      out[key] = plain(value)
+    elseif type(value) ~= "function" then
+      out[key] = value
+    end
+  end
+
+  return out
+end
+
 -- The GUIDs of a set { [guid] = true }, sorted.
 local function guidList(set)
   local out = {}
@@ -49,7 +63,7 @@ local function exportActor(actor)
     dead = actor.isDead,
     auras = copy(actor.auras),
     auraSeq = actor.auraSeq,
-    ai = actor.ai and copy(actor.ai),
+    ai = actor.ai and plain(actor.ai),
     foes = guidList(actor.foes),
     swings = actor.swings,
     className = actor.className,

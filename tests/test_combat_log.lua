@@ -3,6 +3,7 @@ local A = require("assert")
 local Actors = require("combat_actors")
 local H = require("tests.helpers.combat")
 local Log = require("combat_log")
+local Resolve = require("combat_resolve")
 
 local CLEU = "COMBAT_LOG_EVENT_UNFILTERED"
 
@@ -271,7 +272,20 @@ local function test_object_flag_globals_are_installed_when_absent()
   end)
 end
 
+-- flags: player 0x511, hostile npc 0xA48
+local function test_party_kill_sits_between_the_lethal_hit_and_unit_died_in_the_ring()
+  H.withCombat("retail", function(w, c)
+    local _, brute = H.pair(w)
+    Resolve.damage(w, Actors.get(w, "player"), brute, { amount = 6000 })
+    local e = c.log.entries
+    A.same({ e[1][2], e[2][2], e[3][2] }, { "SWING_DAMAGE", "PARTY_KILL", "UNIT_DIED" })
+    A.same({ e[2].seq - e[1].seq, e[3].seq - e[2].seq }, { 1, 1 })
+    A.same({ e[2].n, e[2][6], e[2][10] }, { 11, 0x511, 0xA48 })
+  end)
+end
+
 return function()
+  test_party_kill_sits_between_the_lethal_hit_and_unit_died_in_the_ring()
   test_spell_damage_payload_order()
   test_swing_damage_has_no_spell_prefix()
   test_environmental_damage_has_no_off_hand()
