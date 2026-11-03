@@ -189,6 +189,15 @@ local function test_every_flavor_installs_the_readers()
   end
 end
 
+local function test_root_and_stun_are_kit_fields_hidden_from_addons()
+  H.withCombat("retail", function(w)
+    local ann = H.pair(w)
+    local aura = Auras.apply(w, ann, { spellID = H.SPELLS.CURSE, root = true, stun = true })
+    local pub = Auras.publicCopy(aura)
+    A.same({ aura.root, aura.stun, pub.root, pub.stun }, { true, true, nil, nil })
+  end)
+end
+
 return function()
   test_instance_ids_count_from_one_and_answer_by_index()
   test_aura_data_carries_the_documented_fields_and_no_kit_extras()
@@ -205,4 +214,5 @@ return function()
   test_restore_puts_live_auras_back_silently_and_drops_expired_ones()
   test_buff_and_debuff_data_by_index_match_unit_aura()
   test_every_flavor_installs_the_readers()
+  test_root_and_stun_are_kit_fields_hidden_from_addons()
 end

@@ -12,7 +12,7 @@ local WorldApi = require("world_api")
 local define = State.define
 
 -- Kit fields on an aura that AuraData does not have; an addon's copy leaves them out.
-local KIT_FIELDS = { absorb = true, reduction = true, immune = true, sourceGuid = true }
+local KIT_FIELDS = { absorb = true, reduction = true, immune = true, sourceGuid = true, root = true, stun = true }
 -- aura -> its expiry timer.
 local timers = setmetatable({}, { __mode = "k" })
 
@@ -76,7 +76,7 @@ local function arm(w, actor, aura)
   end
 end
 
--- spec: { spellID, source? (a token or an actor), duration?, stacks?, harmful?, absorb?, reduction?, immune?,
+-- spec: { spellID, source? (a token or an actor), duration?, stacks?, harmful?, absorb?, reduction?, immune?, root?, stun?,
 -- dispelName? }. Returns the aura, which is the table actor.auras holds.
 function M.apply(w, actor, spec)
   actor.auraSeq = (actor.auraSeq or 0) + 1
@@ -98,6 +98,8 @@ function M.apply(w, actor, spec)
     absorb = spec.absorb,
     reduction = spec.reduction,
     immune = spec.immune,
+    root = spec.root,
+    stun = spec.stun,
   }
   actor.auras[#actor.auras + 1] = aura
   arm(w, actor, aura)
