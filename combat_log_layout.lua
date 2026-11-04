@@ -62,6 +62,7 @@ local SUFFIX = {
   AURA_REFRESH = { "auraType", "remainingPoints" },
   AURA_APPLIED_DOSE = { "auraType", "amount" },
   AURA_REMOVED_DOSE = { "auraType", "amount" },
+  ENERGIZE = { "amount", "overEnergize", "powerType", "alternatePowerType" },
   CAST_FAILED = { "failedType" },
   CAST_START = {},
   CAST_SUCCESS = {},

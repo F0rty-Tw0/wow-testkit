@@ -1,7 +1,9 @@
 -- Sim spell test helper: kit spell records and a sim world where they are known. Tests never read a client extract or
 -- install.
 local SH = require("tests.helpers.sim_combat")
+local Actors = require("combat_actors")
 local SimSpellData = require("sim_spell_data")
+local SimWorld = require("sim_world")
 
 local M = {}
 
@@ -32,6 +34,49 @@ function M.withSpells(flavor, recs, fn)
     M.install(w, recs)
     fn(w, s, player)
   end)
+end
+
+-- A hostile Foe at (x, y) (default (0, 10)) that becomes the player's target.
+function M.target(w, player, x, y)
+  local foe = SH.foe(w, x or 0, y or 10)
+  Actors.setTarget(w, player, foe)
+
+  return foe
+end
+
+-- The subevents the effects logged, the cast lines left out.
+function M.subevents(w)
+  local out = {}
+  for _, entry in ipairs(w.combat.log.entries) do
+    if not entry[2]:find("^SPELL_CAST") then
+      out[#out + 1] = entry[2]
+    end
+  end
+
+  return out
+end
+
+-- How many log lines of subevent name the actor with guid took (dest GUID is entry[8]).
+function M.hitsOn(w, subevent, guid)
+  local n = 0
+  for _, entry in ipairs(w.combat.log.entries) do
+    if entry[2] == subevent and entry[8] == guid then
+      n = n + 1
+    end
+  end
+
+  return n
+end
+
+function M.effectsOfKind(w, kind)
+  local out = {}
+  for _, effect in ipairs(SimWorld.build(w).effects) do
+    if effect.kind == kind then
+      out[#out + 1] = effect
+    end
+  end
+
+  return out
 end
 
 return M

@@ -67,6 +67,11 @@ local function test_interrupt_and_dispel_extra_spell() -- (C3)
   A.same({ unpack(after("SPELL_DISPEL"), 4) }, { "extraSpellID", "extraSpellName", "extraSpellSchool", "auraType" })
 end
 
+local function test_energize_suffix() -- (C3)
+  local expected = { "spellID", "spellName", "spellSchool", "amount", "overEnergize", "powerType", "alternatePowerType" }
+  A.same(after("SPELL_ENERGIZE"), expected)
+end
+
 local function test_unit_died_carries_the_recap() -- (C3)
   A.same(after("UNIT_DIED"), { "recapID", "unconsciousOnDeath" })
 end
@@ -102,6 +107,7 @@ return function()
   test_damage_shield_carries_the_spell_and_the_damage_suffix()
   test_aura_and_dose_suffixes()
   test_interrupt_and_dispel_extra_spell()
+  test_energize_suffix()
   test_unit_died_carries_the_recap()
   test_spell_absorbed_has_the_attack_spell_only_when_a_spell_attacked()
   test_an_unknown_subevent_raises()
