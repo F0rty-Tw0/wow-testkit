@@ -2,13 +2,15 @@
 -- cast with no point; a left click on the ground then casts at that point, a right click, Esc (SpellStopCasting or
 -- SpellStopTargeting) or a stun ends it, and a click on a unit is swallowed so the target stays. The mode is plain data in
 -- w.sim.targeting = { spellID, radius }; SimSpells.cast with a point is still the only entry that plays the spell, so every
--- rule (range, cooldown, power) is the pipeline's, and a failed cast leaves the mode as it is.
+-- rule (range, cooldown, power) is the pipeline's, and a failed cast leaves the mode as it is. Any cast request that passes
+-- its checks (w.sim.seams.accept) ends the mode, so a request for another spell replaces the targeting spell.
 local M = {}
 
 local Actors = require("combat_actors")
 local Combat = require("combat")
 local SimRange = require("sim_range")
 local SimSpellChecks = require("sim_spell_checks")
+local SimSpellData = require("sim_spell_data")
 local SimSpells = require("sim_spells")
 local SimState = require("sim_state")
 local State = require("game.state")
@@ -52,14 +54,16 @@ function M.stop(w)
   return leave(w, true)
 end
 
--- Casts the targeting spell at point; the mode ends with a cast that started and stays after one that failed.
-local function castAt(w, point)
-  local started = SimSpells.cast(w, w.sim.player, w.sim.targeting.spellID, nil, SimRange.copy(point))
-  if started then
-    leave(w, false)
-  end
+-- Ends the mode for a cast request that passed its checks. The seams.accept function.
+-- source: assumed (spec 7.6 state table) a cast request in the mode replaces the targeting spell, whatever it asks for.
+function M.accept(w)
+  leave(w, false)
+end
 
-  return started
+-- Casts the targeting spell at point; the request ends the mode (M.accept) when it passes and the mode stays after one that
+-- failed. Returns whether it started.
+local function castAt(w, point)
+  return SimSpells.cast(w, w.sim.player, w.sim.targeting.spellID, nil, SimRange.copy(point))
 end
 
 -- source: assumed (spec 7.6 state table) in the mode a left click casts at the ground point or, on a unit, does nothing; a
@@ -91,7 +95,11 @@ local function export(w)
   return mode and { spellID = mode.spellID, radius = mode.radius } or nil
 end
 
+-- source: assumed (spec 7.6) a mode whose spell record is gone after a reload is dropped, as there is nothing to cast.
 local function restore(w, data)
+  if not SimSpellData.get(w, data.spellID) then
+    return
+  end
   w.sim.targeting = { spellID = data.spellID, radius = data.radius }
 end
 
@@ -121,6 +129,7 @@ end
 function M.install(w)
   w.sim.targeting = nil
   w.sim.seams.ground = M.enter
+  table.insert(w.sim.seams.accept, M.accept)
   table.insert(w.sim.seams.pointer, M.pointer)
   table.insert(w.sim.hooks.frame, M.step)
   table.insert(w.sim.hooks.reset, M.stop)

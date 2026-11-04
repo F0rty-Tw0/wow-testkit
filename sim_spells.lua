@@ -2,8 +2,9 @@
 -- UI error plus UNIT_SPELLCAST_FAILED), then plays the spell: an instant spell succeeds at once, a timed one fills the cast
 -- bar (combat_cast) and succeeds when it ends. Moving or a stun interrupts a timed cast. The GCD starts with the cast and
 -- a spell's own cooldown on success (sim_spell_cooldowns.lua).
--- Effects are not here: units that play them hang a function on w.sim.seams.cast, and a ground spell cast with no point
--- calls w.sim.seams.ground (SimGround's targeting mode, which also defines SpellStopCasting on top of M.stop).
+-- Effects are not here: units that play them hang a function on w.sim.seams.cast, a cast request that passes its checks calls
+-- w.sim.seams.accept (SimGround ends its targeting mode), and a ground spell cast with no point calls w.sim.seams.ground
+-- (SimGround's targeting mode, which also defines SpellStopCasting on top of M.stop).
 local M = {}
 
 local Actors = require("combat_actors")
@@ -101,6 +102,9 @@ function M.cast(w, caster, spellID, target, point)
   if name then
     return fail(w, caster, spellID, name)
   end
+  for _, fn in ipairs(w.sim.seams.accept) do
+    fn(w, rec)
+  end
   play(w, caster, rec, goal, point)
 
   return true
@@ -191,7 +195,7 @@ end
 function M.install(w)
   local sim = w.sim
   Cooldowns.install(w)
-  sim.seams = { swing = {}, pointer = {}, cast = {} }
+  sim.seams = { swing = {}, pointer = {}, cast = {}, accept = {} }
   defineFakes(w)
   table.insert(sim.hooks.frame, M.step)
   table.insert(sim.hooks.reset, M.reset)

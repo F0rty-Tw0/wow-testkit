@@ -8,6 +8,7 @@ local Resolve = require("combat_resolve")
 local SH = require("tests.helpers.sim_combat")
 local SP = require("tests.helpers.sim_spells")
 local Sim = require("sim")
+local SimSpellData = require("sim_spell_data")
 local SimSpells = require("sim_spells")
 local SimTarget = require("sim_target")
 local SimWorld = require("sim_world")
@@ -194,17 +195,80 @@ local function test_the_cooldown_is_charged_when_the_cast_lands_not_when_the_mod
   end)
 end
 
+-- Runs fn with rec answering SimSpellData.get on every world: what the extract or the class kit's literals do when the fresh
+-- world restores, a moment before a test could put anything there.
+local function withRecordKnownToEveryWorld(rec, fn)
+  local get = SimSpellData.get
+  SimSpellData.get = function(w, id)
+    return get(w, id) or (id == rec.id and rec or nil)
+  end
+  local ok, err = pcall(fn)
+  SimSpellData.get = get
+  if not ok then
+    error(err, 0)
+  end
+end
+
 local function test_a_reload_keeps_the_mode()
   H.withSession({ sim = {} }, function(sess)
     local recs = { blizzard() }
     SP.install(sess.w, recs)
     SimSpells.cast(sess.w, sess.w.sim.player, BLIZZ)
+    withRecordKnownToEveryWorld(recs[1], function()
+      SH.reloaded(sess, function(fresh)
+        local fw = fresh.w
+        SP.install(fw, recs)
+        A.same({ fw.sim.targeting, _G.SpellIsTargeting() }, { { spellID = BLIZZ, radius = 8 }, true })
+        fresh.s:clickGround(0, 10)
+        A.same({ _G.SpellIsTargeting(), #fw.sim.areas }, { false, 1 })
+      end)
+    end)
+  end)
+end
+
+local function bolt(over)
+  local rec = { id = OTHER, effects = { { type = "damage", base = 7, target = "enemy" } } }
+  for key, value in pairs(over or {}) do
+    rec[key] = value
+  end
+
+  return SP.record(rec)
+end
+
+-- Review Focus 6 (spec 7.6, cast request while targeting): a request that passes its checks ends the mode, whatever the spell.
+local function test_any_cast_that_passes_its_checks_ends_the_mode_and_resolves()
+  SP.withSpells("retail", { blizzard(), bolt(), bolt({ id = 900003, castTime = 2000 }) }, function(w, s, player)
+    local foe = SP.target(w, player)
+    SimSpells.cast(w, player, BLIZZ)
+    local log = SH.record(w, EVENTS)
+    A.eq(SimSpells.cast(w, player, OTHER), true)
+    A.same({ _G.SpellIsTargeting(), foe.health, names(log), log[1][3] }, { false, 93, { "CURRENT_SPELL_CAST_CHANGED" }, false })
+    A.eq(w.sim.targeting, nil)
+    SimSpells.cast(w, player, BLIZZ)
+    A.eq(SimSpells.cast(w, player, 900003), true)
+    A.same({ _G.SpellIsTargeting(), player.casting ~= nil, foe.health }, { false, true, 93 })
+    s:simStep(3)
+    A.eq(foe.health, 86)
+  end)
+end
+
+local function test_a_cast_that_fails_its_checks_leaves_the_mode()
+  SP.withSpells("retail", { blizzard(), bolt({ cooldown = 9000 }) }, function(w, _, player)
+    SP.target(w, player)
+    SimSpells.cast(w, player, OTHER)
+    SimSpells.cast(w, player, BLIZZ)
+    A.same({ SimSpells.cast(w, player, OTHER) }, { false, "SPELL_FAILED_NOT_READY" })
+    A.same({ _G.SpellIsTargeting(), w.sim.targeting }, { true, { spellID = BLIZZ, radius = 8 } })
+  end)
+end
+
+local function test_a_reload_drops_a_mode_whose_spell_is_gone()
+  H.withSession({ sim = {} }, function(sess)
+    SP.install(sess.w, { blizzard() })
+    SimSpells.cast(sess.w, sess.w.sim.player, BLIZZ)
+    A.eq(_G.SpellIsTargeting(), true)
     SH.reloaded(sess, function(fresh)
-      local fw = fresh.w
-      SP.install(fw, recs)
-      A.same({ fw.sim.targeting, _G.SpellIsTargeting() }, { { spellID = BLIZZ, radius = 8 }, true })
-      fresh.s:clickGround(0, 10)
-      A.same({ _G.SpellIsTargeting(), #fw.sim.areas }, { false, 1 })
+      A.same({ fresh.w.sim.targeting, _G.SpellIsTargeting() }, { nil, false })
     end)
   end)
 end
@@ -236,5 +300,8 @@ return function()
   test_walking_keeps_the_mode()
   test_the_cooldown_is_charged_when_the_cast_lands_not_when_the_mode_opens()
   test_a_reload_keeps_the_mode()
+  test_any_cast_that_passes_its_checks_ends_the_mode_and_resolves()
+  test_a_cast_that_fails_its_checks_leaves_the_mode()
+  test_a_reload_drops_a_mode_whose_spell_is_gone()
   test_a_world_reset_ends_the_mode_and_the_world_reads_it()
 end
