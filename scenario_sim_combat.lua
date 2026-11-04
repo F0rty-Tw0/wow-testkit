@@ -25,11 +25,12 @@ function M.extend(Scenario)
     return w:run(ENGINE, SimTarget.pointer, w, "click", { guid = actor.guid }, button or LEFT)
   end
 
-  -- Left-clicks the ground at (x, y): the target clears.
-  function Scenario:clickGround(x, y)
+  -- Clicks the ground at (x, y) with button (default LeftButton): a left click clears the target, or casts the ground
+  -- spell in the targeting mode (SimGround). Returns whether the world changed.
+  function Scenario:clickGround(x, y, button)
     local w = simWorld(self, "clickGround")
 
-    return w:run(ENGINE, SimTarget.pointer, w, "click", { ground = { x = x, y = y } }, LEFT)
+    return w:run(ENGINE, SimTarget.pointer, w, "click", { ground = { x = x, y = y } }, button or LEFT)
   end
 
   -- Adds a mob (SimMobs.spawn's opts) and returns its actor.

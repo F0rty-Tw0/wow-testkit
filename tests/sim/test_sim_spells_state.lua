@@ -55,7 +55,7 @@ local function test_the_cast_seam_runs_after_success_only()
     table.insert(w.sim.seams.cast, function(_, caster, rec, hit, point)
       seen[#seen + 1] = { caster, rec.id, hit, point }
     end)
-    A.same({ w.sim.seams.swing, w.sim.seams.pointer }, { {}, {} })
+    A.same({ w.sim.seams.swing, #w.sim.seams.pointer }, { {}, 1 })
     SimSpells.cast(w, player, OTHER)
     A.same(seen, { { player, OTHER, foe, nil } })
     SimSpells.cast(w, player, KIT)

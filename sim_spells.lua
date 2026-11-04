@@ -2,7 +2,8 @@
 -- UI error plus UNIT_SPELLCAST_FAILED), then plays the spell: an instant spell succeeds at once, a timed one fills the cast
 -- bar (combat_cast) and succeeds when it ends. Moving or a stun interrupts a timed cast. The GCD starts with the cast and
 -- a spell's own cooldown on success; both live in w.sim as plain data and in w.mock.spells[id].cooldown for the readers.
--- Effects are not here: units that play them hang a function on w.sim.seams.cast.
+-- Effects are not here: units that play them hang a function on w.sim.seams.cast, and a ground spell cast with no point
+-- calls w.sim.seams.ground (SimGround's targeting mode, which also defines SpellStopCasting on top of M.stop).
 local M = {}
 
 local Actors = require("combat_actors")
@@ -157,6 +158,11 @@ function M.cast(w, caster, spellID, target, point)
   local rec = SimSpellData.get(w, spellID)
   local goal = target or w.combat.actors[caster.targetGuid]
   local name = Checks.check(w, caster, rec, goal, point)
+  if Checks.awaitsPoint(rec, name, point) and w.sim.seams.ground then
+    w.sim.seams.ground(w, rec)
+
+    return true
+  end
   if name then
     return fail(w, caster, spellID, name)
   end
@@ -272,9 +278,6 @@ local function defineFakes(w)
     if type(entry) == "table" and entry.type == "spell" then
       castWith(w, entry.id, unit)
     end
-  end)
-  define(w, "SpellStopCasting", function()
-    return M.stop(w, w.sim.player)
   end)
 end
 

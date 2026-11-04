@@ -179,6 +179,14 @@ end
 
 local CHECKS = { known, ready, idle, notStunned, enoughPower, hasTarget, inRange, facing, standing }
 
+-- Whether a failed check is only the missing point of a ground spell: every rule before the point rule passed, so the
+-- spell can open the targeting mode (spec 7.6).
+function M.awaitsPoint(rec, name, point)
+  local missing = name == FAIL.NO_TARGET and point == nil
+
+  return missing and rec ~= nil and rec.ground == true
+end
+
 -- The name of the first rule rec breaks for caster casting at target (an actor) or point ({x, y}), or nil. rec may be nil
 -- (an unknown spell).
 function M.check(w, caster, rec, target, point)
