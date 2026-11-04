@@ -103,8 +103,26 @@ local function export(w)
   return { areas = State.merge({}, w.sim.areas), auras = State.merge({}, w.sim.spellAuras) }
 end
 
+-- Whether the actor with guid wears the aura whose record key is key.
+local function wears(w, guid, key)
+  local actor = w.combat.actors[guid]
+  for _, aura in ipairs(actor and actor.auras or {}) do
+    if M.auraKey(guid, aura.auraInstanceID) == key then
+      return true
+    end
+  end
+
+  return false
+end
+
+-- Keeps the records of the auras that came back: Auras.restore leaves off one that had run out, and its record goes too.
 local function restore(w, data)
-  w.sim.areas, w.sim.spellAuras = data.areas, data.auras
+  w.sim.areas, w.sim.spellAuras = data.areas, {}
+  for key, held in pairs(data.auras) do
+    if wears(w, held.targetGuid, key) then
+      w.sim.spellAuras[key] = held
+    end
+  end
 end
 
 -- Adds the effect state, logs the end of sim auras and registers the reload state.
