@@ -158,10 +158,28 @@ function M.interact(w, actor, button)
   return changed
 end
 
+-- Offers the pointer to the handlers units hang on w.sim.seams.pointer (SimGround's targeting mode); the first one that
+-- answers handled ends it. Returns handled, changed.
+local function offered(w, kind, world, button)
+  local seams = w.sim.seams
+  for _, handler in ipairs(seams and seams.pointer or {}) do
+    local handled, changed = handler(w, kind, world, button)
+    if handled then
+      return true, changed
+    end
+  end
+
+  return false, false
+end
+
 -- The pointer on the world: "enter" hovers the unit world names (nil when none), "click" interacts with it; a left click
--- on the ground or an unknown guid clears the target. A click without world (a frame was hit) does nothing. Returns
--- whether the world changed.
+-- on the ground or an unknown guid clears the target. A click without world (a frame was hit) does nothing. A pointer
+-- seam that handles the event ends it first. Returns whether the world changed.
 function M.pointer(w, kind, world, button)
+  local handled, taken = offered(w, kind, world, button)
+  if handled then
+    return taken
+  end
   local guid = world and world.guid
   local actor = guid and w.combat.actors[guid]
   if kind == "enter" then
