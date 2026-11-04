@@ -71,26 +71,23 @@ local function startGcd(w, rec)
   if seconds <= 0 then
     return false
   end
-  w.sim.gcdEnd, w.sim.gcdSpell = w.now + seconds, rec.id
+  w.sim.gcdEnd = w.now + seconds
+  w.sim.gcdShown = { spell = rec.id, start = w.now, duration = seconds }
   mirror(w, rec.id, w.now, seconds)
 
   return true
 end
 
--- Takes the GCD off the spell that shows it: its mirror goes back to the spell's own cooldown, or to none.
+-- Takes the GCD off the spell that shows it. Its own cooldown never runs here: a spell on cooldown cannot be cast, and a
+-- reset clears the cooldowns first.
 local function releaseGcd(w)
-  local id = w.sim.gcdSpell
-  local entry = id and w.mock.spells[id]
-  w.sim.gcdSpell = nil
+  local shown = w.sim.gcdShown
+  local entry = shown and w.mock.spells[shown.spell]
+  w.sim.gcdShown = nil
   if not entry then
     return
   end
-  local own = w.sim.cooldowns[id]
-  if own then
-    mirror(w, id, own.start, own.duration)
-  else
-    entry.cooldown = nil
-  end
+  entry.cooldown = nil
   Combat.fire(w, "ACTIONBAR_UPDATE_COOLDOWN")
   Combat.fire(w, "SPELL_UPDATE_COOLDOWN")
 end
@@ -237,11 +234,18 @@ local function export(w)
   local casting = pending and not pending.succeeded
   local gcdEnd = casting and pending.gcdBefore or w.sim.gcdEnd
 
-  return { cooldowns = running, gcdEnd = gcdEnd }
+  return { cooldowns = running, gcdEnd = gcdEnd, gcdShown = w.sim.gcdShown }
 end
 
+-- The GCD comes back on its spell's readers only while it runs: a dropped cast's GCD was never kept (gcdEnd is the one
+-- before it), and the cooldowns follow so that a spell's own cooldown wins the mirror, as in stamp.
 local function restore(w, data)
+  local shown = data.gcdShown
   w.sim.gcdEnd = data.gcdEnd
+  if shown and data.gcdEnd > w.now then
+    w.sim.gcdShown = shown
+    mirror(w, shown.spell, shown.start, shown.duration)
+  end
   for _, item in ipairs(data.cooldowns) do
     w.sim.cooldowns[item.id] = { start = item.start, duration = item.duration }
     mirror(w, item.id, item.start, item.duration)

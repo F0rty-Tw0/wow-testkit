@@ -103,6 +103,28 @@ local function test_a_reload_mid_cast_keeps_no_gcd()
       SP.install(fw, recs)
       target(fw, fw.sim.player)
       A.eq(SimSpells.cast(fw, fw.sim.player, OTHER), true, "the dropped cast leaves no GCD")
+      A.eq(_G.C_Spell.GetSpellCooldown(KIT).duration, 0, "and none on the readers")
+    end)
+  end)
+end
+
+local function test_a_reload_mid_gcd_shows_the_gcd_on_the_readers()
+  H.withSession({ sim = {} }, function(sess)
+    local recs = { SP.record({ gcd = 1500 }), SP.record({ id = OTHER, gcd = 1500 }) }
+    SP.install(sess.w, recs)
+    target(sess.w, sess.w.sim.player)
+    SimSpells.cast(sess.w, sess.w.sim.player, KIT)
+    local started = sess.w.now
+    sess.s:simStep(0.5)
+    SH.reloaded(sess, function(fresh)
+      local fw = fresh.w
+      SP.install(fw, recs)
+      target(fw, fw.sim.player)
+      local info = _G.C_Spell.GetSpellCooldown(KIT)
+      A.same({ info.startTime, info.duration }, { started, 1.5 })
+      A.eq(select(2, SimSpells.cast(fw, fw.sim.player, OTHER)), "SPELL_FAILED_NOT_READY", "the GCD is still enforced")
+      fresh.s:simStep(1.1)
+      A.eq(SimSpells.cast(fw, fw.sim.player, OTHER), true)
     end)
   end)
 end
@@ -138,5 +160,6 @@ return function()
   test_reset_drops_the_cast_and_the_cooldowns()
   test_reset_clears_the_gcd_of_an_instant_spell_from_the_readers()
   test_a_reload_mid_cast_keeps_no_gcd()
+  test_a_reload_mid_gcd_shows_the_gcd_on_the_readers()
   test_a_reload_keeps_the_cooldown_and_drops_the_cast()
 end
