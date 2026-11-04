@@ -13,6 +13,7 @@ local SimMelee = require("sim_melee")
 local SimMobs = require("sim_mobs")
 local SimMove = require("sim_move")
 local SimPower = require("sim_power")
+local SimProcs = require("sim_procs")
 local SimSpells = require("sim_spells")
 
 local function test_install_places_the_player()
@@ -51,6 +52,7 @@ local function test_world_state_fields_assumed()
       SimEffects.reset,
       SimGround.stop,
       SimPower.reset,
+      SimProcs.reset,
     })
     A.truthy(w.sim.hooks.persist.melee) -- the units' own reload state; their tests cover it
     A.truthy(w.sim.hooks.persist.mobs)

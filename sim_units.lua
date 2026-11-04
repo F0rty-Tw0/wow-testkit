@@ -11,4 +11,5 @@ return {
   "sim_effects",
   "sim_ground",
   "sim_power",
+  "sim_procs",
 }
