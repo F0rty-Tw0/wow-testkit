@@ -6,6 +6,7 @@ local M = {}
 
 local Combat = require("combat")
 local Log = require("combat_log")
+local SimRange = require("sim_range")
 local SimState = require("sim_state")
 local State = require("game.state")
 
@@ -15,10 +16,6 @@ local RULES = {
   -- source: assumed (spec 7.3) only root and stun have a scene effect.
   SHOWN = { root = true, stun = true },
 }
-
-function M.spot(position)
-  return { x = position.x, y = position.y }
-end
 
 -- Adds an event to the ring the world reads.
 function M.record(w, kind, fields)
@@ -58,7 +55,7 @@ function M.snapshot(w)
     end
   end
   for _, area in ipairs(sim.areas) do
-    out[#out + 1] = { kind = "ground", at = M.spot(area.at), radius = area.radius, spellID = area.spellID }
+    out[#out + 1] = { kind = "ground", at = SimRange.copy(area.at), radius = area.radius, spellID = area.spellID }
   end
   for _, key in ipairs(sortedKeys(sim.spellAuras)) do
     local held = sim.spellAuras[key]

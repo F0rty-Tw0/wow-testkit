@@ -3,10 +3,7 @@
 local M = {}
 
 local SimEffects = require("sim_effects")
-
-local function copyPos(pos)
-  return { x = pos.x, y = pos.y }
-end
+local SimRange = require("sim_range")
 
 local function spellIds(actor)
   local ids = {}
@@ -30,7 +27,7 @@ local function playerEntry(w)
 
   return {
     guid = player.guid,
-    pos = copyPos(player.pos),
+    pos = SimRange.copy(player.pos),
     facing = player.facing or 0,
     moving = sim.moving,
     health = player.health,
@@ -50,7 +47,7 @@ local function actorEntry(w, actor)
     guid = actor.guid,
     name = actor.name,
     kind = actor.kind,
-    pos = copyPos(actor.pos),
+    pos = SimRange.copy(actor.pos),
     facing = actor.facing or 0,
     health = actor.health,
     healthMax = actor.healthMax,

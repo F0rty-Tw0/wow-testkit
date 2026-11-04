@@ -64,7 +64,7 @@ local function amountOf(effect)
 end
 
 local function hit(w, caster, victim, rec, effect)
-  local at = SimEffectState.spot(victim.pos)
+  local at = SimRange.copy(victim.pos)
   SimEffectState.record(w, "hit", { at = at, spellID = rec.id })
   Resolve.damage(w, caster, victim, { amount = amountOf(effect), spellID = rec.id, school = rec.school })
 end
@@ -79,7 +79,7 @@ end
 -- source: assumed (a reload drops it) a projectile in flight is not kept; one whose foe died or left the world hits nothing.
 local function launch(w, ctx, victim, effect)
   local caster, rec = ctx.caster, ctx.rec
-  local from, to = SimEffectState.spot(caster.pos), SimEffectState.spot(victim.pos)
+  local from, to = SimRange.copy(caster.pos), SimRange.copy(victim.pos)
   SimEffectState.record(w, "projectile", { from = from, to = to, spellID = rec.id })
   local flight = SimRange.distance(caster, victim) / RULES.PROJECTILE_SPEED
   Combat.later(w, flight, function()
@@ -155,7 +155,7 @@ local function charge(w, ctx, _effect, index)
   if not victim then
     return false
   end
-  local from, to = SimEffectState.spot(ctx.caster.pos), SimEffectState.spot(victim.pos)
+  local from, to = SimRange.copy(ctx.caster.pos), SimRange.copy(victim.pos)
   SimEffectState.record(w, "charge", { from = from, to = to, spellID = ctx.rec.id })
   w.sim.charge = { guid = victim.guid, spellID = ctx.rec.id, next = index + 1, deadline = w.now + RULES.CHARGE_MAX }
   w.sim.driven = RULES.CHARGE_SPEED
