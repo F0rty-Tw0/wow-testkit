@@ -13,6 +13,7 @@ local SimEffectState = require("sim_effect_state")
 local SimMelee = require("sim_melee")
 local SimMove = require("sim_move")
 local SimRange = require("sim_range")
+local SimSpellChecks = require("sim_spell_checks")
 local SimSpellData = require("sim_spell_data")
 local WorldApi = require("world_api")
 
@@ -219,15 +220,16 @@ local function approach(w, victim, dt)
   SimMove.place(w, from.x + dx / length * step, from.y + dy / length * step)
 end
 
--- source: assumed (spec 7.3) the run ends in melee range and then plays the rest of the spell; the death of the target
--- (or of the player) or the deadline ends it without the rest.
+-- source: assumed (spec 7.3) the run ends in melee range and then plays the rest of the spell; the death of the target,
+-- the death or a stun of the player, or the deadline ends it without the rest.
 local function stepCharge(w, dt)
   local held = w.sim.charge
   if not held then
     return
   end
   local player, victim = w.sim.player, w.combat.actors[held.guid]
-  local lost = player.isDead or not victim or victim.isDead
+  local down = player.isDead or SimSpellChecks.isStunned(player)
+  local lost = down or not victim or victim.isDead
   local late = w.now >= held.deadline
   if lost or late then
     stopCharge(w)
