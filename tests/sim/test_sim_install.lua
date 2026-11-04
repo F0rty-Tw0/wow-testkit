@@ -12,6 +12,7 @@ local SimGround = require("sim_ground")
 local SimMelee = require("sim_melee")
 local SimMobs = require("sim_mobs")
 local SimMove = require("sim_move")
+local SimPower = require("sim_power")
 local SimSpells = require("sim_spells")
 
 local function test_install_places_the_player()
@@ -36,11 +37,21 @@ local function test_world_state_fields_assumed()
     A.same(w.sim.bounds, { minX = -50, maxX = 50, minY = -50, maxY = 50 })
     A.same(w.sim.mapRect, { left = -50, top = 50, size = 100 })
     A.same({ w.sim.intents, w.sim.activity, w.sim.clock }, { {}, 0, { t0 = w.now, carry = 0 } })
-    A.same(w.sim.hooks.frame, { SimMove.frame, SimMelee.step, SimMobs.step, SimLootWindow.walkAway, SimSpells.step, SimEffects.step, SimGround.step })
     A.same(
-      w.sim.hooks.reset,
-      { SimMove.stop, SimMelee.reset, SimBags.clear, SimLootWindow.close, SimLoot.reset, SimSpells.reset, SimEffects.reset, SimGround.stop }
+      w.sim.hooks.frame,
+      { SimMove.frame, SimMelee.step, SimMobs.step, SimLootWindow.walkAway, SimSpells.step, SimEffects.step, SimGround.step, SimPower.step }
     )
+    A.same(w.sim.hooks.reset, {
+      SimMove.stop,
+      SimMelee.reset,
+      SimBags.clear,
+      SimLootWindow.close,
+      SimLoot.reset,
+      SimSpells.reset,
+      SimEffects.reset,
+      SimGround.stop,
+      SimPower.reset,
+    })
     A.truthy(w.sim.hooks.persist.melee) -- the units' own reload state; their tests cover it
     A.truthy(w.sim.hooks.persist.mobs)
     A.truthy(w.sim.hooks.persist.bags)
@@ -73,7 +84,7 @@ local function test_activity_counts_world_changes()
   H.withSim("retail", {}, function(w)
     local p = Actors.get(w, "player")
     Actors.setPos(w, p, 1, -10)
-    Actors.setHealth(w, p, 50)
+    Actors.setPower(w, p, 50) -- not setHealth: a hurt player gains rage, which would count as a third change
     A.eq(w.sim.activity, 2)
   end)
 end

@@ -1,7 +1,7 @@
 -- SimSpells: the player's cast pipeline (spec 7.2). cast runs the checks in order (the first failure wins and shows as a
 -- UI error plus UNIT_SPELLCAST_FAILED), then plays the spell: an instant spell succeeds at once, a timed one fills the cast
 -- bar (combat_cast) and succeeds when it ends. Moving or a stun interrupts a timed cast. The GCD starts with the cast and
--- a spell's own cooldown on success (sim_spell_cooldowns.lua).
+-- a spell's own cooldown on success (sim_spell_cooldowns.lua), and the cost is paid when the cast succeeds (SimPower.spend).
 -- Effects are not here: units that play them hang a function on w.sim.seams.cast, a cast request that passes its checks calls
 -- w.sim.seams.accept (SimGround ends its targeting mode), and a ground spell cast with no point calls w.sim.seams.ground
 -- (SimGround's targeting mode, which also defines SpellStopCasting on top of M.stop).
@@ -13,6 +13,7 @@ local Combat = require("combat")
 local Log = require("combat_log")
 local Checks = require("sim_spell_checks")
 local Cooldowns = require("sim_spell_cooldowns")
+local SimPower = require("sim_power")
 local SimSpellData = require("sim_spell_data")
 local SimState = require("sim_state")
 local SimTarget = require("sim_target")
@@ -42,6 +43,17 @@ local function fail(w, caster, spellID, name)
   return false, name
 end
 
+-- source: assumed (spec 7.2) the cost is taken when the cast succeeds: at once for an instant spell, when the bar ends for a
+-- timed one. Answers whether the caster could pay (the checks proved it at the request; a timed bar can lose it on the way).
+local function pay(w, caster, rec)
+  local cost = rec.cost
+  if not cost then
+    return true
+  end
+
+  return SimPower.spend(w, caster, cost.type, cost.amount)
+end
+
 local function land(w, caster, rec, target, point)
   for _, fn in ipairs(w.sim.seams.cast) do
     fn(w, caster, rec, target, point)
@@ -51,15 +63,17 @@ end
 -- source: assumed (spec 7.2; the client's event order for an instant spell is not traced) an instant cast sends
 -- UNIT_SPELLCAST_SUCCEEDED with no START and succeeds at once; the Casts module has no instant path, so this unit emits it.
 local function playInstant(w, caster, rec, target, point)
+  pay(w, caster, rec) -- the checks just proved the funds
   Log.emit(w, "SPELL_CAST_SUCCESS", caster, target, { spellID = rec.id })
   Combat.emit(w, "cast", caster, "SUCCEEDED", castInfo(w, rec.id))
   Cooldowns.stamp(w, rec, true, true)
   land(w, caster, rec, target, point)
 end
 
--- The bar ends when the timer fires: SPELL_CAST_SUCCESS, SUCCEEDED, then the spell's own cooldown and the effects. The
--- timer runs SLACK early because the sim clock adds 1/60 s frames and 150 of them fall about 2e-12 short of 2.5 s, so
--- s:simStep(castTime) would miss the end; the bar itself keeps the exact castTime.
+-- The bar ends when the timer fires: the cost, SPELL_CAST_SUCCESS, SUCCEEDED, then the spell's own cooldown and the effects;
+-- a caster who can no longer pay gets the power error and an interrupted bar instead. The timer runs SLACK early because
+-- the sim clock adds 1/60 s frames and 150 of them fall about 2e-12 short of 2.5 s, so s:simStep(castTime) would miss the
+-- end; the bar itself keeps the exact castTime.
 -- source: assumed (spec 7.2) the GCD starts with the bar and the spell's own cooldown when the bar ends.
 local function playTimed(w, caster, rec, target, point)
   local seconds = rec.castTime / MS
@@ -72,6 +86,11 @@ local function playTimed(w, caster, rec, target, point)
   pending.gcdStarted = Cooldowns.stamp(w, rec, true, false)
   Combat.later(w, seconds - SLACK, function()
     if caster.cast ~= bar then
+      return
+    end
+    if not pay(w, caster, rec) then
+      Casts.interrupt(w, caster)
+
       return
     end
     Log.emit(w, "SPELL_CAST_SUCCESS", caster, target, params)

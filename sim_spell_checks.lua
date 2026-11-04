@@ -29,6 +29,7 @@ local RULES = {
 local FAIL = RULES.FAIL
 
 M.SLACK = RULES.SLACK
+M.FAIL = FAIL
 
 -- Whether a walk intent is held (SimMove's intents; the player may not have moved a frame yet).
 function M.isMoving(w)
