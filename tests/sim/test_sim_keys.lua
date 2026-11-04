@@ -148,6 +148,38 @@ local function test_autorun_key_toggles_once_per_press()
   end)
 end
 
+-- source: assumed (spec 7.6) Esc cancels a cast or the targeting mode first and opens the menu only when neither was there,
+-- as Blizzard's own handler does (SpellStopCasting() or SpellStopTargeting()).
+local function test_escape_stops_a_cast_or_targeting_before_the_menu()
+  H.withSim("retail", {}, function(_, s)
+    local calls, answers = {}, { casting = false, targeting = false }
+    _G.SpellStopCasting = function()
+      calls[#calls + 1] = "casting"
+
+      return answers.casting
+    end
+    _G.SpellStopTargeting = function()
+      calls[#calls + 1] = "targeting"
+
+      return answers.targeting
+    end
+    _G.ToggleGameMenu = function()
+      calls[#calls + 1] = "menu"
+    end
+    s:key("ESCAPE", "down")
+    s:key("ESCAPE", "up")
+    A.same(calls, { "casting", "targeting", "menu" })
+    calls, answers.targeting = {}, true
+    s:key("ESCAPE", "down")
+    s:key("ESCAPE", "up")
+    A.same(calls, { "casting", "targeting" })
+    calls, answers.casting = {}, true
+    s:key("ESCAPE", "down")
+    s:key("ESCAPE", "up")
+    A.same(calls, { "casting" })
+  end)
+end
+
 -- source: assumed (K3) the up half is the command the down resolved, so a modifier changed in between does not matter.
 local function test_key_up_ignores_the_modifiers_it_is_given()
   H.withSim("retail", {}, function(w, s)
@@ -285,6 +317,7 @@ return function()
   test_walk_key_moves_until_released()
   test_every_move_key_sets_its_intent()
   test_autorun_key_toggles_once_per_press()
+  test_escape_stops_a_cast_or_targeting_before_the_menu()
   test_key_up_ignores_the_modifiers_it_is_given()
   test_modifiers_are_held_while_the_key_runs()
   test_a_held_key_ignores_a_second_down()

@@ -8,6 +8,12 @@ local Bindings = require("bindings")
 local ADDON = "SimKit"
 local ACTION_BUTTONS = 12
 
+-- source: assumed (spec 7.6; the plan reads Blizzard's game menu Esc handler as `SpellStopCasting() or SpellStopTargeting()`,
+-- not re-read here) Esc stops a cast, else the targeting mode, and opens the menu only when neither was there.
+local TOGGLE_MENU = "if SpellStopCasting and SpellStopCasting() then return end; "
+  .. "if SpellStopTargeting and SpellStopTargeting() then return end; "
+  .. "if ToggleGameMenu then ToggleGameMenu() end"
+
 -- source: confirmed (row SM10) movement, action buttons and TARGETNEARESTENEMY are runOnUp and branch on keystate;
 -- TOGGLEAUTORUN, OPENALLBAGS and TOGGLEGAMEMENU are not runOnUp (a runOnUp toggle would open on down and close on up).
 -- Every body is guarded: a missing global does nothing.
@@ -15,7 +21,7 @@ local ACTION_BUTTONS = 12
 M.COMMANDS = {
   TOGGLEAUTORUN = { body = "if ToggleAutoRun then ToggleAutoRun() end" },
   OPENALLBAGS = { body = "if ToggleAllBags then ToggleAllBags() end" },
-  TOGGLEGAMEMENU = { body = "if ToggleGameMenu then ToggleGameMenu() end" },
+  TOGGLEGAMEMENU = { body = TOGGLE_MENU },
   TARGETNEARESTENEMY = {
     body = 'if keystate == "down" and TargetNearestEnemy then TargetNearestEnemy() end',
     runOnUp = true,
