@@ -15,6 +15,13 @@ local function spellIds(actor)
   return ids
 end
 
+-- The cast bar in flight as plain data ({ spellID, start, endTime } in clock seconds), or nil.
+local function castOf(player)
+  local casting = player.casting
+
+  return casting and { spellID = casting.spellID, start = casting.start, endTime = casting.endTime } or nil
+end
+
 local function playerEntry(w)
   local sim = w.sim
   local player = sim.player
@@ -30,6 +37,7 @@ local function playerEntry(w)
     powerMax = player.powerMax,
     class = player.classFile,
     swings = player.swings or 0,
+    casting = castOf(player),
   }
 end
 

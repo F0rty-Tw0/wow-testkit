@@ -6,6 +6,9 @@ local CombatH = require("tests.helpers.combat")
 local H = require("tests.helpers.session")
 local Near = require("tests.helpers.sim")
 local Session = require("session")
+local SH = require("tests.helpers.sim_combat")
+local SimSpells = require("sim_spells")
+local SP = require("tests.helpers.sim_spells")
 
 local function withSim(fn)
   H.withSession({ sim = {} }, fn)
@@ -35,6 +38,21 @@ local function test_world_reads_the_fresh_player()
     A.same(r.world.effects, {})
     A.eq(sess.seq, seq, "a read")
     A.contains(sess:handle("sim", { action = "world" }), '"actors":[]')
+  end)
+end
+
+local function test_world_player_reports_the_cast_in_flight()
+  withSim(function(sess)
+    A.eq(sim(sess, { action = "world" }).world.player.casting, nil)
+    SP.install(sess.w, { SP.record({ castTime = 2000 }) })
+    Actors.setTarget(sess.w, sess.w.sim.player, SH.foe(sess.w, 0, 10))
+    A.eq(SimSpells.cast(sess.w, sess.w.sim.player, 900001), true)
+    local casting = sim(sess, { action = "world" }).world.player.casting
+    A.same({ casting.spellID, casting.endTime - casting.start }, { 900001, 2 })
+    for _ = 1, 9 do
+      sim(sess, { action = "step", seconds = 0.25 })
+    end
+    A.eq(sim(sess, { action = "world" }).world.player.casting, nil)
   end)
 end
 
@@ -235,6 +253,7 @@ end
 
 return function()
   test_world_reads_the_fresh_player()
+  test_world_player_reports_the_cast_in_flight()
   test_world_player_reports_health_and_power()
   test_keydown_walks_and_keyup_stops()
   test_keyup_of_a_key_never_held_changes_nothing()

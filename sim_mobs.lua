@@ -7,6 +7,7 @@ local M = {}
 
 local Actors = require("combat_actors")
 local Ai = require("combat_ai")
+local Auras = require("combat_auras")
 local GameState = require("game.state")
 local SimMelee = require("sim_melee")
 local SimMobOptions = require("sim_mob_options")
@@ -58,22 +59,12 @@ local function aiFor(given)
   return GameState.merge({}, given)
 end
 
-local function hasAura(actor, field)
-  for _, aura in ipairs(actor.auras) do
-    if aura[field] then
-      return true
-    end
-  end
-
-  return false
-end
-
 -- Whether mob's swing lands on target now: in melee range and not stunned.
 -- source: assumed (spec 5.3) a stun stops a mob's swings; a root does not.
 function M.canSwing(_, mob, target)
   local inRange = SimMelee.inRange(mob, target)
 
-  return inRange and not hasAura(mob, "stun")
+  return inRange and not Auras.has(mob, "stun")
 end
 
 local function countSwing(_, mob)
@@ -203,11 +194,11 @@ end
 -- source: assumed (spec 5.3) a stunned mob cannot walk or turn, a rooted one cannot walk but still turns.
 local function chase(w, mob, dt)
   local target = Ai.target(w, mob)
-  if not target or hasAura(mob, "stun") then
+  if not target or Auras.has(mob, "stun") then
     return
   end
   mob.facing = facingAt(mob, target.pos.x, target.pos.y)
-  local rooted = hasAura(mob, "root")
+  local rooted = Auras.has(mob, "root")
   if rooted or SimMelee.inRange(mob, target) then
     return
   end

@@ -29,6 +29,17 @@ local function indexOf(actor, aura)
   end
 end
 
+-- Whether actor holds an aura with field set (the kit fields stun and root).
+function M.has(actor, field)
+  for _, aura in ipairs(actor.auras) do
+    if aura[field] then
+      return true
+    end
+  end
+
+  return false
+end
+
 -- A spec decides harmful; without one the spell's record does (harmful = true), else the aura is helpful.
 local function isHarmful(w, spec)
   if spec.harmful ~= nil then
