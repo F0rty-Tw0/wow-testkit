@@ -273,6 +273,30 @@ local function test_a_reload_leaves_dark_a_glow_whose_aura_did_not_come_back()
   end)
 end
 
+-- source: assumed (a reload keeps a glow) a glow with no aura whose time ran out stays dark: only its timer kept it lit.
+local function test_a_reload_leaves_dark_a_glow_with_no_aura_whose_time_ran_out()
+  H.withSession({ sim = {} }, function(sess)
+    local w = sess.w
+    SP.install(w, RECS)
+    w.sim.procRules = { swingRule({ every = 1, duration = 15000, aura = false }) }
+    foeAhead(w, w.sim.player)
+    SimMelee.start(w)
+    sess.s:simStep(0.1)
+    SimMelee.stop(w)
+    A.eq(overlayed(), true)
+    w.sim.procs.active[OVERLAY].untilT = w.now - 1 -- the saved glow's time is up
+    SH.reloaded(sess, function(fresh)
+      local fw = fresh.w
+      SP.install(fw, RECS)
+      fw.sim.procRules = { swingRule({ every = 1, duration = 15000, aura = false }) }
+      A.same({ overlayed(), fw.sim.procs.active[OVERLAY] }, { false, nil })
+      local log = SH.record(fw, GLOW)
+      fresh.s:simStep(1)
+      A.eq(#log, 0)
+    end)
+  end)
+end
+
 local function test_a_reload_keeps_the_count_of_a_rule_that_fires_every_second_swing()
   H.withSession({ sim = {} }, function(sess)
     local w = sess.w
@@ -376,6 +400,7 @@ return function()
   test_no_dodge_without_a_rule_for_it_or_against_a_foe_that_is_not_a_mob()
   test_a_reload_keeps_the_glow_and_hides_it_when_its_time_is_up()
   test_a_reload_leaves_dark_a_glow_whose_aura_did_not_come_back()
+  test_a_reload_leaves_dark_a_glow_with_no_aura_whose_time_ran_out()
   test_a_reload_keeps_the_count_of_a_rule_that_fires_every_second_swing()
   test_a_reload_keeps_the_swing_count_that_picks_the_dodge()
   test_a_world_reset_hides_the_glow_and_forgets_the_counts()
