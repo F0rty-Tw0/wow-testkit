@@ -33,11 +33,48 @@ local function atlasInfo(extract, name)
   }
 end
 
+-- Fills root (the Enum or Constants table the world installed) from the extract's tables: a missing table is copied,
+-- an existing one gets only its missing fields, so the kit's values win. Non-table entries are skipped.
+local function fillMissing(w, root, tables)
+  for name, fields in pairs(tables) do
+    if type(fields) == "table" then
+      local target = rawget(root, name)
+      if target == nil then
+        target = {}
+        w:rawWrite(root, name, target)
+      end
+      if type(target) == "table" then
+        for key, value in pairs(fields) do
+          if rawget(target, key) == nil then
+            target[key] = value
+          end
+        end
+      end
+    end
+  end
+end
+
+-- source: the client build's own API docs (Blizzard_APIDocumentationGenerated in the extract) list the enums and
+-- constants its UI code reads; the kit's pinned api/<flavor> data can be older than the extract.
+local function installApi(w)
+  local api = Client.api(w.client)
+  if not api then
+    return
+  end
+  for root, tables in pairs({ Enum = api.enums, Constants = api.constants }) do
+    local installed = rawget(_G, root) -- world.lua installBase sets both
+    if type(installed) == "table" then
+      fillMissing(w, installed, tables)
+    end
+  end
+end
+
 function M.install(w)
   if not w.client then
     return
   end
   installStrings(w)
+  installApi(w)
   Measure.useGlyphs(w, Client.glyphs(w.client))
   w:install("C_Texture.GetAtlasInfo", function(name)
     return atlasInfo(w.client, name)

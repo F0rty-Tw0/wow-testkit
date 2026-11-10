@@ -80,7 +80,56 @@ local function test_glyph_tables_measure_text_through_the_world()
   end)
 end
 
+-- api.lua as tools/client_api.lua writes it: enums and constants from the extract's own API docs.
+local API = "return { enums = { ApiOnlyEnum = { A = 1 }, ItemQuality = { Poor = 99, ApiOnlyField = 42 }, Bad = 5 },"
+  .. " constants = { ApiOnlyConsts = { X = 7 } } }"
+
+local function test_api_overlay_adds_a_missing_enum_table()
+  withClient({ ["api.lua"] = API }, function()
+    A.eq(_G.Enum.ApiOnlyEnum.A, 1)
+  end)
+end
+
+local function test_api_overlay_adds_missing_fields_and_keeps_kit_values()
+  withClient({ ["api.lua"] = API }, function(w)
+    A.eq(w.manifest.enums.ItemQuality.ApiOnlyField, nil) -- the manifest stays the kit's
+    A.eq(_G.Enum.ItemQuality.Poor, 0) -- the kit value wins
+    A.eq(_G.Enum.ItemQuality.ApiOnlyField, 42)
+  end)
+end
+
+local function test_api_overlay_fills_constants_too()
+  withClient({ ["api.lua"] = API }, function()
+    A.eq(_G.Constants.ApiOnlyConsts.X, 7)
+  end)
+end
+
+local function test_api_overlay_skips_a_non_table_entry()
+  withClient({ ["api.lua"] = API }, function()
+    A.eq(_G.Enum.Bad, nil)
+  end)
+end
+
+local function test_extract_without_api_file_changes_no_enum()
+  withClient({}, function()
+    A.eq(_G.Enum.ApiOnlyEnum, nil)
+  end)
+end
+
+local function test_broken_api_file_changes_no_enum()
+  withClient({ ["api.lua"] = "return 1" }, function()
+    A.eq(_G.Enum.ApiOnlyEnum, nil)
+    A.eq(_G.Enum.ItemQuality.Poor, 0)
+  end)
+end
+
 return function()
+  test_api_overlay_adds_a_missing_enum_table()
+  test_api_overlay_adds_missing_fields_and_keeps_kit_values()
+  test_api_overlay_fills_constants_too()
+  test_api_overlay_skips_a_non_table_entry()
+  test_extract_without_api_file_changes_no_enum()
+  test_broken_api_file_changes_no_enum()
   test_world_keeps_the_client_it_was_given()
   test_real_strings_replace_the_kit_values()
   test_extract_without_strings_or_atlas_leaves_the_kit_values()

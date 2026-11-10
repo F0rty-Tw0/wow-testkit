@@ -205,6 +205,22 @@ function M.atlas(extract, name)
   return cache.atlas and cache.atlas[lowerSlashed(name)] or nil
 end
 
+-- { enums, constants } from api.lua (the extract's own API docs, tools/client_api.lua), each a table of tables; nil when
+-- the file is missing, broken or not a table. A missing or non-table key reads as {}.
+function M.api(extract)
+  local cache = cacheOf(extract)
+  if cache.api == nil then
+    local value = readTable(extract.dir .. "/api.lua")
+    cache.api = value
+        and {
+          enums = type(value.enums) == "table" and value.enums or {},
+          constants = type(value.constants) == "table" and value.constants or {},
+        }
+      or false
+  end
+  return cache.api or nil
+end
+
 -- A glyph table that measures: { upm, notdef, advance, kern } with the fields client_glyphs reads present.
 local function usableGlyphs(glyphs)
   local usable = glyphs and type(glyphs.upm) == "number" and glyphs.upm > 0 and type(glyphs.advance) == "table"
