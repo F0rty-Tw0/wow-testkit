@@ -25,12 +25,11 @@
   });
 
   TK_TESTS.push({
-    name: 'scene3d.toScene, yawOf and sync are the actors module, which depends on nothing of scene3d',
+    name: 'scene3d.toScene and yawOf are the actors module, which depends on nothing of scene3d',
     fn() {
       const actors = TK.scene3dActors;
       A.eq(TK.scene3d.toScene, actors.toScene, 'toScene');
       A.eq(TK.scene3d.yawOf, actors.yawOf, 'yawOf');
-      A.eq(TK.scene3d.sync, actors.sync, 'sync');
       const scene3d = TK.scene3d;
       TK.scene3d = undefined;
       try {
@@ -40,6 +39,38 @@
         A.eq(handle.groups.actors.children[0].position.z, -2, 'placed with no TK.scene3d present');
       } finally {
         TK.scene3d = scene3d;
+      }
+    },
+  });
+
+  TK_TESTS.push({
+    name: 'scene3d.sync syncs the actors, then the spell effects; draw draws them; a page without the effects module still syncs actors',
+    fn() {
+      const note = document.createElement('div');
+      const fake = {
+        domElement: document.createElement('canvas'),
+        setSize() {},
+        setPixelRatio() {},
+        shadowMap: {},
+        render() {},
+      };
+      const view = TK.scene3d.create(note, { THREE, makeRenderer: () => fake, loadModel: () => new Promise(() => {}) });
+      const raw = { guid: 'g', hostile: true, health: 1 };
+      const effects = [{ kind: 'ground', at: { x: 0, y: 5 }, radius: 4, spellID: 1 }];
+      const frame = { items: [{ raw, prevRaw: null, pos: { x: 1, y: 2 }, facing: 0 }], dt: 0, effects, now: 3 };
+      TK.scene3d.sync(view, frame);
+      view.draw({ eye: { x: 0, y: -25, z: 8 }, target: { x: 0, y: 0, z: 1.5 } });
+      const fx = view.scene.children.find((node) => node.name === 'fx');
+      A.eq(view.groups.actors.children.length, 1, 'the actor');
+      A.eq(fx.children.filter((node) => node.visible).length, 1, 'the ground ring, drawn by view.draw');
+      const fxModule = TK.scene3dFx;
+      TK.scene3dFx = undefined;
+      try {
+        TK.scene3d.sync(view, { ...frame, items: [] });
+        view.draw({ eye: { x: 0, y: -25, z: 8 }, target: { x: 0, y: 0, z: 1.5 } });
+        A.eq(view.groups.actors.children.length, 0, 'the actor left');
+      } finally {
+        TK.scene3dFx = fxModule;
       }
     },
   });
