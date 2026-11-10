@@ -84,6 +84,11 @@ local function test_tbc_knows_the_event_its_money_frame_registers()
   A.eq(Manifest.load("mists").events.TRIAL_STATUS_UPDATE, nil)
 end
 
+-- source: row G31, the forever extract's Blizzard_MoneyFrame registers TRIAL_STATUS_UPDATE on load (mainline/moneyframe.lua:36).
+local function test_forever_knows_the_event_its_money_frame_registers()
+  A.same(Manifest.load("forever").events.TRIAL_STATUS_UPDATE, {})
+end
+
 return function()
   test_load_merges_functions_from_every_file()
   test_load_merges_other_sections()
@@ -94,4 +99,5 @@ return function()
   test_loading_the_kit_applies_api_versions_to_every_flavor()
   test_retail_knows_events_blizzard_code_registers()
   test_tbc_knows_the_event_its_money_frame_registers()
+  test_forever_knows_the_event_its_money_frame_registers()
 end
