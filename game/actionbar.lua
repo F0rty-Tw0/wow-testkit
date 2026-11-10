@@ -68,6 +68,10 @@ local function installState(w)
       return false
     end)
   end
+  -- source: assumed (row G32) the main bar is on page 1 at login and nothing pages it.
+  define(w, "C_ActionBar.GetActionBarPage", function()
+    return 1
+  end)
 end
 
 function M.install(w)
