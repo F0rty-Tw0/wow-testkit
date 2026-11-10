@@ -10,8 +10,9 @@ local World = require("world")
 
 local print = print
 
--- Charge, Thunder Clap, Fireball, Frost Nova, Slam, Revenge (retail); Heroic Strike, Overpower (tbc).
-local SPELLS = { retail = { 100, 6343, 133, 122, 1464, 6572 }, tbc = { 78, 7384 } }
+-- The kit of each flavor group (sim_classes_data.lua): Charge, Thunder Clap, Fireball, Frost Nova, then retail Slam,
+-- Revenge, Blizzard 190356; tbc Heroic Strike, Overpower, Blizzard 10.
+local SPELLS = { retail = { 100, 6343, 133, 122, 1464, 6572, 190356 }, tbc = { 100, 6343, 133, 122, 78, 7384, 10 } }
 local FIELDS = { "school", "castTime", "cooldown", "gcd", "duration", "minRange", "maxRange" }
 
 local function effectText(effect)
