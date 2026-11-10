@@ -1,5 +1,6 @@
 -- SimWorld: the sim world as a viewer or a script reads it, one plain table per call: the player, every other combat actor
--- in spawn order, the effects list (SimEffects.snapshot) and the ground targeting mode. Pure reads; positions and lists are copies.
+-- in spawn order, the effects list (SimEffects.snapshot), the ground targeting mode and the sim clock `now` in seconds (the
+-- clock the effects' `t` is read in). Pure reads; positions and lists are copies.
 local M = {}
 
 local SimEffects = require("sim_effects")
@@ -69,7 +70,7 @@ local function targetingOf(w)
   return mode and { spellID = mode.spellID, radius = mode.radius } or nil
 end
 
--- { player, actors, effects, targeting } of w, which must hold a sim.
+-- { now, player, actors, effects, targeting } of w, which must hold a sim.
 function M.build(w)
   local c = w.combat
   local actors = {}
@@ -80,7 +81,7 @@ function M.build(w)
     end
   end
 
-  return { player = playerEntry(w), actors = actors, effects = SimEffects.snapshot(w), targeting = targetingOf(w) }
+  return { now = w.now, player = playerEntry(w), actors = actors, effects = SimEffects.snapshot(w), targeting = targetingOf(w) }
 end
 
 return M

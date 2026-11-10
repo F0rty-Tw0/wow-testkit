@@ -34,6 +34,17 @@
   });
 
   TK_TESTS.push({
+    name: 'simMath.blend carries the newest reply effects and sim clock, and an empty list when the reply has none',
+    fn() {
+      const effects = [{ kind: 'hit', at: { x: 0, y: 0 }, spellID: 1, t: 4 }];
+      const prev = { player: pl('p', 0), actors: [], now: 4 };
+      const out = TK.simMath.blend(prev, { player: pl('p', 1), actors: [], effects, now: 5 }, 0.5);
+      A.same([out.effects, out.now], [effects, 5]);
+      A.same(TK.simMath.blend(prev, { player: pl('p', 1), actors: [] }, 0.5).effects, []);
+    },
+  });
+
+  TK_TESTS.push({
     name: 'simMath.packPositions: 3 mobs 3 yd apart, 20 yd ahead, centred on the facing',
     fn() {
       const P = TK.simMath.packPositions;

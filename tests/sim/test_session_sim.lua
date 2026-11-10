@@ -41,6 +41,18 @@ local function test_world_reads_the_fresh_player()
   end)
 end
 
+-- source: assumed (spec 7.3) the world carries the sim clock in seconds, the clock the effects' `t` is read in, so the viewer
+-- fades an effect by `now - t`.
+local function test_world_carries_the_sim_clock_the_effects_are_stamped_in()
+  withSim(function(sess)
+    local before = sim(sess, { action = "world" }).world.now
+    sim(sess, { action = "step", seconds = 0.25 })
+    local after = sim(sess, { action = "world" }).world
+    Near.near(after.now - before, 0.25)
+    Near.near(after.now, _G.GetTime())
+  end)
+end
+
 local function test_world_player_reports_the_cast_in_flight()
   withSim(function(sess)
     A.eq(sim(sess, { action = "world" }).world.player.casting, nil)
@@ -253,6 +265,7 @@ end
 
 return function()
   test_world_reads_the_fresh_player()
+  test_world_carries_the_sim_clock_the_effects_are_stamped_in()
   test_world_player_reports_the_cast_in_flight()
   test_world_player_reports_health_and_power()
   test_keydown_walks_and_keyup_stops()
