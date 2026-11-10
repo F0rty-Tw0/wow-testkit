@@ -274,12 +274,16 @@ local function test_charge_lands_in_melee_stuns_and_starts_the_fight()
     s:simStep(5.5)
     -- source: assumed (Task 5.7 finding) the landing plays the stun and the energize in the run's last frame, which starts
     -- the combat, and the walk stops with the next frame hook: REGEN_DISABLED comes before STOPPED_MOVING.
-    A.eq(inOrder(eventNames(seen), {
-      "UNIT_SPELLCAST_SUCCEEDED",
-      "PLAYER_STARTED_MOVING",
-      "PLAYER_REGEN_DISABLED",
-      "PLAYER_STOPPED_MOVING",
-    }), true, table.concat(eventNames(seen), ","))
+    A.eq(
+      inOrder(eventNames(seen), {
+        "UNIT_SPELLCAST_SUCCEEDED",
+        "PLAYER_STARTED_MOVING",
+        "PLAYER_REGEN_DISABLED",
+        "PLAYER_STOPPED_MOVING",
+      }),
+      true,
+      table.concat(eventNames(seen), ",")
+    )
     A.eq(mob.health < mob.healthMax, true)
     A.eq(#w.warnings, 0)
   end)
