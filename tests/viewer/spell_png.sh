@@ -28,7 +28,8 @@ for _ in $(seq 600); do
   sleep 0.2
 done
 curl -sf -H "X-Session-Token: $TOKEN" "http://127.0.0.1:$PORT/snapshot" > /dev/null || { echo "FAIL server: no session on port $PORT"; cat "$LOG"; exit 1; }
-URL="http://127.0.0.1:$PORT/viewer/index.html?live=1&stream=0&token=$TOKEN"
+# zoom=fit: at 100% the 1080p stage sits below the toolbar and the window crops its bottom rows (the action bar).
+URL="http://127.0.0.1:$PORT/viewer/index.html?live=1&stream=0&zoom=fit&token=$TOKEN"
 
 call() {
   curl -sf -H "X-Session-Token: $TOKEN" -H "Content-Type: application/json" -d "$2" "http://127.0.0.1:$PORT/call/$1"
