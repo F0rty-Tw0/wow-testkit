@@ -68,6 +68,22 @@ local function test_world_player_reports_the_cast_in_flight()
   end)
 end
 
+-- Slice 5: a Mage in ground targeting reports `targeting`, and the dropped Blizzard shows in `effects`, over the wire too.
+local function test_world_reports_the_targeting_mode_and_the_ground_effect()
+  H.withSession({ sim = { class = "MAGE" } }, function(sess)
+    A.eq(sim(sess, { action = "world" }).world.targeting, nil)
+    _G.UseAction(3)
+    A.same(sim(sess, { action = "world" }).world.targeting, { spellID = 190356, radius = 8 })
+    A.contains(sess:handle("sim", { action = "world" }), '"targeting":{')
+    sess.s:clickGround(0, 10)
+    for _ = 1, 9 do
+      sim(sess, { action = "step", seconds = 0.25 })
+    end
+    local world = sim(sess, { action = "world" }).world
+    A.same({ world.targeting, world.effects[1].kind, world.effects[1].radius }, { nil, "ground", 8 })
+  end)
+end
+
 local function test_world_player_reports_health_and_power()
   withSim(function(sess)
     local player = sim(sess, { action = "world" }).world.player
@@ -267,6 +283,7 @@ return function()
   test_world_reads_the_fresh_player()
   test_world_carries_the_sim_clock_the_effects_are_stamped_in()
   test_world_player_reports_the_cast_in_flight()
+  test_world_reports_the_targeting_mode_and_the_ground_effect()
   test_world_player_reports_health_and_power()
   test_keydown_walks_and_keyup_stops()
   test_keyup_of_a_key_never_held_changes_nothing()
