@@ -5,14 +5,15 @@
 -- SimSpellData.EFFECT (counted in w.unscripted["sim:effect:<n>"]) or no record at all.
 local flavor, dir = ...
 local Client = require("client")
+local SimClasses = require("sim_classes")
 local SimSpellData = require("sim_spell_data")
 local World = require("world")
 
 local print = print
 
--- The kit of each flavor group (sim_classes_data.lua): Charge, Thunder Clap, Fireball, Frost Nova, then retail Slam,
--- Revenge, Blizzard 190356; tbc Heroic Strike, Overpower, Blizzard 10.
-local SPELLS = { retail = { 100, 6343, 133, 122, 1464, 6572, 190356 }, tbc = { 100, 6343, 133, 122, 78, 7384, 10 } }
+-- The kit of each flavor group (sim_classes_data.lua): Charge, Thunder Clap, Fireball, Frost Nova, then modern Slam,
+-- Revenge, Blizzard 190356; classic Heroic Strike, Overpower, Blizzard 10.
+local SPELLS = { modern = { 100, 6343, 133, 122, 1464, 6572, 190356 }, classic = { 100, 6343, 133, 122, 78, 7384, 10 } }
 local FIELDS = { "school", "castTime", "cooldown", "gcd", "duration", "minRange", "maxRange" }
 
 local function effectText(effect)
@@ -59,7 +60,7 @@ end
 
 local extract = assert(Client.load(dir, flavor), "no extract manifest in " .. tostring(dir))
 local w = World.new({ flavor = flavor, client = extract })
-local ok, failures = pcall(prove, w, SPELLS[flavor] or SPELLS.tbc)
+local ok, failures = pcall(prove, w, SPELLS[assert(SimClasses.FLAVOR_GROUP[flavor], "unknown flavor " .. tostring(flavor))])
 local unknown = {}
 for name, count in pairs(w.unscripted) do
   if name:find("^sim:effect:") then
