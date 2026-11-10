@@ -50,6 +50,23 @@ local function test_button_text_is_the_buttons_font_string_with_height_and_shado
   end)
 end
 
+-- source: tbc 70577 blizzard_uipanels_game/classic/friendsframe.xml:183 declares a <Button> that inherits the
+-- <CheckButton> ActionButtonTemplate (actionbuttontemplate.xml:149 has a <CheckedTexture>), and the live client loads
+-- the friends frame. assumed: the part a Button has no setter for is skipped and the rest of the template still applies.
+local MIXED = [[
+<Ui><CheckButton name="CbTemplate" virtual="true"><NormalTexture file="Interface\N"/>
+  <CheckedTexture file="Interface\C"/></CheckButton>
+<Button name="Mixed" inherits="CbTemplate"/></Ui>]]
+
+local function test_a_part_texture_the_widget_has_no_setter_for_is_skipped_assumed()
+  H.withXml({ ["Ui.xml"] = MIXED }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local btn = _G.Mixed
+    A.same({ btn:GetObjectType(), btn:GetNormalTexture():GetTexture() }, { "Button", "Interface\\N" })
+    A.contains(reportText(ctx), "Ui.xml:2: Button has no SetCheckedTexture; <CheckedTexture> ignored")
+  end)
+end
+
 local BACKDROP = [[
 <Ui><Frame name="Bd" inherits="BackdropTemplate"><Backdrop bgFile="Interface\Bg" edgeFile="Interface\Edge" tile="true">
   <BackgroundInsets><AbsInset left="4" right="3" top="2" bottom="1"/></BackgroundInsets><TileSize><AbsValue val="16"/></TileSize>
@@ -139,6 +156,7 @@ return function()
   test_button_state_textures_belong_to_the_button()
   test_state_texture_alpha_mode_sets_the_blend_mode_assumed()
   test_state_texture_runs_its_own_children()
+  test_a_part_texture_the_widget_has_no_setter_for_is_skipped_assumed()
   test_button_text_is_the_buttons_font_string_with_height_and_shadow()
   test_legacy_backdrop_fills_the_backdrop_info()
   test_legacy_backdrop_needs_the_backdrop_template()

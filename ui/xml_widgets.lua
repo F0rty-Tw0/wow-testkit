@@ -27,9 +27,14 @@ local function asTag(node, tag, rawTag)
 end
 
 -- The texture runs its own Size, Anchors, TexCoords and Color children; the button then stores it (row X17 for
--- `alphaMode`, assumed).
+-- `alphaMode`, assumed). source: assumed (tbc 70577 friendsframe.xml:183, a <Button> inheriting the <CheckButton>
+-- ActionButtonTemplate, loads in the live client) a part the widget has no setter for is skipped and reported.
 local function stateTexture(setter)
   return function(w, button, _, node, session)
+    if not button[setter] then
+      session.reportAt(node.line, button:GetObjectType() .. " has no " .. setter .. "; <" .. node.rawTag .. "> ignored")
+      return
+    end
     local texture = XmlBuild.region(w, asTag(node, "texture", "Texture"), button, session)
     if texture then
       button[setter](button, texture)
