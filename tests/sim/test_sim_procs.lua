@@ -317,6 +317,8 @@ end
 
 local function test_rules_read_the_worlds_list_and_an_unset_list_is_empty()
   SP.withSpells("retail", RECS, function(w)
+    A.same(SimProcs.rules(w), w.sim.procRules) -- the class kit's rule
+    w.sim.procRules = nil
     A.same(SimProcs.rules(w), {})
     local list = { swingRule() }
     w.sim.procRules = list

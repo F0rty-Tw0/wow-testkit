@@ -5,6 +5,7 @@ local H = require("tests.helpers.sim")
 local Scenario = require("scenario")
 local Sim = require("sim")
 local SimBags = require("sim_bags")
+local SimClasses = require("sim_classes")
 local SimLoot = require("sim_loot")
 local SimLootWindow = require("sim_loot_window")
 local SimEffects = require("sim_effects")
@@ -53,6 +54,7 @@ local function test_world_state_fields_assumed()
       SimGround.stop,
       SimPower.reset,
       SimProcs.reset,
+      SimClasses.reset,
     })
     A.truthy(w.sim.hooks.persist.melee) -- the units' own reload state; their tests cover it
     A.truthy(w.sim.hooks.persist.mobs)
@@ -61,6 +63,7 @@ local function test_world_state_fields_assumed()
     A.truthy(w.sim.hooks.persist.spells)
     A.truthy(w.sim.hooks.persist.effects)
     A.truthy(w.sim.hooks.persist.ground)
+    A.truthy(w.sim.hooks.persist.classes)
     A.eq(w.mock.zone.mapID, Sim.MAP_ID)
     A.same(w.mock.zone.position, { x = 0.5, y = 0.6 })
   end)

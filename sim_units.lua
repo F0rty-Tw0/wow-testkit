@@ -12,4 +12,5 @@ return {
   "sim_ground",
   "sim_power",
   "sim_procs",
+  "sim_classes",
 }
