@@ -1,13 +1,15 @@
 -- The kit literals (spec 7.4): the Warrior and Mage spell records per flavor group, in action-bar order, and the Warrior's
 -- proc rule. Each record is the normalized record of spec 7.1; a client extract's numbers replace the literal's, the effects
 -- stay the literal's (retail damage reads base 0, Charge has no motion effect, mana costs are percentages). Every number
--- is `source: assumed` unless a line says retail 70688 (tools/run51.py --script tests/sim/proof_spells.lua) confirms it;
--- tbc 70577 has no spell tables, so every classic number is assumed. Icons are retail 70688 SpellMisc file ids (confirmed
--- for every id the retail extract holds); Heroic Strike (78) and Blizzard (10) have no retail row, so theirs are assumed.
+-- is `source: assumed` unless a line says retail 70688 or tbc 70577 (tools/run51.py --script tests/sim/proof_spells.lua)
+-- confirms it; a record shared by both groups states the tbc numbers that differ. Icons are retail 70688 SpellMisc file ids
+-- (confirmed for every id the retail extract holds); Heroic Strike (78) and Blizzard (10) have no retail row, so theirs are
+-- assumed.
 local M = {}
 
 -- source: confirmed (retail 70688 Charge: minRange 8, maxRange 25, no GCD, energize 200 tenths = 20 rage, 8-25 yd); assumed
--- (the stun, its 1 s, the 20 s cooldown: Charge's retail cooldown row reads 1500).
+-- (the stun, its 1 s, the 20 s cooldown: Charge's retail cooldown row reads 1500). tbc 70577 confirms 8-25 yd and no GCD;
+-- there the cooldown is 15000, the rage comes from a dummy effect and the stun from trigger 7922.
 local CHARGE = {
   id = 100,
   name = "Charge",
@@ -27,7 +29,7 @@ local CHARGE = {
 }
 
 -- source: confirmed (retail 70688 Thunder Clap: physical, instant, cooldown 6000, GCD 1500, RAGE 20, around the caster);
--- assumed (damage 10 and radius 8).
+-- assumed (damage 10). tbc 70577 confirms radius 8, GCD 1500 and RAGE 20; there the cooldown is 4000 and the damage 9.
 local THUNDER_CLAP = {
   id = 6343,
   name = "Thunder Clap",
@@ -73,7 +75,8 @@ local REVENGE = {
   effects = { { type = "damage", base = 15, target = "areaSource", radius = 8 } },
 }
 
--- source: assumed (classic numbers: no tbc spell table) the next-swing strike is an instant melee strike for 15 rage.
+-- source: confirmed (tbc 70577 Heroic Strike: physical, instant, no GCD, range 5, RAGE 15); assumed (the next-swing strike
+-- is an instant melee strike, damage 11: tbc base 10).
 local HEROIC_STRIKE = {
   id = 78,
   name = "Heroic Strike",
@@ -88,8 +91,8 @@ local HEROIC_STRIKE = {
   effects = { { type = "damage", base = 11, target = "enemy" } },
 }
 
--- source: assumed (classic numbers) a 5 rage melee strike on a 5 s cooldown; retail 70688 confirms the id, the physical
--- school, the GCD 1500 and the range 5.
+-- source: confirmed (tbc 70577 Overpower: physical, instant, cooldown 5000, GCD 1500, range 5, RAGE 5); assumed (damage
+-- 5: its tbc effect is weapon damage, Effect 121, which the sim does not script).
 local OVERPOWER = {
   id = 7384,
   name = "Overpower",
@@ -104,8 +107,8 @@ local OVERPOWER = {
   effects = { { type = "damage", base = 5, target = "enemy" } },
 }
 
--- source: confirmed (retail 70688 Fireball: fire, GCD 1500, castTime 1750, range 40); assumed (mana 30, damage 20, and the
--- classic cast time 2500).
+-- source: confirmed (retail 70688 Fireball: fire, GCD 1500, castTime 1750, range 40; tbc 70577: fire, GCD 1500, MANA 30);
+-- assumed (damage 20, and the classic cast time 2500: tbc reads castTime 1500, range 35, damage 13).
 local function fireball(castTime)
   return {
     id = 133,
@@ -122,8 +125,9 @@ local function fireball(castTime)
   }
 end
 
--- source: confirmed (retail 70688 Frost Nova: frost, instant, GCD 1500, 6 s); assumed (mana 25, 25 s cooldown, damage 5,
--- radius 8, and the root aura: retail's aura 455 root is mapped in sim_spell_data).
+-- source: confirmed (retail 70688 Frost Nova: frost, instant, GCD 1500, 6 s; tbc 70577: cooldown 25000, root aura);
+-- assumed (mana 25, damage 5, radius 8: tbc reads MANA 55, 8 s, damage 18, radius 10; retail's aura 455 root is mapped in
+-- sim_spell_data).
 local FROST_NOVA = {
   id = 122,
   name = "Frost Nova",
@@ -159,7 +163,8 @@ local BLIZZARD_MODERN = {
   effects = { { type = "persistent", aura = "periodic", base = 8, target = "areaDest", radius = 8, period = 1000 } },
 }
 
--- source: assumed (classic numbers: no tbc spell table) the channel is an instant ground cast of 8 s, range 30.
+-- source: confirmed (tbc 70577 Blizzard 10: frost, instant, no cooldown, GCD 1500, 8 s, range 30, radius 8); assumed (the
+-- channel is an instant ground cast, mana 50, 8 damage a second: tbc reads MANA 320 and ticks through trigger 42208).
 local BLIZZARD_CLASSIC = {
   id = 10,
   name = "Blizzard",
