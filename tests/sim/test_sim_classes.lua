@@ -15,7 +15,8 @@ local SP = require("tests.helpers.sim_spells")
 local H = require("tests.helpers.session")
 local Tmp = require("tests.helpers.tmp")
 
-local GROUP_OF = { retail = "modern", forever = "modern", mists = "classic", tbc = "classic", vanilla = "classic" }
+-- source: confirmed (forever 70862, a 1.60 client: no Blizzard 190356, 5302 is Defensive State, 78/7384/10 present)
+local GROUP_OF = { retail = "modern", forever = "classic", mists = "classic", tbc = "classic", vanilla = "classic" }
 local BARS = {
   WARRIOR = { modern = { 100, 6343, 1464, 6572 }, classic = { 100, 6343, 78, 7384 } },
   MAGE = { modern = { 133, 122, 190356 }, classic = { 133, 122, 10 } },

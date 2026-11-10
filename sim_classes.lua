@@ -9,9 +9,10 @@ local SimSpellData = require("sim_spell_data")
 local SimState = require("sim_state")
 local State = require("game.state")
 
--- source: assumed (spec 7.4 groups; mists inferred) the flavor -> the kit group: retail and forever play the modern kit,
--- the rest the classic one.
-M.FLAVOR_GROUP = { retail = "modern", forever = "modern", mists = "classic", tbc = "classic", vanilla = "classic" }
+-- source: assumed (spec 7.4 groups; mists inferred) the flavor -> the kit group: retail plays the modern kit, the rest the
+-- classic one. source: confirmed (forever 70862 is a 1.60 client: no Blizzard 190356, 5302 is Defensive State, Heroic
+-- Strike 78, Overpower 7384 and Blizzard 10 present) forever is classic.
+M.FLAVOR_GROUP = { retail = "modern", forever = "classic", mists = "classic", tbc = "classic", vanilla = "classic" }
 
 M.KITS = Data.KITS
 
