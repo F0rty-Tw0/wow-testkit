@@ -81,6 +81,18 @@ local function test_a_kit_literal_wins_for_effects_and_db2_for_numbers_assumed()
   end)
 end
 
+-- source: assumed (user ruling 2026-11-10: tbc 70577 Blizzard costs 320 mana, past the sim's 100-point bar) a literal's cost
+-- is on the sim's power scale and wins; a literal without one takes the extract's.
+local function test_a_kit_literals_cost_wins_over_the_extracts()
+  withKit("tbc", DB2, function(w)
+    w.sim = {}
+    SimSpellData.put(w, { id = KIT, cost = { type = "MANA", amount = 5 } })
+    A.same(SimSpellData.get(w, KIT).cost, { type = "MANA", amount = 5 })
+    SimSpellData.put(w, { id = KIT })
+    A.same(SimSpellData.get(w, KIT).cost, { type = "MANA", amount = 30 })
+  end)
+end
+
 local function test_get_caches_and_put_invalidates()
   withKit("retail", DB2, function(w)
     w.sim = {}
@@ -203,9 +215,30 @@ local function test_without_an_extract_get_returns_only_put_literals()
   end)
 end
 
+-- source: confirmed (retail 70688 SpellEffect rows) Frost Nova's root is aura 455; Charge and Thunder Clap carry Effect 3
+-- (DUMMY), which is a typed effect that plays nothing; an energize of misc value 1 (rage) is stored times ten like a rage cost.
+local function test_real_rows_root_aura_455_dummy_effect_3_and_energize_in_tenths_confirmed()
+  local db2 = db2With({
+    spelleffect = "return { [61] = { SpellID = 900001, EffectIndex = 0, Effect = 6, EffectAura = 455, ImplicitTarget = {22, 0} },"
+      .. " [62] = { SpellID = 900001, EffectIndex = 1, Effect = 3, ImplicitTarget = {1, 0} },"
+      .. " [63] = { SpellID = 900001, EffectIndex = 2, Effect = 30, EffectBasePointsF = 200, EffectMiscValue = 1, ImplicitTarget = {1, 0} },"
+      .. " [64] = { SpellID = 900001, EffectIndex = 3, Effect = 30, EffectBasePointsF = 200, EffectMiscValue = 0, ImplicitTarget = {1, 0} } }",
+  })
+  W.withWindows("retail", { db2 = db2, index = { ["spelleffect.spellid"] = "return { [900001] = { 61, 62, 63, 64 } }" } }, function(w)
+    A.same(SimSpellData.get(w, KIT).effects, {
+      { type = "aura", aura = "root", base = 0, target = "areaSource" },
+      { type = "dummy", base = 0, target = "caster" },
+      { type = "energize", base = 20, target = "caster" },
+      { type = "energize", base = 200, target = "caster" },
+    })
+    A.eq(w.unscripted["sim:effect:3"], nil)
+  end)
+end
+
 return function()
   test_a_db2_spell_normalizes_units_and_fields_assumed()
   test_a_kit_literal_wins_for_effects_and_db2_for_numbers_assumed()
+  test_a_kit_literals_cost_wins_over_the_extracts()
   test_get_caches_and_put_invalidates()
   test_ground_and_radius_come_from_the_effect_row_assumed()
   test_effect_and_aura_and_target_numbers_assumed()
@@ -215,5 +248,6 @@ return function()
   test_only_the_base_difficulty_rows_of_an_effect_play_assumed()
   test_a_zero_cost_row_is_no_cost_assumed()
   test_rage_cost_is_stored_times_ten_and_a_missing_cooldown_row_is_zero_assumed()
+  test_real_rows_root_aura_455_dummy_effect_3_and_energize_in_tenths_confirmed()
   test_without_an_extract_get_returns_only_put_literals()
 end

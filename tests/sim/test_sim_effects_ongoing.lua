@@ -1,7 +1,8 @@
--- SimEffects over time: persistent areas, Charge, a reload with areas, runs and auras, and a world reset. Every record is a
+-- SimEffects over time: persistent areas, Charge, a reload with areas and runs, and a world reset. Every record is a
 -- kit literal (tests/helpers/sim_spells.lua).
 local A = require("assert")
 local Actors = require("combat_actors")
+local Auras = require("combat_auras")
 local H = require("tests.helpers.session")
 local Resolve = require("combat_resolve")
 local SH = require("tests.helpers.sim_combat")
@@ -113,6 +114,41 @@ local function test_charge_turns_to_face_a_foe_that_is_off_to_the_side()
   end)
 end
 
+local function test_charge_cancelled_by_the_death_of_the_player_finishes_nothing()
+  SP.withSpells("retail", { chargeRecord() }, function(w, s, player)
+    local foe = SP.target(w, player)
+    SimSpells.cast(w, player, KIT)
+    s:simStep(0.2)
+    Resolve.kill(w, player)
+    s:simStep(0.5)
+    A.same({ w.sim.driven, w.sim.charge, _G.UnitPower("player", 1), #foe.auras }, { nil, nil, 0, 0 })
+  end)
+end
+
+local function test_charge_cancelled_by_a_stun_on_the_player_finishes_nothing_assumed()
+  SP.withSpells("retail", { chargeRecord() }, function(w, s, player)
+    local foe = SP.target(w, player)
+    SimSpells.cast(w, player, KIT)
+    s:simStep(0.2)
+    local stoppedAt = player.pos.y
+    Auras.apply(w, player, { spellID = 1, stun = true })
+    s:simStep(0.5)
+    A.same({ w.sim.driven, w.sim.charge, _G.UnitPower("player", 1), #foe.auras }, { nil, nil, 0, 0 })
+    SM.near(player.pos.y, stoppedAt)
+  end)
+end
+
+local function test_charge_faces_the_foe_again_every_frame()
+  SP.withSpells("retail", { chargeRecord() }, function(w, s, player)
+    local foe = SP.target(w, player, 0, 10)
+    SimSpells.cast(w, player, KIT)
+    A.eq(player.facing, 0, "the foe is dead ahead")
+    Actors.setPos(w, foe, 20, player.pos.y) -- due east of the player now
+    s:simStep(1 / 60)
+    SM.near(player.facing, 3 * math.pi / 2)
+  end)
+end
+
 -- Casts Charge at a foe 20 yd ahead, lets run(s) press keys 6 frames in, and steps to the frame of the arrival (the 29th).
 local function chargeAt(w, s, player, run)
   local foe = SP.target(w, player)
@@ -207,35 +243,19 @@ local function test_reset_clears_the_charge_the_areas_and_the_ring()
   end)
 end
 
-local function test_an_aura_survives_a_reload_and_is_logged_when_it_ends()
-  local rec = SP.record({ duration = 8000, effects = { { type = "aura", aura = "stun", target = "enemy" } } })
-  H.withSession({ sim = {} }, function(sess)
-    SP.install(sess.w, { rec })
-    local foe = SP.target(sess.w, sess.w.sim.player)
-    SimSpells.cast(sess.w, sess.w.sim.player, KIT)
-    sess.s:simStep(2)
-    SH.reloaded(sess, function(fresh)
-      local fw = fresh.w
-      A.same(SP.effectsOfKind(fw, "aura"), { { kind = "aura", guid = foe.guid, spellID = KIT, style = "stun" } })
-      fresh.s:simStep(6.2)
-      A.eq(#Actors.get(fw, foe.guid).auras, 0)
-      A.eq(SP.hitsOn(fw, "SPELL_AURA_REMOVED", foe.guid), 1)
-      A.same(fw.sim.spellAuras, {})
-    end)
-  end)
-end
-
 return function()
   test_persistent_area_ticks_each_second_on_the_hostiles_inside()
   test_persistent_area_survives_a_reload_and_ticks_on_schedule()
   test_charge_runs_to_melee_range_then_finishes_the_spell_assumed()
   test_charge_cancelled_by_the_death_of_its_target_finishes_nothing()
   test_charge_turns_to_face_a_foe_that_is_off_to_the_side()
+  test_charge_cancelled_by_the_death_of_the_player_finishes_nothing()
+  test_charge_cancelled_by_a_stun_on_the_player_finishes_nothing_assumed()
+  test_charge_faces_the_foe_again_every_frame()
   test_a_key_tap_mid_run_does_not_stall_the_charge()
   test_a_held_back_key_mid_run_does_not_stall_the_charge()
   test_a_held_forward_key_keeps_walking_after_the_arrival()
   test_a_foe_out_of_reach_ends_the_run_at_the_deadline_assumed()
   test_a_reload_drops_the_charge_and_stops_the_run()
   test_reset_clears_the_charge_the_areas_and_the_ring()
-  test_an_aura_survives_a_reload_and_is_logged_when_it_ends()
 end

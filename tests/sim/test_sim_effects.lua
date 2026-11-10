@@ -117,6 +117,22 @@ local function test_projectile_lands_after_its_travel_time_assumed()
   end)
 end
 
+local function test_the_ring_keeps_copies_of_the_places_it_saw()
+  local rec = SP.record({ castTime = 1000, maxRange = 40, effects = { { type = "damage", base = 10, target = "enemy" } } })
+  SP.withSpells("retail", { rec }, function(w, s, player)
+    local foe = SP.target(w, player, 0, 17)
+    SimSpells.cast(w, player, KIT)
+    s:simStep(1.1) -- the bar ends and the projectile flies
+    Actors.setPos(w, player, 5, -10)
+    Actors.setPos(w, foe, 0, 18)
+    local flying = SP.effectsOfKind(w, "projectile")[1]
+    A.same({ flying.from, flying.to }, { { x = 0, y = -10 }, { x = 0, y = 17 } })
+    s:simStep(1.2)
+    Actors.setPos(w, foe, 3, 18)
+    A.same(SP.effectsOfKind(w, "hit")[1].at, { x = 0, y = 18 })
+  end)
+end
+
 local function test_a_projectile_for_a_foe_that_is_gone_hits_nothing()
   local rec = SP.record({ castTime = 1000, maxRange = 40, effects = { { type = "damage", base = 10, target = "enemy" } } })
   SP.withSpells("retail", { rec }, function(w, s, player)
@@ -265,6 +281,7 @@ return function()
   test_energize_stops_at_the_maximum()
   test_energize_reports_the_part_past_the_maximum_from_the_current_power()
   test_projectile_lands_after_its_travel_time_assumed()
+  test_the_ring_keeps_copies_of_the_places_it_saw()
   test_a_projectile_for_a_foe_that_is_gone_hits_nothing()
   test_a_projectile_for_a_foe_killed_in_flight_hits_nothing()
   test_a_timed_spell_whose_foe_left_the_world_hits_nothing()

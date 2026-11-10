@@ -6,6 +6,7 @@ local H = require("tests.helpers.sim")
 local Keys = require("input_keys")
 local Scenario = require("scenario")
 local Sim = require("sim")
+local SP = require("tests.helpers.sim_spells")
 
 local DEFAULT_KEYS = {
   W = "MOVEFORWARD",
@@ -99,6 +100,20 @@ local function test_action_button_keys_call_down_then_up()
   end)
 end
 
+-- source: assumed (spec 7.6) a world without Blizzard's ActionButtonDown presses the bar's slot by UseAction on key down.
+local function test_an_action_key_uses_the_slot_when_blizzards_action_button_is_missing()
+  local strike = SP.record({ effects = { { type = "damage", base = 7, target = "enemy" } } })
+  SP.withSpells("retail", { strike }, function(w, s, player)
+    _G.ActionButtonDown, _G.ActionButtonUp = nil, nil
+    w.mock.actions[1] = { type = "spell", id = strike.id }
+    local foe = SP.target(w, player)
+    s:key("1", "down")
+    A.eq(SP.hitsOn(w, "SPELL_DAMAGE", foe.guid), 1)
+    s:key("1", "up")
+    A.same({ SP.hitsOn(w, "SPELL_DAMAGE", foe.guid), w.errors }, { 1, {} })
+  end)
+end
+
 local function test_target_nearest_enemy_runs_on_down_only()
   H.withSim("retail", {}, function(_, s)
     local calls = 0
@@ -145,6 +160,38 @@ local function test_autorun_key_toggles_once_per_press()
     s:key("NUMLOCK", "down")
     s:key("NUMLOCK", "up")
     A.eq(w.sim.intents.autorun, nil)
+  end)
+end
+
+-- source: assumed (spec 7.6) Esc cancels a cast or the targeting mode first and opens the menu only when neither was there,
+-- as Blizzard's own handler does (SpellStopCasting() or SpellStopTargeting()).
+local function test_escape_stops_a_cast_or_targeting_before_the_menu()
+  H.withSim("retail", {}, function(_, s)
+    local calls, answers = {}, { casting = false, targeting = false }
+    _G.SpellStopCasting = function()
+      calls[#calls + 1] = "casting"
+
+      return answers.casting
+    end
+    _G.SpellStopTargeting = function()
+      calls[#calls + 1] = "targeting"
+
+      return answers.targeting
+    end
+    _G.ToggleGameMenu = function()
+      calls[#calls + 1] = "menu"
+    end
+    s:key("ESCAPE", "down")
+    s:key("ESCAPE", "up")
+    A.same(calls, { "casting", "targeting", "menu" })
+    calls, answers.targeting = {}, true
+    s:key("ESCAPE", "down")
+    s:key("ESCAPE", "up")
+    A.same(calls, { "casting", "targeting" })
+    calls, answers.casting = {}, true
+    s:key("ESCAPE", "down")
+    s:key("ESCAPE", "up")
+    A.same(calls, { "casting" })
   end)
 end
 
@@ -281,10 +328,12 @@ return function()
   test_a_toggle_runs_once_per_press()
   test_a_missing_global_does_nothing()
   test_action_button_keys_call_down_then_up()
+  test_an_action_key_uses_the_slot_when_blizzards_action_button_is_missing()
   test_target_nearest_enemy_runs_on_down_only()
   test_walk_key_moves_until_released()
   test_every_move_key_sets_its_intent()
   test_autorun_key_toggles_once_per_press()
+  test_escape_stops_a_cast_or_targeting_before_the_menu()
   test_key_up_ignores_the_modifiers_it_is_given()
   test_modifiers_are_held_while_the_key_runs()
   test_a_held_key_ignores_a_second_down()

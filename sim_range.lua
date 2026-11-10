@@ -30,6 +30,11 @@ function M.distance(a, b)
   return math.max(0, gap)
 end
 
+-- A copy of a place, so that a record of it does not follow the actor on.
+function M.copy(pos)
+  return { x = pos.x, y = pos.y }
+end
+
 -- source: assumed (row SM6, from HereBeDragons' `local y, x = UnitPosition(unit)`) UnitPosition's first return is the
 -- north coordinate and its second is west of the map's east edge. Kit +x is east and +y north, so wowX = pos.y and wowY = -pos.x.
 function M.toWow(pos)

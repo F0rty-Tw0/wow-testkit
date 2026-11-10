@@ -50,7 +50,7 @@ window.TK = window.TK || {};
     const actors = next.actors.map((a) => item(a, before.get(a.guid) || null, f, false));
     const items = [item(next.player, prev.player, f, true), ...actors];
 
-    return { items, dt };
+    return { items, dt, effects: next.effects || [], now: next.now };
   }
 
   // n positions across the player's facing, PACK_AHEAD yards out and PACK_SPACING yards apart, centred.

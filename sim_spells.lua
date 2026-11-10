@@ -1,8 +1,10 @@
 -- SimSpells: the player's cast pipeline (spec 7.2). cast runs the checks in order (the first failure wins and shows as a
 -- UI error plus UNIT_SPELLCAST_FAILED), then plays the spell: an instant spell succeeds at once, a timed one fills the cast
 -- bar (combat_cast) and succeeds when it ends. Moving or a stun interrupts a timed cast. The GCD starts with the cast and
--- a spell's own cooldown on success; both live in w.sim as plain data and in w.mock.spells[id].cooldown for the readers.
--- Effects are not here: units that play them hang a function on w.sim.seams.cast.
+-- a spell's own cooldown on success (sim_spell_cooldowns.lua), and the cost is paid when the cast succeeds (SimPower.spend).
+-- Effects are not here: units that play them hang a function on w.sim.seams.cast, a cast request that passes its checks calls
+-- w.sim.seams.accept (SimGround ends its targeting mode), and a ground spell cast with no point calls w.sim.seams.ground
+-- (SimGround's targeting mode, which also defines SpellStopCasting on top of M.stop).
 local M = {}
 
 local Actors = require("combat_actors")
@@ -10,6 +12,8 @@ local Casts = require("combat_cast")
 local Combat = require("combat")
 local Log = require("combat_log")
 local Checks = require("sim_spell_checks")
+local Cooldowns = require("sim_spell_cooldowns")
+local SimPower = require("sim_power")
 local SimSpellData = require("sim_spell_data")
 local SimState = require("sim_state")
 local SimTarget = require("sim_target")
@@ -26,6 +30,7 @@ local SLACK = Checks.SLACK
 -- The rules a cast passes (sim_spell_checks.lua) and the walk test they use.
 M.check = Checks.check
 M.isMoving = Checks.isMoving
+M.cooldown = Cooldowns.get
 
 local function castInfo(w, spellID)
   return { castGUID = Actors.newCastGuid(w, spellID), spellID = spellID }
@@ -38,74 +43,15 @@ local function fail(w, caster, spellID, name)
   return false, name
 end
 
--- The world-clock second the spell's cooldown started and how many seconds it lasts; 0, 0 when it has none.
-function M.cooldown(w, spellID)
-  local cooldown = w.sim.cooldowns[spellID]
-  if not cooldown then
-    return 0, 0
+-- source: assumed (spec 7.2) the cost is taken when the cast succeeds: at once for an instant spell, when the bar ends for a
+-- timed one. Answers whether the caster could pay (the checks proved it at the request; a timed bar can lose it on the way).
+local function pay(w, caster, rec)
+  local cost = rec.cost
+  if not cost then
+    return true
   end
 
-  return cooldown.start, cooldown.duration
-end
-
-local function mirror(w, id, start, duration)
-  SimSpellData.publish(w, id)
-  local entry = w.mock.spells[id] or {}
-  w.mock.spells[id] = entry
-  entry.cooldown = { start = start, duration = duration, enabled = true }
-end
-
-local function startOwn(w, rec)
-  local seconds = (rec.cooldown or 0) / MS
-  if seconds <= 0 then
-    return false
-  end
-  w.sim.cooldowns[rec.id] = { start = w.now, duration = seconds }
-  mirror(w, rec.id, w.now, seconds)
-
-  return true
-end
-
-local function startGcd(w, rec)
-  local seconds = (rec.gcd or 0) / MS
-  if seconds <= 0 then
-    return false
-  end
-  w.sim.gcdEnd, w.sim.gcdSpell = w.now + seconds, rec.id
-  mirror(w, rec.id, w.now, seconds)
-
-  return true
-end
-
--- Takes the GCD off the spell that shows it: its mirror goes back to the spell's own cooldown, or to none.
-local function releaseGcd(w)
-  local id = w.sim.gcdSpell
-  local entry = id and w.mock.spells[id]
-  w.sim.gcdSpell = nil
-  if not entry then
-    return
-  end
-  local own = w.sim.cooldowns[id]
-  if own then
-    mirror(w, id, own.start, own.duration)
-  else
-    entry.cooldown = nil
-  end
-  Combat.fire(w, "ACTIONBAR_UPDATE_COOLDOWN")
-  Combat.fire(w, "SPELL_UPDATE_COOLDOWN")
-end
-
--- Starts the GCD and/or the spell's own cooldown (the own one wins the mirror) and announces them once. Answers whether
--- the GCD started.
-local function stamp(w, rec, withGcd, withOwn)
-  local gcd = withGcd and startGcd(w, rec)
-  local own = withOwn and startOwn(w, rec)
-  if gcd or own then
-    Combat.fire(w, "ACTIONBAR_UPDATE_COOLDOWN")
-    Combat.fire(w, "SPELL_UPDATE_COOLDOWN")
-  end
-
-  return gcd
+  return SimPower.spend(w, caster, cost.type, cost.amount)
 end
 
 local function land(w, caster, rec, target, point)
@@ -117,15 +63,17 @@ end
 -- source: assumed (spec 7.2; the client's event order for an instant spell is not traced) an instant cast sends
 -- UNIT_SPELLCAST_SUCCEEDED with no START and succeeds at once; the Casts module has no instant path, so this unit emits it.
 local function playInstant(w, caster, rec, target, point)
+  pay(w, caster, rec) -- the checks just proved the funds
   Log.emit(w, "SPELL_CAST_SUCCESS", caster, target, { spellID = rec.id })
   Combat.emit(w, "cast", caster, "SUCCEEDED", castInfo(w, rec.id))
-  stamp(w, rec, true, true)
+  Cooldowns.stamp(w, rec, true, true)
   land(w, caster, rec, target, point)
 end
 
--- The bar ends when the timer fires: SPELL_CAST_SUCCESS, SUCCEEDED, then the spell's own cooldown and the effects. The
--- timer runs SLACK early because the sim clock adds 1/60 s frames and 150 of them fall about 2e-12 short of 2.5 s, so
--- s:simStep(castTime) would miss the end; the bar itself keeps the exact castTime.
+-- The bar ends when the timer fires: the cost, SPELL_CAST_SUCCESS, SUCCEEDED, then the spell's own cooldown and the effects;
+-- a caster who can no longer pay gets the power error and an interrupted bar instead. The timer runs SLACK early because
+-- the sim clock adds 1/60 s frames and 150 of them fall about 2e-12 short of 2.5 s, so s:simStep(castTime) would miss the
+-- end; the bar itself keeps the exact castTime.
 -- source: assumed (spec 7.2) the GCD starts with the bar and the spell's own cooldown when the bar ends.
 local function playTimed(w, caster, rec, target, point)
   local seconds = rec.castTime / MS
@@ -135,14 +83,19 @@ local function playTimed(w, caster, rec, target, point)
   local bar = Casts.begin(w, caster, { spellID = rec.id, duration = seconds })
   local pending = { gcdBefore = gcdBefore }
   w.sim.pending = pending
-  pending.gcdStarted = stamp(w, rec, true, false)
+  pending.gcdStarted = Cooldowns.stamp(w, rec, true, false)
   Combat.later(w, seconds - SLACK, function()
     if caster.cast ~= bar then
       return
     end
+    if not pay(w, caster, rec) then
+      Casts.interrupt(w, caster)
+
+      return
+    end
     Log.emit(w, "SPELL_CAST_SUCCESS", caster, target, params)
     Casts.finish(w, caster)
-    stamp(w, rec, false, true)
+    Cooldowns.stamp(w, rec, false, true)
     land(w, caster, rec, target, point)
   end)
 end
@@ -160,8 +113,16 @@ function M.cast(w, caster, spellID, target, point)
   local rec = SimSpellData.get(w, spellID)
   local goal = target or w.combat.actors[caster.targetGuid]
   local name = Checks.check(w, caster, rec, goal, point)
+  if Checks.awaitsPoint(rec, name, point) and w.sim.seams.ground then
+    w.sim.seams.ground(w, rec)
+
+    return true
+  end
   if name then
     return fail(w, caster, spellID, name)
+  end
+  for _, fn in ipairs(w.sim.seams.accept) do
+    fn(w, rec)
   end
   play(w, caster, rec, goal, point)
 
@@ -194,7 +155,7 @@ local function onCast(w, actor, phase, cast)
     if pending and not pending.succeeded then
       w.sim.gcdEnd = pending.gcdBefore
       if pending.gcdStarted then
-        releaseGcd(w)
+        Cooldowns.release(w)
       end
     end
   end
@@ -212,40 +173,18 @@ end
 -- A world reset also ends the cast and clears every cooldown. source: assumed (a reset is a fresh login).
 function M.reset(w)
   M.stop(w, w.sim.player)
-  for id in pairs(w.sim.cooldowns) do
-    w.mock.spells[id].cooldown = nil
-  end
-  w.sim.cooldowns, w.sim.gcdEnd = {}, 0
-  releaseGcd(w)
+  Cooldowns.reset(w)
 end
 
-local function byId(a, b)
-  return a.id < b.id
-end
-
--- The running cooldowns as a list and the GCD end; a cast in flight is not kept, and neither is its GCD.
+-- The cooldowns and the GCD (sim_spell_cooldowns.lua); a cast in flight is not kept, and neither is its GCD.
 -- source: assumed (a reload drops it).
 local function export(w)
-  local running = {}
-  for id, cooldown in pairs(w.sim.cooldowns) do
-    if cooldown.start + cooldown.duration > w.now then
-      running[#running + 1] = { id = id, start = cooldown.start, duration = cooldown.duration }
-    end
-  end
-  table.sort(running, byId)
+  local data = Cooldowns.export(w)
   local pending = w.sim.pending
   local casting = pending and not pending.succeeded
-  local gcdEnd = casting and pending.gcdBefore or w.sim.gcdEnd
+  data.gcdEnd = casting and pending.gcdBefore or data.gcdEnd
 
-  return { cooldowns = running, gcdEnd = gcdEnd }
-end
-
-local function restore(w, data)
-  w.sim.gcdEnd = data.gcdEnd
-  for _, item in ipairs(data.cooldowns) do
-    w.sim.cooldowns[item.id] = { start = item.start, duration = item.duration }
-    mirror(w, item.id, item.start, item.duration)
-  end
+  return data
 end
 
 local function castWith(w, id, unit)
@@ -269,23 +208,20 @@ local function defineFakes(w)
       castWith(w, entry.id, unit)
     end
   end)
-  define(w, "SpellStopCasting", function()
-    return M.stop(w, w.sim.player)
-  end)
 end
 
 -- Adds the cooldown state and the seams, defines the cast fakes, and hooks the frame, the reset and the reload.
 function M.install(w)
   local sim = w.sim
-  sim.cooldowns, sim.gcdEnd = {}, 0
-  sim.seams = { swing = {}, pointer = {}, cast = {} }
+  Cooldowns.install(w)
+  sim.seams = { swing = {}, pointer = {}, cast = {}, accept = {} }
   defineFakes(w)
   table.insert(sim.hooks.frame, M.step)
   table.insert(sim.hooks.reset, M.reset)
   Combat.listen(w, "cast", function(actor, phase, cast)
     onCast(w, actor, phase, cast)
   end)
-  SimState.persist(w, "spells", { export = export, restore = restore })
+  SimState.persist(w, "spells", { export = export, restore = Cooldowns.restore })
 end
 
 return M

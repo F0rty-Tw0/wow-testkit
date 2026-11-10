@@ -134,6 +134,25 @@ local function test_pointer_click_on_ground_or_unknown_guid_clears_the_target()
   end)
 end
 
+-- The pointer seams (SimGround's is one) run first; a handler that answers handled ends the click with its changed.
+local function test_pointer_seams_run_first_and_a_world_without_seams_is_unchanged()
+  SH.withSim("retail", function(w)
+    local foe = SH.foe(w, 0, 10)
+    local seen = {}
+    table.insert(w.sim.seams.pointer, function(_, kind, world, button)
+      seen[#seen + 1] = { kind, world.guid, button }
+
+      return world.guid == foe.guid, "changed"
+    end)
+    A.eq(SimTarget.pointer(w, "click", { guid = foe.guid }, "LeftButton"), "changed")
+    A.same({ _G.UnitExists("target"), seen }, { false, { { "click", foe.guid, "LeftButton" } } })
+    A.eq(SimTarget.pointer(w, "click", { guid = "Creature-0-0-0-0-0-0" }, "LeftButton"), false)
+    w.sim.seams = nil
+    A.eq(SimTarget.pointer(w, "click", { guid = foe.guid }, "LeftButton"), true)
+    A.eq(_G.UnitGUID("target"), foe.guid)
+  end)
+end
+
 local function test_click_unit_needs_a_sim_world()
   local s = Scenario.new({ addon = "T", root = "T", flavor = "retail" })
   local ok, err = pcall(function()
@@ -170,6 +189,7 @@ return function()
   test_left_click_targets_without_acting()
   test_ui_error_carries_the_string_and_the_error_type()
   test_pointer_click_on_ground_or_unknown_guid_clears_the_target()
+  test_pointer_seams_run_first_and_a_world_without_seams_is_unchanged()
   test_click_unit_needs_a_sim_world()
   test_click_unit_and_ground_drive_the_pointer()
 end

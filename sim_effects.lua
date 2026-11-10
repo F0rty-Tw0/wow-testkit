@@ -13,6 +13,7 @@ local SimEffectState = require("sim_effect_state")
 local SimMelee = require("sim_melee")
 local SimMove = require("sim_move")
 local SimRange = require("sim_range")
+local SimSpellChecks = require("sim_spell_checks")
 local SimSpellData = require("sim_spell_data")
 local WorldApi = require("world_api")
 
@@ -63,7 +64,7 @@ local function amountOf(effect)
 end
 
 local function hit(w, caster, victim, rec, effect)
-  local at = SimEffectState.spot(victim.pos)
+  local at = SimRange.copy(victim.pos)
   SimEffectState.record(w, "hit", { at = at, spellID = rec.id })
   Resolve.damage(w, caster, victim, { amount = amountOf(effect), spellID = rec.id, school = rec.school })
 end
@@ -78,7 +79,7 @@ end
 -- source: assumed (a reload drops it) a projectile in flight is not kept; one whose foe died or left the world hits nothing.
 local function launch(w, ctx, victim, effect)
   local caster, rec = ctx.caster, ctx.rec
-  local from, to = SimEffectState.spot(caster.pos), SimEffectState.spot(victim.pos)
+  local from, to = SimRange.copy(caster.pos), SimRange.copy(victim.pos)
   SimEffectState.record(w, "projectile", { from = from, to = to, spellID = rec.id })
   local flight = SimRange.distance(caster, victim) / RULES.PROJECTILE_SPEED
   Combat.later(w, flight, function()
@@ -154,7 +155,7 @@ local function charge(w, ctx, _effect, index)
   if not victim then
     return false
   end
-  local from, to = SimEffectState.spot(ctx.caster.pos), SimEffectState.spot(victim.pos)
+  local from, to = SimRange.copy(ctx.caster.pos), SimRange.copy(victim.pos)
   SimEffectState.record(w, "charge", { from = from, to = to, spellID = ctx.rec.id })
   w.sim.charge = { guid = victim.guid, spellID = ctx.rec.id, next = index + 1, deadline = w.now + RULES.CHARGE_MAX }
   w.sim.driven = RULES.CHARGE_SPEED
@@ -219,15 +220,16 @@ local function approach(w, victim, dt)
   SimMove.place(w, from.x + dx / length * step, from.y + dy / length * step)
 end
 
--- source: assumed (spec 7.3) the run ends in melee range and then plays the rest of the spell; the death of the target
--- (or of the player) or the deadline ends it without the rest.
+-- source: assumed (spec 7.3) the run ends in melee range and then plays the rest of the spell; the death of the target,
+-- the death or a stun of the player, or the deadline ends it without the rest.
 local function stepCharge(w, dt)
   local held = w.sim.charge
   if not held then
     return
   end
   local player, victim = w.sim.player, w.combat.actors[held.guid]
-  local lost = player.isDead or not victim or victim.isDead
+  local down = player.isDead or SimSpellChecks.isStunned(player)
+  local lost = down or not victim or victim.isDead
   local late = w.now >= held.deadline
   if lost or late then
     stopCharge(w)

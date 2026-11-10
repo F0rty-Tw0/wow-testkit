@@ -4,15 +4,15 @@
 // path from the south edge past spawn (0, -10) to the camp, and the props of viewer/scene3d_props.js. create(container,
 // deps) puts a renderer canvas in container (#background) and returns draw(cameraPose) / dispose plus the scene, its
 // groups and loadModel(name), or a notice when WebGL or three.js is missing; it loads the tree and rock models itself
-// and swaps the props to them once both settle. toScene, yawOf and sync(handle, frame) are viewer/scene3d_actors.js,
-// which loads first. Nothing here runs on page load; the sim loop calls create and sync. Classic script; the pure parts
+// and swaps the props to them once both settle. toScene and yawOf are viewer/scene3d_actors.js, which loads first;
+// sync(handle, frame) syncs its actors, then the spell effects of viewer/scene3d_fx.js when that is loaded. Nothing here runs on page load; the sim loop calls create and sync. Classic script; the pure parts
 // are checked by tests/viewer/unit_sim_scene.js and tests/viewer/unit_sim_models.js.
 window.TK = window.TK || {};
 
 (function (TK) {
   'use strict';
 
-  const { toScene, yawOf, sync, free } = TK.scene3dActors;
+  const { toScene, yawOf, sync: syncActors, free } = TK.scene3dActors;
   const CAMP = { x: 18, y: 22 };
   const PATH = [{ x: 0, y: -50 }, { x: 0, y: -10 }, CAMP];
   const NOTICE = '3D view unavailable: WebGL or three.js missing';
@@ -143,6 +143,12 @@ window.TK = window.TK || {};
     return { scene, groups };
   }
 
+  // The actors of a frame, then the spell effects of it (viewer/scene3d_fx.js, when loaded).
+  function sync(handle, frame) {
+    syncActors(handle, frame);
+    if (TK.scene3dFx) TK.scene3dFx.sync(handle, frame);
+  }
+
   function unavailable(noticeEl) {
     if (noticeEl) {
       noticeEl.textContent = NOTICE;
@@ -199,6 +205,7 @@ window.TK = window.TK || {};
       const target = toScene(pose.target, pose.target.z);
       camera.position.set(eye.x, eye.y, eye.z);
       camera.lookAt(target.x, target.y, target.z);
+      if (TK.scene3dFx) TK.scene3dFx.draw(handle);
       renderer.render(scene, camera);
     }
 

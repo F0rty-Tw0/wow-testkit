@@ -9,6 +9,12 @@ local H = require("tests.helpers.sim")
 local LH = require("tests.helpers.sim_loot")
 local SH = require("tests.helpers.sim_combat")
 local Sim = require("sim")
+local SessionH = require("tests.helpers.session")
+local SimMelee = require("sim_melee")
+local SimMobs = require("sim_mobs")
+local SimSpells = require("sim_spells")
+local SimWorld = require("sim_world")
+local SP = require("tests.helpers.sim_spells")
 
 local SPELL = 900101
 
@@ -198,7 +204,155 @@ local function test_loot_sequence(w, s, flavor)
   A.eq(#w.warnings, 0, flavor)
 end
 
+local SPELL_EVENTS = {
+  "UNIT_SPELLCAST_START",
+  "UNIT_SPELLCAST_SUCCEEDED",
+  "PLAYER_STARTED_MOVING",
+  "PLAYER_STOPPED_MOVING",
+  "PLAYER_REGEN_DISABLED",
+  "ACTIONBAR_UPDATE_COOLDOWN",
+}
+
+-- The position of the first entry in names that is `event` (nil when none).
+local function indexOf(names, event)
+  for i, name in ipairs(names) do
+    if name == event then
+      return i
+    end
+  end
+end
+
+-- Whether the events appear in names in this order (other events may sit between them).
+local function inOrder(names, events)
+  local at = 0
+  for _, event in ipairs(events) do
+    local rest = {}
+    for i = at + 1, #names do
+      rest[#rest + 1] = names[i]
+    end
+    local found = indexOf(rest, event)
+    if not found then
+      return false
+    end
+    at = at + found
+  end
+
+  return true
+end
+
+local function eventNames(log)
+  local names = {}
+  for i, entry in ipairs(log) do
+    names[i] = entry.event
+  end
+
+  return names
+end
+
+-- A dummy that never swings back at (x, y), alive for the whole scenario, targeted by the player.
+local function dummyAt(w, x, y)
+  local mob = SimMobs.spawn(w, { pos = { x = x, y = y }, health = 100000, ai = false })
+  Actors.setTarget(w, w.sim.player, mob)
+
+  return mob
+end
+
+-- Slice 5: the Warrior charges a pack mob from 20 yd and fights it.
+local function test_charge_lands_in_melee_stuns_and_starts_the_fight()
+  H.withSim("retail", { class = "WARRIOR" }, function(w, s)
+    local seen = SH.record(w, SPELL_EVENTS)
+    local pack = s:spawnPack(3)
+    local mob = pack[2]
+    s:clickUnit(mob)
+    _G.UseAction(1)
+    s:simStep(1.2)
+    local player = w.sim.player
+    A.same({ SimMelee.inRange(player, mob), player.casting, player.power > 0 }, { true, nil, true })
+    local charge = SP.effectsOfKind(w, "charge")[1]
+    A.same({ charge.spellID, charge.from.y < charge.to.y, SP.effectsOfKind(w, "aura")[1].style }, { 100, true, "stun" })
+    s:clickUnit(mob, "RightButton")
+    s:simStep(5.5)
+    -- source: assumed (Task 5.7 finding) the landing plays the stun and the energize in the run's last frame, which starts
+    -- the combat, and the walk stops with the next frame hook: REGEN_DISABLED comes before STOPPED_MOVING.
+    A.eq(
+      inOrder(eventNames(seen), {
+        "UNIT_SPELLCAST_SUCCEEDED",
+        "PLAYER_STARTED_MOVING",
+        "PLAYER_REGEN_DISABLED",
+        "PLAYER_STOPPED_MOVING",
+      }),
+      true,
+      table.concat(eventNames(seen), ",")
+    )
+    A.eq(mob.health < mob.healthMax, true)
+    A.eq(#w.warnings, 0)
+  end)
+end
+
+-- Slice 5: the same world turned Mage casts Fireball with a bar and Blizzard on the ground.
+local function test_the_mage_casts_fireball_and_drops_a_blizzard()
+  H.withSim("retail", { class = "WARRIOR" }, function(w, s)
+    Sim.reset(w, "MAGE")
+    local player = w.sim.player
+    local mob = dummyAt(w, 0, 10)
+    local full = mob.health
+    _G.UseAction(1)
+    s:simStep(0.1)
+    A.same({ player.casting.spellID, SimWorld.build(w).player.casting.spellID }, { 133, 133 })
+    s:simStep(3)
+    A.same({ player.casting, mob.health < full, player.power < player.powerMax }, { nil, true, true })
+    local health = mob.health
+    s:simStep(1)
+    _G.UseAction(3)
+    A.same({ _G.SpellIsTargeting(), SimWorld.build(w).targeting.radius }, { true, 8 })
+    s:clickGround(0, 10)
+    s:simStep(5)
+    local ground = SP.effectsOfKind(w, "ground")
+    A.same({ #ground, ground[1].radius }, { 1, 8 })
+    A.eq(SP.hitsOn(w, "SPELL_PERIODIC_DAMAGE", mob.guid) >= 1, true)
+    A.eq(mob.health < health, true)
+  end)
+end
+
+-- Slice 5, classic: a dodged swing lights the Overpower glow.
+local function test_a_dodge_lights_the_overpower_glow_on_tbc()
+  H.withSim("tbc", { class = "WARRIOR" }, function(w, s)
+    local seen = SH.record(w, { "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW", "SPELL_ACTIVATION_OVERLAY_GLOW_HIDE" })
+    dummyAt(w, 0, -9)
+    SimMelee.start(w)
+    local guard = 0
+    while #seen == 0 and guard < 80 do
+      s:simStep(0.5)
+      guard = guard + 1
+    end
+    SimMelee.stop(w)
+    A.same({ seen[1].event, seen[1][3] }, { "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW", 7384 })
+  end)
+end
+
+-- Slice 5: a hot reload in the middle of a Blizzard keeps the area and the cooldown.
+local function test_a_reload_mid_blizzard_keeps_the_area_and_the_cooldown()
+  SessionH.withSession({ sim = { class = "MAGE" } }, function(sess)
+    local w = sess.w
+    dummyAt(w, 0, 10)
+    _G.UseAction(3)
+    sess.s:clickGround(0, 10)
+    sess.s:simStep(2.5)
+    A.same({ #w.sim.areas, SP.effectsOfKind(w, "ground")[1].radius }, { 1, 8 })
+    local cooldown = select(2, SimSpells.cooldown(w, 190356))
+    SH.reloaded(sess, function(fresh)
+      local fw = fresh.w
+      A.same({ #fw.sim.areas, SP.effectsOfKind(fw, "ground")[1].radius }, { 1, 8 })
+      A.eq(select(2, SimSpells.cooldown(fw, 190356)) > 0 and select(2, SimSpells.cooldown(fw, 190356)) <= cooldown, true)
+    end)
+  end)
+end
+
 return function()
+  test_charge_lands_in_melee_stuns_and_starts_the_fight()
+  test_the_mage_casts_fireball_and_drops_a_blizzard()
+  test_a_dodge_lights_the_overpower_glow_on_tbc()
+  test_a_reload_mid_blizzard_keeps_the_area_and_the_cooldown()
   test_holding_w_walks_into_spell_range()
   test_the_map_follows_the_walk()
   test_party_range_follows_the_member()

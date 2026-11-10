@@ -41,6 +41,28 @@ local function test_world_reads_the_fresh_player()
   end)
 end
 
+-- source: assumed (spec 7.3) the world carries the sim clock in seconds, the clock the effects' `t` is read in, so the viewer
+-- fades an effect by `now - t`.
+local function test_world_carries_the_sim_clock_the_effects_are_stamped_in()
+  withSim(function(sess)
+    local before = sim(sess, { action = "world" }).world.now
+    sim(sess, { action = "step", seconds = 0.25 })
+    local after = sim(sess, { action = "world" }).world
+    Near.near(after.now - before, 0.25)
+    Near.near(after.now, _G.GetTime())
+  end)
+end
+
+-- The lit proc overlays, sorted, so a script can wait for a glow over the wire.
+local function test_world_lists_the_lit_proc_overlays()
+  withSim(function(sess)
+    A.same(sim(sess, { action = "world" }).world.overlays, {})
+    sess.w.sim.procs.active[7384] = { untilT = 99 }
+    sess.w.sim.procs.active[6572] = { untilT = 99 }
+    A.same(sim(sess, { action = "world" }).world.overlays, { 6572, 7384 })
+  end)
+end
+
 local function test_world_player_reports_the_cast_in_flight()
   withSim(function(sess)
     A.eq(sim(sess, { action = "world" }).world.player.casting, nil)
@@ -53,6 +75,22 @@ local function test_world_player_reports_the_cast_in_flight()
       sim(sess, { action = "step", seconds = 0.25 })
     end
     A.eq(sim(sess, { action = "world" }).world.player.casting, nil)
+  end)
+end
+
+-- Slice 5: a Mage in ground targeting reports `targeting`, and the dropped Blizzard shows in `effects`, over the wire too.
+local function test_world_reports_the_targeting_mode_and_the_ground_effect()
+  H.withSession({ sim = { class = "MAGE" } }, function(sess)
+    A.eq(sim(sess, { action = "world" }).world.targeting, nil)
+    _G.UseAction(3)
+    A.same(sim(sess, { action = "world" }).world.targeting, { spellID = 190356, radius = 8 })
+    A.contains(sess:handle("sim", { action = "world" }), '"targeting":{')
+    sess.s:clickGround(0, 10)
+    for _ = 1, 9 do
+      sim(sess, { action = "step", seconds = 0.25 })
+    end
+    local world = sim(sess, { action = "world" }).world
+    A.same({ world.targeting, world.effects[1].kind, world.effects[1].radius }, { nil, "ground", 8 })
   end)
 end
 
@@ -253,7 +291,10 @@ end
 
 return function()
   test_world_reads_the_fresh_player()
+  test_world_carries_the_sim_clock_the_effects_are_stamped_in()
+  test_world_lists_the_lit_proc_overlays()
   test_world_player_reports_the_cast_in_flight()
+  test_world_reports_the_targeting_mode_and_the_ground_effect()
   test_world_player_reports_health_and_power()
   test_keydown_walks_and_keyup_stops()
   test_keyup_of_a_key_never_held_changes_nothing()

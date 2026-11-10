@@ -6,6 +6,7 @@ local M = {}
 
 local Combat = require("combat")
 local Log = require("combat_log")
+local SimRange = require("sim_range")
 local SimState = require("sim_state")
 local State = require("game.state")
 
@@ -15,10 +16,6 @@ local RULES = {
   -- source: assumed (spec 7.3) only root and stun have a scene effect.
   SHOWN = { root = true, stun = true },
 }
-
-function M.spot(position)
-  return { x = position.x, y = position.y }
-end
 
 -- Adds an event to the ring the world reads.
 function M.record(w, kind, fields)
@@ -58,7 +55,7 @@ function M.snapshot(w)
     end
   end
   for _, area in ipairs(sim.areas) do
-    out[#out + 1] = { kind = "ground", at = M.spot(area.at), radius = area.radius, spellID = area.spellID }
+    out[#out + 1] = { kind = "ground", at = SimRange.copy(area.at), radius = area.radius, spellID = area.spellID }
   end
   for _, key in ipairs(sortedKeys(sim.spellAuras)) do
     local held = sim.spellAuras[key]
@@ -103,8 +100,26 @@ local function export(w)
   return { areas = State.merge({}, w.sim.areas), auras = State.merge({}, w.sim.spellAuras) }
 end
 
+-- Whether the actor with guid wears the aura whose record key is key.
+local function wears(w, guid, key)
+  local actor = w.combat.actors[guid]
+  for _, aura in ipairs(actor and actor.auras or {}) do
+    if M.auraKey(guid, aura.auraInstanceID) == key then
+      return true
+    end
+  end
+
+  return false
+end
+
+-- Keeps the records of the auras that came back: Auras.restore leaves off one that had run out, and its record goes too.
 local function restore(w, data)
-  w.sim.areas, w.sim.spellAuras = data.areas, data.auras
+  w.sim.areas, w.sim.spellAuras = data.areas, {}
+  for key, held in pairs(data.auras) do
+    if wears(w, held.targetGuid, key) then
+      w.sim.spellAuras[key] = held
+    end
+  end
 end
 
 -- Adds the effect state, logs the end of sim auras and registers the reload state.

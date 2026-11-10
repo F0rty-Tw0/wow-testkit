@@ -1,12 +1,10 @@
 -- SimWorld: the sim world as a viewer or a script reads it, one plain table per call: the player, every other combat actor
--- in spawn order, and the effects list (SimEffects.snapshot). Pure reads; positions and lists are copies.
+-- in spawn order, the effects list (SimEffects.snapshot), the ground targeting mode and the sim clock `now` in seconds (the
+-- clock the effects' `t` is read in). Pure reads; positions and lists are copies.
 local M = {}
 
 local SimEffects = require("sim_effects")
-
-local function copyPos(pos)
-  return { x = pos.x, y = pos.y }
-end
+local SimRange = require("sim_range")
 
 local function spellIds(actor)
   local ids = {}
@@ -30,7 +28,7 @@ local function playerEntry(w)
 
   return {
     guid = player.guid,
-    pos = copyPos(player.pos),
+    pos = SimRange.copy(player.pos),
     facing = player.facing or 0,
     moving = sim.moving,
     health = player.health,
@@ -50,7 +48,7 @@ local function actorEntry(w, actor)
     guid = actor.guid,
     name = actor.name,
     kind = actor.kind,
-    pos = copyPos(actor.pos),
+    pos = SimRange.copy(actor.pos),
     facing = actor.facing or 0,
     health = actor.health,
     healthMax = actor.healthMax,
@@ -65,7 +63,25 @@ local function actorEntry(w, actor)
   }
 end
 
--- { player, actors, effects } of w, which must hold a sim.
+-- The targeting mode as plain data ({ spellID, radius }), or nil.
+local function targetingOf(w)
+  local mode = w.sim.targeting
+
+  return mode and { spellID = mode.spellID, radius = mode.radius } or nil
+end
+
+-- The overlay spell ids of the lit proc glows (SimProcs), sorted; empty before SimProcs has state.
+local function overlaysOf(w)
+  local out = {}
+  for overlay in pairs(w.sim.procs and w.sim.procs.active or {}) do
+    out[#out + 1] = overlay
+  end
+  table.sort(out)
+
+  return out
+end
+
+-- { now, player, actors, effects, targeting, overlays } of w, which must hold a sim.
 function M.build(w)
   local c = w.combat
   local actors = {}
@@ -76,7 +92,14 @@ function M.build(w)
     end
   end
 
-  return { player = playerEntry(w), actors = actors, effects = SimEffects.snapshot(w) }
+  return {
+    now = w.now,
+    player = playerEntry(w),
+    actors = actors,
+    effects = SimEffects.snapshot(w),
+    targeting = targetingOf(w),
+    overlays = overlaysOf(w),
+  }
 end
 
 return M

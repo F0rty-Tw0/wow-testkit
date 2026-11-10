@@ -35,7 +35,7 @@ end
 -- Adds the area of rec's effect (radius) at center for caster; amount is the damage of each tick.
 function M.add(w, caster, rec, effect, center, amount)
   table.insert(w.sim.areas, {
-    at = { x = center.x, y = center.y },
+    at = SimRange.copy(center),
     radius = effect.radius or 0,
     spellID = rec.id,
     school = rec.school,

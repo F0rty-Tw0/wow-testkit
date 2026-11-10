@@ -82,18 +82,34 @@ function M.start(w)
   return true
 end
 
+-- Calls every function of the swing seam (SimSpells.install makes the list; a world without it has none) with the swing.
+local function callSeams(w, player, target, spec)
+  local seams = w.sim.seams
+  if not seams then
+    return
+  end
+  for _, fn in ipairs(seams.swing) do
+    fn(w, player, target, spec)
+  end
+end
+
 -- Lands one swing: deterministic damage from the kit row. The kit cycles min..max instead of rolling so lupa and WASM
--- parity and tests are exact.
+-- parity and tests are exact. The swing seam runs before the damage (a function may set spec.miss) and again, with
+-- spec.landed set, after a swing that landed.
 local function swing(w, player, target)
   local weapon = M.weapon(player)
   local count = player.swings or 0
-  local amount = weapon.min + count % (weapon.max - weapon.min + 1)
+  local spec = { amount = weapon.min + count % (weapon.max - weapon.min + 1) }
   local m = w.sim.melee
   m.timer, m.err = m.timer + weapon.speed, nil
-  local result = Resolve.damage(w, player, target, { amount = amount })
-  if not result.missed then
-    player.swings = count + 1
+  callSeams(w, player, target, spec)
+  local result = Resolve.damage(w, player, target, spec)
+  if result.missed then
+    return
   end
+  player.swings = count + 1
+  spec.landed = true
+  callSeams(w, player, target, spec)
 end
 
 -- Reports a failed swing once per streak (m.err remembers the reason) and holds the timer at 0 to retry next frame.
