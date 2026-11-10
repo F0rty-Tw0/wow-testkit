@@ -227,8 +227,12 @@ function M.newFrame(w, frameType, name, parent)
 end
 
 local function createFrame(w)
-  return function(frameType, name, parent, template)
+  -- source: assumed (row W81) id is CreateFrame's 5th argument, set before the template's OnLoad runs.
+  return function(frameType, name, parent, template, id)
     local frame = M.newFrame(w, frameType, name, parent)
+    if id ~= nil then
+      frame:SetID(id)
+    end
     M.applyTemplates(w, frame, template)
     return frame
   end

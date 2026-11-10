@@ -33,6 +33,18 @@ local function test_virtual_template_builds_through_createframe() -- (X14)
   end)
 end
 
+-- Blizzard's action bars pass the slot as CreateFrame's id and read it in OnLoad (actionbar.lua:31 with
+-- SecureActionButtonMixin:CalculateAction), so the id is set before the template's scripts run.
+local function test_createframe_id_is_set_before_the_template_on_load_assumed()
+  local tpl = '<Ui><Frame name="IdT" virtual="true"><Scripts><OnLoad>Mark(self:GetID())</OnLoad></Scripts></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = tpl }, function(w, ctx)
+    local log = logTo(w)
+    H.load(w, ctx, "Ui.xml")
+    _G.CreateFrame("Frame", nil, _G.UIParent, "IdT", 9)
+    A.same(log, { 9 })
+  end)
+end
+
 local function test_virtual_element_builds_no_frame_and_no_global()
   H.withXml({ ["Ui.xml"] = TPL }, function(w, ctx)
     logTo(w)
@@ -256,6 +268,7 @@ local function test_template_root_parent_key_and_array_reach_the_inheriting_widg
 end
 
 return function()
+  test_createframe_id_is_set_before_the_template_on_load_assumed()
   test_template_root_parent_key_and_array_reach_the_inheriting_widgets_parent()
   test_hidden_false_shows_what_a_template_hid()
   test_create_texture_applies_its_xml_template_and_counts_an_unknown_one()
