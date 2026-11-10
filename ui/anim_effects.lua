@@ -61,7 +61,23 @@ local function rotation(fx, st, progress)
   fx.rotation = fx.rotation + Anim.value(st, "Radians") * progress
 end
 
-local CONTRIBUTE = { Alpha = alpha, Translation = translation, Scale = scale, Rotation = rotation }
+-- source: confirmed (W82) FlipBook steps its target's texture through a grid of flipBookRows x flipBookColumns frames,
+-- flipBookFrames of them, over its duration (ActionButtonSpellAlerts.xml:20-26 on the 5 x 6 proc sheets, xsd:1696-1700);
+-- assumed: frame n at progress n / frames, row by row from the top left, a rows or columns of 0 shows the whole texture.
+-- grug: flipBookFrameWidth/Height ignored (the grid divides the texture evenly); every Blizzard use sets them 0
+local function flipbook(fx, st, progress)
+  local rows, columns = Anim.value(st, "FlipBookRows"), Anim.value(st, "FlipBookColumns")
+  if rows < 1 or columns < 1 then
+    return
+  end
+  local frames = Anim.value(st, "FlipBookFrames")
+  frames = frames >= 1 and math.min(frames, rows * columns) or rows * columns
+  local frame = math.min(math.floor(progress * frames), frames - 1)
+  local column, row = frame % columns, math.floor(frame / columns)
+  fx.cell = { left = column / columns, right = (column + 1) / columns, top = row / rows, bottom = (row + 1) / rows }
+end
+
+local CONTRIBUTE = { Alpha = alpha, Translation = translation, Scale = scale, Rotation = rotation, FlipBook = flipbook }
 
 -- True when item ends its target's alpha over known (the item that did so far, or nil).
 local function replaces(item, known, reverse)
@@ -114,7 +130,7 @@ local function addPlaying(w, group, obj, fx)
 end
 
 -- What the playing animations do to obj itself: nil when none, else { alpha, setsAlpha, dx, dy, scales = { { x, y,
--- point, ox, oy } }, rotation }. Reads w.now and never advances it.
+-- point, ox, oy } }, rotation, cell? = { left, right, top, bottom } }. Reads w.now and never advances it.
 function M.effects(w, obj)
   if not M.anyActive(w) then
     return nil

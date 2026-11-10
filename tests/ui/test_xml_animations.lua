@@ -53,6 +53,23 @@ local function test_an_xml_group_plays_by_its_orders_and_loops_assumed()
   end)
 end
 
+-- source: W82 ActionButtonSpellAlerts.xml:22 writes a FlipBook with flipBookRows, flipBookColumns, flipBookFrames,
+-- flipBookFrameWidth and flipBookFrameHeight.
+local function test_flipbook_attributes_reach_their_setters()
+  local xml = '<Ui><Frame name="Fb"><Animations><AnimationGroup parentKey="G"><FlipBook parentKey="Flip" flipBookRows="6"'
+    .. ' flipBookColumns="5" flipBookFrames="30" flipBookFrameWidth="0" flipBookFrameHeight="0"/></AnimationGroup>'
+    .. '</Animations></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local flip = _G.Fb.G.Flip
+    A.same(
+      { flip:GetFlipBookRows(), flip:GetFlipBookColumns(), flip:GetFlipBookFrames(), flip:GetFlipBookFrameWidth() },
+      { 6, 5, 30, 0 }
+    )
+    A.eq(reportText(ctx):find("ignored", 1, true), nil)
+  end)
+end
+
 local function test_unmapped_animation_attribute_is_reported()
   H.withXml({ ["Ui.xml"] = GLOW }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -73,6 +90,7 @@ return function()
   test_animation_group_builds_with_its_attributes()
   test_offset_and_scale_attributes_reach_their_setters()
   test_an_xml_group_plays_by_its_orders_and_loops_assumed()
+  test_flipbook_attributes_reach_their_setters()
   test_unmapped_animation_attribute_is_reported()
   test_unknown_animation_type_is_reported_assumed()
 end

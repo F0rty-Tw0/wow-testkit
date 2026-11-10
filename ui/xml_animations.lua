@@ -28,6 +28,11 @@ local SETTERS = {
   childkey = { "SetChildKey", same },
   targetkey = { "SetTargetKey", same },
   target = { "SetTarget", same },
+  flipbookrows = { "SetFlipBookRows", tonumber },
+  flipbookcolumns = { "SetFlipBookColumns", tonumber },
+  flipbookframes = { "SetFlipBookFrames", tonumber },
+  flipbookframewidth = { "SetFlipBookFrameWidth", tonumber },
+  flipbookframeheight = { "SetFlipBookFrameHeight", tonumber },
 }
 -- Attributes that take part in a pair setter: SetOffset(x, y) and SetScale(x, y), the other axis at its identity.
 local PAIRS = {
