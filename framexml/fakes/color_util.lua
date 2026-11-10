@@ -40,6 +40,12 @@ local UI_COLORS = {
   { baseTag = "ACTIONBAR_HOTKEY_FONT_COLOR", color = { r = 0.8, g = 0.8, b = 0.8, a = 1 } },
   { baseTag = "TOOLTIP_DEFAULT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } },
   { baseTag = "TOOLTIP_DEFAULT_BACKGROUND_COLOR", color = { r = 0.09, g = 0.09, b = 0.188, a = 1 } },
+  -- source: row W83 (confirmed) GlobalColor rows 395-398 (RGB ffb300, 00ff00, b3b3b3, ff0000); the classic cast bar
+  -- colours its fill with them (tbc 70577 blizzard_uipanels_game/shared/castingbarframe.lua:23-24, :628-630).
+  { baseTag = "CASTBAR_CLASSIC_YELLOW", color = { r = 1, g = 179 / 255, b = 0, a = 1 } },
+  { baseTag = "CASTBAR_CLASSIC_GREEN", color = { r = 0, g = 1, b = 0, a = 1 } },
+  { baseTag = "CASTBAR_CLASSIC_GRAY", color = { r = 179 / 255, g = 179 / 255, b = 179 / 255, a = 1 } },
+  { baseTag = "CASTBAR_CLASSIC_RED", color = { r = 1, g = 0, b = 0, a = 1 } },
 }
 
 local function byte(channel)

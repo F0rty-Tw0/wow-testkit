@@ -52,6 +52,22 @@ local function test_tooltip_and_hotkey_colours_are_colour_objects_from_the_ui_co
   end
 end
 
+-- source: W83 the classic cast bar fills with CASTBAR_CLASSIC_YELLOW:GetRGB() (tbc 70577 castingbarframe.lua:628-630);
+-- no Lua defines the four, GlobalColor rows 395-398 hold them.
+local function test_classic_cast_bar_colours_come_from_the_ui_colour_table() -- W83
+  withFrameXML("tbc", function()
+    A.same(
+      {
+        _G.CASTBAR_CLASSIC_YELLOW:GenerateHexColor(),
+        _G.CASTBAR_CLASSIC_GREEN:GenerateHexColor(),
+        _G.CASTBAR_CLASSIC_GRAY:GenerateHexColor(),
+        _G.CASTBAR_CLASSIC_RED:GenerateHexColor(),
+      },
+      { "ffffb300", "ff00ff00", "ffb3b3b3", "ffff0000" }
+    )
+  end)
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -161,6 +177,7 @@ return function()
   test_font_colour_hex_and_code_globals_match_the_literals()
   test_the_font_colours_come_from_the_ui_colour_table()
   test_tooltip_and_hotkey_colours_are_colour_objects_from_the_ui_colour_table()
+  test_classic_cast_bar_colours_come_from_the_ui_colour_table()
   test_the_font_colours_exist_on_every_flavor()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
