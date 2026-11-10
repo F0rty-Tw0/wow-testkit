@@ -81,6 +81,18 @@ local function test_a_kit_literal_wins_for_effects_and_db2_for_numbers_assumed()
   end)
 end
 
+-- source: assumed (user ruling 2026-11-10: tbc 70577 Blizzard costs 320 mana, past the sim's 100-point bar) a literal's cost
+-- is on the sim's power scale and wins; a literal without one takes the extract's.
+local function test_a_kit_literals_cost_wins_over_the_extracts()
+  withKit("tbc", DB2, function(w)
+    w.sim = {}
+    SimSpellData.put(w, { id = KIT, cost = { type = "MANA", amount = 5 } })
+    A.same(SimSpellData.get(w, KIT).cost, { type = "MANA", amount = 5 })
+    SimSpellData.put(w, { id = KIT })
+    A.same(SimSpellData.get(w, KIT).cost, { type = "MANA", amount = 30 })
+  end)
+end
+
 local function test_get_caches_and_put_invalidates()
   withKit("retail", DB2, function(w)
     w.sim = {}
@@ -226,6 +238,7 @@ end
 return function()
   test_a_db2_spell_normalizes_units_and_fields_assumed()
   test_a_kit_literal_wins_for_effects_and_db2_for_numbers_assumed()
+  test_a_kit_literals_cost_wins_over_the_extracts()
   test_get_caches_and_put_invalidates()
   test_ground_and_radius_come_from_the_effect_row_assumed()
   test_effect_and_aura_and_target_numbers_assumed()

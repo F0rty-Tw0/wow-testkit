@@ -1,6 +1,7 @@
 -- The kit literals (spec 7.4): the Warrior and Mage spell records per flavor group, in action-bar order, and the Warrior's
 -- proc rule. Each record is the normalized record of spec 7.1; a client extract's numbers replace the literal's, the effects
--- stay the literal's (retail damage reads base 0, Charge has no motion effect, mana costs are percentages). Every number
+-- and the cost stay the literal's (retail damage reads base 0, Charge has no motion effect, retail mana costs are
+-- percentages, tbc costs run past the sim's 100-point bar). Every number
 -- is `source: assumed` unless a line says retail 70688 or tbc 70577 (tools/run51.py --script tests/sim/proof_spells.lua)
 -- confirms it; a record shared by both groups states the tbc numbers that differ. Icons are retail 70688 SpellMisc file ids
 -- (confirmed for every id the retail extract holds); Heroic Strike (78) and Blizzard (10) have no retail row, so theirs are

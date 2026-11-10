@@ -213,11 +213,14 @@ local function fromDb2(w, id)
 end
 
 -- source: assumed (retail effect scaling is not modeled; the kit literal states the amounts we play) a literal's
--- effects replace the DB2 effects; every other DB2 number replaces the literal's.
+-- effects and cost replace the DB2 ones (the cost is on the sim's 100-point power bar: tbc 70577 Blizzard reads 320 mana);
+-- every other DB2 number replaces the literal's.
+local LITERAL_WINS = { effects = true, cost = true }
+
 local function merge(literal, derived)
   local record = State.merge({}, literal or {})
   for key, value in pairs(derived) do
-    if key ~= "effects" or not record.effects then
+    if not (LITERAL_WINS[key] and record[key]) then
       record[key] = value
     end
   end
