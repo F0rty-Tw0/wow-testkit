@@ -104,6 +104,32 @@ local function test_a_world_reset_to_another_class_swaps_spells_bar_and_rules()
   end, { class = "WARRIOR" })
 end
 
+-- source: assumed (no client trace) a class swap fires SPELLS_CHANGED once, then ACTIONBAR_SLOT_CHANGED(slot) for each slot
+-- whose spell changed, ascending; a swap to the same kit changes nothing and fires nothing.
+local function test_a_class_swap_fires_the_spell_and_bar_slot_events_for_what_changed()
+  SH.withSim("retail", function(w)
+    local log = SH.record(w, { "SPELLS_CHANGED", "ACTIONBAR_SLOT_CHANGED" })
+    Sim.reset(w, "WARRIOR")
+    A.eq(#log, 0, "same kit: nothing changed")
+    Sim.reset(w, "MAGE")
+    local seen = {}
+    for i, entry in ipairs(log) do
+      seen[i] = { entry.event, entry[3] }
+    end
+    A.same(seen, { { "SPELLS_CHANGED" }, { "ACTIONBAR_SLOT_CHANGED", 1 }, { "ACTIONBAR_SLOT_CHANGED", 2 }, { "ACTIONBAR_SLOT_CHANGED", 3 }, { "ACTIONBAR_SLOT_CHANGED", 4 } })
+    Sim.reset(w, "MAGE")
+    A.eq(#log, 5, "same kit again: no new event")
+  end, { class = "WARRIOR" })
+end
+
+local function test_a_scenario_that_replaced_the_spell_table_does_not_break_a_class_swap()
+  SH.withSim("retail", function(w)
+    w.mock.spells = {}
+    Sim.reset(w, "MAGE")
+    A.same(barIds(w), { 133, 122, 190356 })
+  end, { class = "WARRIOR" })
+end
+
 local function test_a_reload_gives_the_restored_class_its_own_kit()
   H.withSession({ sim = { class = "WARRIOR" } }, function(sess)
     local reply = sess:call("sim", { action = "reset", class = "MAGE" })
@@ -242,6 +268,8 @@ return function()
   test_the_warriors_proc_rule_follows_its_group()
   test_the_mage_casts_a_ground_blizzard_and_has_no_proc_rule()
   test_a_world_reset_to_another_class_swaps_spells_bar_and_rules()
+  test_a_class_swap_fires_the_spell_and_bar_slot_events_for_what_changed()
+  test_a_scenario_that_replaced_the_spell_table_does_not_break_a_class_swap()
   test_a_reload_gives_the_restored_class_its_own_kit()
   test_an_extracts_name_wins_over_the_literal_name()
   test_charge_by_the_bar_runs_to_melee_energizes_and_stuns()
