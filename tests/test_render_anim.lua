@@ -1,4 +1,4 @@
--- Animation playback in the render snapshot, alpha: the multiplier, the final alpha, stop and pause, and the clock.
+-- Animation playback in the render snapshot, alpha: the animated alpha, the final alpha, stop and pause, and the clock.
 -- Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
 local A = require("assert")
 local AG = require("tests.helpers.anim_group")
@@ -8,7 +8,7 @@ local S = require("tests.helpers.widget_snap")
 
 local animated, fade = AG.animated, AG.fade
 
-local function test_alpha_animation_multiplies_the_frame_alpha_assumed() -- W61
+local function test_alpha_animation_sets_the_frame_alpha_assumed() -- W61
   H.withRender(function(w)
     local animGroup, animation = animated("Pulse", "Alpha")
     fade(animGroup, animation)
@@ -20,14 +20,24 @@ local function test_alpha_animation_multiplies_the_frame_alpha_assumed() -- W61
   end)
 end
 
-local function test_alpha_animation_multiplies_the_frame_alpha_chain_assumed() -- W61
+-- source: W61 Blizzard_ActionBar/Shared/ActionButtonSpellAlerts.xml:13 declares ProcLoopFlipbook alpha="0" and shows it
+-- through an Alpha 1 to 1 in ProcLoop (:20-22): the animated alpha replaces the region's own, the parent's still counts.
+local function test_alpha_animation_replaces_the_own_alpha_under_the_parent() -- W61
   H.withRender(function(w)
-    local animGroup, animation, frame = animated("PulseHalf", "Alpha")
+    local frame = S.anchored("Frame", "Alert")
     frame:SetAlpha(0.5)
-    fade(animGroup, animation)
+    local tex = frame:CreateTexture("AlertLoop")
+    tex:SetAllPoints()
+    tex:SetAlpha(0)
+    local animGroup = frame:CreateAnimationGroup()
+    local show = animGroup:CreateAnimation("Alpha")
+    show:SetTarget(tex)
+    show:SetFromAlpha(1)
+    show:SetToAlpha(1)
+    show:SetDuration(1)
     animGroup:Play()
     w:advance(0.5)
-    A.eq(S.snap(w, "PulseHalf").alpha, 0.25)
+    A.same({ S.snap(w, "AlertLoop").alpha, S.snap(w, "Alert").alpha }, { 0.5, 0.5 })
   end)
 end
 
@@ -224,8 +234,8 @@ local function test_a_snapshot_does_not_advance_the_clock()
 end
 
 return function()
-  test_alpha_animation_multiplies_the_frame_alpha_assumed()
-  test_alpha_animation_multiplies_the_frame_alpha_chain_assumed()
+  test_alpha_animation_sets_the_frame_alpha_assumed()
+  test_alpha_animation_replaces_the_own_alpha_under_the_parent()
   test_a_fresh_widget_exports_no_animation_fields()
   test_final_alpha_is_kept_when_requested_assumed()
   test_final_alpha_comes_from_the_last_alpha_animation_assumed()

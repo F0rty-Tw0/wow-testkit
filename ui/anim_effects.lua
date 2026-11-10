@@ -34,9 +34,12 @@ local function lerp(from, to, progress)
   return from + (to - from) * progress
 end
 
--- source: assumed (W61) Alpha multiplies the target's alpha by from + (to - from) * progress.
+-- source: confirmed (W61) a playing Alpha animation sets its target's alpha in place of the target's own alpha
+-- (Blizzard_ActionBar/Shared/ActionButtonSpellAlerts.xml:8-26 shows ProcLoopFlipbook, alpha="0", only through an Alpha
+-- 1 to 1); assumed: the value is from + (to - from) * progress, and several Alpha animations on one target multiply.
 local function alpha(fx, st, progress)
   fx.alpha = fx.alpha * lerp(Anim.value(st, "FromAlpha"), Anim.value(st, "ToAlpha"), progress)
+  fx.setsAlpha = true
 end
 
 -- source: assumed (W62) Translation moves the target by offset * progress (y up).
@@ -110,8 +113,8 @@ local function addPlaying(w, group, obj, fx)
   return hit
 end
 
--- What the playing animations do to obj itself: nil when none, else { alpha, dx, dy, scales = { { x, y, point, ox,
--- oy } }, rotation }. Reads w.now and never advances it.
+-- What the playing animations do to obj itself: nil when none, else { alpha, setsAlpha, dx, dy, scales = { { x, y,
+-- point, ox, oy } }, rotation }. Reads w.now and never advances it.
 function M.effects(w, obj)
   if not M.anyActive(w) then
     return nil

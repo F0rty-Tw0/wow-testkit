@@ -1,6 +1,6 @@
--- Playing animations in a render snapshot item: the target's alpha is multiplied, its rect moved and scaled, and a texture
--- rotated. Descendants of a target inherit its alpha and translation. Reads w.now through ui/anim.lua; never schedules
--- or advances the clock. Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
+-- Playing animations in a render snapshot item: an Alpha sets the target's alpha, its rect is moved and scaled, and a
+-- texture rotated. Descendants of a target inherit its alpha and translation. Reads w.now through ui/anim.lua; never
+-- schedules or advances the clock. Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
 local M = {}
 
 local Anim = require("ui.anim")
@@ -8,7 +8,8 @@ local AnimEffects = require("ui.anim_effects")
 
 -- source: assumed (W61 W62) descendants of the target inherit its alpha animation (up to a region that ignores its
 -- parent's alpha) and its translation.
--- { alpha, dx, dy } summed over obj and its ancestors, and obj's own effects.
+-- { alpha, dx, dy } over obj and its ancestors, and obj's own effects. alpha is the effective alpha with each animated
+-- region's own alpha replaced by its animation's (W61).
 local function climb(w, obj)
   local total = { alpha = 1, dx = 0, dy = 0 }
   local own
@@ -20,8 +21,10 @@ local function climb(w, obj)
     if current == obj then
       own = fx
     end
+    if alphaOpen then
+      total.alpha = total.alpha * (fx and fx.setsAlpha and fx.alpha or st.alpha or 1)
+    end
     if fx then
-      total.alpha = alphaOpen and total.alpha * fx.alpha or total.alpha
       total.dx = total.dx + fx.dx
       total.dy = total.dy + fx.dy
     end
@@ -52,7 +55,7 @@ function M.apply(w, obj, item)
     return
   end
   local total, own = climb(w, obj)
-  item.alpha = item.alpha * total.alpha
+  item.alpha = total.alpha
   local rect = item.rect
   for _, entry in ipairs(own and own.scales or {}) do
     rect = scaled(rect, entry)
