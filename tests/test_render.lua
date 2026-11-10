@@ -83,12 +83,14 @@ local function test_regions_draw_by_layer_then_sublevel_then_creation_assumed() 
   end)
 end
 
-local function test_equal_layer_and_sublevel_draw_in_creation_order_assumed() -- (V7)
+-- source: V7 ActionButtonTemplate.xml:22-33 creates the icon, then the opaque SlotArt, in one BACKGROUND layer; the
+-- client shows the icon, so the earlier-created region draws above.
+local function test_equal_layer_and_sublevel_draw_the_earlier_region_above() -- (V7)
   H.withRender(function(w)
     local same = makeFrame("Same", 100, 100)
     makeTexture(same, "SameFirst", "BORDER", 3)
     makeTexture(same, "SameSecond", "BORDER", 3)
-    A.same(H.names(Render.snapshot(w), "Same"), { "Same", "SameFirst", "SameSecond" })
+    A.same(H.names(Render.snapshot(w), "Same"), { "Same", "SameSecond", "SameFirst" })
   end)
 end
 
@@ -223,7 +225,7 @@ return function()
   test_header_screen_errors_and_assets()
   test_frames_draw_by_strata_then_level_then_creation_assumed()
   test_regions_draw_by_layer_then_sublevel_then_creation_assumed()
-  test_equal_layer_and_sublevel_draw_in_creation_order_assumed()
+  test_equal_layer_and_sublevel_draw_the_earlier_region_above()
   test_font_string_ignores_sublevel()
   test_hidden_objects_are_skipped()
   test_effective_alpha_multiplies_the_chain()

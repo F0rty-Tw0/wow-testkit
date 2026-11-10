@@ -73,6 +73,10 @@ local function test_the_scroll_child_and_its_lines_are_laid_out_and_clipped()
   A.same(content.rect, { x = 410, y = 170, width = 160, height = 200 })
   local lines = childrenOf(snapshot, content, "fontstring")
   A.eq(#lines, LINES)
+  -- the lines do not overlap, so their draw order is free: read them top to bottom
+  table.sort(lines, function(a, b)
+    return a.rect.y < b.rect.y
+  end)
   for line, item in ipairs(lines) do
     A.same({ item.text, item.rect.x, item.rect.y, item.clip }, { "Line " .. line, 414, 172 + (line - 1) * LINE_HEIGHT, scroll.rect })
   end
