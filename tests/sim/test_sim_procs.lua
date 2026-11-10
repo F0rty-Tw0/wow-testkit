@@ -249,6 +249,30 @@ local function test_a_reload_keeps_the_glow_and_hides_it_when_its_time_is_up()
   checkGlowAcrossReload(false)
 end
 
+-- source: assumed (a reload keeps a glow) a glow whose aura did not come back stays dark, even with time left.
+local function test_a_reload_leaves_dark_a_glow_whose_aura_did_not_come_back()
+  H.withSession({ sim = {} }, function(sess)
+    local w = sess.w
+    SP.install(w, RECS)
+    w.sim.procRules = { swingRule({ every = 1, duration = 15000 }) }
+    foeAhead(w, w.sim.player)
+    SimMelee.start(w)
+    sess.s:simStep(0.1)
+    SimMelee.stop(w)
+    A.same({ overlayed(), hasAura(w.sim.player, BUFF) }, { true, true })
+    w.sim.procs.active[OVERLAY].auraInstanceID = -1 -- the saved glow names an aura the player no longer has
+    SH.reloaded(sess, function(fresh)
+      local fw = fresh.w
+      SP.install(fw, RECS)
+      fw.sim.procRules = { swingRule({ every = 1, duration = 15000 }) }
+      A.same({ overlayed(), fw.sim.procs.active[OVERLAY] }, { false, nil })
+      local log = SH.record(fw, GLOW)
+      fresh.s:simStep(20)
+      A.eq(#log, 0)
+    end)
+  end)
+end
+
 local function test_a_reload_keeps_the_count_of_a_rule_that_fires_every_second_swing()
   H.withSession({ sim = {} }, function(sess)
     local w = sess.w
@@ -305,6 +329,20 @@ local function test_a_world_reset_hides_the_glow_and_forgets_the_counts()
   end)
 end
 
+local function test_a_world_reset_takes_the_proc_aura_off_with_the_glow()
+  SP.withSpells("retail", RECS, function(w, s, player)
+    w.sim.procRules = { swingRule({ every = 1 }) }
+    foeAhead(w, player)
+    SimMelee.start(w)
+    s:simStep(0.1)
+    SimMelee.stop(w)
+    A.same({ hasAura(player, BUFF), overlayed() }, { true, true })
+    local log = SH.record(w, GLOW)
+    Sim.reset(w)
+    A.same({ hasAura(player, BUFF), overlayed(), #log, log[1].event }, { false, false, 1, HIDE })
+  end)
+end
+
 local function test_the_overlay_query_is_the_namespaced_one_on_every_flavor()
   for _, flavor in ipairs(SP.FLAVORS) do
     SP.withSpells(flavor, RECS, function()
@@ -337,9 +375,11 @@ return function()
   test_a_dodge_rule_makes_a_mob_dodge_every_fifth_swing_and_glows()
   test_no_dodge_without_a_rule_for_it_or_against_a_foe_that_is_not_a_mob()
   test_a_reload_keeps_the_glow_and_hides_it_when_its_time_is_up()
+  test_a_reload_leaves_dark_a_glow_whose_aura_did_not_come_back()
   test_a_reload_keeps_the_count_of_a_rule_that_fires_every_second_swing()
   test_a_reload_keeps_the_swing_count_that_picks_the_dodge()
   test_a_world_reset_hides_the_glow_and_forgets_the_counts()
+  test_a_world_reset_takes_the_proc_aura_off_with_the_glow()
   test_the_overlay_query_is_the_namespaced_one_on_every_flavor()
   test_rules_read_the_worlds_list_and_an_unset_list_is_empty()
 end

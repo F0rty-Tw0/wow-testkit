@@ -152,7 +152,7 @@ local function onSwing(w, _attacker, target, spec)
   end
 end
 
--- The glow of every overlay hides, in overlay order (a world reset is a fresh login: nothing stays lit).
+-- The glow of every overlay hides with its aura, in overlay order (a world reset is a fresh login: nothing stays lit).
 function M.reset(w)
   local overlays = {}
   for overlay in pairs(w.sim.procs.active) do
@@ -160,7 +160,7 @@ function M.reset(w)
   end
   table.sort(overlays)
   for _, overlay in ipairs(overlays) do
-    hide(w, overlay)
+    M.consume(w, overlay)
   end
   w.sim.procs.count, w.sim.procs.swings = {}, 0
 end
