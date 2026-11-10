@@ -173,6 +173,10 @@ function M.install(w)
   define(w, "issecretvalue", function(value)
     return w.isSecret ~= nil and w.isSecret(value) == true
   end)
+  -- source: assumed (row G33) the kit never makes a wrapped value secret, so secretwrap hands its values back.
+  define(w, "secretwrap", function(...)
+    return ...
+  end)
   define(w, "C_HouseEditor.IsHouseEditorActive", function()
     return false
   end)

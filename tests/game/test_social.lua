@@ -187,6 +187,16 @@ local function test_issecretvalue_follows_the_world_assumed() -- (G18)
   end)
 end
 
+-- Blizzard's castingbarframe.lua builds CastingBarType from secretwrap("standard", ...) and indexes tables by the result;
+-- a stub returning nothing aborted the file and left the cast bar without its mixins.
+local function test_secretwrap_returns_its_values_assumed() -- (G33)
+  for _, flavor in ipairs({ "tbc", "retail" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.secretwrap("standard", 2) }, { "standard", 2 }, flavor)
+    end)
+  end
+end
+
 local function test_task_5_6_bindings_and_drag_answer_outside_a_session()
   G.withGame("retail", function(w)
     A.same({ _G.GetBindingKey("TOGGLEWHISPER") }, {})
@@ -222,6 +232,7 @@ return function()
   test_party_guid_is_not_in_the_group_assumed()
   test_party_guid_follows_a_flagged_fixture_assumed()
   test_issecretvalue_follows_the_world_assumed()
+  test_secretwrap_returns_its_values_assumed()
   test_task_5_6_bindings_and_drag_answer_outside_a_session()
   test_game_install_keeps_bindings_a_session_installed_first()
 end
