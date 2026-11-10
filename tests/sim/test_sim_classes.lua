@@ -128,6 +128,19 @@ local function test_a_class_swap_fires_the_spell_and_bar_slot_events_for_what_ch
   end, { class = "WARRIOR" })
 end
 
+-- An install and a reload's restore set the kit of the world's class without an event: nothing was on screen before them.
+local function test_an_install_and_a_reload_restore_set_the_kit_silently()
+  SH.withSim("retail", function(w)
+    local log = SH.record(w, { "SPELLS_CHANGED", "ACTIONBAR_SLOT_CHANGED" })
+    w.sim.class = "MAGE"
+    w.sim.hooks.persist.classes.restore(w, {})
+    A.same({ barIds(w), #log }, { { 133, 122, 190356 }, 0 }, "restore")
+    w.sim.class = "WARRIOR"
+    SimClasses.install(w)
+    A.same({ barIds(w), #log }, { { 100, 6343, 1464, 6572 }, 0 }, "install")
+  end, { class = "WARRIOR" })
+end
+
 local function test_a_scenario_that_replaced_the_spell_table_does_not_break_a_class_swap()
   SH.withSim("retail", function(w)
     w.mock.spells = {}
@@ -275,6 +288,7 @@ return function()
   test_the_mage_casts_a_ground_blizzard_and_has_no_proc_rule()
   test_a_world_reset_to_another_class_swaps_spells_bar_and_rules()
   test_a_class_swap_fires_the_spell_and_bar_slot_events_for_what_changed()
+  test_an_install_and_a_reload_restore_set_the_kit_silently()
   test_a_scenario_that_replaced_the_spell_table_does_not_break_a_class_swap()
   test_a_reload_gives_the_restored_class_its_own_kit()
   test_an_extracts_name_wins_over_the_literal_name()
