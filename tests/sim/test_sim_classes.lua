@@ -199,6 +199,16 @@ local function test_blizzard_by_the_bar_enters_targeting_and_a_click_drops_the_a
   end
 end
 
+local function test_the_first_action_key_casts_without_blizzards_action_button()
+  SH.withSim("retail", function(w, s, player)
+    _G.ActionButtonDown, _G.ActionButtonUp = nil, nil
+    foeAhead(w, player, 20)
+    s:key("1", "down")
+    A.eq(player.casting.spellID, 133)
+    s:key("1", "up")
+  end, { class = "MAGE" })
+end
+
 -- A mob that never swings back, 1 yard ahead of the player and its target: the one foe that can dodge.
 local function dummyAhead(w, player)
   local mob = SimMobs.spawn(w, { pos = { x = 0, y = -9 }, health = 100000, ai = false })
@@ -238,5 +248,6 @@ return function()
   test_frost_nova_roots_a_foe_at_five_yards_and_not_one_at_twelve()
   test_thunder_clap_hits_foes_within_eight_yards_only()
   test_blizzard_by_the_bar_enters_targeting_and_a_click_drops_the_area()
+  test_the_first_action_key_casts_without_blizzards_action_button()
   test_the_warriors_swings_light_their_groups_overlay_by_hits_or_by_a_dodge()
 end

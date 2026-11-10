@@ -43,8 +43,9 @@ for command, call in pairs(MOVEMENT) do
   M.COMMANDS[command] = { body = pick:format(call, call), runOnUp = true }
 end
 
+-- source: assumed (spec 7.6) without Blizzard's ActionButtonDown, key down uses the slot of the same number by UseAction.
 for n = 1, ACTION_BUTTONS do
-  local pick = 'local f = keystate == "down" and ActionButtonDown or ActionButtonUp; if f then f(%d) end'
+  local pick = 'local f = ActionButtonUp; if keystate == "down" then f = ActionButtonDown or UseAction end; if f then f(%d) end'
   M.COMMANDS["ACTIONBUTTON" .. n] = { body = pick:format(n), runOnUp = true }
 end
 

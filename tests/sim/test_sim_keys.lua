@@ -6,6 +6,7 @@ local H = require("tests.helpers.sim")
 local Keys = require("input_keys")
 local Scenario = require("scenario")
 local Sim = require("sim")
+local SP = require("tests.helpers.sim_spells")
 
 local DEFAULT_KEYS = {
   W = "MOVEFORWARD",
@@ -96,6 +97,20 @@ local function test_action_button_keys_call_down_then_up()
     s:key("3", "down")
     s:key("3", "up")
     A.same(log, { "down3", "up3" })
+  end)
+end
+
+-- source: assumed (spec 7.6) a world without Blizzard's ActionButtonDown presses the bar's slot by UseAction on key down.
+local function test_an_action_key_uses_the_slot_when_blizzards_action_button_is_missing()
+  local strike = SP.record({ effects = { { type = "damage", base = 7, target = "enemy" } } })
+  SP.withSpells("retail", { strike }, function(w, s, player)
+    _G.ActionButtonDown, _G.ActionButtonUp = nil, nil
+    w.mock.actions[1] = { type = "spell", id = strike.id }
+    local foe = SP.target(w, player)
+    s:key("1", "down")
+    A.eq(SP.hitsOn(w, "SPELL_DAMAGE", foe.guid), 1)
+    s:key("1", "up")
+    A.same({ SP.hitsOn(w, "SPELL_DAMAGE", foe.guid), w.errors }, { 1, {} })
   end)
 end
 
@@ -313,6 +328,7 @@ return function()
   test_a_toggle_runs_once_per_press()
   test_a_missing_global_does_nothing()
   test_action_button_keys_call_down_then_up()
+  test_an_action_key_uses_the_slot_when_blizzards_action_button_is_missing()
   test_target_nearest_enemy_runs_on_down_only()
   test_walk_key_moves_until_released()
   test_every_move_key_sets_its_intent()
