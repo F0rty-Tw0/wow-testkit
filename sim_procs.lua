@@ -1,10 +1,10 @@
 -- SimProcs: the proc rules of the kit (spec 7.5) and the overlay glows they light. A rule { id, onEvent, every, aura?,
 -- overlay, duration } is read from w.sim.procRules (Task 5.6 sets them). A landed swing ("swing_hit") or a dodge
 -- ("dodge") counts for each rule of its event, and the rule fires on every `every`-th: the rule's aura goes on the player,
--- SPELL_ACTIVATION_OVERLAY_GLOW_SHOW(overlay) fires and the glow is armed to expire. Casting the overlay spell, the expiry
--- and the aura going all end the glow with GLOW_HIDE(overlay), once. The dodge is this unit's too: it makes the player's
--- swing at a SimMobs mob miss. State: w.sim.procs = { active = { [overlay] = { untilT, auraInstanceID?, token } }, count =
--- { [ruleIndex] = n }, swings = n }.
+-- SPELL_ACTIVATION_OVERLAY_GLOW_SHOW(overlay) fires and the glow is armed to expire. Casting the overlay spell (which also
+-- removes the aura), the expiry and the aura going all end the glow with GLOW_HIDE(overlay), once. The dodge is this
+-- unit's too: it makes the player's swing at a SimMobs mob miss. State: w.sim.procs = { active = { [overlay] = { untilT,
+-- auraInstanceID?, token } }, count = { [ruleIndex] = n }, swings = n }.
 local M = {}
 
 local Auras = require("combat_auras")
@@ -47,6 +47,17 @@ local function arm(w, overlay, entry)
   end)
 end
 
+-- The player's aura with instance id, or nil.
+local function findAura(w, id)
+  for _, aura in ipairs(w.sim.player.auras) do
+    if aura.auraInstanceID == id then
+      return aura
+    end
+  end
+
+  return nil
+end
+
 local function addAura(w, rule)
   local player = w.sim.player
   local aura = Resolve.aura(w, player, player, { spellID = rule.aura, duration = rule.duration / MS })
@@ -56,12 +67,10 @@ end
 
 -- Puts the glow back to a full duration and keeps its aura running with it.
 local function extend(w, rule, entry)
-  local player = w.sim.player
+  local aura = findAura(w, entry.auraInstanceID)
   entry.untilT = w.now + rule.duration / MS
-  for _, aura in ipairs(player.auras) do
-    if aura.auraInstanceID == entry.auraInstanceID then
-      Auras.refresh(w, player, aura, rule.duration / MS)
-    end
+  if aura then
+    Auras.refresh(w, w.sim.player, aura, rule.duration / MS)
   end
   arm(w, rule.overlay, entry)
 end
@@ -83,8 +92,14 @@ function M.fire(w, rule)
   arm(w, rule.overlay, entry)
 end
 
--- Casting the overlay spell ends its glow.
+-- source: assumed (Ruling 5.6-a) casting the overlay spell uses the proc up: its aura goes with the glow (the aura
+-- listener hides the glow; hide covers a glow with no aura).
 function M.consume(w, spellID)
+  local entry = w.sim.procs.active[spellID]
+  local aura = entry and findAura(w, entry.auraInstanceID)
+  if aura then
+    Auras.remove(w, w.sim.player, aura)
+  end
   hide(w, spellID)
 end
 
@@ -166,16 +181,7 @@ end
 
 -- Whether the aura the glow lit is still on the player (a glow with no aura has none to lose).
 local function worn(w, entry)
-  if not entry.auraInstanceID then
-    return true
-  end
-  for _, aura in ipairs(w.sim.player.auras) do
-    if aura.auraInstanceID == entry.auraInstanceID then
-      return true
-    end
-  end
-
-  return false
+  return not entry.auraInstanceID or findAura(w, entry.auraInstanceID) ~= nil
 end
 
 local function byOverlay(a, b)

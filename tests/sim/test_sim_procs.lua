@@ -89,6 +89,24 @@ local function test_a_swing_proc_glows_applies_its_aura_and_hides_when_the_overl
   end)
 end
 
+-- source: assumed (Ruling 5.6-a) casting the spell a proc unlocks uses the proc up: its aura goes with the glow, and the
+-- two together hide the glow once.
+local function test_casting_the_overlay_spell_removes_the_proc_aura_and_hides_once()
+  SP.withSpells("retail", RECS, function(w, s, player)
+    w.sim.procRules = { swingRule({ every = 1 }) }
+    local foe = foeAhead(w, player)
+    local log = SH.record(w, GLOW)
+    SimMelee.start(w)
+    s:simStep(0.1)
+    SimMelee.stop(w)
+    A.same({ hasAura(player, BUFF), overlayed() }, { true, true })
+    SimSpells.cast(w, player, OVERLAY, foe)
+    A.same({ hasAura(player, BUFF), overlayed(), #log, log[2].event }, { false, false, 2, HIDE })
+    s:simStep(20)
+    A.eq(#log, 2)
+  end)
+end
+
 local function test_a_glow_with_no_aura_hides_at_its_duration_and_only_once()
   SP.withSpells("retail", RECS, function(w, s, player)
     w.sim.procRules = { swingRule({ every = 1, aura = false, duration = 5000 }) }
@@ -308,6 +326,7 @@ end
 
 return function()
   test_a_swing_proc_glows_applies_its_aura_and_hides_when_the_overlay_spell_is_cast()
+  test_casting_the_overlay_spell_removes_the_proc_aura_and_hides_once()
   test_a_glow_with_no_aura_hides_at_its_duration_and_only_once()
   test_the_aura_ending_hides_the_glow_before_its_timer_and_the_timer_adds_no_second_hide()
   test_the_aura_and_the_glow_ending_together_hide_once()
