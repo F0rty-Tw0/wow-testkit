@@ -116,7 +116,13 @@ local function test_a_class_swap_fires_the_spell_and_bar_slot_events_for_what_ch
     for i, entry in ipairs(log) do
       seen[i] = { entry.event, entry[3] }
     end
-    A.same(seen, { { "SPELLS_CHANGED" }, { "ACTIONBAR_SLOT_CHANGED", 1 }, { "ACTIONBAR_SLOT_CHANGED", 2 }, { "ACTIONBAR_SLOT_CHANGED", 3 }, { "ACTIONBAR_SLOT_CHANGED", 4 } })
+    A.same(seen, {
+      { "SPELLS_CHANGED" },
+      { "ACTIONBAR_SLOT_CHANGED", 1 },
+      { "ACTIONBAR_SLOT_CHANGED", 2 },
+      { "ACTIONBAR_SLOT_CHANGED", 3 },
+      { "ACTIONBAR_SLOT_CHANGED", 4 },
+    })
     Sim.reset(w, "MAGE")
     A.eq(#log, 5, "same kit again: no new event")
   end, { class = "WARRIOR" })
