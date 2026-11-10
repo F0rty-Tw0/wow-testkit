@@ -70,7 +70,18 @@ local function targetingOf(w)
   return mode and { spellID = mode.spellID, radius = mode.radius } or nil
 end
 
--- { now, player, actors, effects, targeting } of w, which must hold a sim.
+-- The overlay spell ids of the lit proc glows (SimProcs), sorted; empty before SimProcs has state.
+local function overlaysOf(w)
+  local out = {}
+  for overlay in pairs(w.sim.procs and w.sim.procs.active or {}) do
+    out[#out + 1] = overlay
+  end
+  table.sort(out)
+
+  return out
+end
+
+-- { now, player, actors, effects, targeting, overlays } of w, which must hold a sim.
 function M.build(w)
   local c = w.combat
   local actors = {}
@@ -81,7 +92,14 @@ function M.build(w)
     end
   end
 
-  return { now = w.now, player = playerEntry(w), actors = actors, effects = SimEffects.snapshot(w), targeting = targetingOf(w) }
+  return {
+    now = w.now,
+    player = playerEntry(w),
+    actors = actors,
+    effects = SimEffects.snapshot(w),
+    targeting = targetingOf(w),
+    overlays = overlaysOf(w),
+  }
 end
 
 return M

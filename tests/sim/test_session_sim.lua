@@ -53,6 +53,16 @@ local function test_world_carries_the_sim_clock_the_effects_are_stamped_in()
   end)
 end
 
+-- The lit proc overlays, sorted, so a script can wait for a glow over the wire.
+local function test_world_lists_the_lit_proc_overlays()
+  withSim(function(sess)
+    A.same(sim(sess, { action = "world" }).world.overlays, {})
+    sess.w.sim.procs.active[7384] = { untilT = 99 }
+    sess.w.sim.procs.active[6572] = { untilT = 99 }
+    A.same(sim(sess, { action = "world" }).world.overlays, { 6572, 7384 })
+  end)
+end
+
 local function test_world_player_reports_the_cast_in_flight()
   withSim(function(sess)
     A.eq(sim(sess, { action = "world" }).world.player.casting, nil)
@@ -282,6 +292,7 @@ end
 return function()
   test_world_reads_the_fresh_player()
   test_world_carries_the_sim_clock_the_effects_are_stamped_in()
+  test_world_lists_the_lit_proc_overlays()
   test_world_player_reports_the_cast_in_flight()
   test_world_reports_the_targeting_mode_and_the_ground_effect()
   test_world_player_reports_health_and_power()
