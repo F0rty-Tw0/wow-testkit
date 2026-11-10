@@ -12,10 +12,22 @@ local WorldApi = require("world_api")
 local RULES = {
   -- source: assumed (TrinityCore SharedDefines numbers; Task 5.1 Step 6 checks them against real rows) SpellEffect.Effect
   -- -> record effect type. An id not listed is skipped and counted in w.unscripted["sim:effect:<n>"].
-  EFFECT = { [2] = "damage", [6] = "aura", [17] = "damage", [27] = "persistent", [30] = "energize", [96] = "charge", [64] = "trigger" },
+  -- source: confirmed (retail 70688: Charge and Thunder Clap rows carry Effect 3, SPELL_EFFECT_DUMMY) 3 is "dummy", an effect
+  -- the client scripts in code: typed so loading a spell that holds one counts nothing; a cast of it still counts
+  -- w.unscripted["sim:effect:dummy"] (SimEffects has no handler).
+  EFFECT = {
+    [2] = "damage",
+    [3] = "dummy",
+    [6] = "aura",
+    [17] = "damage",
+    [27] = "persistent",
+    [30] = "energize",
+    [96] = "charge",
+    [64] = "trigger",
+  },
   -- source: assumed (TrinityCore SharedDefines numbers; Step 6 checks them) SpellEffect.EffectAura -> record aura; any
-  -- other aura is "dummy".
-  AURA = { [3] = "periodic", [12] = "stun", [26] = "root" },
+  -- other aura is "dummy". source: confirmed (retail 70688 Frost Nova row) 455 is a root.
+  AURA = { [3] = "periodic", [12] = "stun", [26] = "root", [455] = "root" },
   -- source: assumed (TrinityCore SharedDefines numbers: TARGET_UNIT_CASTER 1, TARGET_UNIT_TARGET_ENEMY 6,
   -- TARGET_UNIT_SRC_AREA_ENEMY 22 and 16, TARGET_DEST_DEST 18, TARGET_DEST_TARGET_ENEMY 15; Step 6 checks them)
   -- ImplicitTarget[1] -> record target.
@@ -89,6 +101,15 @@ local function auraOf(kind, effect)
   return RULES.AURA[effect.EffectAura] or "dummy"
 end
 
+-- source: assumed (Step 6: the retail layout has EffectBasePointsF only, the classic ones EffectBasePoints only);
+-- source: confirmed (retail 70688 Charge row: energize 200, misc value 1) a rage energize is stored times ten, like a cost.
+local function baseOf(effect, kind)
+  local base = effect.EffectBasePoints or effect.EffectBasePointsF or 0
+  local rage = kind == "energize" and RULES.POWER[first(effect.EffectMiscValue)] == "RAGE"
+
+  return rage and base / RULES.RAGE_SCALE or base
+end
+
 -- One record effect from a SpellEffect row, or nil (and a count) when its Effect id is not scripted.
 local function effectOf(w, effect)
   local kind = M.EFFECT[effect.Effect]
@@ -97,9 +118,7 @@ local function effectOf(w, effect)
 
     return nil
   end
-  -- source: assumed (Step 6: the retail layout has EffectBasePointsF only, the classic ones EffectBasePoints only)
-  local base = effect.EffectBasePoints or effect.EffectBasePointsF or 0
-  local out = { type = kind, base = base, target = M.target(first(effect.ImplicitTarget)) }
+  local out = { type = kind, base = baseOf(effect, kind), target = M.target(first(effect.ImplicitTarget)) }
   out.aura = auraOf(kind, effect)
   out.radius = radiusOf(w, effect)
   out.period = positive(effect.EffectAuraPeriod)
