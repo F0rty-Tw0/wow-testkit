@@ -220,6 +220,20 @@ local function test_game_rule_frame_strata_is_unknown_assumed()
   end
 end
 
+-- tbc paperdollframe.lua:486-490 concatenates UnitResistance's total; spellbookframe.lua:455-456 does arithmetic on tab 2's
+-- numSlots (the book opens on tab 2, :414). The kit models no gear and no spellbook.
+local function test_resistances_are_zero_and_the_spellbook_has_two_empty_tabs_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.UnitResistance("player", 2) }, { 0, 0, 0, 0 }, flavor)
+      A.eq(_G.GetNumSpellTabs(), 2, flavor)
+      local _, _, offset, numSlots, isGuild, offSpecID = _G.GetSpellTabInfo(2)
+      A.same({ offset, numSlots, isGuild, offSpecID }, { 0, 0, false, 0 }, flavor)
+      A.eq(_G.GetSpellTabInfo(3), nil, flavor)
+    end)
+  end
+end
+
 -- tbc QuestLogFrame.lua:671, :690 loop `for i=1, GetNumQuestWatches()` and :549, :749 compare it with numbers; the kit
 -- tracks no quests, so none is watched.
 local function test_num_quest_watches_is_zero_assumed()
@@ -309,6 +323,7 @@ return function()
   test_max_battlefield_id_is_three_queue_slots_assumed()
   test_num_quest_watches_is_zero_assumed()
   test_game_rule_frame_strata_is_unknown_assumed()
+  test_resistances_are_zero_and_the_spellbook_has_two_empty_tabs_assumed()
   test_game_error_numbers_are_set_and_distinct_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()

@@ -206,6 +206,28 @@ function M.install(w)
   define(w, "GetNumQuestWatches", function()
     return 0
   end)
+  -- source: confirmed (row G44) the returns base, total, bonus, minus: tbc paperdollframe.lua:486 and wiki API_UnitResistance;
+  -- no API doc types it. assumed: all 0, as the kit models no gear or auras that resist.
+  define(w, "UnitResistance", function()
+    return 0, 0, 0, 0
+  end)
+  -- source: confirmed (row G44) the returns name, texture, offset, numSlots, isGuild, offSpecID, shouldHide, specID: tbc
+  -- spellbookframe.lua:473, :513 and wiki API_GetSpellTabInfo. assumed: two empty tabs, General then the player's class,
+  -- since the classic spellbook opens on tab 2 (:414) and the kit models no spellbook.
+  define(w, "GetNumSpellTabs", function()
+    return 2
+  end)
+  define(w, "GetSpellTabInfo", function(tabIndex)
+    local name
+    if tabIndex == 1 then
+      name = rawget(_G, "GENERAL") or "General"
+    elseif tabIndex == 2 then
+      name = _G.UnitClass("player")
+    else
+      return nil
+    end
+    return name, nil, 0, 0, false, 0, false, 0
+  end)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)
