@@ -68,20 +68,45 @@ local function tocOf(root, name, flavor)
   return fs.exists(path) and path or nil
 end
 
--- { [lowercase trigger] = { name, ... } }: the extract's addons that load on flavor and whose LoadWith names the trigger,
--- in folder order. name is the TOC Title when it spells the folder (the extract lowercases folders), else the folder.
-local function loadWithIndex(extract, flavor)
-  local index, base = {}, extract.dir .. "/code/addons"
+-- The addon's name for its lowercase folder dir: the TOC Title when it spells dir, else the start of a file line that
+-- does ("Blizzard_PlayerSpells_Bootstrap.lua"), else dir. Assumed (row BU30): Blizzard file names begin with the addon's.
+local function spelling(dir, parsed)
+  local title = parsed.meta.Title
+  if title and title:lower() == dir then
+    return title
+  end
+  for _, file in ipairs(parsed.files) do
+    local start = file.path:match("[^/]*$"):sub(1, #dir)
+    if start:lower() == dir then
+      return start
+    end
+  end
+  return dir
+end
+
+-- { { name, root, parsed }, ... }: the extract's addons that load on flavor, in folder order (name per spelling).
+local function extractAddons(extract, flavor)
+  local addons, base = {}, extract.dir .. "/code/addons"
   for _, dir in ipairs(fs.isdir(base) and fs.list(base) or {}) do
-    local toc = tocOf(base .. "/" .. dir, dir, flavor)
-    local meta = toc and Toc.parse(fs.readFile(toc) or "").meta
-    if meta and meta.LoadWith and TocHeader.loadsOn(meta, flavor) then
-      local name = meta.Title and meta.Title:lower() == dir and meta.Title or dir
-      for _, trigger in ipairs(Toc.loadWith(meta, flavor)) do
-        local key = trigger:lower()
-        index[key] = index[key] or {}
-        index[key][#index[key] + 1] = name
-      end
+    local root = base .. "/" .. dir
+    local toc = tocOf(root, dir, flavor)
+    local parsed = toc and Toc.parse(fs.readFile(toc) or "")
+    if parsed and TocHeader.loadsOn(parsed.meta, flavor) then
+      addons[#addons + 1] = { name = spelling(dir, parsed), root = root, parsed = parsed }
+    end
+  end
+  return addons
+end
+
+-- { [lowercase trigger] = { name, ... } }: the extract's addons that load on flavor and whose LoadWith names the trigger,
+-- in folder order.
+local function loadWithIndex(extract, flavor)
+  local index = {}
+  for _, addon in ipairs(extractAddons(extract, flavor)) do
+    for _, trigger in ipairs(Toc.loadWith(addon.parsed.meta, flavor)) do
+      local key = trigger:lower()
+      index[key] = index[key] or {}
+      index[key][#index[key] + 1] = addon.name
     end
   end
   return index
@@ -200,21 +225,26 @@ local function lowerReader(root, name, notes)
   end
 end
 
--- Runs entry's TOC files for w's flavor ([Family] and [Game] expanded by Toc.filesFor, row BU3), registers its
--- bindings.xml, records it as loaded and fires ADDON_LOADED.
-local function loadEntry(w, entry, report, fire)
+-- Runs files (TOC paths) of entry in a load context of its own.
+local function runFiles(w, entry, files, report)
   local ctx = Addon.context(w, entry.name, entry.root)
   ctx.readFile = lowerReader(entry.root, entry.name, report.notes)
   function ctx.exists(relative)
     return fs.exists(entry.root .. "/" .. lowerPath(relative))
   end
-  for _, path in ipairs((Toc.filesFor(entry.parsed, w.flavor))) do
+  for _, path in ipairs(files) do
     if path:lower():match("%.xml$") then
       Xml.loadFile(w, path, ctx)
     else
       Addon.runFile(w, ctx, path)
     end
   end
+end
+
+-- Runs entry's TOC files for w's flavor ([Family] and [Game] expanded by Toc.filesFor, row BU3), registers its
+-- bindings.xml, records it as loaded and fires ADDON_LOADED.
+local function loadEntry(w, entry, report, fire)
+  runFiles(w, entry, (Toc.filesFor(entry.parsed, w.flavor)), report)
   local bindings = fs.readFile(entry.root .. "/bindings.xml")
   if bindings then
     Bindings.loadXml(w, bindings, entry.name)
@@ -244,6 +274,19 @@ local function isLoaded(report, name)
     end
   end
   return false
+end
+
+-- source: row BU30, Toc.bootstrapFiles: after the targets, each LoadOnDemand addon of the extract not loaded yet runs its
+-- [Bootstrap] lines (folder order, assumed); its code is Blizzard's, so it runs secure and its errors are the layer's.
+local function runBootstraps(w, extract, report)
+  for _, addon in ipairs(extractAddons(extract, w.flavor)) do
+    local files = Toc.bootstrapFiles(addon.parsed, w.flavor)
+    if #files > 0 and not isLoaded(report, addon.name) then
+      w.taint.secureAddons[addon.name] = true
+      runFiles(w, addon, files, report)
+      w.errorHandler = report.handler
+    end
+  end
 end
 
 -- Loads opts.targets (default M.TARGETS) and their dependencies from extract into w, in M.order, after the flavor's
@@ -277,6 +320,7 @@ function M.load(w, extract, opts)
       w.errorHandler = report.handler
     end
   end
+  runBootstraps(w, extract, report)
   return report
 end
 

@@ -7,6 +7,7 @@ local fs = require("fs")
 
 local INTERFACE_KEY = "Interface"
 local GAME_TYPE_DIRECTIVE = "AllowLoadGameType"
+local BOOTSTRAP_DIRECTIVE = "Bootstrap"
 local UTF8_BOM = "^\239\187\191"
 -- Localized: addon code may assign a global named os.
 local osGetenv = os.getenv
@@ -279,7 +280,7 @@ end
 
 local function reportIgnoredDirectives(file, report)
   for _, name in ipairs(sortedKeys(file.directives)) do
-    if name ~= GAME_TYPE_DIRECTIVE then
+    if name ~= GAME_TYPE_DIRECTIVE and name ~= BOOTSTRAP_DIRECTIVE then
       report[#report + 1] = file.path .. ": ignored directive [" .. name .. "]"
     end
   end
@@ -294,17 +295,43 @@ local function addFile(path, files, report)
   end
 end
 
--- Ordered Lua and XML paths (relative to the addon root, [Family]/[Game] expanded) the flavor loads, and what was ignored.
-function M.filesFor(parsed, flavor)
+local function isLoadOnDemand(meta)
+  return meta.LoadOnDemand == "1"
+end
+
+local function isBootstrap(file)
+  return file.directives[BOOTSTRAP_DIRECTIVE] ~= nil
+end
+
+local function collect(parsed, flavor, keep)
   local row = Flavors.get(flavor)
   local files, report = {}, {}
   for _, file in ipairs(parsed.files) do
     reportIgnoredDirectives(file, report)
-    if allowedOn(file, row, report) then
+    if keep(file) and allowedOn(file, row, report) then
       addFile(Flavors.expandTocPath(flavor, file.path), files, report)
     end
   end
   return files, report
+end
+
+-- Ordered Lua and XML paths (relative to the addon root, [Family]/[Game] expanded) the flavor loads, and what was ignored.
+-- A LoadOnDemand addon's [Bootstrap] lines are left out: M.bootstrapFiles ran them at login (row BU30).
+function M.filesFor(parsed, flavor)
+  local lod = isLoadOnDemand(parsed.meta)
+  return collect(parsed, flavor, function(file)
+    return not (lod and isBootstrap(file))
+  end)
+end
+
+-- source: confirmed (row BU30) wiki TOC_format: [Bootstrap] "Restricts the addon directive or file to the bootstrap
+-- process for LoadOnDemand addons" (12.1.0); assumed: that process runs at login. The paths a LoadOnDemand addon runs
+-- then, in M.filesFor's form; {} for an addon that loads at login (its [Bootstrap] lines load with the rest).
+function M.bootstrapFiles(parsed, flavor)
+  if not isLoadOnDemand(parsed.meta) then
+    return {}
+  end
+  return (collect(parsed, flavor, isBootstrap))
 end
 
 return M
