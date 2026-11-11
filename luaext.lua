@@ -15,12 +15,48 @@ local osClock = os.clock
 
 local DEFAULT_TRIM = " \t\r\n"
 local MS_PER_SECOND = 1000
+local hostFormat = string.format
+local POSITIONAL = "%%%d+%$"
+local POSITIONAL_SPEC = "^(%d+)%$([-+ #0]*%d*%.?%d*%a)()"
 
 local function pack(...)
   return { n = select("#", ...), ... }
 end
 
--- WoW's aliases match the host library functions exactly, so the host function is installed as is.
+-- WoW's format: the host's, plus positional specs `%<n>$<spec>` taking argument n (row W84: the client's own strings
+-- reorder arguments, forever 70862 strings/enUS.lua "%2$02d/%1$d/20%3$02d"). A spec without n takes the next argument.
+function M.format(fmt, ...)
+  if type(fmt) ~= "string" or not fmt:find(POSITIONAL) then
+    return hostFormat(fmt, ...)
+  end
+  local args, parts, picked, nextArg, at = pack(...), {}, {}, 0, 1
+  while true do
+    local start = fmt:find("%", at, true)
+    if not start then
+      parts[#parts + 1] = fmt:sub(at)
+      break
+    end
+    parts[#parts + 1] = fmt:sub(at, start - 1)
+    local index, spec, stop = fmt:match(POSITIONAL_SPEC, start + 1)
+    if fmt:sub(start + 1, start + 1) == "%" then
+      parts[#parts + 1], at = "%%", start + 2
+    elseif index then
+      picked[#picked + 1] = tonumber(index)
+      parts[#parts + 1], at = "%" .. spec, stop
+    else
+      nextArg = nextArg + 1
+      picked[#picked + 1] = nextArg
+      parts[#parts + 1], at = "%", start + 1
+    end
+  end
+  local values = {}
+  for i, index in ipairs(picked) do
+    values[i] = args[index]
+  end
+  return hostFormat(table.concat(parts), unpack(values, 1, #picked))
+end
+
+-- WoW's aliases match the host library functions exactly, so the host function is installed as is (format: WoW's, above).
 -- unpack: Lua 5.1 already has it with WoW's semantics; installed only when the host lacks it.
 local ALIASES = {
   strmatch = string.match,
@@ -29,7 +65,8 @@ local ALIASES = {
   strlen = string.len,
   strlower = string.lower,
   strupper = string.upper,
-  format = string.format,
+  format = M.format,
+  ["string.format"] = M.format,
   tinsert = table.insert,
   tremove = table.remove,
   floor = math.floor,

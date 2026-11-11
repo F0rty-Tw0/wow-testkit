@@ -280,6 +280,19 @@ local function test_math_extensions_leave_with_the_world()
   A.eq(_G.math.clamp, nil)
 end
 
+-- forever 70862 strings/enUS.lua writes the same achievement date as "%1$d/%2$02d/20%3$02d" and "%2$02d/%1$d/20%3$02d".
+local function test_format_takes_positional_specs()
+  local hostFormat = string.format
+  withWorld("tbc", function()
+    A.eq(_G.format("%2$02d/%1$d/20%3$02d", 7, 3, 26), "03/7/2026")
+    A.eq(_G.string.format("%1$s 100%% %1$s", "a"), "a 100% a")
+    A.eq(("%2$s-%1$s"):format("x", "y"), "y-x")
+    A.eq(_G.format("%s=%d", "n", 5), "n=5")
+    A.eq(_G.format, _G.string.format)
+  end)
+  A.eq(string.format, hostFormat, "the host format comes back with the world")
+end
+
 return function()
   test_strsplit_returns_each_piece()
   test_strsplit_separator_is_a_set_of_chars()
@@ -309,4 +322,5 @@ return function()
   test_c_timer_counted_and_validated_in_addon_context()
   test_math_extensions_have_the_usual_meanings_assumed()
   test_math_extensions_leave_with_the_world()
+  test_format_takes_positional_specs()
 end

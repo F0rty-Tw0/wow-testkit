@@ -17,13 +17,13 @@ local function test_namespaced_stub_builds_its_namespaces_and_destroy_removes_th
 end
 
 local function test_host_defined_names_are_kept_plain_and_dotted()
-  local format = string.format
+  local byte = string.byte
   _G.TK_HostPlain = "host"
   withWorld("retail", function(w)
     w:installStub("TK_HostPlain", nil)
-    w:installStub("string.format", nil)
+    w:installStub("string.byte", nil)
     A.eq(_G.TK_HostPlain, "host")
-    A.eq(string.format, format)
+    A.eq(string.byte, byte)
   end)
   _G.TK_HostPlain = nil
 end
