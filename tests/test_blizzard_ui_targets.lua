@@ -75,7 +75,19 @@ local function test_default_targets_load_the_character_subframe_addons()
   end)
 end
 
+-- source: BU32 forever's target frame builds its aura mixin from ManagedAuraContainerSharedMixin at load
+-- (blizzard_unitframe/shared/targetframeauracontainer.lua:15); Blizzard_AuraContainer defines it and no TOC depends on it.
+local function test_default_targets_load_the_aura_container_before_the_unit_frames()
+  local auras = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "ManagedAuraContainerSharedMixin = {}\n" } }
+  local units = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "SawAuraMixin = ManagedAuraContainerSharedMixin ~= nil\n" } }
+  B.run(B.mini({ blizzard_auracontainer = auras, blizzard_unitframe = units }), {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_AuraContainer")
+    A.eq(_G.SawAuraMixin, true)
+  end)
+end
+
 return function()
+  test_default_targets_load_the_aura_container_before_the_unit_frames()
   test_default_targets_load_the_character_subframe_addons()
   test_default_targets_load_the_bag_buttons()
   test_default_targets_load_the_override_action_bar()

@@ -29,7 +29,11 @@ local debugTraceback = debug.traceback
 -- checks on open (tbc containerframe_shared.lua:270); it loads at login.
 -- source: row BU31 (confirmed) Blizzard_TokenUI and Blizzard_Statistics make TokenFrame and StatisticsFrame, which the
 -- camelot character frame hides unguarded (forever camelot/characterframe.lua:113); both load at login.
+-- source: row BU32 (confirmed) Blizzard_AuraContainer defines ManagedAuraContainerSharedMixin, which forever's
+-- Blizzard_UnitFrame reads at load (shared/targetframeauracontainer.lua:15); no TOC depends on it, it loads at login
+-- (no LoadOnDemand, AllowLoad game). First, so it loads before the unit frames (assumed: the client's order agrees).
 M.TARGETS = {
+  "Blizzard_AuraContainer",
   "Blizzard_ActionBar",
   "Blizzard_UnitFrame",
   "Blizzard_EditMode",
