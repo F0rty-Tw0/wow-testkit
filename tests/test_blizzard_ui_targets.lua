@@ -63,7 +63,20 @@ local function test_default_targets_load_the_bag_buttons()
   end)
 end
 
+-- source: BU31 the camelot character frame hides every name in CHARACTERFRAME_SUBFRAMES unguarded (forever
+-- camelot/characterframe.lua:113), among them TokenFrame (Blizzard_TokenUI) and StatisticsFrame (Blizzard_Statistics).
+local function test_default_targets_load_the_character_subframe_addons()
+  local token = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "TokenFrame = {}\n" } }
+  local stats = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "StatisticsFrame = {}\n" } }
+  B.run(B.mini({ blizzard_tokenui = token, blizzard_statistics = stats }), {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_TokenUI")
+    A.contains(s.w.blizzard.loaded, "Blizzard_Statistics")
+    A.same({ type(_G.TokenFrame), type(_G.StatisticsFrame) }, { "table", "table" })
+  end)
+end
+
 return function()
+  test_default_targets_load_the_character_subframe_addons()
   test_default_targets_load_the_bag_buttons()
   test_default_targets_load_the_override_action_bar()
   test_default_targets_load_the_chat_and_raid_frames()

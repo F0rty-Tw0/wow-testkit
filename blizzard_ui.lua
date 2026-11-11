@@ -27,6 +27,8 @@ local debugTraceback = debug.traceback
 -- unguarded (tbc uiparentpanelmanager.lua:1140, reached from ToggleAllBags); it loads at login.
 -- source: row BU29 (confirmed) Blizzard_MainMenuBarBagButtons makes MainMenuBarBackpackButton, which the classic bag frame
 -- checks on open (tbc containerframe_shared.lua:270); it loads at login.
+-- source: row BU31 (confirmed) Blizzard_TokenUI and Blizzard_Statistics make TokenFrame and StatisticsFrame, which the
+-- camelot character frame hides unguarded (forever camelot/characterframe.lua:113); both load at login.
 M.TARGETS = {
   "Blizzard_ActionBar",
   "Blizzard_UnitFrame",
@@ -37,6 +39,8 @@ M.TARGETS = {
   "Blizzard_QueueStatusFrame",
   "Blizzard_GameMenu",
   "Blizzard_MainMenuBarBagButtons",
+  "Blizzard_TokenUI",
+  "Blizzard_Statistics",
 }
 -- source: assumed (row BU1) the default key bindings per flavor, under <extract.dir>/code/. The extract has no
 -- bindings.xml: Blizzard_FrameXML holds one unlisted file per game type.
