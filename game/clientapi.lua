@@ -169,6 +169,11 @@ function M.install(w)
     end
     return classTable
   end)
+  -- source: confirmed (row G38) an array of application ids: tbc QueueStatusFrame.lua:119-121 takes its length and passes
+  -- each entry to GetApplicationInfo; no API doc types it. assumed: empty, since the kit lists no groups.
+  define(w, "C_LFGList.GetApplications", function()
+    return {}
+  end)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)

@@ -188,6 +188,18 @@ local function test_fill_localized_class_list_names_every_class_assumed()
   end)
 end
 
+-- tbc QueueStatusFrame.lua:119-121 takes #apps of C_LFGList.GetApplications() and passes apps[i] to GetApplicationInfo;
+-- the kit lists no groups, so it is an empty array, a new one per call (the caller may keep it).
+local function test_lfg_list_applications_are_an_empty_list_assumed()
+  for _, flavor in ipairs({ "tbc", "retail" }) do
+    G.withGame(flavor, function()
+      local apps = _G.C_LFGList.GetApplications()
+      A.same(apps, {}, flavor)
+      A.truthy(_G.C_LFGList.GetApplications() ~= apps, "a new table per call")
+    end)
+  end
+end
+
 -- Blizzard_WorldMap.lua:577 (ToggleWorldMap) indexes Enum.GameRule.WorldMapDisabled; no installed data lists the members, so
 -- the kit's table is empty and every rule reads as inactive. tbc's AutoComplete.lua:138 reads it the same way.
 local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
@@ -246,6 +258,7 @@ return function()
   test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
   test_class_info_answers_the_class_list_assumed()
   test_fill_localized_class_list_names_every_class_assumed()
+  test_lfg_list_applications_are_an_empty_list_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
