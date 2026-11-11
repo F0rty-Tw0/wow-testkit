@@ -108,6 +108,26 @@ local function test_faction_bnet_and_level_colours_come_from_the_ui_colour_table
   end
 end
 
+-- source: W88 forever's UnitFrame_Initialize sets the mana cost prediction bar to POWERBAR_PREDICTION_COLOR_MANA
+-- (mainline/unitframe.lua:597-600); nil there stopped PlayerFrame's OnLoad before it registered its events (sign-off W27).
+-- GlobalColor rows 242-255 hold the heal, absorb and power prediction colours.
+local function test_unit_frame_prediction_colours_come_from_the_ui_colour_table() -- W88
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.same(
+        {
+          _G.HEALTHBAR_MY_HEAL_PREDICTION_COLOR:GenerateHexColor(),
+          _G.HEALTHBAR_TOTAL_ABSORB_COLOR:GenerateHexColor(),
+          _G.POWERBAR_PREDICTION_COLOR_MANA:GenerateHexColor(),
+          _G.POWERBAR_PREDICTION_COLOR_PAIN:GenerateHexColor(),
+        },
+        { "ff00d3c3", "ffffffff", "ff002d68", "ff663f00" },
+        flavor
+      )
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -222,6 +242,7 @@ return function()
   test_tooltip_and_hotkey_colours_are_colour_objects_from_the_ui_colour_table()
   test_classic_cast_bar_colours_come_from_the_ui_colour_table()
   test_the_font_colours_exist_on_every_flavor()
+  test_unit_frame_prediction_colours_come_from_the_ui_colour_table()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
   test_a_hex_string_of_the_wrong_length_asserts_and_returns_nil()

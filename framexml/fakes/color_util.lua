@@ -58,6 +58,23 @@ local UI_COLORS = {
   { baseTag = "PLAYER_FACTION_COLOR_HORDE", color = { r = 1, g = 41 / 255, b = 52 / 255, a = 1 } },
   { baseTag = "PLAYER_FACTION_COLOR_ALLIANCE", color = { r = 0, g = 173 / 255, b = 240 / 255, a = 1 } },
   { baseTag = "UNIT_LEVEL_NON_ATTACKABLE", color = { r = 1, g = 209 / 255, b = 0, a = 1 } },
+  -- source: row W88 (confirmed) GlobalColor rows 242-255 (ARGB in each comment); forever's UnitFrame_Initialize fills the
+  -- mana cost prediction bar with POWERBAR_PREDICTION_COLOR_MANA (mainline/unitframe.lua:597-600) and unitframe.xml:5-15
+  -- names the heal and absorb ones; no extract Lua defines them.
+  { baseTag = "HEALTHBAR_MY_HEAL_PREDICTION_COLOR", color = { r = 0, g = 211 / 255, b = 195 / 255, a = 1 } }, -- ff00d3c3
+  { baseTag = "HEALTHBAR_OTHER_HEAL_PREDICTION_COLOR", color = { r = 0, g = 161 / 255, b = 142 / 255, a = 1 } }, -- ff00a18e
+  { baseTag = "HEALTHBAR_HEAL_ABSORB_COLOR", color = { r = 108 / 255, g = 166 / 255, b = 13 / 255, a = 1 } }, -- ff6ca60d
+  { baseTag = "HEALTHBAR_TOTAL_ABSORB_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } }, -- ffffffff
+  { baseTag = "POWERBAR_PREDICTION_COLOR_MANA", color = { r = 0, g = 45 / 255, b = 104 / 255, a = 1 } }, -- ff002d68
+  { baseTag = "POWERBAR_PREDICTION_COLOR_RAGE", color = { r = 102 / 255, g = 0, b = 0, a = 1 } }, -- ff660000
+  { baseTag = "POWERBAR_PREDICTION_COLOR_FOCUS", color = { r = 102 / 255, g = 34 / 255, b = 0, a = 1 } }, -- ff662200
+  { baseTag = "POWERBAR_PREDICTION_COLOR_ENERGY", color = { r = 115 / 255, g = 102 / 255, b = 0, a = 1 } }, -- ff736600
+  { baseTag = "POWERBAR_PREDICTION_COLOR_RUNIC_POWER", color = { r = 0, g = 83 / 255, b = 102 / 255, a = 1 } }, -- ff005366
+  { baseTag = "POWERBAR_PREDICTION_COLOR_LUNAR_POWER", color = { r = 15 / 255, g = 47 / 255, b = 103 / 255, a = 1 } }, -- ff0f2f67
+  { baseTag = "POWERBAR_PREDICTION_COLOR_MAELSTROM", color = { r = 0, g = 51 / 255, b = 102 / 255, a = 1 } }, -- ff003366
+  { baseTag = "POWERBAR_PREDICTION_COLOR_INSANITY", color = { r = 51 / 255, g = 0, b = 102 / 255, a = 1 } }, -- ff330066
+  { baseTag = "POWERBAR_PREDICTION_COLOR_FURY", color = { r = 72 / 255, g = 2 / 255, b = 100 / 255, a = 1 } }, -- ff480264
+  { baseTag = "POWERBAR_PREDICTION_COLOR_PAIN", color = { r = 102 / 255, g = 63 / 255, b = 0, a = 1 } }, -- ff663f00
 }
 
 local function byte(channel)
