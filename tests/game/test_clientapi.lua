@@ -210,6 +210,16 @@ local function test_max_battlefield_id_is_three_queue_slots_assumed()
   end
 end
 
+-- tbc QuestLogFrame.lua:671, :690 loop `for i=1, GetNumQuestWatches()` and :549, :749 compare it with numbers; the kit
+-- tracks no quests, so none is watched.
+local function test_num_quest_watches_is_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetNumQuestWatches(), 0, flavor)
+    end)
+  end
+end
+
 -- tbc UIErrorsFrame.lua:50-53 keys THROTTLED_MESSAGE_TYPES by LE_GAME_ERR_*; nil keys raised "table index is nil".
 local function test_game_error_numbers_are_set_and_distinct_assumed()
   for _, flavor in ipairs({ "tbc", "forever" }) do
@@ -287,6 +297,7 @@ return function()
   test_fill_localized_class_list_names_every_class_assumed()
   test_lfg_list_applications_are_an_empty_list_assumed()
   test_max_battlefield_id_is_three_queue_slots_assumed()
+  test_num_quest_watches_is_zero_assumed()
   test_game_error_numbers_are_set_and_distinct_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()

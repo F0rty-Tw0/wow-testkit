@@ -201,6 +201,11 @@ function M.install(w)
   define(w, "GetMaxBattlefieldID", function()
     return 3
   end)
+  -- source: confirmed (row G42) a count: tbc QuestLogFrame.lua:671 loops to it and :549 compares it with
+  -- MAX_WATCHABLE_QUESTS; no API doc types it. assumed: 0, since the kit tracks no quests.
+  define(w, "GetNumQuestWatches", function()
+    return 0
+  end)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)
