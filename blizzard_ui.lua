@@ -18,7 +18,17 @@ local fs = require("fs")
 local debugTraceback = debug.traceback
 
 -- The client's spelling: Blizzard Lua compares addon names exactly.
-M.TARGETS = { "Blizzard_ActionBar", "Blizzard_UnitFrame", "Blizzard_EditMode", "Blizzard_OverrideActionBar" }
+-- source: row BU25 (confirmed) Blizzard_ChatFrame makes ChatFrame1 and Blizzard_CompactRaidFrames makes CompactPartyFrame,
+-- which the classic frame position manager (uiparentpanelmanageroverrides.lua:73, :100) and Edit Mode
+-- (EditModeSystemTemplates.lua:1517) index; the client loads both at login, so neither may be nil.
+M.TARGETS = {
+  "Blizzard_ActionBar",
+  "Blizzard_UnitFrame",
+  "Blizzard_EditMode",
+  "Blizzard_OverrideActionBar",
+  "Blizzard_ChatFrame",
+  "Blizzard_CompactRaidFrames",
+}
 -- source: assumed (row BU1) the default key bindings per flavor, under <extract.dir>/code/. The extract has no
 -- bindings.xml: Blizzard_FrameXML holds one unlisted file per game type.
 M.BINDINGS_FILES = {

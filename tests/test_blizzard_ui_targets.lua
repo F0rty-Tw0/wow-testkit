@@ -14,6 +14,25 @@ local function test_default_targets_load_the_override_action_bar()
   end)
 end
 
+-- source: BU25 the classic frame position manager indexes ChatFrame1 (tbc uiparentpanelmanageroverrides.lua:73, :100) and
+-- Edit Mode indexes CompactPartyFrame (EditModeSystemTemplates.lua:1517); on tbc nothing the other targets depend on
+-- loads their addons, so without them both read nil and the cast bar is never placed.
+local function test_default_targets_load_the_chat_and_raid_frames()
+  local function addon(lua)
+    return { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = lua } }
+  end
+  local addons = B.mini({
+    blizzard_chatframe = addon("ChatFrame1 = {}\n"),
+    blizzard_compactraidframes = addon("CompactPartyFrame = {}\n"),
+  })
+  B.run(addons, {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_ChatFrame")
+    A.contains(s.w.blizzard.loaded, "Blizzard_CompactRaidFrames")
+    A.same({ type(_G.ChatFrame1), type(_G.CompactPartyFrame) }, { "table", "table" })
+  end)
+end
+
 return function()
   test_default_targets_load_the_override_action_bar()
+  test_default_targets_load_the_chat_and_raid_frames()
 end
