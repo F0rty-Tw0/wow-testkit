@@ -200,6 +200,16 @@ local function test_lfg_list_applications_are_an_empty_list_assumed()
   end
 end
 
+-- forever QueueStatusFrame.lua:431 loops `for i=1, GetMaxBattlefieldID()`; tbc minimap.lua:13, :376 fall back from it
+-- to MAX_BATTLEFIELD_QUEUES = 3.
+local function test_max_battlefield_id_is_three_queue_slots_assumed()
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetMaxBattlefieldID(), 3, flavor)
+    end)
+  end
+end
+
 -- Blizzard_WorldMap.lua:577 (ToggleWorldMap) indexes Enum.GameRule.WorldMapDisabled; no installed data lists the members, so
 -- the kit's table is empty and every rule reads as inactive. tbc's AutoComplete.lua:138 reads it the same way.
 local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
@@ -259,6 +269,7 @@ return function()
   test_class_info_answers_the_class_list_assumed()
   test_fill_localized_class_list_names_every_class_assumed()
   test_lfg_list_applications_are_an_empty_list_assumed()
+  test_max_battlefield_id_is_three_queue_slots_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()

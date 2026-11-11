@@ -174,6 +174,11 @@ function M.install(w)
   define(w, "C_LFGList.GetApplications", function()
     return {}
   end)
+  -- source: confirmed (row G39) it replaces MAX_BATTLEFIELD_QUEUES (wiki), which tbc minimap.lua:13 sets to 3 and :376
+  -- falls back to; assumed 3 on every flavor.
+  define(w, "GetMaxBattlefieldID", function()
+    return 3
+  end)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)
