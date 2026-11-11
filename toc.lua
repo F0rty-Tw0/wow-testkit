@@ -7,7 +7,10 @@ local fs = require("fs")
 
 local INTERFACE_KEY = "Interface"
 local GAME_TYPE_DIRECTIVE = "AllowLoadGameType"
+local EXCLUDE_GAME_TYPE_DIRECTIVE = "ExcludeLoadGameType"
 local BOOTSTRAP_DIRECTIVE = "Bootstrap"
+-- The inline directives the kit reads; any other is reported as ignored.
+local READ_DIRECTIVES = { [GAME_TYPE_DIRECTIVE] = true, [EXCLUDE_GAME_TYPE_DIRECTIVE] = true, [BOOTSTRAP_DIRECTIVE] = true }
 local UTF8_BOM = "^\239\187\191"
 -- Localized: addon code may assign a global named os.
 local osGetenv = os.getenv
@@ -115,8 +118,24 @@ local function parseFileLine(line)
   return { path = (line:gsub("\\", "/")), directives = directives }
 end
 
--- A game-type list loads the file when it shares a type with the flavor, or names no known type at all.
+-- source: confirmed (row L8) wiki TOC_format: [ExcludeLoadGameType x] keeps the line off game type x (added 12.0.0);
+-- forever 70862 `blizzard_playerspells.toc` pairs `[Family]/X [ExcludeLoadGameType camelot]` with
+-- `[Game]/X [AllowLoadGameType camelot]`.
+local function excludedOn(file, row)
+  for name in pairs(file.directives[EXCLUDE_GAME_TYPE_DIRECTIVE] or {}) do
+    if row.gameTypes[name] then
+      return true
+    end
+  end
+  return false
+end
+
+-- A game-type list loads the file when it shares a type with the flavor, or names no known type at all; an exclude
+-- list naming one of the flavor's types drops it first.
 local function allowedOn(file, row, report)
+  if excludedOn(file, row) then
+    return false
+  end
   local gameTypes = file.directives[GAME_TYPE_DIRECTIVE]
   if not gameTypes then
     return true
@@ -280,7 +299,7 @@ end
 
 local function reportIgnoredDirectives(file, report)
   for _, name in ipairs(sortedKeys(file.directives)) do
-    if name ~= GAME_TYPE_DIRECTIVE and name ~= BOOTSTRAP_DIRECTIVE then
+    if not READ_DIRECTIVES[name] then
       report[#report + 1] = file.path .. ": ignored directive [" .. name .. "]"
     end
   end

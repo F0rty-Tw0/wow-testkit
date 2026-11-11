@@ -4,20 +4,22 @@ local M = {}
 local Flavors = require("tools.flavors")
 local Toc = require("toc")
 
-local GAME_TYPE_HEADER = "AllowLoadGameType"
+local GAME_TYPE_HEADERS = { "AllowLoadGameType", "ExcludeLoadGameType" }
 
--- source: assumed (row BU8) the `## AllowLoadGameType:` header lists the game types the addon loads on, read as the
--- per-file directive is (Toc.allowedOn, row L1).
+-- source: assumed (rows BU8, L8) the `## AllowLoadGameType:` header lists the game types the addon loads on and
+-- `## ExcludeLoadGameType:` those it does not, read as the per-file directives are (Toc.allowedOn, row L1).
 local function gameTypeAllows(meta, row)
-  local value = meta[GAME_TYPE_HEADER]
-  if not value then
-    return true
+  local directives = {}
+  for _, header in ipairs(GAME_TYPE_HEADERS) do
+    local value = meta[header]
+    if value then
+      directives[header] = {}
+      for name in value:gmatch("[^,%s]+") do
+        directives[header][name:lower()] = true
+      end
+    end
   end
-  local gameTypes = {}
-  for name in value:gmatch("[^,%s]+") do
-    gameTypes[name:lower()] = true
-  end
-  return Toc.allowedOn({ path = "", directives = { [GAME_TYPE_HEADER] = gameTypes } }, row, {})
+  return Toc.allowedOn({ path = "", directives = directives }, row, {})
 end
 
 -- source: confirmed (row BU26) `## AllowLoad: Glue` keeps the addon out of the game UI; Game and Both let it in. A
