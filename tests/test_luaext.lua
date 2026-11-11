@@ -295,7 +295,30 @@ local function test_format_takes_positional_specs()
   A.eq(string.format, hostFormat, "the host format comes back with the world")
 end
 
+-- source: G51 forever's TimerUtil.CreateTimedSignalCallbackMap adds a method to the map C_Timer.NewTimedSignalMap
+-- returns (blizzard_sharedxmlbase/timerutil.lua:15-17); timedsignalmapapidocumentation.lua gives the methods.
+local function test_timed_signal_map_signals_due_keys_once() -- G51
+  withWorld("forever", function(w)
+    local fired = {}
+    local map = _G.C_Timer.NewTimedSignalMap(function(key)
+      fired[#fired + 1] = key
+    end)
+    map:SignalAfter(1, 2)
+    map:SignalAt(2, w.now + 1)
+    map:SignalAfter(3, 1)
+    map:CancelSignal(3)
+    A.same({ map:GetSignalCount(), map:HasSignal(1), map:HasSignal(3), map:GetNextSignal() }, { 2, true, false, 2, w.now + 1 })
+    w:advance(2)
+    A.same(fired, { 2, 1 })
+    A.same({ map:GetSignalCount(), map:GetSignalTime(1) }, { 0, nil })
+  end)
+  withWorld("tbc", function()
+    A.eq(_G.C_Timer.NewTimedSignalMap, nil)
+  end)
+end
+
 return function()
+  test_timed_signal_map_signals_due_keys_once()
   test_strsplit_returns_each_piece()
   test_strsplit_separator_is_a_set_of_chars()
   test_strsplit_pieces_keeps_rest_in_last()

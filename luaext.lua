@@ -229,7 +229,70 @@ local function installErrorHandler(w)
   end)
 end
 
+-- source: confirmed (row G51) forever 70862 blizzard_apidocumentationgenerated/timedsignalmapapidocumentation.lua: a map
+-- of integer keys, each due at an absolute GetTime() time; a due key leaves the map and goes to the callback; SignalAt and
+-- SignalAfter replace a key's schedule. Assumed: a plain table (timerutil.lua:17 adds a method to it), no secret values.
+local function newTimedSignalMap(w, callback)
+  local timers = {}
+  local map = {}
+  local function cancel(key)
+    if timers[key] then
+      timers[key]:Cancel()
+      timers[key] = nil
+    end
+  end
+  function map:SignalAt(key, time)
+    cancel(key)
+    timers[key] = w:schedule(time - w.now, function()
+      timers[key] = nil
+      callback(key)
+    end, 1)
+  end
+  function map:SignalAfter(key, seconds)
+    self:SignalAt(key, w.now + seconds)
+  end
+  function map:CancelSignal(key)
+    cancel(key)
+  end
+  function map:CancelAllSignals()
+    for key in pairs(timers) do
+      cancel(key)
+    end
+  end
+  function map:HasSignal(key)
+    return timers[key] ~= nil
+  end
+  function map:GetSignalTime(key)
+    return timers[key] and timers[key].due
+  end
+  function map:GetSignalCount()
+    local count = 0
+    for _ in pairs(timers) do
+      count = count + 1
+    end
+    return count
+  end
+  function map:GetNextSignal()
+    local nextKey, nextTime
+    for key, timer in pairs(timers) do
+      if nextTime == nil or timer.due < nextTime then
+        nextKey, nextTime = key, timer.due
+      end
+    end
+    return nextKey, nextTime
+  end
+  return map
+end
+
 local function installTimers(w)
+  -- grug: forever only by name, as G48: api/forever predates the doc set that lists it.
+  if w.flavor == "forever" then
+    w:install("C_Timer.NewTimedSignalMap", function(callback)
+      return newTimedSignalMap(w, Taint.adopt(w, function(key)
+        callback(key)
+      end, callback))
+    end)
+  end
   w:install("C_Timer.After", function(seconds, callback)
     -- The wrapper drops the timer argument; it runs with the callback's owner.
     local wrapper = function()
