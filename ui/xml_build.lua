@@ -185,6 +185,29 @@ function M.handlers.mixins(w, obj, st, node, session)
   end
 end
 
+-- Sets the KeyValues of node's whole inherits chain (depth first, in inherits order, so a deriving template's win),
+-- then node's own, on obj before any of its content is built. The build applies them again in place (and reports a
+-- bad type there), so the final values and the KeyValues-over-mixin order (row X32) do not change.
+-- source: row X33, forever 70862 blizzard_sharedxml/shared/button/threeslicebuttontemplate.xml: the base template's
+-- Controller child's OnLoad (shareduipaneltemplates.lua:1075-1078) calls the parent's InitButton, which reads
+-- atlasName that only the inheriting template's KeyValues set (:67-69). Assumed: a child's OnLoad can change the key
+-- and the build's own pass sets it back; mixins are not applied early.
+function M.keyValuesFirst(w, obj, node, seen)
+  seen = seen or {}
+  for name in (node.attrs.inherits or ""):gmatch("[^,%s]+") do
+    local virtual = w.ui.virtuals[name]
+    if virtual and not seen[name] then
+      seen[name] = true
+      M.keyValuesFirst(w, obj, virtual.node, seen)
+    end
+  end
+  for _, child in ipairs(node.children) do
+    if child.tag == "keyvalues" then
+      M.handlers.keyvalues(w, obj, nil, child, { report = function() end })
+    end
+  end
+end
+
 -- The content of a frame or region that a virtual template shares: attributes (inherits and mixins first), then child
 -- elements.
 function M.body(w, obj, node, session)
@@ -292,7 +315,10 @@ function M.frame(w, node, parent, session)
   local frame = Widgets.newFrame(w, node.rawTag, fullName(node, parent), parent)
   local st = w.ui.state[frame]
   attach(parent, frame, node.attrs, st)
+  M.keyValuesFirst(w, frame, node)
+  st.keyValuesSet = true -- TemplateApply.applyList skips its own pass
   M.body(w, frame, node, session)
+  st.keyValuesSet = nil
   for _, finish in ipairs(M.finishers) do
     finish(w, frame, st, node, session)
   end

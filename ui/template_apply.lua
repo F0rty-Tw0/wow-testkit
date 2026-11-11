@@ -127,6 +127,11 @@ function M.applyList(w, frame, templates)
   end
   local st = w.ui.state[frame]
   st.mixins = st.mixins or {}
+  local outermost = not st.keyValuesSet
+  if outermost then -- CreateFrame(type, name, parent, templates): row X33, the chain's KeyValues come first
+    require("ui.xml_build").keyValuesFirst(w, frame, { attrs = { inherits = templates }, children = {} })
+    st.keyValuesSet = true
+  end
   for name in templates:gmatch("[^,%s]+") do
     local virtual, entry = w.ui.virtuals[name], Templates.TEMPLATES[name]
     if virtual then
@@ -136,6 +141,9 @@ function M.applyList(w, frame, templates)
     else
       WorldApi.markUnscripted(w, "template:" .. name)
     end
+  end
+  if outermost then
+    st.keyValuesSet = nil
   end
 end
 

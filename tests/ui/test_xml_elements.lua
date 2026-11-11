@@ -172,11 +172,38 @@ local function test_mixins_element_copies_each_key_before_key_values_assumed()
     .. '<Mixin key="BoxMixin" source="secure" secureDelegates="true"/><Mixin key="OtherMixin"/></Mixins>'
     .. '<Scripts><OnLoad method="Boot"/></Scripts></Frame></Ui>'
   H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
-    w:setGlobal("BoxMixin", { kind = "mixin", Boot = function(self) self.booted = true end })
+    w:setGlobal("BoxMixin", {
+      kind = "mixin",
+      Boot = function(self)
+        self.booted = true
+      end,
+    })
     w:setGlobal("OtherMixin", { Other = true })
     H.load(w, ctx, "Ui.xml")
     local f = _G.Mxe
     A.same({ f.booted, f.kind, f.Other, w.ui.state[f].mixins }, { true, "own", true, { "BoxMixin", "OtherMixin" } })
+    A.eq(reportText(ctx), "")
+  end)
+end
+
+-- source: row X33, forever 70862 blizzard_sharedxml/shared/button/threeslicebuttontemplate.xml: the base template's
+-- Controller child's OnLoad (shareduipaneltemplates.lua:1075-1078) calls the parent's InitButton, which reads atlasName,
+-- set only by the inheriting template's KeyValues (BigRedThreeSliceButtonTemplate, :67-69). The KeyValues of the whole
+-- inherits chain, and the element's own, are set before any of its content is built; a value the element's own OnLoad
+-- changes stays changed.
+local function test_inherited_key_values_exist_at_a_base_template_child_on_load()
+  local xml = '<Ui><Button name="KvBase" virtual="true"><Frames><Frame parentKey="Controller"><Scripts>'
+    .. '<OnLoad>self:GetParent().seen = (self:GetParent().seen or "") .. tostring(self:GetParent().atlas) .. "+" '
+    .. ".. tostring(self:GetParent().own)</OnLoad></Scripts></Frame></Frames></Button>"
+    .. '<Button name="KvDerived" inherits="KvBase" virtual="true"><KeyValues><KeyValue key="atlas" value="red"/>'
+    .. "</KeyValues></Button>"
+    .. '<Button name="KvButton" inherits="KvDerived"><KeyValues><KeyValue key="own" value="mine"/></KeyValues>'
+    .. '<Scripts><OnLoad>self.atlas = "changed"</OnLoad></Scripts></Button></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ _G.KvButton.seen, _G.KvButton.atlas }, { "red+mine", "changed" })
+    local made = _G.CreateFrame("Button", nil, nil, "KvDerived")
+    A.eq(made.seen, "red+nil")
     A.eq(reportText(ctx), "")
   end)
 end
@@ -256,6 +283,7 @@ local function test_non_region_tag_gives_no_region()
 end
 
 return function()
+  test_inherited_key_values_exist_at_a_base_template_child_on_load()
   test_frame_attributes_and_nested_frames()
   test_top_level_frame_without_parent_is_parentless_assumed()
   test_parent_attribute_names_the_global_parent()
