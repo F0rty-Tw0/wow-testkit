@@ -72,7 +72,19 @@ local function test_rating_and_chance_getters_answer_zero_assumed()
   end)
 end
 
+-- (G48) forever's camelot sheet adds GetOffhandHitModifier() to a rating bonus (paperdollframestats.lua:525); the
+-- extract documents it, api/forever lacks it. tbc's sheet never calls it, so tbc stays without.
+local function test_forever_offhand_hit_modifier_is_zero_assumed()
+  G.withGame("forever", function()
+    A.eq(_G.GetOffhandHitModifier(), 0)
+  end)
+  G.withGame("tbc", function()
+    A.eq(rawget(_G, "GetOffhandHitModifier"), nil)
+  end)
+end
+
 return function()
+  test_forever_offhand_hit_modifier_is_zero_assumed()
   test_unit_stat_is_a_gearless_level_based_stat_assumed()
   test_combat_getters_answer_numbers_in_the_sheet_shape_assumed()
   test_rating_and_chance_getters_answer_zero_assumed()

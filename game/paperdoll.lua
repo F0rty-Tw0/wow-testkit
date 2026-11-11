@@ -66,6 +66,10 @@ function M.install(w)
   for _, name in ipairs(ZERO_GETTERS) do
     define(w, name, zero)
   end
+  -- source: confirmed (row G48) forever 70862 blizzard_apidocumentationgenerated/playerscriptdocumentation.lua:660
+  -- documents it and camelot/paperdollframestats.lua:525 adds it to a rating bonus; api/forever (an older doc set) lacks
+  -- it, so forever gets it by name. Assumed 0, as GetHitModifier answers.
+  define(w, "GetOffhandHitModifier", zero, { "forever" })
   -- source: confirmed (row G45) the returns stat, effectiveStat, posBuff, negBuff: tbc paperdollframe.lua:346-359
   -- concatenates effectiveStat and compares the buffs, petpaperdollframe.lua:135 the same for "pet".
   define(w, "UnitStat", function(unit)
