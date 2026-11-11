@@ -113,6 +113,39 @@ local function test_unknown_element_is_reported_once_per_file_assumed() -- (X16)
   end)
 end
 
+-- source: client Blizzard_AuraContainer.xml:4 wraps the AuraContainer intrinsic in <ScopedModifier>, and
+-- TargetFrame.xml then builds `<AuraContainer parentKey="Auras">`. Row X31: the wrapper's children load as <Ui>'s;
+-- its attributes are ignored, hideFromGlobalEnv too (assumed: one environment, so the secure Lua finds the global).
+local function test_scoped_modifier_children_load_like_ui_children_assumed()
+  H.withXml({
+    ["Ui.xml"] = [[<Ui>
+      <ScopedModifier useForbiddenObjectTable="true">
+        <Script>local _, ns = ...; ns.ran = true</Script>
+        <Frame name="KitBox" intrinsic="true"><KeyValues><KeyValue key="kind" value="box"/></KeyValues></Frame>
+      </ScopedModifier>
+      <ScopedModifier hideFromGlobalEnv="true" forbidden="true"><KitBox name="KitHidden"/></ScopedModifier>
+    </Ui>]],
+  }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ ctx.ns.ran, _G.KitHidden and _G.KitHidden.kind }, { true, "box" })
+    A.eq(reportText(ctx), "")
+  end)
+end
+
+-- source: assumed (row X31) the world's UIParent is the kit's; tbc Blizzard_UIParent/Classic/UIParent.xml:4 declares the
+-- client's, which the Blizzard layer leaves unbuilt (rows BU17, BU21).
+local function test_a_root_frame_named_uiparent_keeps_the_kits_assumed()
+  H.withXml({
+    ["Ui.xml"] = '<Ui><ScopedModifier><Frame name="UIParent"><Scripts><OnLoad>error("built")</OnLoad></Scripts></Frame>'
+      .. '</ScopedModifier></Ui>',
+  }, function(w, ctx)
+    local kits = _G.UIParent
+    H.load(w, ctx, "Ui.xml")
+    A.same({ _G.UIParent == kits, w.errors }, { true, {} })
+    A.contains(reportText(ctx), '<Frame name="UIParent"> ignored: UIParent is the kit\'s')
+  end)
+end
+
 local function test_a_file_that_includes_itself_stops_at_the_cycle()
   H.withXml({ ["Ui.xml"] = '<Ui><Include file="Ui.xml"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -245,6 +278,8 @@ return function()
   test_script_file_reads_a_bracketed_suffix_as_part_of_the_path_assumed()
   test_malformed_xml_is_one_error_and_returns_false()
   test_unknown_element_is_reported_once_per_file_assumed()
+  test_scoped_modifier_children_load_like_ui_children_assumed()
+  test_a_root_frame_named_uiparent_keeps_the_kits_assumed()
   test_a_file_that_includes_itself_stops_at_the_cycle()
   test_include_cycle_through_a_parent_folder_path_stops()
   test_include_cycle_through_a_different_case_stops_at_the_first_repeat()

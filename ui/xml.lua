@@ -48,8 +48,12 @@ M.registerVirtual = XmlBuild.registerVirtual
 
 -- Builds one element of the root <Ui>: a frame, or a virtual region template. Every other element is reported and
 -- skipped. An error in one element is reported (XmlBuild.guard) and the next element still builds.
+-- source: assumed (row X31) the world's UIParent is the kit's (framexml/fakes/core.lua); a root frame of that name, as
+-- tbc Blizzard_UIParent/Classic/UIParent.xml:4 declares, is reported and not built (rows BU17, BU21 rely on it).
 function M.element(w, node, session)
-  if XmlBuild.isRegion(node) and node.attrs.virtual == "true" then
+  if node.attrs.name == "UIParent" and node.attrs.virtual ~= "true" then
+    session.report("uiparent", "<" .. node.rawTag .. ' name="UIParent"> ignored: UIParent is the kit\'s')
+  elseif XmlBuild.isRegion(node) and node.attrs.virtual == "true" then
     XmlBuild.region(w, node, nil, session)
   else
     XmlBuild.frame(w, node, nil, session)
@@ -70,9 +74,13 @@ local function include(w, node, ctx, file, loading)
 end
 
 -- source: wiki XML/Script, "Executed when reached by the XML parser, going from top to bottom."
+-- A <ScopedModifier> child of <Ui> is walked like <Ui> (client Blizzard_AuraContainer.xml:4 wraps the AuraContainer
+-- intrinsic in one); its security attributes are ignored, hideFromGlobalEnv too: one environment (row X31, assumed).
 local function walk(w, root, ctx, file, loading, session)
   for _, node in ipairs(root.children) do
-    if node.tag == "include" and node.attrs.file then
+    if node.tag == "scopedmodifier" then
+      walk(w, node, ctx, file, loading, session)
+    elseif node.tag == "include" and node.attrs.file then
       include(w, node, ctx, file, loading)
     elseif node.tag == "script" and node.attrs.file then
       ctx.runFile(resolve(ctx, file.path, node.attrs.file), file.path)
