@@ -284,7 +284,47 @@ local function newTimedSignalMap(w, callback)
   return map
 end
 
+-- source: confirmed (row G52) the method names, forever 70862 secondsformatterapidocumentation.lua: Set<P> stores a
+-- setting that Get<P> / Can<P> / Evaluate<P> read back, Reset clears them. Assumed: Format and FormatZero answer whole
+-- seconds as "<n>s" (the engine's unit and abbreviation rules have no source the kit can read).
+local FORMATTER_SETTINGS = {
+  "ApproximationSeconds", "CanRoundUpIntervals", "CanRoundUpLastUnit", "ConvertToLower", "DefaultAbbreviation",
+  "DesiredUnitCount", "DesiredUnitCountCurve", "MaxInterval", "MaxIntervalCurve", "MillisecondsThreshold",
+  "MinInterval", "MinIntervalCurve", "Rounding", "StripIntervalWhitespace",
+}
+
+local function newSecondsFormatter()
+  local settings = {}
+  local formatter = {}
+  for _, name in ipairs(FORMATTER_SETTINGS) do
+    local bare = name:gsub("^Can", "")
+    formatter["Set" .. name] = function(_, value)
+      settings[name] = value
+    end
+    formatter[(name:find("^Can") and "" or "Get") .. name] = function()
+      return settings[name]
+    end
+    formatter["Evaluate" .. bare] = function()
+      return settings[name]
+    end
+  end
+  formatter.CanApproximate = function()
+    return settings.ApproximationSeconds ~= nil
+  end
+  formatter.Reset = function()
+    settings = {}
+  end
+  formatter.Format = function(_, seconds)
+    return math.floor(seconds + 0.5) .. "s"
+  end
+  formatter.FormatZero = function()
+    return "0s"
+  end
+  return formatter
+end
+
 local function installTimers(w)
+  w:install("C_StringUtil.CreateSecondsFormatter", newSecondsFormatter, { gate = "api" })
   -- grug: forever only by name, as G48: api/forever predates the doc set that lists it.
   if w.flavor == "forever" then
     w:install("C_Timer.NewTimedSignalMap", function(callback)

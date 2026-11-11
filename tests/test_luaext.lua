@@ -317,7 +317,21 @@ local function test_timed_signal_map_signals_due_keys_once() -- G51
   end)
 end
 
+-- source: G52 forever's aura buttons configure C_StringUtil.CreateSecondsFormatter()'s object at load
+-- (blizzard_auracontainer/blizzard_auracontainershared.lua:75-93).
+local function test_seconds_formatter_keeps_its_settings_assumed() -- G52
+  withWorld("forever", function()
+    local formatter = _G.C_StringUtil.CreateSecondsFormatter()
+    formatter:SetDesiredUnitCount(2)
+    formatter:SetCanRoundUpLastUnit(true)
+    A.same({ formatter:GetDesiredUnitCount(), formatter:CanRoundUpLastUnit(), formatter:Format(61.6) }, { 2, true, "62s" })
+    formatter:Reset()
+    A.eq(formatter:GetDesiredUnitCount(), nil)
+  end)
+end
+
 return function()
+  test_seconds_formatter_keeps_its_settings_assumed()
   test_timed_signal_map_signals_due_keys_once()
   test_strsplit_returns_each_piece()
   test_strsplit_separator_is_a_set_of_chars()
