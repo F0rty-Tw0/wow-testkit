@@ -68,6 +68,17 @@ local function test_classic_cast_bar_colours_come_from_the_ui_colour_table() -- 
   end)
 end
 
+-- source: W85 forever's tab system greys a disabled tab with DISABLED_FONT_COLOR (blizzard_sharedxml/shared/tabsystem/
+-- tabsystemtemplates.lua:194); no extract Lua defines it.
+local function test_disabled_font_colour_comes_from_the_ui_colour_table() -- W85
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.eq(_G.DISABLED_FONT_COLOR:GenerateHexColor(), "ff7f7f7f", flavor)
+      A.eq(_G.DISABLED_FONT_COLOR_CODE, "|cff7f7f7f", flavor)
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -172,6 +183,7 @@ local function test_color_util_wraps_text_in_color_markup_assumed() -- W76
 end
 
 return function()
+  test_disabled_font_colour_comes_from_the_ui_colour_table()
   test_color_util_wraps_text_in_color_markup_assumed()
   test_font_colour_globals_have_the_recorded_values()
   test_font_colour_hex_and_code_globals_match_the_literals()

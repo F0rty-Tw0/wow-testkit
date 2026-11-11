@@ -46,6 +46,9 @@ local UI_COLORS = {
   { baseTag = "CASTBAR_CLASSIC_GREEN", color = { r = 0, g = 1, b = 0, a = 1 } },
   { baseTag = "CASTBAR_CLASSIC_GRAY", color = { r = 179 / 255, g = 179 / 255, b = 179 / 255, a = 1 } },
   { baseTag = "CASTBAR_CLASSIC_RED", color = { r = 1, g = 0, b = 0, a = 1 } },
+  -- source: row W85 (confirmed: 9.2.7 SharedColorConstants.lua:11, :30 `|cff7f7f7f`, CreateColor(0.498, 0.498, 0.498);
+  -- assumed: GetColors answers the same now) no Lua in the forever 70862 or tbc 70577 extract assigns it.
+  { baseTag = "DISABLED_FONT_COLOR", color = { r = 127 / 255, g = 127 / 255, b = 127 / 255, a = 1 } },
 }
 
 local function byte(channel)
