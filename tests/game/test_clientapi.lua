@@ -210,6 +210,16 @@ local function test_max_battlefield_id_is_three_queue_slots_assumed()
   end
 end
 
+-- forever blizzard_worldmap.lua:376-378 calls SetFrameStrata with any answer but nil and "UNKNOWN"; the stub's "" raised
+-- there and stopped the map's OnShow before SetMapID. No game rule is active in the kit (BU10).
+local function test_game_rule_frame_strata_is_unknown_assumed()
+  for _, flavor in ipairs({ "forever", "tbc", "retail" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.C_GameRules.GetGameRuleAsFrameStrata(_G.Enum.GameRule.WorldMapFrameStrata), "UNKNOWN", flavor)
+    end)
+  end
+end
+
 -- tbc QuestLogFrame.lua:671, :690 loop `for i=1, GetNumQuestWatches()` and :549, :749 compare it with numbers; the kit
 -- tracks no quests, so none is watched.
 local function test_num_quest_watches_is_zero_assumed()
@@ -298,6 +308,7 @@ return function()
   test_lfg_list_applications_are_an_empty_list_assumed()
   test_max_battlefield_id_is_three_queue_slots_assumed()
   test_num_quest_watches_is_zero_assumed()
+  test_game_rule_frame_strata_is_unknown_assumed()
   test_game_error_numbers_are_set_and_distinct_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()

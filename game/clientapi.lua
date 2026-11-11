@@ -215,6 +215,11 @@ function M.install(w)
   if w.manifest.enums.GameRule == nil then
     define(w, "Enum.GameRule", {}, State.ALL)
   end
+  -- source: confirmed (row G43) forever blizzard_worldmap.lua:376-378 reads "UNKNOWN" (or nil) as "the rule sets no strata"
+  -- and passes any other answer to SetFrameStrata; assumed "UNKNOWN" for every rule, as no rule is active (BU10).
+  define(w, "C_GameRules.GetGameRuleAsFrameStrata", function()
+    return "UNKNOWN"
+  end)
   -- source: confirmed (row G28) the members of Ketho's retail LuaEnum dump; no API doc lists Enum.GameMode, but every
   -- flavor's GameRules doc types values as GameMode; assumed the same members off retail.
   if w.manifest.enums.GameMode == nil then
