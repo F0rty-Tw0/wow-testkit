@@ -323,8 +323,29 @@ local function newSecondsFormatter()
   return formatter
 end
 
+-- source: assumed (row G53) securecopy(value) answers a deep copy of a table (keys and values copied, cycles kept) and
+-- any other value as is; the options argument is ignored.
+local function secureCopy(value, seen)
+  if type(value) ~= "table" then
+    return value
+  end
+  seen = seen or {}
+  if seen[value] then
+    return seen[value]
+  end
+  local copy = {}
+  seen[value] = copy
+  for key, item in pairs(value) do
+    copy[secureCopy(key, seen)] = secureCopy(item, seen)
+  end
+  return copy
+end
+
 local function installTimers(w)
   w:install("C_StringUtil.CreateSecondsFormatter", newSecondsFormatter, { gate = "api" })
+  w:install("securecopy", function(value)
+    return secureCopy(value)
+  end, { gate = "api" })
   -- grug: forever only by name, as G48: api/forever predates the doc set that lists it.
   if w.flavor == "forever" then
     w:install("C_Timer.NewTimedSignalMap", function(callback)

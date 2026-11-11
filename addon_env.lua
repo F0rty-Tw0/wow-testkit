@@ -67,6 +67,12 @@ local function overridesFor(view, w)
   if w.flavor == "forever" then
     overrides.require = requireSentinel(w.flavor)
   end
+  -- source: assumed (row G53) the client's global environment is the one _G; the secure/insecure split is not modelled.
+  if w:passesGate("GetGlobalEnvironment", "api") then
+    overrides.GetGlobalEnvironment = function()
+      return view
+    end
+  end
   overrides.getfenv = function(f)
     if f == nil then
       f = 1

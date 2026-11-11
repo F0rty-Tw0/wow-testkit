@@ -62,6 +62,16 @@ local function test_addon_getfenv_and_loadstring_do_not_reach_the_real_globals()
   end)
 end
 
+-- source: G53 forever's aura container re-exports its tables through GetGlobalEnvironment() and securecopy
+-- (blizzard_auracontainer/blizzard_auracontainershared.lua:254-259); the kit has one environment, the addon's _G view.
+local function test_global_environment_is_the_g_view_and_securecopy_copies_deep_assumed() -- G53
+  withWorld("retail", function(w)
+    local ns = load(w, "Sandbox")
+    A.eq(ns.globalEnvIsG, true)
+    A.same(ns.secureCopy, { true, true, 1 })
+  end)
+end
+
 local function test_addon_rawget_and_pairs_on_g_see_globals_but_not_host_only_names()
   withWorld("retail", function(w)
     local ns = load(w, "Sandbox")
@@ -267,6 +277,7 @@ local function test_a_host_only_name_an_addon_assigns_is_seen_by_other_addons()
 end
 
 return function()
+  test_global_environment_is_the_g_view_and_securecopy_copies_deep_assumed()
   test_a_precompiled_toc_file_is_reported_and_not_run()
   test_addon_loadstring_refuses_precompiled_chunks()
   test_addon_os_holds_exactly_the_time_functions()
