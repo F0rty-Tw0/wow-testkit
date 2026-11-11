@@ -177,6 +177,17 @@ local function test_class_info_answers_the_class_list_assumed() -- Blizzard_Play
   end)
 end
 
+-- tbc constants.lua:43-46 fills LOCALIZED_CLASS_NAMES_MALE/FEMALE with FillLocalizedClassList; chatconfigframe.xml:164
+-- formats LOCALIZED_CLASS_NAMES_MALE[class] for each CLASS_SORT_ORDER class, so an empty table stopped Blizzard_ChatFrame.
+local function test_fill_localized_class_list_names_every_class_assumed()
+  G.withGame("tbc", function()
+    local male, female = {}, {}
+    _G.FillLocalizedClassList(male, false)
+    _G.FillLocalizedClassList(female, true)
+    A.same({ male.WARRIOR, male.DRUID, female.MAGE }, { "Warrior", "Druid", "Mage" })
+  end)
+end
+
 -- Blizzard_WorldMap.lua:577 (ToggleWorldMap) indexes Enum.GameRule.WorldMapDisabled; no installed data lists the members, so
 -- the kit's table is empty and every rule reads as inactive. tbc's AutoComplete.lua:138 reads it the same way.
 local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
@@ -234,6 +245,7 @@ return function()
   test_legacy_item_quality_names_alias_enum_item_quality_assumed()
   test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
   test_class_info_answers_the_class_list_assumed()
+  test_fill_localized_class_list_names_every_class_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()

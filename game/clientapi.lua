@@ -161,6 +161,14 @@ function M.install(w)
       return { className = Roster.CLASS_NAMES[classFile], classFile = classFile, classID = classID }
     end
   end)
+  -- source: confirmed (row G34) the classic flavors fill LOCALIZED_CLASS_NAMES_MALE/FEMALE with it (tbc constants.lua:43-46);
+  -- assumed it fills every class token the kit names, and the enUS female names equal the male ones.
+  define(w, "FillLocalizedClassList", function(classTable)
+    for classFile, name in pairs(Roster.CLASS_NAMES) do
+      classTable[classFile] = name
+    end
+    return classTable
+  end)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)
