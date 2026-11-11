@@ -118,6 +118,9 @@ local function fireLogin(self, reloading)
     self:fireIfKnown(event)
   end
   self:fireEditMode()
+  -- source: row G36 (assumed: the place in the order) Blizzard's chat frames read their window settings
+  -- (GetChatWindowInfo: colour, alpha, docking) only on this event (FloatingChatFrame_Update).
+  self:fireIfKnown("UPDATE_CHAT_WINDOWS")
   self:fireIfKnown("PLAYER_ENTERING_WORLD", not reloading, reloading)
 end
 
