@@ -36,8 +36,38 @@ local function test_header_game_type_that_excludes_a_classic_flavor_applies_per_
   end)
 end
 
+-- source: confirmed (row BU26) `## AllowLoad: Glue` keeps a login-screen addon out of the game UI, as a dependency too.
+local function test_header_allow_load_glue_keeps_the_addon_out_of_the_game()
+  B.run(mini("## AllowLoad: Glue\n"), { targets = { "Blizzard_MiniUser" } }, function(s)
+    A.same({ s.w.blizzard.loaded, _G.MiniLabLoads }, { { "Blizzard_MiniUser" }, nil })
+    A.same(s.w.blizzard.skipped, { { name = "Blizzard_MiniLab", reason = "glue screen" } })
+  end)
+end
+
+local function test_header_allow_load_game_or_both_loads_the_addon()
+  for _, header in ipairs({ "## AllowLoad: game\n", "## AllowLoad: Both\n" }) do
+    B.run(mini(header), { targets = { "Blizzard_MiniUser" } }, function(s)
+      A.same(s.w.blizzard.loaded, { "Blizzard_MiniLab", "Blizzard_MiniUser" }, header)
+    end)
+  end
+end
+
+-- source: assumed (row BU26) an inline game-type bracket on the header limits the directive itself to those game types.
+local function test_header_allow_load_with_a_game_type_bracket_applies_only_there_assumed()
+  local addons = mini("## AllowLoad: Glue [AllowLoadGameType classic]\n")
+  B.run(addons, { targets = { "Blizzard_MiniUser" } }, function(s)
+    A.same(s.w.blizzard.loaded, { "Blizzard_MiniLab", "Blizzard_MiniUser" }) -- retail: no AllowLoad
+  end)
+  B.run(addons, { targets = { "Blizzard_MiniUser" }, flavor = "tbc" }, function(s)
+    A.same(s.w.blizzard.loaded, { "Blizzard_MiniUser" })
+  end)
+end
+
 return function()
   test_header_game_type_excluding_the_flavor_keeps_the_addon_out_assumed()
   test_header_game_type_naming_the_flavor_loads_the_addon_assumed()
   test_header_game_type_that_excludes_a_classic_flavor_applies_per_flavor_assumed()
+  test_header_allow_load_glue_keeps_the_addon_out_of_the_game()
+  test_header_allow_load_game_or_both_loads_the_addon()
+  test_header_allow_load_with_a_game_type_bracket_applies_only_there_assumed()
 end

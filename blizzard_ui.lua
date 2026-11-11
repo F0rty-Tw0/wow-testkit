@@ -103,8 +103,9 @@ function M.order(extract, targets, flavor)
       return
     end
     local parsed = Toc.parse(fs.readFile(toc) or "")
-    if not TocHeader.loadsOn(parsed.meta, flavor) then
-      skipped[#skipped + 1] = { name = name, reason = "game type" }
+    local loads, reason = TocHeader.loadsOn(parsed.meta, flavor)
+    if not loads then
+      skipped[#skipped + 1] = { name = name, reason = reason }
       return
     end
     visiting[key] = true

@@ -135,6 +135,7 @@ local function allowedOn(file, row, report)
   return true
 end
 M.allowedOn = allowedOn
+M.parseFileLine = parseFileLine
 
 -- source: assumed (row BU2) "A [AllowLoadGameType mainline], B [AllowLoad Glue]" -> "A" on retail: a name whose
 -- game-type list excludes row, or whose AllowLoad list lacks game (a glue-screen addon), is dropped.
