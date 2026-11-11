@@ -289,6 +289,8 @@ local function test_format_takes_positional_specs()
     A.eq(("%2$s-%1$s"):format("x", "y"), "y-x")
     A.eq(_G.format("%s=%d", "n", 5), "n=5")
     A.eq(_G.format, _G.string.format)
+    -- tbc paperdollframe CharacterDamageFrame_OnEnter formats "%.2F"; Lua 5.1 has no %F.
+    A.eq(_G.format("%.2F|%1$.1F|100%%F", 1.5), "1.50|1.5|100%F")
   end)
   A.eq(string.format, hostFormat, "the host format comes back with the world")
 end

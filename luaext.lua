@@ -18,6 +18,12 @@ local MS_PER_SECOND = 1000
 local hostFormat = string.format
 local POSITIONAL = "%%%d+%$"
 local POSITIONAL_SPEC = "^(%d+)%$([-+ #0]*%d*%.?%d*%a)()"
+local SEQUENTIAL_SPEC = "^([-+ #0]*%d*%.?%d*%a)()"
+
+-- C99's %F is %f with upper-case INF/NAN; Lua 5.1's format lacks it (row W84).
+local function hostSpec(spec)
+  return (spec:gsub("F$", "f"))
+end
 
 local function pack(...)
   return { n = select("#", ...), ... }
@@ -25,8 +31,9 @@ end
 
 -- WoW's format: the host's, plus positional specs `%<n>$<spec>` taking argument n (row W84: the client's own strings
 -- reorder arguments, forever 70862 strings/enUS.lua "%2$02d/%1$d/20%3$02d"). A spec without n takes the next argument.
+-- %F formats as %f (tbc paperdollframe.lua CharacterDamageFrame_OnEnter "%.2F").
 function M.format(fmt, ...)
-  if type(fmt) ~= "string" or not fmt:find(POSITIONAL) then
+  if type(fmt) ~= "string" or not (fmt:find(POSITIONAL) or fmt:find("F", 1, true)) then
     return hostFormat(fmt, ...)
   end
   local args, parts, picked, nextArg, at = pack(...), {}, {}, 0, 1
@@ -42,11 +49,16 @@ function M.format(fmt, ...)
       parts[#parts + 1], at = "%%", start + 2
     elseif index then
       picked[#picked + 1] = tonumber(index)
-      parts[#parts + 1], at = "%" .. spec, stop
+      parts[#parts + 1], at = "%" .. hostSpec(spec), stop
     else
+      local plain, after = fmt:match(SEQUENTIAL_SPEC, start + 1)
       nextArg = nextArg + 1
       picked[#picked + 1] = nextArg
-      parts[#parts + 1], at = "%", start + 1
+      if plain then
+        parts[#parts + 1], at = "%" .. hostSpec(plain), after
+      else
+        parts[#parts + 1], at = "%", start + 1
+      end
     end
   end
   local values = {}
