@@ -115,6 +115,19 @@ local function test_securecall_by_name_and_securecallfunction_pass_arguments_and
   end)
 end
 
+-- row TS6: forever UnitFrameUtil.lua:475-482 stores CreateSecureDelegate(fn) results that PlayerFrame calls at load; the
+-- doc's stub answered nil, so PlayerFrame's OnLoad stopped before it registered its events (W27).
+local function test_create_secure_delegate_returns_a_securecall_closure_assumed()
+  H.withTaint("forever", function(w)
+    local delegate = _G.CreateSecureDelegate(function(a, b)
+      return a + b, "ok"
+    end)
+    A.same({ delegate(1, 2) }, { 3, "ok" })
+    A.same({ _G.CreateSecureDelegate(function() error("boom") end)() }, {})
+    A.eq(#w.errors, 1)
+  end)
+end
+
 -- SecurePoolCollectionMixin:Release (retail Pools.lua:473) asks each pool `securecallmethod(pool, "Release", object, true)`
 -- and treats a nothing answer as "not mine"; with no securecallmethod every ScrollBox row release failed.
 local function test_securecallmethod_calls_the_method_with_the_object_as_self()
@@ -187,6 +200,7 @@ return function()
   test_securecall_from_tainted_code_keeps_the_taint_assumed()
   test_securecall_by_name_and_securecallfunction_pass_arguments_and_return_results()
   test_securecallmethod_calls_the_method_with_the_object_as_self()
+  test_create_secure_delegate_returns_a_securecall_closure_assumed()
   test_secureexecuterange_calls_func_with_key_value_and_extras_through_securecall()
   test_forceinsecure_taints_the_rest_of_the_execution_assumed()
   test_forceinsecure_in_addon_code_keeps_the_addon_taint_assumed()
