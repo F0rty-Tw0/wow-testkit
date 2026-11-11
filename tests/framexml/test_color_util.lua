@@ -73,8 +73,8 @@ end
 local function test_disabled_font_colour_comes_from_the_ui_colour_table() -- W85
   for _, flavor in ipairs({ "forever", "tbc" }) do
     withFrameXML(flavor, function()
-      A.eq(_G.DISABLED_FONT_COLOR:GenerateHexColor(), "ff7f7f7f", flavor)
-      A.eq(_G.DISABLED_FONT_COLOR_CODE, "|cff7f7f7f", flavor)
+      A.eq(_G.DISABLED_FONT_COLOR:GenerateHexColor(), "ff808080", flavor)
+      A.eq(_G.DISABLED_FONT_COLOR_CODE, "|cff808080", flavor)
     end)
   end
 end
