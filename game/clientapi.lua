@@ -49,6 +49,28 @@ local INVENTORY_SLOTS = {
   TabardSlot = { 19, 136527 },
 }
 
+-- source: row G41. The engine's LE_GAME_ERR_<X> message types (UI_ERROR_MESSAGE's first payload), for every name the
+-- tbc and forever extracts' Lua reads. No API doc or client dump lists them; the numbers are the idx column of
+-- warcraft.wiki.gg Event:UI_ERROR_MESSAGE ("up to date as of Patch 9.2.5 (43971)", and the page warns they shift each
+-- patch), so assumed for the kit's builds. Names the table's verbatim part lacks get kit numbers from 100001 (assumed).
+local GAME_ERRORS = {
+  SYSTEM = 1, SPELL_FAILED_S = 53, ITEM_COOLDOWN = 54, SPELL_COOLDOWN = 57, ABILITY_COOLDOWN = 58,
+  SPELL_ALREADY_KNOWN_S = 59, OUT_OF_RANGE = 154, CANT_USE_ITEM = 191, SPELL_FAILED_TOTEMS = 252,
+  SPELL_FAILED_REAGENTS = 253, SPELL_FAILED_REAGENTS_GENERIC = 254, SPELL_FAILED_EQUIPPED_ITEM = 257,
+  SPELL_FAILED_EQUIPPED_ITEM_CLASS_S = 258, SPELL_FAILED_SHAPESHIFT_FORM_S = 259, SPELL_FAILED_ANOTHER_IN_PROGRESS = 260,
+  SPELL_FAILED_EQUIPPED_SPECIFIC_ITEM = 328, OUT_OF_MANA = 336, OUT_OF_RAGE = 337, OUT_OF_FOCUS = 338,
+  OUT_OF_ENERGY = 339, OUT_OF_CHI = 340, OUT_OF_HEALTH = 341, OUT_OF_RUNES = 342, OUT_OF_RUNIC_POWER = 343,
+  OUT_OF_SOUL_SHARDS = 344, OUT_OF_LUNAR_POWER = 345, OUT_OF_HOLY_POWER = 346, OUT_OF_MAELSTROM = 347,
+  OUT_OF_COMBO_POINTS = 348, OUT_OF_INSANITY = 349, OUT_OF_ARCANE_CHARGES = 350, OUT_OF_FURY = 351, OUT_OF_PAIN = 352,
+  OUT_OF_POWER_DISPLAY = 353, SPELL_OUT_OF_RANGE = 369, SPELL_FAILED_NOTUNSHEATHED = 385, SPELL_UNLEARNED_S = 400,
+  SPELL_FAILED_ALREADY_AT_FULL_HEALTH = 499, SPELL_FAILED_ALREADY_AT_FULL_MANA = 500,
+  SPELL_FAILED_ALREADY_AT_FULL_POWER_S = 501, GENERIC_NO_VALID_TARGETS = 690,
+  OUT_OF_ESSENCE = 100001, SPELL_FAILED_CANT_FLY_HERE = 100002, VOICE_CHAT_GENERIC_UNABLE_TO_CONNECT = 100003,
+  VOICE_CHAT_SERVICE_LOST = 100004, VOICE_CHAT_CHANNEL_NAME_TOO_SHORT = 100005, VOICE_CHAT_CHANNEL_NAME_TOO_LONG = 100006,
+  VOICE_CHAT_CHANNEL_ALREADY_EXISTS = 100007, VOICE_CHAT_TARGET_NOT_FOUND = 100008, VOICE_CHAT_TOO_MANY_REQUESTS = 100009,
+  VOICE_CHAT_PLAYER_SILENCED = 100010, VOICE_CHAT_PARENTAL_DISABLE_ALL = 100011, VOICE_CHAT_DISABLED = 100012,
+}
+
 -- source: confirmed (rows G21) Blizzard passes the same slot as "HEADSLOT" (blizzard_transmogshared.lua) and "MainHandSlot"
 -- (securetemplates.lua:464) to C_PaperDollInfo.GetInventorySlotInfo, so the lookup ignores case.
 local INVENTORY_SLOT_INFO = {}
@@ -206,6 +228,12 @@ function M.install(w)
   end
   if meta.NumValues then
     define(w, "NUM_LE_ITEM_QUALITYS", meta.NumValues, CLASSIC_FAMILY)
+  end
+  for suffix, value in pairs(GAME_ERRORS) do
+    local name = "LE_GAME_ERR_" .. suffix
+    if rawget(_G, name) == nil then
+      w:set(name, value)
+    end
   end
   define(w, "C_CurveUtil.CreateCurve", Curve.new)
   -- source: assumed (row G21) the default colour is the colour: the kit keeps no colour overrides.

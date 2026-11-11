@@ -210,6 +210,23 @@ local function test_max_battlefield_id_is_three_queue_slots_assumed()
   end
 end
 
+-- tbc UIErrorsFrame.lua:50-53 keys THROTTLED_MESSAGE_TYPES by LE_GAME_ERR_*; nil keys raised "table index is nil".
+local function test_game_error_numbers_are_set_and_distinct_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.LE_GAME_ERR_SPELL_FAILED_TOTEMS, _G.LE_GAME_ERR_SYSTEM }, { 252, 1 }, flavor)
+      local seen = {}
+      for name, value in pairs(_G) do
+        if type(name) == "string" and name:match("^LE_GAME_ERR_") then
+          A.eq(seen[value], nil, name .. " shares " .. tostring(value))
+          seen[value] = name
+        end
+      end
+      A.truthy(_G.LE_GAME_ERR_OUT_OF_ESSENCE ~= nil, "an unlisted name still gets a number")
+    end)
+  end
+end
+
 -- Blizzard_WorldMap.lua:577 (ToggleWorldMap) indexes Enum.GameRule.WorldMapDisabled; no installed data lists the members, so
 -- the kit's table is empty and every rule reads as inactive. tbc's AutoComplete.lua:138 reads it the same way.
 local function test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
@@ -270,6 +287,7 @@ return function()
   test_fill_localized_class_list_names_every_class_assumed()
   test_lfg_list_applications_are_an_empty_list_assumed()
   test_max_battlefield_id_is_three_queue_slots_assumed()
+  test_game_error_numbers_are_set_and_distinct_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
