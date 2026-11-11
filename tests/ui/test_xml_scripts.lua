@@ -257,12 +257,15 @@ local function clickAfter(inheritAttr)
   return result
 end
 
-local function test_inherit_prepend_runs_the_new_handler_first_assumed()
-  A.same(clickAfter('inherit="prepend"'), { "new", "old" })
+-- source: row X4 (confirmed from Blizzard code): the embedded tooltip's prepend OnLoad re-sets the backdrop that the
+-- inherited SharedTooltip_OnLoad set, and the chat edit box's append OnLoad sets self.chatFrame that the inherited
+-- ChatFrameEditBoxMixin:OnLoad reads.
+local function test_inherit_prepend_runs_the_inherited_handler_first()
+  A.same(clickAfter('inherit="prepend"'), { "old", "new" })
 end
 
-local function test_inherit_append_runs_the_new_handler_last_assumed()
-  A.same(clickAfter('inherit="append"'), { "old", "new" })
+local function test_inherit_append_runs_the_inherited_handler_last()
+  A.same(clickAfter('inherit="append"'), { "new", "old" })
 end
 
 local function test_inherit_none_replaces_the_existing_handler_assumed()
@@ -290,11 +293,11 @@ local function clickAfterBothRaise(inheritAttr)
 end
 
 local function test_inherit_prepend_runs_both_handlers_when_the_first_raises_assumed()
-  A.same(clickAfterBothRaise('inherit="prepend"'), { { "new", "old" }, 2 })
+  A.same(clickAfterBothRaise('inherit="prepend"'), { { "old", "new" }, 2 })
 end
 
 local function test_inherit_append_runs_both_handlers_when_the_first_raises_assumed()
-  A.same(clickAfterBothRaise('inherit="append"'), { { "old", "new" }, 2 })
+  A.same(clickAfterBothRaise('inherit="append"'), { { "new", "old" }, 2 })
 end
 
 local function test_a_body_that_closes_its_handler_early_is_reported_and_the_load_goes_on()
@@ -337,8 +340,8 @@ return function()
   test_missing_function_global_is_reported_and_skipped_assumed()
   test_body_that_does_not_compile_is_reported_and_loading_continues()
   test_on_enter_through_xml_enables_the_mouse()
-  test_inherit_prepend_runs_the_new_handler_first_assumed()
-  test_inherit_append_runs_the_new_handler_last_assumed()
+  test_inherit_prepend_runs_the_inherited_handler_first()
+  test_inherit_append_runs_the_inherited_handler_last()
   test_inherit_none_replaces_the_existing_handler_assumed()
   test_inherit_prepend_runs_both_handlers_when_the_first_raises_assumed()
   test_inherit_append_runs_both_handlers_when_the_first_raises_assumed()

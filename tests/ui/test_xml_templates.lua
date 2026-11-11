@@ -148,9 +148,10 @@ local function test_script_inherit_hooks_the_template_script()
   end
 end
 
-local function test_script_inherit_prepend_and_append_order_assumed()
-  A.same(clickLog(' inherit="prepend"'), { "E", "T" })
-  A.same(clickLog(' inherit="append"'), { "T", "E" })
+-- source: row X4 (confirmed from Blizzard code): prepend runs the template's script first, append runs it last.
+local function test_script_inherit_prepend_and_append_order()
+  A.same(clickLog(' inherit="prepend"'), { "T", "E" })
+  A.same(clickLog(' inherit="append"'), { "E", "T" })
 end
 
 local function test_register_virtual_directly()
@@ -282,7 +283,7 @@ return function()
   test_inherits_list_applies_in_order_and_the_last_template_wins_assumed()
   test_script_without_inherit_replaces_the_template_one_assumed()
   test_script_inherit_hooks_the_template_script()
-  test_script_inherit_prepend_and_append_order_assumed()
+  test_script_inherit_prepend_and_append_order()
   test_register_virtual_directly()
   test_own_anchors_replace_inherited_ones_assumed()
   test_later_registration_replaces_the_earlier_assumed()
