@@ -25,6 +25,8 @@ local debugTraceback = debug.traceback
 -- (EditModeSystemTemplates.lua:2467); it loads at login, and on forever no other target's dependency names it.
 -- source: row BU28 (confirmed) Blizzard_GameMenu makes GameMenuFrame, which the panel manager's IsOptionFrameOpen indexes
 -- unguarded (tbc uiparentpanelmanager.lua:1140, reached from ToggleAllBags); it loads at login.
+-- source: row BU29 (confirmed) Blizzard_MainMenuBarBagButtons makes MainMenuBarBackpackButton, which the classic bag frame
+-- checks on open (tbc containerframe_shared.lua:270); it loads at login.
 M.TARGETS = {
   "Blizzard_ActionBar",
   "Blizzard_UnitFrame",
@@ -34,6 +36,7 @@ M.TARGETS = {
   "Blizzard_CompactRaidFrames",
   "Blizzard_QueueStatusFrame",
   "Blizzard_GameMenu",
+  "Blizzard_MainMenuBarBagButtons",
 }
 -- source: assumed (row BU1) the default key bindings per flavor, under <extract.dir>/code/. The extract has no
 -- bindings.xml: Blizzard_FrameXML holds one unlisted file per game type.

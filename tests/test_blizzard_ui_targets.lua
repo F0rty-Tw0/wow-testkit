@@ -53,7 +53,18 @@ local function test_default_targets_load_the_game_menu()
   end)
 end
 
+-- source: BU29 the classic bag frame checks the backpack button when it opens (tbc containerframe_shared.lua:270
+-- MainMenuBarBackpackButton:SetChecked); no other target's dependency names Blizzard_MainMenuBarBagButtons.
+local function test_default_targets_load_the_bag_buttons()
+  local bags = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "MainMenuBarBackpackButton = {}\n" } }
+  B.run(B.mini({ blizzard_mainmenubarbagbuttons = bags }), {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_MainMenuBarBagButtons")
+    A.eq(type(_G.MainMenuBarBackpackButton), "table")
+  end)
+end
+
 return function()
+  test_default_targets_load_the_bag_buttons()
   test_default_targets_load_the_override_action_bar()
   test_default_targets_load_the_chat_and_raid_frames()
   test_default_targets_load_the_queue_status_frame()
