@@ -79,6 +79,16 @@ local function test_disabled_font_colour_comes_from_the_ui_colour_table() -- W85
   end
 end
 
+-- source: W86 forever's bag frame paints its backdrop with PANEL_BACKGROUND_COLOR (blizzard_sharedxml/portraitframe.lua:123,
+-- blizzard_uipanels_game/mainline/containerframe.lua:929); no extract Lua defines it, GlobalColor row 191 holds it.
+local function test_panel_background_colour_comes_from_the_ui_colour_table() -- W86
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.eq(_G.PANEL_BACKGROUND_COLOR:GenerateHexColor(), "cc1f1e21", flavor)
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -183,6 +193,7 @@ local function test_color_util_wraps_text_in_color_markup_assumed() -- W76
 end
 
 return function()
+  test_panel_background_colour_comes_from_the_ui_colour_table()
   test_disabled_font_colour_comes_from_the_ui_colour_table()
   test_color_util_wraps_text_in_color_markup_assumed()
   test_font_colour_globals_have_the_recorded_values()

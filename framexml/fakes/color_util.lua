@@ -49,6 +49,9 @@ local UI_COLORS = {
   -- source: row W85 (confirmed: 9.2.7 SharedColorConstants.lua:11, :30 `|cff7f7f7f`, CreateColor(0.498, 0.498, 0.498);
   -- assumed: GetColors answers the same now) no Lua in the forever 70862 or tbc 70577 extract assigns it.
   { baseTag = "DISABLED_FONT_COLOR", color = { r = 127 / 255, g = 127 / 255, b = 127 / 255, a = 1 } },
+  -- source: row W86 (confirmed) GlobalColor row 191 `-870375903` (ARGB cc1f1e21); the bag frame's backdrop reads it
+  -- (forever 70862 blizzard_sharedxml/portraitframe.lua:123); no extract Lua defines it.
+  { baseTag = "PANEL_BACKGROUND_COLOR", color = { r = 31 / 255, g = 30 / 255, b = 33 / 255, a = 204 / 255 } },
 }
 
 local function byte(channel)
