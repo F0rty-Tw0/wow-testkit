@@ -3,6 +3,7 @@
 -- (issecure, securecall, forceinsecure, ...) are taint_api.lua.
 -- Installed into every world by world.lua (gate "none"; C_Timer through gate "api").
 local AddonEnv = require("addon_env")
+local AddonModules = require("addon_modules")
 local Names = require("addon_env_names")
 local Taint = require("taint")
 
@@ -348,6 +349,11 @@ local function installTimers(w)
   end, { gate = "api" })
   -- grug: forever only by name, as G48: api/forever predates the doc set that lists it.
   if w.flavor == "forever" then
+    -- source: row L9 (confirmed) forever's Gamepad addons call import at load (blizzard_gamepadsmartnavigation/
+    -- utility.lua:3); no doc lists it and the tbc extract never calls it.
+    w:install("import", function(path)
+      return AddonModules.import(w, path)
+    end)
     w:install("C_Timer.NewTimedSignalMap", function(callback)
       return newTimedSignalMap(w, Taint.adopt(w, function(key)
         callback(key)
