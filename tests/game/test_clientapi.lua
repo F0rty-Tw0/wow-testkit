@@ -87,6 +87,20 @@ local function test_inventory_slot_names_answer_their_ids_assumed()
   end)
 end
 
+-- forever constants.lua:173 CONTAINER_BAG_OFFSET = 30 (container n is inventory slot n + 30); forever
+-- camelot/paperdollframe.lua:1973 keys itemSlotButtons by CharacterBag0Slot's id ("table index is nil" without).
+local function test_mainline_bag_slots_sit_after_the_container_offset()
+  for _, flavor in ipairs({ "forever", "retail" }) do
+    G.withGame(flavor, function()
+      local ids = {}
+      for _, name in ipairs({ "Bag0Slot", "Bag1Slot", "Bag2Slot", "Bag3Slot", "ReagentBag0Slot" }) do
+        ids[#ids + 1] = _G.C_PaperDollInfo.GetInventorySlotInfo(name)
+      end
+      A.same(ids, { 31, 32, 33, 34, 35 }, flavor)
+    end)
+  end
+end
+
 -- Blizzard's transmog code passes "HEADSLOT" and "SHOULDERSLOT" (blizzard_transmog.lua, blizzard_transmogshared.lua) where
 -- securetemplates.lua:464 passes "MainHandSlot", to the same call, so the lookup ignores case. With a nil id
 -- TransmogUtil.GetSlotID raised "table index is nil" and the transmog window built no slot.
@@ -322,6 +336,7 @@ return function()
   test_lfg_list_applications_are_an_empty_list_assumed()
   test_max_battlefield_id_is_three_queue_slots_assumed()
   test_num_quest_watches_is_zero_assumed()
+  test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()
   test_resistances_are_zero_and_the_spellbook_has_two_empty_tabs_assumed()
   test_game_error_numbers_are_set_and_distinct_assumed()

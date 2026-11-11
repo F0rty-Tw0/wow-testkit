@@ -120,9 +120,19 @@ local CLASSIC_FAMILY = { "vanilla", "tbc", "mists" }
 -- invSlot, slotTexture, checkRelic of a slot name; nothing for an unknown name.
 -- source: confirmed (row G21) the three returns (api/retail/PaperDollInfo.lua; the classic paperdollframe.lua:1292
 -- reads `id, textureName, checkRelic` from the global); assumed checkRelic false (no relic slot is modelled).
-local function inventorySlotInfo(slotName)
+-- source: confirmed (row G46) the mainline family's bag slots: forever 70862 constants.lua:173 CONTAINER_BAG_OFFSET = 30
+-- ("Used for PutItemInBag"; equipmentmanager.lua:183 PutItemInBag(bag + CONTAINER_BAG_OFFSET)), so containers 1-4 and the
+-- reagent bag 5 are slots 31-35. assumed: retail the same, no empty-slot texture. The classic flavors keep no bag slots.
+local MAINLINE_BAG_SLOTS = { bag0slot = 31, bag1slot = 32, bag2slot = 33, bag3slot = 34, reagentbag0slot = 35 }
+local MAINLINE = { retail = true, forever = true }
+
+local function inventorySlotInfo(w, slotName)
   if type(slotName) ~= "string" then
     return
+  end
+  local bagSlot = MAINLINE[w.flavor] and MAINLINE_BAG_SLOTS[slotName:lower()]
+  if bagSlot then
+    return bagSlot, nil, false
   end
   local info = INVENTORY_SLOT_INFO[slotName:lower()]
   if not info then
@@ -154,7 +164,9 @@ function M.install(w)
   -- source: confirmed (row G21) the classic flavors list the global (api/<flavor>/globals.lua) and call it where retail
   -- calls C_PaperDollInfo's (tbc securetemplates.lua:457-460); define installs each name only where the flavor has it.
   for _, name in ipairs({ "C_PaperDollInfo.GetInventorySlotInfo", "GetInventorySlotInfo" }) do
-    define(w, name, inventorySlotInfo)
+    define(w, name, function(slotName)
+      return inventorySlotInfo(w, slotName)
+    end)
   end
   for name, value in pairs(UNIT_STATS) do
     define(w, name, value, State.ALL)
