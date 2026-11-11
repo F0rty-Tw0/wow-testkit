@@ -118,8 +118,26 @@ local attach = M.attach
 -- source: wiki XML, example `<Frame parent="UIParent">`: parent names a global frame. With no parent attribute a
 -- top-level frame is parentless, not UIParent's child (row X1, assumed); a nested one keeps its enclosing frame, as does
 -- one whose parent global is missing or no widget (a string, a plain table: reported, assumed).
+-- The parent= of the nearest XML template node inherits (depth first, in inherits order), or nil.
+-- source: confirmed (row X29) forever containerframe.xml:229 gives ContainerFrameTemplate parent="ContainerFrameContainer"
+-- parentArray="ContainerFrames", :299-301 declare `<Frame name="ContainerFrame2" inherits="ContainerFrameTemplate"/>`
+-- with no parent, and containerframe.lua:2339 reads ContainerFrameContainer.ContainerFrames[i].
+local function inheritedParent(w, node, seen)
+  for name in (node.attrs.inherits or ""):gmatch("[^,%s]+") do
+    local virtual = w.ui.virtuals[name]
+    if virtual and not seen[name] then
+      seen[name] = true
+      local named = virtual.node.attrs.parent or inheritedParent(w, virtual.node, seen)
+      if named then
+        return named
+      end
+    end
+  end
+  return nil
+end
+
 local function parentOf(w, node, enclosing, session)
-  local named = node.attrs.parent
+  local named = node.attrs.parent or inheritedParent(w, node, {})
   local parent = named and AddonEnv.global(w, named, true)
   if named and not w.ui.state[parent or false] then
     session.report("parent:" .. named, "parent '" .. named .. (parent == nil and "' not found" or "' is not a frame"))

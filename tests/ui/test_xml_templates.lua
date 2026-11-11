@@ -268,7 +268,27 @@ local function test_template_root_parent_key_and_array_reach_the_inheriting_widg
   end)
 end
 
+-- row X29: a template's parent= parents a frame that inherits it and names none, through a chain too; its parentArray
+-- then lands on that parent (forever containerframe.xml:229, :299-301; containerframe.lua:2339).
+local function test_template_parent_attribute_parents_the_inheriting_frame()
+  local xml = [[
+<Ui>
+  <Frame name="Holder"/>
+  <Frame name="BagT" parent="Holder" parentArray="Bags" virtual="true"/>
+  <Frame name="BigBagT" inherits="BagT" virtual="true"/>
+  <Frame name="Bag1" inherits="BagT"/><Frame name="Bag2" inherits="BigBagT"/>
+  <Frame name="Other"/><Frame name="Bag3" parent="Other" inherits="BagT"/>
+</Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ _G.Bag1:GetParent() == _G.Holder, _G.Bag2:GetParent() == _G.Holder }, { true, true })
+    A.same(_G.Holder.Bags, { _G.Bag1, _G.Bag2 })
+    A.eq(_G.Bag3:GetParent(), _G.Other) -- the element's own parent wins
+  end)
+end
+
 return function()
+  test_template_parent_attribute_parents_the_inheriting_frame()
   test_createframe_id_is_set_before_the_template_on_load_assumed()
   test_template_root_parent_key_and_array_reach_the_inheriting_widgets_parent()
   test_hidden_false_shows_what_a_template_hid()
