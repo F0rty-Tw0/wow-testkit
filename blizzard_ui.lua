@@ -21,6 +21,8 @@ local debugTraceback = debug.traceback
 -- source: row BU25 (confirmed) Blizzard_ChatFrame makes ChatFrame1 and Blizzard_CompactRaidFrames makes CompactPartyFrame,
 -- which the classic frame position manager (uiparentpanelmanageroverrides.lua:73, :100) and Edit Mode
 -- (EditModeSystemTemplates.lua:1517) index; the client loads both at login, so neither may be nil.
+-- source: row BU27 (confirmed) Blizzard_QueueStatusFrame makes QueueStatusButton, which Edit Mode indexes
+-- (EditModeSystemTemplates.lua:2467); it loads at login, and on forever no other target's dependency names it.
 M.TARGETS = {
   "Blizzard_ActionBar",
   "Blizzard_UnitFrame",
@@ -28,6 +30,7 @@ M.TARGETS = {
   "Blizzard_OverrideActionBar",
   "Blizzard_ChatFrame",
   "Blizzard_CompactRaidFrames",
+  "Blizzard_QueueStatusFrame",
 }
 -- source: assumed (row BU1) the default key bindings per flavor, under <extract.dir>/code/. The extract has no
 -- bindings.xml: Blizzard_FrameXML holds one unlisted file per game type.

@@ -32,7 +32,19 @@ local function test_default_targets_load_the_chat_and_raid_frames()
   end)
 end
 
+-- source: BU27 Edit Mode's micro menu anchor pass calls QueueStatusButton:UpdateDefaultAnchor() (forever
+-- EditModeSystemTemplates.lua:2467); on forever only Minimap's classic-only Dep names Blizzard_QueueStatusFrame, so
+-- without it as a target the button reads nil.
+local function test_default_targets_load_the_queue_status_frame()
+  local qsf = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "QueueStatusButton = {}\n" } }
+  B.run(B.mini({ blizzard_queuestatusframe = qsf }), {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_QueueStatusFrame")
+    A.eq(type(_G.QueueStatusButton), "table")
+  end)
+end
+
 return function()
   test_default_targets_load_the_override_action_bar()
   test_default_targets_load_the_chat_and_raid_frames()
+  test_default_targets_load_the_queue_status_frame()
 end
