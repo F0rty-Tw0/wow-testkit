@@ -264,7 +264,7 @@ function M.install(w)
   -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
   -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
   define(w, "C_EventUtils.IsEventValid", function(event)
-    return (w.manifest.events[event] or w.globals.events[event]) ~= nil
+    return w:knowsEvent(event)
   end)
   local qualities, meta = w.manifest.enums.ItemQuality or {}, w.manifest.enums.ItemQualityMeta or {}
   for name, member in pairs(LEGACY_QUALITIES) do

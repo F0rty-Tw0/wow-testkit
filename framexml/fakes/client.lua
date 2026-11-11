@@ -55,12 +55,14 @@ local function fillMissing(w, root, tables)
 end
 
 -- source: the client build's own API docs (Blizzard_APIDocumentationGenerated in the extract) list the enums and
--- constants its UI code reads; the kit's pinned api/<flavor> data can be older than the extract.
+-- constants its UI code reads, and the events it registers (row G57); the kit's pinned api/<flavor> data can be older
+-- than the extract.
 local function installApi(w)
   local api = Client.api(w.client)
   if not api then
     return
   end
+  w.clientEvents = api.events -- read by World:knowsEvent
   for root, tables in pairs({ Enum = api.enums, Constants = api.constants }) do
     local installed = rawget(_G, root) -- world.lua installBase sets both
     if type(installed) == "table" then

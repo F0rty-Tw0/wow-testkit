@@ -244,6 +244,12 @@ function World:destroy()
   active = nil
 end
 
+-- An event the flavor's data lists, or the client extract's own API docs do (self.clientEvents, set by
+-- framexml/fakes/client.lua): the set RegisterEvent accepts and C_EventUtils.IsEventValid answers.
+function World:knowsEvent(event)
+  return (self.manifest.events[event] or self.globals.events[event] or (self.clientEvents or {})[event]) ~= nil
+end
+
 function World:passesGate(name, opts)
   local gate = opts and opts.gate or "none"
   if gate == "none" then

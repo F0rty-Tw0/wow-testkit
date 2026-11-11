@@ -205,8 +205,9 @@ function M.atlas(extract, name)
   return cache.atlas and cache.atlas[lowerSlashed(name)] or nil
 end
 
--- { enums, constants } from api.lua (the extract's own API docs, tools/client_api.lua), each a table of tables; nil when
--- the file is missing, broken or not a table. A missing or non-table key reads as {}.
+-- { enums, constants, events } from api.lua (the extract's own API docs, tools/client_api.lua): enums and constants
+-- each a table of tables, events a set of event names; nil when the file is missing, broken or not a table. A missing
+-- or non-table key reads as {} (api.lua files written before events were added have none).
 function M.api(extract)
   local cache = cacheOf(extract)
   if cache.api == nil then
@@ -215,6 +216,7 @@ function M.api(extract)
         and {
           enums = type(value.enums) == "table" and value.enums or {},
           constants = type(value.constants) == "table" and value.constants or {},
+          events = type(value.events) == "table" and value.events or {},
         }
       or false
   end

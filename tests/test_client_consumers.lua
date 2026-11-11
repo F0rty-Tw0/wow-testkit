@@ -82,7 +82,23 @@ end
 
 -- api.lua as tools/client_api.lua writes it: enums and constants from the extract's own API docs.
 local API = "return { enums = { ApiOnlyEnum = { A = 1 }, ItemQuality = { Poor = 99, ApiOnlyField = 42 }, Bad = 5 },"
-  .. " constants = { ApiOnlyConsts = { X = 7 } } }"
+  .. " constants = { ApiOnlyConsts = { X = 7 } }, events = { API_ONLY_EVENT = true } }"
+
+-- source: row G57, forever 70862 voicechatdocumentation.lua:919 documents VOICE_CHAT_ACTIVE_VOICE_PROVIDER_CHANGED,
+-- which api/forever (an older doc set) lacks; blizzard_chatframe/shared/voicechattranscriptionbutton.lua:4 registers it.
+local function test_api_overlay_makes_the_extract_events_known() -- G57
+  withClient({ ["api.lua"] = API }, function(w)
+    require("game").install(w) -- C_EventUtils.IsEventValid (game/clientapi.lua)
+    local frame = _G.CreateFrame("Frame")
+    frame:RegisterEvent("API_ONLY_EVENT") -- raised "unknown event" before
+    A.eq(_G.C_EventUtils.IsEventValid("API_ONLY_EVENT"), true)
+    A.eq(_G.C_EventUtils.IsEventValid("NOPE_EVENT"), false)
+    A.eq(w.manifest.events.API_ONLY_EVENT, nil) -- the manifest stays the kit's
+  end)
+  withClient({}, function()
+    A.eq(pcall(_G.CreateFrame("Frame").RegisterEvent, _G.CreateFrame("Frame"), "API_ONLY_EVENT"), false)
+  end)
+end
 
 local function test_api_overlay_adds_a_missing_enum_table()
   withClient({ ["api.lua"] = API }, function()
@@ -124,6 +140,7 @@ local function test_broken_api_file_changes_no_enum()
 end
 
 return function()
+  test_api_overlay_makes_the_extract_events_known()
   test_api_overlay_adds_a_missing_enum_table()
   test_api_overlay_adds_missing_fields_and_keeps_kit_values()
   test_api_overlay_fills_constants_too()
