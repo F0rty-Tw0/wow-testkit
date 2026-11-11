@@ -128,6 +128,11 @@ local function installRetail(w)
   end
   define(w, "C_SpecializationInfo.CanPlayerUseTalentUI", yes)
   define(w, "C_SpecializationInfo.CanPlayerUseTalentSpecUI", yes)
+  -- source: assumed (row G47) the spec group count is the store's group count (1: no dual spec); every flavor's data
+  -- lists the name, and forever camelot/classtalents/blizzard_classtalentsframe.lua:124 compares it with 1.
+  define(w, "GetNumSpecGroups", function()
+    return w.mock.talents.groups
+  end)
 end
 
 function M.install(w)
