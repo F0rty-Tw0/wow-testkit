@@ -162,6 +162,10 @@ local function test_globals_widgets_is_the_ketho_table()
   A.same(globals.widgets, ketho.WidgetAPI)
 end
 
+local function test_globals_constants_holds_the_constants_tables_of_lua_enum()
+  A.same(globals.constants, { SampleConsts = { MaxStates = 2 } })
+end
+
 local function test_globals_legacy_holds_the_number_globals_of_lua_enum()
   A.same(globals.legacy, { NUM_LE_SAMPLE_STATES = 2, LE_SAMPLE_STATE_NONE = 1, LE_SAMPLE_STATE_DONE = 2 })
 end
@@ -245,6 +249,7 @@ return function()
   test_globals_events_flatten_every_system()
   test_globals_widgets_is_the_ketho_table()
   test_globals_legacy_holds_the_number_globals_of_lua_enum()
+  test_globals_constants_holds_the_constants_tables_of_lua_enum()
   test_returns_never_secret_is_carried()
   test_duplicate_key_across_files_is_reported_and_last_file_wins()
   test_fixture_docs_have_no_duplicates()

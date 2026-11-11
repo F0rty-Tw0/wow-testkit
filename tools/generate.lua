@@ -73,6 +73,23 @@ local function numberGlobals(luaEnum)
   return legacy
 end
 
+-- LuaEnum.lua's Constants tables (a live-client dump), their scalar members only: the engine's values for members no API
+-- doc lists (row G40).
+local function constantTables(luaEnum)
+  local out = {}
+  for name, members in pairs(luaEnum.Constants or {}) do
+    if type(members) == "table" then
+      out[name] = {}
+      for key, value in pairs(members) do
+        if type(value) ~= "table" and type(value) ~= "function" then
+          out[name][key] = value
+        end
+      end
+    end
+  end
+  return out
+end
+
 local function buildGlobals(ketho, functions)
   local events = {}
   for _, names in pairs(ketho.Events) do
@@ -88,6 +105,7 @@ local function buildGlobals(ketho, functions)
     events = events,
     widgets = ketho.WidgetAPI,
     legacy = numberGlobals(ketho.LuaEnum),
+    constants = constantTables(ketho.LuaEnum),
   }
 end
 

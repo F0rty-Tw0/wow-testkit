@@ -269,6 +269,16 @@ local function test_legacy_number_globals_installed()
   end)
 end
 
+-- forever Constants.lua:168-170 does arithmetic on Constants.InventoryConstants.NumBagSlots, which no API doc lists.
+local function test_dumped_constants_fill_what_the_docs_lack()
+  withWorld("forever", function(w)
+    A.eq(w.globals.constants.InventoryConstants.NumBagSlots, 4)
+    A.eq(_G.Constants.InventoryConstants.NumBagSlots, 4)
+    A.eq(_G.Constants.InventoryConstants.MAX_TRANSACTION_BANK_TABS, w.manifest.constants.InventoryConstants.MAX_TRANSACTION_BANK_TABS)
+    A.eq(type(_G.Constants.LootConsts), "table") -- a table only the dump has
+  end)
+end
+
 local function test_legacy_number_global_leaves_a_defined_value()
   _G.LE_LFG_CATEGORY_LFD = "defined"
   local ok, err = pcall(withWorld, "tbc", function()
@@ -305,4 +315,5 @@ return function()
   test_enums_and_constants_installed()
   test_legacy_number_globals_installed()
   test_legacy_number_global_leaves_a_defined_value()
+  test_dumped_constants_fill_what_the_docs_lack()
 end

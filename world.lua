@@ -143,6 +143,16 @@ local function installBase(w, row)
   for name, values in pairs(w.manifest.constants) do
     constants[name] = shallowCopy(values)
   end
+  -- source: row G40 (confirmed) the client's Constants carry members no API doc lists (forever
+  -- InventoryConstants.NumBagSlots); the dump fills those, and a documented value wins.
+  for name, values in pairs(w.globals.constants) do
+    constants[name] = constants[name] or {}
+    for key, value in pairs(values) do
+      if constants[name][key] == nil then
+        constants[name][key] = value
+      end
+    end
+  end
   w:set("Enum", enum)
   w:set("Constants", constants)
   for name, id in pairs(Flavors.WOW_PROJECT) do
