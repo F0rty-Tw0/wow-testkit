@@ -96,7 +96,23 @@ local function test_player_frame_playtime_event_is_known() -- G49
   A.same(Manifest.load("forever").events.PLAYTIME_CHANGED, {})
 end
 
+-- source: row G56, the tbc and forever extracts' shop, kiosk, expansion and glue code registers these at load
+-- (forever mainline/mainmenubarmicrobuttons.lua:1859 STORE_STATUS_CHANGED, smartnavigation.lua:167 KIOSK_SESSION_EXPIRED,
+-- eventutil.lua:12 FRAMES_LOADED; tbc classic/productchoice.lua:6, classic/alertframes.lua:422); no API doc lists them.
+local function test_shop_and_kiosk_events_are_known() -- G56
+  local both = { "KIOSK_SESSION_EXPIRED", "STORE_OPEN_SIMPLE_CHECKOUT", "STORE_PRODUCTS_UPDATED", "STORE_PURCHASE_ERROR",
+    "STORE_STATUS_CHANGED", "UPDATE_EXPANSION_LEVEL", "FRAMES_LOADED" }
+  for _, event in ipairs(both) do
+    A.same(Manifest.load("tbc").events[event], {}, "tbc " .. event)
+    A.same(Manifest.load("forever").events[event], {}, "forever " .. event)
+  end
+  for _, event in ipairs({ "PRODUCT_CHOICE_UPDATE", "PRODUCT_ASSIGN_TO_TARGET_FAILED", "STORE_PRODUCT_DELIVERED" }) do
+    A.same(Manifest.load("tbc").events[event], {}, "tbc " .. event)
+  end
+end
+
 return function()
+  test_shop_and_kiosk_events_are_known()
   test_player_frame_playtime_event_is_known()
   test_load_merges_functions_from_every_file()
   test_load_merges_other_sections()

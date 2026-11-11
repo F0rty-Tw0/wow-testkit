@@ -11,11 +11,33 @@ local cache = {}
 -- Events Blizzard's own code registers that no API doc lists, per flavor (a documented event of the same name wins).
 -- source: row G23, blizzard_moneyframe/mainline/moneyframe.lua:49; row G25 for tbc, blizzard_moneyframe/classic/moneyframe.lua:17;
 -- row G31 for forever, blizzard_moneyframe/mainline/moneyframe.lua:36; row G49 PLAYTIME_CHANGED, blizzard_unitframe's
--- playerframe.lua (tbc classic/:56, forever mainline/).
+-- playerframe.lua (tbc classic/:56, forever mainline/); row G56 the shop, kiosk, expansion and glue events (SHOP_EVENTS,
+-- e.g. forever mainline/mainmenubarmicrobuttons.lua:1859, tbc classic/productchoice.lua:6).
+local SHOP_EVENTS = {
+  KIOSK_SESSION_EXPIRED = {},
+  STORE_OPEN_SIMPLE_CHECKOUT = {},
+  STORE_PRODUCTS_UPDATED = {},
+  STORE_PURCHASE_ERROR = {},
+  STORE_STATUS_CHANGED = {},
+  UPDATE_EXPANSION_LEVEL = {},
+  FRAMES_LOADED = {},
+}
+local function withShopEvents(events)
+  for event, payload in pairs(SHOP_EVENTS) do
+    events[event] = payload
+  end
+  return events
+end
 local EXTRA_EVENTS = {
   retail = { TRIAL_STATUS_UPDATE = {} },
-  tbc = { TRIAL_STATUS_UPDATE = {}, PLAYTIME_CHANGED = {} },
-  forever = { TRIAL_STATUS_UPDATE = {}, PLAYTIME_CHANGED = {} },
+  tbc = withShopEvents({
+    TRIAL_STATUS_UPDATE = {},
+    PLAYTIME_CHANGED = {},
+    PRODUCT_CHOICE_UPDATE = {},
+    PRODUCT_ASSIGN_TO_TARGET_FAILED = {},
+    STORE_PRODUCT_DELIVERED = {},
+  }),
+  forever = withShopEvents({ TRIAL_STATUS_UPDATE = {}, PLAYTIME_CHANGED = {} }),
 }
 
 -- The generated build versions replace the defaults in tools/flavors.lua (GetBuildInfo, TOC interface checks).
