@@ -1,6 +1,7 @@
 -- Blizzard UI layer test helpers: kit-authored mini "Blizzard" addons (never Blizzard text) written into a temp client
 -- extract laid out as tools/client lays it out (code/addons/<lowercase name>/<lowercase file>), and a scenario run that
 -- loads them as the layer before a probe addon.
+local Flavors = require("tools.flavors")
 local H = require("tests.helpers.client")
 local Scenario = require("scenario")
 local Tmp = require("tests.helpers.tmp")
@@ -269,14 +270,15 @@ function M.probe(lua, header)
 end
 
 -- Runs a scenario of Probe with the layer on addons: opts = { targets?, lua?, header?, before?, screen?, flavor? = "retail" }.
--- Calls opts.before(s) before s:login() and fn(s) after it, destroys the world and rethrows the report's first error when
--- it failed (so assertions inside fn fail the test). Returns the report.
+-- The default header declares the flavor's own interface version. Calls opts.before(s) before s:login() and fn(s) after
+-- it, destroys the world and rethrows the report's first error when it failed (so assertions inside fn fail the test);
+-- a skipped run (fn never ran) is an error too. Returns the report.
 function M.run(addons, opts, fn)
   local flavor = opts.flavor or "retail"
   local extract = M.extract(Tmp.dir("bzx"), addons, flavor)
   local matrixOpts = {
     addon = "Probe",
-    root = M.probe(opts.lua, opts.header),
+    root = M.probe(opts.lua, opts.header or "Interface: " .. Flavors.get(flavor).tocVersion),
     blizzardUi = { targets = opts.targets },
     client = extract,
     findClient = function() end,
@@ -291,6 +293,8 @@ function M.run(addons, opts, fn)
   end, matrixOpts)[flavor]
   if report.status == "fail" then
     error(tostring(report.errors[1].message), 0)
+  elseif report.status == "skipped" then
+    error("B.run: the " .. flavor .. " scenario was skipped, so fn never ran", 0)
   end
   return report
 end
