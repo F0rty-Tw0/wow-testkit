@@ -89,6 +89,25 @@ local function test_panel_background_colour_comes_from_the_ui_colour_table() -- 
   end
 end
 
+-- source: W87 forever's SharedColorConstants.lua:23-24 hexes the faction colours at load; tbc's FriendsFrame.lua:302 and
+-- PlayerFrame.lua:99 read the BNet name and non-attackable level colours. GlobalColor rows 63, 76, 77, 406 hold them.
+local function test_faction_bnet_and_level_colours_come_from_the_ui_colour_table() -- W87
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.same(
+        {
+          _G.FRIENDS_BNET_NAME_COLOR:GenerateHexColor(),
+          _G.PLAYER_FACTION_COLOR_HORDE:GenerateHexColor(),
+          _G.PLAYER_FACTION_COLOR_ALLIANCE:GenerateHexColor(),
+          _G.UNIT_LEVEL_NON_ATTACKABLE:GenerateHexColor(),
+        },
+        { "ff82c5ff", "ffff2934", "ff00adf0", "ffffd100" },
+        flavor
+      )
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -193,6 +212,7 @@ local function test_color_util_wraps_text_in_color_markup_assumed() -- W76
 end
 
 return function()
+  test_faction_bnet_and_level_colours_come_from_the_ui_colour_table()
   test_panel_background_colour_comes_from_the_ui_colour_table()
   test_disabled_font_colour_comes_from_the_ui_colour_table()
   test_color_util_wraps_text_in_color_markup_assumed()

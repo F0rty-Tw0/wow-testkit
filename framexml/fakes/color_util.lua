@@ -52,6 +52,12 @@ local UI_COLORS = {
   -- source: row W86 (confirmed) GlobalColor row 191 `-870375903` (ARGB cc1f1e21); the bag frame's backdrop reads it
   -- (forever 70862 blizzard_sharedxml/portraitframe.lua:123); no extract Lua defines it.
   { baseTag = "PANEL_BACKGROUND_COLOR", color = { r = 31 / 255, g = 30 / 255, b = 33 / 255, a = 204 / 255 } },
+  -- source: row W87 (confirmed) GlobalColor rows 63, 76, 77 (ARGB ff82c5ff, ffff2934, ff00adf0) and 406 (RGB ffd100,
+  -- alpha assumed 1 as W83); no extract Lua defines them.
+  { baseTag = "FRIENDS_BNET_NAME_COLOR", color = { r = 130 / 255, g = 197 / 255, b = 1, a = 1 } },
+  { baseTag = "PLAYER_FACTION_COLOR_HORDE", color = { r = 1, g = 41 / 255, b = 52 / 255, a = 1 } },
+  { baseTag = "PLAYER_FACTION_COLOR_ALLIANCE", color = { r = 0, g = 173 / 255, b = 240 / 255, a = 1 } },
+  { baseTag = "UNIT_LEVEL_NON_ATTACKABLE", color = { r = 1, g = 209 / 255, b = 0, a = 1 } },
 }
 
 local function byte(channel)
