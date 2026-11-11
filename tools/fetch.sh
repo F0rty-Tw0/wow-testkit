@@ -11,7 +11,7 @@ export MSYS_NO_PATHCONV=1
 
 GETHE_URL="https://github.com/Gethe/wow-ui-source"
 KETHO_REPO="Ketho/BlizzardInterfaceResources"
-KETHO_FILES=(GlobalAPI Frames FrameXML WidgetAPI Events Templates)
+KETHO_FILES=(GlobalAPI Frames FrameXML WidgetAPI Events Templates LuaEnum)
 DOCS_PATH="Interface/AddOns/Blizzard_APIDocumentationGenerated"
 MIN_DOC_FILES=400
 # Reference only, never loaded by the kit: Blizzard's menu code, read when checking the kit's menu fakes.

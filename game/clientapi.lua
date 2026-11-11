@@ -57,7 +57,7 @@ for name, info in pairs(INVENTORY_SLOTS) do
 end
 
 -- source: assumed (row G21) the engine's LE_EXPANSION_* values (classic 0 up to mists 4) and the expansion level each classic
--- flavor runs at; retail and forever are not modelled.
+-- flavor runs at; retail and forever are not modelled here (their LE_EXPANSION_* come from the client dump, row G35).
 local EXPANSIONS = {
   LE_EXPANSION_CLASSIC = 0,
   LE_EXPANSION_BURNING_CRUSADE = 1,

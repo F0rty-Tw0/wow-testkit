@@ -62,6 +62,17 @@ local function toSet(list, skip)
   return set
 end
 
+-- The number globals LuaEnum.lua assigns (LE_*, NUM_LE_*): the engine injects them and no Blizzard Lua defines them.
+local function numberGlobals(luaEnum)
+  local legacy = {}
+  for name, value in pairs(luaEnum) do
+    if type(value) == "number" then
+      legacy[name] = value
+    end
+  end
+  return legacy
+end
+
 local function buildGlobals(ketho, functions)
   local events = {}
   for _, names in pairs(ketho.Events) do
@@ -76,6 +87,7 @@ local function buildGlobals(ketho, functions)
     framexml = toSet(ketho.FrameXML[1]),
     events = events,
     widgets = ketho.WidgetAPI,
+    legacy = numberGlobals(ketho.LuaEnum),
   }
 end
 

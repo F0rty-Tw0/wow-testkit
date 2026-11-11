@@ -131,8 +131,8 @@ local function test_classic_expansion_level_and_constants_answer_per_flavor_assu
       A.eq(_G.ClassicExpansionAtLeast(_G.LE_EXPANSION_WRATH_OF_THE_LICH_KING), level >= 2, flavor)
     end)
   end
-  G.withGame("retail", function()
-    A.eq(_G.LE_EXPANSION_BURNING_CRUSADE, nil)
+  G.withGame("retail", function() -- no classic expansion model: the constant is the client's own (row G35)
+    A.eq(_G.LE_EXPANSION_BURNING_CRUSADE, 1)
   end)
 end
 

@@ -153,6 +153,13 @@ local function installBase(w, row)
   Luaext.install(w)
   LuaApi.install(w)
   Taint.install(w)
+  -- source: row G35 (confirmed) the engine injects these LE_* / NUM_LE_* numbers and no Blizzard Lua defines them; a value
+  -- already set keeps it, and the kit's own definitions installed later (game/clientapi.lua) replace these.
+  for name, value in pairs(w.globals.legacy) do
+    if rawget(_G, name) == nil then
+      w:set(name, value)
+    end
+  end
 end
 
 -- opts.flavor: one of Flavors.list. opts.screen: { width, height, useUiScale, uiScale }, see ui/screen.lua. opts.client:

@@ -21,16 +21,24 @@ local function readRequired(path)
   return text
 end
 
--- Runs each Ketho file in an empty sandbox and keeps the table it returns.
+local function runSandboxed(dir, name, env)
+  local fn, err = Docs.compile(readRequired(dir .. "/" .. name .. ".lua"), "@" .. name .. ".lua", env)
+  if not fn then
+    error(err, 0)
+  end
+  return fn()
+end
+
+-- Runs each Ketho file in an empty sandbox and keeps the table it returns. LuaEnum.lua returns nothing: it assigns
+-- globals (Enum, Constants, LE_*), so ketho.LuaEnum is the sandbox those assignments filled.
 function M.loadKetho(dir)
   local ketho = {}
   for _, name in ipairs(KETHO_FILES) do
-    local fn, err = Docs.compile(readRequired(dir .. "/" .. name .. ".lua"), "@" .. name .. ".lua", {})
-    if not fn then
-      error(err, 0)
-    end
-    ketho[name] = fn()
+    ketho[name] = runSandboxed(dir, name, {})
   end
+  local luaEnum = {}
+  runSandboxed(dir, "LuaEnum", luaEnum)
+  ketho.LuaEnum = luaEnum
   return ketho
 end
 
