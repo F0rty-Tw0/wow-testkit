@@ -156,17 +156,31 @@ function M.child(w, obj, child, session)
   end
 end
 
--- Runs each child element of obj in document order, except that KeyValues come first (row X11: set before OnLoad; the
--- order against mixins and children is assumed).
+-- Runs each child element of obj in document order, except that Mixins and then KeyValues come first (row X11:
+-- KeyValues are set before OnLoad; row X32: a <Mixins> element applies where the mixin attribute does, before them; the
+-- order against children is assumed).
+local FIRST = { "mixins", "keyvalues" }
 function M.children(w, obj, node, session)
-  for _, child in ipairs(node.children) do
-    if child.tag == "keyvalues" then
-      M.child(w, obj, child, session)
+  for _, tag in ipairs(FIRST) do
+    for _, child in ipairs(node.children) do
+      if child.tag == tag then
+        M.child(w, obj, child, session)
+      end
     end
   end
   for _, child in ipairs(node.children) do
-    if child.tag ~= "keyvalues" then
+    if child.tag ~= "keyvalues" and child.tag ~= "mixins" then
       M.child(w, obj, child, session)
+    end
+  end
+end
+
+-- source: forever 70862 ui.xsd:352-366, `<Mixins>` holds `<Mixin key=...>` (row X32): each key is copied as a mixin=
+-- name is; source, targetPartition, inboundPartition and secureDelegates are ignored (one environment, assumed).
+function M.handlers.mixins(w, obj, st, node, session)
+  for _, child in ipairs(node.children) do
+    if child.tag == "mixin" and child.attrs.key then
+      XmlAttrs.frame.mixin(w, obj, st, child.attrs.key, child, session)
     end
   end
 end
