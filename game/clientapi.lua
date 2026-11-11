@@ -148,6 +148,8 @@ local METATABLES = {
   GetButtonMetatable = "Button",
   GetEditBoxMetatable = "EditBox",
   GetFontStringMetatable = "FontString",
+  -- row G55: forever's api lists it (UnitFrameUtil.lua:129 copies its __index at load).
+  GetTextureMetatable = "Texture",
 }
 
 function M.install(w)

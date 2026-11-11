@@ -73,6 +73,12 @@ local function test_metatable_getters_answer_the_widget_class_metatable_assumed(
     A.truthy(getmetatable(frame:CreateFontString()) == _G.GetFontStringMetatable(), "FontString")
     A.eq(type(_G.GetFrameMetatable().__index.SetSize), "function")
   end)
+  -- row G55: forever lists GetTextureMetatable; UnitFrameUtil.lua:129 copies its __index at load.
+  G.withGame("forever", function()
+    local texture = _G.CreateFrame("Frame"):CreateTexture()
+    A.truthy(getmetatable(texture) == _G.GetTextureMetatable(), "Texture")
+    A.eq(_G.GetTextureMetatable().__index.IsObjectType(texture, "Texture"), true)
+  end)
 end
 
 -- SecureTemplates.lua (Blizzard_FrameXML) keys a table by the main hand and off-hand slot ids at load; a nil key
