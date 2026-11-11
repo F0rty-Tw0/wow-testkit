@@ -89,7 +89,15 @@ local function test_forever_knows_the_event_its_money_frame_registers()
   A.same(Manifest.load("forever").events.TRIAL_STATUS_UPDATE, {})
 end
 
+-- source: row G49, the tbc and forever extracts' PlayerFrame registers PLAYTIME_CHANGED on load (classic/playerframe.lua:56,
+-- mainline/playerframe.lua); no API doc lists it.
+local function test_player_frame_playtime_event_is_known() -- G49
+  A.same(Manifest.load("tbc").events.PLAYTIME_CHANGED, {})
+  A.same(Manifest.load("forever").events.PLAYTIME_CHANGED, {})
+end
+
 return function()
+  test_player_frame_playtime_event_is_known()
   test_load_merges_functions_from_every_file()
   test_load_merges_other_sections()
   test_load_copies_index_fields()
