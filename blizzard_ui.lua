@@ -23,6 +23,8 @@ local debugTraceback = debug.traceback
 -- (EditModeSystemTemplates.lua:1517) index; the client loads both at login, so neither may be nil.
 -- source: row BU27 (confirmed) Blizzard_QueueStatusFrame makes QueueStatusButton, which Edit Mode indexes
 -- (EditModeSystemTemplates.lua:2467); it loads at login, and on forever no other target's dependency names it.
+-- source: row BU28 (confirmed) Blizzard_GameMenu makes GameMenuFrame, which the panel manager's IsOptionFrameOpen indexes
+-- unguarded (tbc uiparentpanelmanager.lua:1140, reached from ToggleAllBags); it loads at login.
 M.TARGETS = {
   "Blizzard_ActionBar",
   "Blizzard_UnitFrame",
@@ -31,6 +33,7 @@ M.TARGETS = {
   "Blizzard_ChatFrame",
   "Blizzard_CompactRaidFrames",
   "Blizzard_QueueStatusFrame",
+  "Blizzard_GameMenu",
 }
 -- source: assumed (row BU1) the default key bindings per flavor, under <extract.dir>/code/. The extract has no
 -- bindings.xml: Blizzard_FrameXML holds one unlisted file per game type.

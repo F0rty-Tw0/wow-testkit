@@ -43,8 +43,19 @@ local function test_default_targets_load_the_queue_status_frame()
   end)
 end
 
+-- source: BU28 the panel manager's IsOptionFrameOpen indexes GameMenuFrame unguarded (tbc
+-- uiparentpanelmanager.lua:1140), which ToggleAllBags reaches; no other target's dependency names Blizzard_GameMenu.
+local function test_default_targets_load_the_game_menu()
+  local menu = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "GameMenuFrame = {}\n" } }
+  B.run(B.mini({ blizzard_gamemenu = menu }), {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_GameMenu")
+    A.eq(type(_G.GameMenuFrame), "table")
+  end)
+end
+
 return function()
   test_default_targets_load_the_override_action_bar()
   test_default_targets_load_the_chat_and_raid_frames()
   test_default_targets_load_the_queue_status_frame()
+  test_default_targets_load_the_game_menu()
 end
