@@ -164,6 +164,23 @@ local function test_dependencies_of_other_game_types_are_dropped_assumed()
   end)
 end
 
+-- source: confirmed (row G37) an addon whose LoadWith names a loaded addon loads with it, before the target that pulled
+-- that addon in (tbc Blizzard_UIParentPanelManager LoadWith Blizzard_UIParent, before Blizzard_ActionBar), and a
+-- repeated LoadWith line appends. Order right after the trigger: assumed (the wiki gives no timing).
+local function test_load_with_addons_load_right_after_their_trigger()
+  local addons = B.mini({
+    blizzard_minipanel = {
+      toc = "## Title: Blizzard_MiniPanel\n## LoadWith: Blizzard_MiniBase\n## LoadWith: Blizzard_Nothing\nMiniPanel.lua\n",
+      files = { ["minipanel.lua"] = 'MiniLog[#MiniLog + 1] = "panel"\n' },
+    },
+    blizzard_miniclassic = { toc = "## AllowLoadGameType: classic\n## LoadWith: Blizzard_MiniBase\n" },
+  })
+  B.run(addons, { targets = { "Blizzard_MiniBar" } }, function(s)
+    A.same(s.w.blizzard.loaded, { "Blizzard_MiniBase", "Blizzard_MiniPanel", "Blizzard_MiniBar" })
+    A.same(s.w.blizzard.skipped, {}) -- the classic-only LoadWith addon is neither loaded nor skipped
+  end)
+end
+
 local function test_flavor_suffixed_toc_is_found_in_lowercase()
   local addons = B.mini({
     blizzard_minisuffix = { toc = "Suffix.lua\n", tocFile = "blizzard_minisuffix_mainline.toc", files = { ["suffix.lua"] = "MiniSuffix = true" } },
@@ -293,6 +310,7 @@ return function()
   test_find_client_supplies_the_extract_when_none_is_given()
   test_missing_target_is_skipped_not_raised()
   test_dependencies_of_other_game_types_are_dropped_assumed()
+  test_load_with_addons_load_right_after_their_trigger()
   test_flavor_suffixed_toc_is_found_in_lowercase()
   test_family_and_game_path_tokens_resolve()
   test_loaded_blizzard_addons_count_as_loaded()

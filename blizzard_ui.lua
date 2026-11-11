@@ -59,13 +59,34 @@ local function tocOf(root, name, flavor)
   return fs.exists(path) and path or nil
 end
 
+-- { [lowercase trigger] = { name, ... } }: the extract's addons that load on flavor and whose LoadWith names the trigger,
+-- in folder order. name is the TOC Title when it spells the folder (the extract lowercases folders), else the folder.
+local function loadWithIndex(extract, flavor)
+  local index, base = {}, extract.dir .. "/code/addons"
+  for _, dir in ipairs(fs.isdir(base) and fs.list(base) or {}) do
+    local toc = tocOf(base .. "/" .. dir, dir, flavor)
+    local meta = toc and Toc.parse(fs.readFile(toc) or "").meta
+    if meta and meta.LoadWith and TocHeader.loadsOn(meta, flavor) then
+      local name = meta.Title and meta.Title:lower() == dir and meta.Title or dir
+      for _, trigger in ipairs(Toc.loadWith(meta, flavor)) do
+        local key = trigger:lower()
+        index[key] = index[key] or {}
+        index[key][#index[key] + 1] = name
+      end
+    end
+  end
+  return index
+end
+
 -- Returns entries, skipped, notes: entries = { { name, root, parsed }, ... } with each addon's required dependencies
--- first, then its optional ones (depth first, each once), then the addon; skipped = { { name, reason = "not in
--- extract" } } for each target or dependency the extract lacks (the others still load). A dependency the flavor does not load is
--- left out (Toc.dependencies); a cycle is cut and noted. name keeps the spelling of the target or of the TOC line that
--- named it; root, file reads and the once-only check use name:lower().
+-- first, then its optional ones (depth first, each once), then the addon, then the addons whose LoadWith names it
+-- (row G37); skipped = { { name, reason = "not in extract" } } for each target or dependency the extract lacks (the
+-- others still load). A dependency the flavor does not load is left out (Toc.dependencies); a cycle is cut and noted.
+-- name keeps the spelling of the target or of the TOC line that named it; root, file reads and the once-only check use
+-- name:lower().
 function M.order(extract, targets, flavor)
   local entries, skipped, notes, done, visiting = {}, {}, {}, {}, {}
+  local loadWith = loadWithIndex(extract, flavor)
   local function visit(name)
     local key = name:lower()
     if visiting[key] then
@@ -95,6 +116,9 @@ function M.order(extract, targets, flavor)
     end
     visiting[key] = nil
     entries[#entries + 1] = { name = name, root = root, parsed = parsed }
+    for _, follower in ipairs(loadWith[key] or {}) do
+      visit(follower)
+    end
   end
   for _, name in ipairs(targets) do
     visit(name)

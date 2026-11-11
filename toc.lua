@@ -158,9 +158,9 @@ local function isRequiredKey(key)
   return key:sub(1, 3) == "Dep" or key == "RequiredDeps" or key == "RequiredDep"
 end
 
--- source: confirmed (row G16) a dependency directive may repeat, and later instances append to the list.
+-- source: confirmed (rows G16, G37) a dependency or LoadWith directive may repeat, and later instances append to the list.
 local function isListKey(key)
-  return isRequiredKey(key) or key == "OptionalDeps"
+  return isRequiredKey(key) or key == "OptionalDeps" or key == "LoadWith"
 end
 
 function M.parse(text)
@@ -212,6 +212,15 @@ function M.dependencies(meta, flavor)
   local optional = meta.OptionalDeps or ""
   appendNames(deps.optional, seen, row and allowedNames(optional, row) or optional)
   return deps
+end
+
+-- The addons named by meta's LoadWith, whose load triggers this one's (row G37); with flavor, a name the flavor does
+-- not load is left out.
+function M.loadWith(meta, flavor)
+  local value = meta.LoadWith or ""
+  local out = {}
+  appendNames(out, {}, flavor and allowedNames(value, Flavors.get(flavor)) or value)
+  return out
 end
 
 local function interfaceValues(meta, row)
