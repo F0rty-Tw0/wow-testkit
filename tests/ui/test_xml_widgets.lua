@@ -61,6 +61,11 @@ local function test_button_text_attribute_sets_the_text_assumed()
     H.load(w, ctx, "Ui.xml")
     A.same({ _G.TxA:GetText(), _G.TxA:GetFontString():GetText() }, { "Label", "Label" })
     A.same({ _G.TxB:GetFontString() == _G.TxBText, _G.TxB:GetText() }, { true, "Plain" })
+    local shown = 0
+    for _, region in ipairs({ _G.TxB:GetRegions() }) do
+      shown = shown + ((region:GetObjectType() == "FontString" and region:IsShown()) and 1 or 0)
+    end
+    A.eq(shown, 1, "the attribute's FontString steps aside for <ButtonText>'s")
     A.eq(reportText(ctx):find("'text'"), nil)
   end)
 end
