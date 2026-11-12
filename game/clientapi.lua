@@ -264,6 +264,16 @@ function M.install(w)
   -- source: confirmed (row G68) the CurrencyInfo fields (api/<flavor>/CurrencyInfo.lua); tbc pvpframe.lua:33-34 indexes the
   -- answer for Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID unguarded. assumed: a currency the flavor's constants
   -- name exists with none held (no name, icon or cap: the kit models no currencies); any other id answers nothing.
+  -- source: confirmed (row G72) counts: tbc and forever keybindings.lua:24 `for bindingIndex = 1, GetNumBindings()`,
+  -- friendsframe.lua:2726 and blizzard_guildcontrolui.lua:507-509 loop to GuildControlGetNumRanks(), tbc loothistory.lua:55
+  -- to C_LootHistory.GetNumItems(), forever chatframemenubutton.lua:120 to GetNumLanguages(); no API doc types them.
+  -- assumed: 0 each, as the kit lists no binding commands, guild, loot rolls or languages.
+  -- grug: GetNumBindings 0; count Bindings.xml commands once GetBinding(index) answers them.
+  for _, name in ipairs({ "GetNumBindings", "GuildControlGetNumRanks", "C_LootHistory.GetNumItems", "GetNumLanguages" }) do
+    define(w, name, function()
+      return 0
+    end)
+  end
   -- source: confirmed (row G69) 12 returns, rating first, rank 11th, teamSize 12th: tbc pvpframebase.lua:124-133 compares
   -- rating and seasonPlayed with 0 and passes rank to ArenaUtil.GetArenaBannerInfo (arenautil.lua:11 `rank <= 100`). No API
   -- doc types it. assumed: an unrated player, every return 0, as the kit models no arena.

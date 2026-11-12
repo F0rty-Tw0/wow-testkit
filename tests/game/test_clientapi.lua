@@ -342,6 +342,23 @@ local function test_player_is_unrated_assumed()
   end
 end
 
+-- Keybindings.lua:24, FriendsFrame.lua:2726, Blizzard_GuildControlUI.lua:509, LootHistory.lua:57 and
+-- ChatFrameMenuButton.lua:120 use these as `for` limits; bare globals with no signature, they answered nothing and each
+-- loop raised "'for' limit must be a number" at load on tbc or forever. (G72)
+local function test_unmodelled_list_counts_are_zero_assumed()
+  local names = { "GetNumBindings", "GuildControlGetNumRanks", "GetNumLanguages" }
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      for _, name in ipairs(names) do
+        A.eq(_G[name](), 0, flavor .. " " .. name)
+      end
+    end)
+  end
+  G.withGame("tbc", function()
+    A.eq(_G.C_LootHistory.GetNumItems(), 0)
+  end)
+end
+
 -- tbc TabardFrame_OnLoad (tabardframe.lua:5) and the mail frame's cost (mailframe.xml:631) pass these to
 -- MoneyFrame_Update; bare globals with no signature, they answered nothing and the copper split raised ×2 at load. (G62)
 local function test_mail_postage_and_tabard_cost_are_copper_assumed()
@@ -454,6 +471,7 @@ return function()
   test_player_is_unranked_assumed()
   test_named_currencies_exist_with_none_held_assumed()
   test_player_is_unrated_assumed()
+  test_unmodelled_list_counts_are_zero_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
   test_product_choices_are_an_empty_list_assumed()
