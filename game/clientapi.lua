@@ -358,6 +358,25 @@ function M.install(w)
   if w.manifest.enums.GameMode == nil then
     define(w, "Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 }, State.ALL)
   end
+  -- source: confirmed (row G73) the members tbc 70577 and forever 70862 read (vaserrorlookup.lua:281-287,
+  -- securecurrencyutil.lua:79 key tables by them); Blizzard_EnvironmentCleanup sets both to nil after load, so they are
+  -- secure-only and no API doc or Ketho dump lists them. assumed: the values (distinct, in the order of the old
+  -- LE_STORE_ERROR_* and VAS service lists, from memory; the callers only use them as keys).
+  if w.manifest.enums.StoreError == nil then
+    -- stylua: ignore
+    define(w, "Enum.StoreError", {
+      InvalidPaymentMethod = 0, PaymentFailed = 1, WrongCurrency = 2, BattlepayDisabled = 3, InsufficientBalance = 4,
+      Other = 5, AlreadyOwned = 6, ParentalControlsNoPurchase = 7, PurchaseDenied = 8, ConsumableTokenOwned = 9,
+      TooManyTokens = 10, ItemUnavailable = 11, ClientRestricted = 12,
+    }, State.ALL)
+  end
+  if w.manifest.enums.VasServiceType == nil then
+    -- stylua: ignore
+    define(w, "Enum.VasServiceType", {
+      FactionChange = 0, RaceChange = 1, AppearanceChange = 2, NameChange = 3, CharacterTransfer = 4,
+      GuildNameChange = 5, GuildFactionChange = 6, GuildTransfer = 7, FactionTransfer = 8, GuildFactionTransfer = 9,
+    }, State.ALL)
+  end
   -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
   -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
   define(w, "C_EventUtils.IsEventValid", function(event)

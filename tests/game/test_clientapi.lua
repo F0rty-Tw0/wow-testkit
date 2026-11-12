@@ -359,6 +359,25 @@ local function test_unmodelled_list_counts_are_zero_assumed()
   end)
 end
 
+-- VASErrorLookup.lua:281-287 (Blizzard_SharedXML, tbc and forever) keys tables by Enum.StoreError and
+-- Enum.VasServiceType members; secure-only, no doc lists them, so indexing the nil enum raised at load. (G73)
+local function test_secure_store_enums_have_distinct_members_assumed()
+  for _, flavor in ipairs({ "tbc", "forever", "retail" }) do
+    G.withGame(flavor, function()
+      for _, name in ipairs({ "StoreError", "VasServiceType" }) do
+        local seen, count = {}, 0
+        for _, value in pairs(_G.Enum[name]) do
+          A.eq(seen[value], nil, flavor .. " " .. name .. " value " .. tostring(value))
+          seen[value], count = true, count + 1
+        end
+        A.eq(count > 0, true, flavor .. " " .. name)
+      end
+      A.eq(type(_G.Enum.StoreError.InvalidPaymentMethod), "number", flavor)
+      A.eq(type(_G.Enum.VasServiceType.FactionChange), "number", flavor)
+    end)
+  end
+end
+
 -- tbc TabardFrame_OnLoad (tabardframe.lua:5) and the mail frame's cost (mailframe.xml:631) pass these to
 -- MoneyFrame_Update; bare globals with no signature, they answered nothing and the copper split raised ×2 at load. (G62)
 local function test_mail_postage_and_tabard_cost_are_copper_assumed()
@@ -472,6 +491,7 @@ return function()
   test_named_currencies_exist_with_none_held_assumed()
   test_player_is_unrated_assumed()
   test_unmodelled_list_counts_are_zero_assumed()
+  test_secure_store_enums_have_distinct_members_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
   test_product_choices_are_an_empty_list_assumed()
