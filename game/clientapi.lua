@@ -4,6 +4,7 @@ local M = {}
 
 local AddonEnv = require("addon_env")
 local Curve = require("game.curve")
+local Duration = require("game.duration")
 local Items = require("game.items")
 local Roster = require("combat_roster_data")
 local State = require("game.state")
@@ -441,6 +442,13 @@ function M.install(w)
     end
   end
   define(w, "C_CurveUtil.CreateCurve", Curve.new)
+  -- source: confirmed (row G85) one LuaDurationObject per call (api/<flavor>/DurationUtil.lua); forever
+  -- blizzard_aurabutton.lua:75 keeps one per aura button and sets it at :167-169.
+  define(w, "C_DurationUtil.CreateDuration", function()
+    return Duration.new(function()
+      return w.now
+    end)
+  end)
   -- source: assumed (row G21) the default colour is the colour: the kit keeps no colour overrides.
   for _, name in ipairs({ "C_ColorOverrides.GetColorForQuality", "C_ColorOverrides.GetDefaultColorForQuality" }) do
     define(w, name, qualityColor)

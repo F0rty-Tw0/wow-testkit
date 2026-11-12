@@ -26,6 +26,27 @@ local function test_curve_object_evaluates_its_points_assumed()
   end)
 end
 
+-- forever AuraButtonPrivateMixin (blizzard_aurabutton.lua:75, :163-169) sets the duration C_DurationUtil.CreateDuration
+-- handed out from an aura's expiration time, duration and time mod; the stub handed out nil. (G85)
+local function test_duration_object_spans_its_times_assumed()
+  G.withGame("forever", function(w)
+    local real, base = _G.Enum.DurationTimeModifier.RealTime, _G.Enum.DurationTimeModifier.BaseTime
+    local d = _G.C_DurationUtil.CreateDuration()
+    A.same({ d:IsZero(), d:HasExpired() }, { true, true })
+    w.now = 10
+    d:SetTimeFromEnd(14, 8, 2)
+    A.same({ d:GetStartTime(), d:GetEndTime(), d:GetTotalDuration(), d:GetTotalDuration(base) }, { 10, 14, 4, 8 })
+    w.now = 11
+    A.same({ d:GetRemainingDuration(real), d:GetElapsedDuration(), d:GetRemainingPercent() }, { 3, 1, 0.75 })
+    A.same({ d:IsZero(), d:HasExpired(), d:GetModRate() }, { false, false, 2 })
+    w.now = 15
+    A.same({ d:HasExpired(), d:GetRemainingDuration() }, { true, 0 })
+    local copy = d:Copy()
+    d:SetTimeSpan(0, 0)
+    A.same({ d:IsZero(), copy:GetEndTime() }, { true, 14 })
+  end)
+end
+
 -- ColorManager.lua (Blizzard_Colors) calls color:GenerateHexColorMarkup() on what C_ColorOverrides answers, so the
 -- answer carries Blizzard's ColorMixin when that is loaded.
 local function test_quality_colors_carry_the_color_mixin_assumed()
@@ -576,5 +597,6 @@ return function()
   test_default_quality_colors_match_the_quality_colors_assumed()
   test_override_colors_equal_the_item_quality_colors_assumed()
   test_curve_object_evaluates_its_points_assumed()
+  test_duration_object_spans_its_times_assumed()
   test_get_current_environment_is_the_addon_global_table_assumed()
 end
