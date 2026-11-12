@@ -10,6 +10,7 @@ exclude_files = {
   ".luacheckrc",
   "api/", -- generated
   "tests/fixtures/docs_bad/", -- deliberately invalid Lua
+  "tests/fixtures/ketho/", -- Ketho's Resources files in their upstream layout
 }
 
 ignore = {
