@@ -27,7 +27,8 @@ local function test_hardware_click_casts_but_an_addon_click_is_blocked() -- TS14
     local cast = recorder(w, "CastSpellByName")
     s:click(b)
     A.same(cast, { { "Kit Strike", "target" } })
-    H.run(w, "Foo", "TKAct:Click()")
+    -- ActionButtonUseKeyDown defaults to 1 (row G80), so a key-press click acts on the down event.
+    H.run(w, "Foo", 'TKAct:Click("LeftButton", true)')
     A.eq(#cast, 1) -- the second call never reached the stub
     A.eq(w.taint.log[#w.taint.log].event, "ADDON_ACTION_FORBIDDEN")
   end)
