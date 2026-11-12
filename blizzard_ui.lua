@@ -32,7 +32,11 @@ local debugTraceback = debug.traceback
 -- source: row BU32 (confirmed) Blizzard_AuraContainer defines ManagedAuraContainerSharedMixin, which forever's
 -- Blizzard_UnitFrame reads at load (shared/targetframeauracontainer.lua:15); no TOC depends on it, it loads at login
 -- (no LoadOnDemand, AllowLoad game). First, so it loads before the unit frames (assumed: the client's order agrees).
+-- source: row BU33 (confirmed) Blizzard_AutoComplete defines AUTOCOMPLETE_LIST, which tbc Blizzard_UIPanels_Game's XML
+-- OnLoads index (classic/mailframe.xml:584, friendsframe.xml:4373); the action bar's dependencies load UIPanels_Game and
+-- only the chat and popup addons depend on AutoComplete, so it loaded after. First too (assumed: the client's order agrees).
 M.TARGETS = {
+  "Blizzard_AutoComplete",
   "Blizzard_AuraContainer",
   "Blizzard_ActionBar",
   "Blizzard_UnitFrame",

@@ -86,7 +86,20 @@ local function test_default_targets_load_the_aura_container_before_the_unit_fram
   end)
 end
 
+-- source: BU33 tbc Blizzard_UIPanels_Game's mail and friends frames index AUTOCOMPLETE_LIST in their XML OnLoad
+-- (classic/mailframe.xml:584, friendsframe.xml:4373); Blizzard_AutoComplete defines it, and only the chat and popup
+-- addons depend on it, so it loaded after the action bar's dependencies.
+local function test_default_targets_load_auto_complete_before_the_action_bar()
+  local auto = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "AUTOCOMPLETE_LIST = {}\n" } }
+  local bar = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "SawAutoComplete = AUTOCOMPLETE_LIST ~= nil\n" } }
+  B.run(B.mini({ blizzard_autocomplete = auto, blizzard_actionbar = bar }), {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_AutoComplete")
+    A.eq(_G.SawAutoComplete, true)
+  end)
+end
+
 return function()
+  test_default_targets_load_auto_complete_before_the_action_bar()
   test_default_targets_load_the_aura_container_before_the_unit_frames()
   test_default_targets_load_the_character_subframe_addons()
   test_default_targets_load_the_bag_buttons()
