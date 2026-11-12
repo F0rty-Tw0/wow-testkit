@@ -3,6 +3,7 @@
 local M = {}
 
 local XmlBuild = require("ui.xml_build")
+local XmlFonts = require("ui.xml_fonts")
 local XmlParse = require("ui.xml_parse")
 
 -- Element modules register their handlers and finishers in XmlBuild when required; the order fixes the finishers'.
@@ -46,13 +47,17 @@ end
 -- `inherits` find it there. origin is the session of the file that holds it.
 M.registerVirtual = XmlBuild.registerVirtual
 
--- Builds one element of the root <Ui>: a frame, or a virtual region template. Every other element is reported and
--- skipped. An error in one element is reported (XmlBuild.guard) and the next element still builds.
+-- Builds one element of the root <Ui>: a frame, a font object (ui/xml_fonts.lua), or a virtual region template. Every
+-- other element is reported and skipped. An error in one element is reported (XmlBuild.guard) and the next element still builds.
 -- source: assumed (row X31) the world's UIParent is the kit's (framexml/fakes/core.lua); a root frame of that name, as
 -- tbc Blizzard_UIParent/Classic/UIParent.xml:4 declares, is reported and not built (rows BU17, BU21 rely on it).
 function M.element(w, node, session)
   if node.attrs.name == "UIParent" and node.attrs.virtual ~= "true" then
     session.report("uiparent", "<" .. node.rawTag .. ' name="UIParent"> ignored: UIParent is the kit\'s')
+  elseif node.tag == "font" then
+    XmlFonts.font(w, node, session)
+  elseif node.tag == "fontfamily" then
+    XmlFonts.family(w, node, session)
   elseif XmlBuild.isRegion(node) and node.attrs.virtual == "true" then
     XmlBuild.region(w, node, nil, session)
   else

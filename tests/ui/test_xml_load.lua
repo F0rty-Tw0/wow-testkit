@@ -107,9 +107,9 @@ local function test_malformed_xml_is_one_error_and_returns_false()
 end
 
 local function test_unknown_element_is_reported_once_per_file_assumed() -- (X16)
-  H.withXml({ ["Ui.xml"] = '<Ui><Font name="F"/><Font name="G"/></Ui>' }, function(w, ctx)
+  H.withXml({ ["Ui.xml"] = '<Ui><Bogus name="F"/><Bogus name="G"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
-    A.eq(count(reportText(ctx), "unsupported XML <Font> ignored"), 1)
+    A.eq(count(reportText(ctx), "unsupported XML <Bogus> ignored"), 1)
   end)
 end
 
