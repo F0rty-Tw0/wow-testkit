@@ -7,6 +7,7 @@ local Game = require("game")
 local G = require("tests.helpers.game")
 local H = require("tests.helpers.world")
 local Scenario = require("scenario")
+local SecretValue = require("combat_secret_value")
 local Tmp = require("tests.helpers.tmp")
 local fs = require("fs")
 
@@ -197,6 +198,19 @@ local function test_secretwrap_returns_its_values_assumed() -- (G33)
   end
 end
 
+-- forever AssignAuraFrame (blizzard_auracontainergroups.lua:205-210) keys a table by secretunwrap(auraInstanceID); the
+-- stub returned nothing and raised "table index is nil" once an aura reached the frame during play. (G84)
+local function test_secretunwrap_returns_its_values_revealed_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.secretunwrap(7, "x") }, { 7, "x" }, flavor)
+    end)
+  end
+  G.withGame("retail", function(w)
+    A.same({ _G.secretunwrap(SecretValue.make(7, w)) }, { 7 })
+  end)
+end
+
 local function test_task_5_6_bindings_and_drag_answer_outside_a_session()
   G.withGame("retail", function(w)
     A.same({ _G.GetBindingKey("TOGGLEWHISPER") }, {})
@@ -233,6 +247,7 @@ return function()
   test_party_guid_follows_a_flagged_fixture_assumed()
   test_issecretvalue_follows_the_world_assumed()
   test_secretwrap_returns_its_values_assumed()
+  test_secretunwrap_returns_its_values_revealed_assumed()
   test_task_5_6_bindings_and_drag_answer_outside_a_session()
   test_game_install_keeps_bindings_a_session_installed_first()
 end
