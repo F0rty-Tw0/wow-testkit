@@ -291,6 +291,21 @@ function handlers.color(_, obj, _, node, session)
   end
 end
 
+-- source: confirmed (row X30) ui.xsd:326-333 (forever 70862 blizzard_sharedxml): MinColor and MaxColor children,
+-- orientation HORIZONTAL by default; assumed it calls SetGradient, and that a gradient missing either colour is skipped.
+function handlers.gradient(_, obj, _, node, session)
+  local colors = {}
+  for _, child in ipairs(node.children) do
+    local r, g, b, a = M.color(child)
+    colors[child.tag] = { r = r, g = g, b = b, a = a }
+  end
+  if not (obj.SetGradient and colors.mincolor and colors.maxcolor) then
+    session.reportAt(node.line, "<Gradient> needs a Texture with MinColor and MaxColor; ignored")
+    return
+  end
+  obj:SetGradient(node.attrs.orientation or "HORIZONTAL", colors.mincolor, colors.maxcolor)
+end
+
 -- source: wiki API:TextureBase_SetTexCoord, `SetTexCoord(left, right, top, bottom)` (row X18)
 function handlers.texcoords(_, obj, _, node)
   local attrs = node.attrs

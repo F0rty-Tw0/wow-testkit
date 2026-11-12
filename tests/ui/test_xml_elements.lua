@@ -43,6 +43,22 @@ local function test_frame_attributes_and_nested_frames()
   end)
 end
 
+-- source: row X2, forever 70862 blizzard_compactraidframemanager.xml:391-406 names `$parentLeavePartyButton` under the
+-- anonymous BottomButtons frame of CompactRaidFrameManager, and its Lua (:434, :505, :721) reads the global
+-- CompactRaidFrameManagerLeavePartyButton; a sibling anchors relativeTo="$parentLeavePartyButton".
+local function test_dollar_parent_under_an_anonymous_parent_is_the_nearest_named_ancestor()
+  local xml = [[
+<Ui><Frame name="Mgr"><Frames><Frame parentKey="Bottom"><Frames>
+  <Button name="$parentLeave"/>
+  <Button name="$parentStay"><Anchors><Anchor point="TOP" relativeTo="$parentLeave" relativePoint="BOTTOM"/></Anchors></Button>
+</Frames></Frame></Frames></Frame></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.eq(_G.MgrLeave:GetParent(), _G.Mgr.Bottom)
+    A.eq(select(2, _G.MgrStay:GetPoint(1)), _G.MgrLeave)
+  end)
+end
+
 local function test_top_level_frame_without_parent_is_parentless_assumed()
   H.withXml({ ["Ui.xml"] = '<Ui><Frame name="Lone"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -165,6 +181,49 @@ local function test_mixin_on_a_layer_region_copies_the_global_table()
   end)
 end
 
+-- source: row X32, forever ui.xsd:352-366 (`<Mixins>` of `<Mixin key=...>`), Blizzard_AuraContainer.xml:9-12; KeyValues
+-- still win over a mixin's field, as over a mixin= attribute's (assumed).
+local function test_mixins_element_copies_each_key_before_key_values_assumed()
+  local xml = '<Ui><Frame name="Mxe"><KeyValues><KeyValue key="kind" value="own"/></KeyValues><Mixins>'
+    .. '<Mixin key="BoxMixin" source="secure" secureDelegates="true"/><Mixin key="OtherMixin"/></Mixins>'
+    .. '<Scripts><OnLoad method="Boot"/></Scripts></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    w:setGlobal("BoxMixin", {
+      kind = "mixin",
+      Boot = function(self)
+        self.booted = true
+      end,
+    })
+    w:setGlobal("OtherMixin", { Other = true })
+    H.load(w, ctx, "Ui.xml")
+    local f = _G.Mxe
+    A.same({ f.booted, f.kind, f.Other, w.ui.state[f].mixins }, { true, "own", true, { "BoxMixin", "OtherMixin" } })
+    A.eq(reportText(ctx), "")
+  end)
+end
+
+-- source: row X33, forever 70862 blizzard_sharedxml/shared/button/threeslicebuttontemplate.xml: the base template's
+-- Controller child's OnLoad (shareduipaneltemplates.lua:1075-1078) calls the parent's InitButton, which reads atlasName,
+-- set only by the inheriting template's KeyValues (BigRedThreeSliceButtonTemplate, :67-69). The KeyValues of the whole
+-- inherits chain, and the element's own, are set before any of its content is built; a value the element's own OnLoad
+-- changes stays changed.
+local function test_inherited_key_values_exist_at_a_base_template_child_on_load()
+  local xml = '<Ui><Button name="KvBase" virtual="true"><Frames><Frame parentKey="Controller"><Scripts>'
+    .. '<OnLoad>self:GetParent().seen = (self:GetParent().seen or "") .. tostring(self:GetParent().atlas) .. "+" '
+    .. ".. tostring(self:GetParent().own)</OnLoad></Scripts></Frame></Frames></Button>"
+    .. '<Button name="KvDerived" inherits="KvBase" virtual="true"><KeyValues><KeyValue key="atlas" value="red"/>'
+    .. "</KeyValues></Button>"
+    .. '<Button name="KvButton" inherits="KvDerived"><KeyValues><KeyValue key="own" value="mine"/></KeyValues>'
+    .. '<Scripts><OnLoad>self.atlas = "changed"</OnLoad></Scripts></Button></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same({ _G.KvButton.seen, _G.KvButton.atlas }, { "red+mine", "changed" })
+    local made = _G.CreateFrame("Button", nil, nil, "KvDerived")
+    A.eq(made.seen, "red+nil")
+    A.eq(reportText(ctx), "")
+  end)
+end
+
 local function test_template_inherits_apply_kit_templates()
   H.withXml({ ["Ui.xml"] = '<Ui><Button name="Pb" inherits="UIPanelButtonTemplate"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -240,7 +299,9 @@ local function test_non_region_tag_gives_no_region()
 end
 
 return function()
+  test_inherited_key_values_exist_at_a_base_template_child_on_load()
   test_frame_attributes_and_nested_frames()
+  test_dollar_parent_under_an_anonymous_parent_is_the_nearest_named_ancestor()
   test_top_level_frame_without_parent_is_parentless_assumed()
   test_parent_attribute_names_the_global_parent()
   test_parent_array_collects_children_in_document_order_assumed()
@@ -255,6 +316,7 @@ return function()
   test_a_mixin_name_is_recorded_once()
   test_missing_mixin_is_reported_assumed()
   test_mixin_on_a_layer_region_copies_the_global_table()
+  test_mixins_element_copies_each_key_before_key_values_assumed()
   test_template_inherits_apply_kit_templates()
   test_texture_region_attributes()
   test_region_defaults_to_artwork_sublevel_zero()
