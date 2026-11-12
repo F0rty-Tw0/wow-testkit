@@ -100,6 +100,29 @@ local function test_api_overlay_makes_the_extract_events_known() -- G57
   end)
 end
 
+local BOOL_RETURN = "{ returns = { { name = 'shown', type = 'bool', lua = 'boolean', nilable = false } } }"
+local FUNCTIONS_API = "return { functions = {"
+  .. (" ['C_ExternalEventURL.ApiOnlyFn'] = %s,"):format(BOOL_RETURN)
+  .. (" ['C_NoSuchNamespace.Fn'] = %s,"):format(BOOL_RETURN)
+  .. " ['C_ExternalEventURL.SecureFn'] = { secureOnly = true },"
+  .. (" ApiOnlyGlobal = %s, ['C_ExternalEventURL.Bad'] = 5 } }"):format(BOOL_RETURN)
+
+-- source: row G75, forever 70862 externaleventurldocumentation.lua documents C_ExternalEventURL.CanShow, which
+-- api/forever lacks; blizzard_minimap/shared/externaleventurlminimapbutton.lua:77 called it and raised at load.
+local function test_api_overlay_stubs_documented_functions_the_kit_lacks() -- G75
+  withClient({ ["api.lua"] = FUNCTIONS_API }, function(w)
+    A.eq(_G.C_ExternalEventURL.ApiOnlyFn(), false) -- the signature's default
+    A.eq(w.manifest.functions["C_ExternalEventURL.ApiOnlyFn"], nil) -- the manifest stays the kit's
+    A.eq(_G.C_NoSuchNamespace, nil) -- a namespace the flavor lacks stays absent
+    A.eq(_G.C_ExternalEventURL.SecureFn, nil)
+    A.eq(_G.ApiOnlyGlobal, nil)
+    A.eq(_G.C_ExternalEventURL.Bad, nil)
+  end)
+  withClient({}, function()
+    A.eq(_G.C_ExternalEventURL.ApiOnlyFn, nil)
+  end)
+end
+
 local function test_api_overlay_adds_a_missing_enum_table()
   withClient({ ["api.lua"] = API }, function()
     A.eq(_G.Enum.ApiOnlyEnum.A, 1)
@@ -141,6 +164,7 @@ end
 
 return function()
   test_api_overlay_makes_the_extract_events_known()
+  test_api_overlay_stubs_documented_functions_the_kit_lacks()
   test_api_overlay_adds_a_missing_enum_table()
   test_api_overlay_adds_missing_fields_and_keeps_kit_values()
   test_api_overlay_fills_constants_too()
