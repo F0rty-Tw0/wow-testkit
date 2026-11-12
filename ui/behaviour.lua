@@ -183,6 +183,37 @@ function methods.GetParent(_, _, st)
   return st.parent
 end
 
+-- source: wiki API:Object_SetParentKey "Sets a key on the parent to the child object" (row F10); forever 70862
+-- blizzard_compactraidframemanager.lua:135 then :858 reads the key. Assumed: no parent sets nothing; clearOtherKeys drops
+-- the parent's other string keys that hold obj; ClearParentKey drops the key SetParentKey set.
+function methods.SetParentKey(_, obj, st, key, clearOtherKeys)
+  local parent = st.parent
+  if parent == nil then
+    return
+  end
+  if clearOtherKeys then
+    for otherKey, value in pairs(parent) do
+      if value == obj and type(otherKey) == "string" then
+        parent[otherKey] = nil
+      end
+    end
+  end
+  parent[key] = obj
+  st.parentKey = key
+end
+
+function methods.GetParentKey(_, _, st)
+  return st.parentKey
+end
+
+function methods.ClearParentKey(_, obj, st)
+  local parent = st.parent
+  if parent ~= nil and st.parentKey ~= nil and parent[st.parentKey] == obj then
+    parent[st.parentKey] = nil
+  end
+  st.parentKey = nil
+end
+
 function methods.GetChildren(_, _, st)
   return unpack(st.children)
 end
