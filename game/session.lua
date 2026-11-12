@@ -3,6 +3,7 @@
 local M = {}
 
 local Combat = require("combat")
+local Flavors = require("tools.flavors")
 local State = require("game.state")
 local define, ALL = State.define, State.ALL
 
@@ -27,9 +28,13 @@ local function cvarKey(name)
 end
 
 -- source: confirmed (row G29) the client's default for each CVar Blizzard's UI reads before anything sets it, from
--- Ketho's CVars dump; keys lowercase like the store.
+-- Ketho's CVars dump; keys lowercase like the store. A table value splits the default by game type: `classic` for the
+-- classic flavors (the dump's classic and classic_era branches), `mainline` for the others (its live branch).
+-- source: confirmed (row G70) the nameplate class colour defaults per branch.
 local CVAR_DEFAULTS = {
   userfontscale = "1.000000",
+  nameplateshowclasscolor = { mainline = "1", classic = "0" },
+  nameplateshowfriendlyclasscolor = { mainline = "1", classic = "0" },
 }
 
 local function toCvarValue(value)
@@ -40,13 +45,18 @@ local function toCvarValue(value)
 end
 
 local function installCvars(w)
+  local gameType = Flavors.get(w.flavor).gameTypes.classic and "classic" or "mainline"
   local function default(name)
     local key = cvarKey(name)
-    return key and CVAR_DEFAULTS[key] or nil
+    local value = key and CVAR_DEFAULTS[key]
+    if type(value) == "table" then
+      return value[gameType]
+    end
+    return value or nil
   end
   local function get(name)
     local key = cvarKey(name)
-    return key and (w.mock.cvars[key] or CVAR_DEFAULTS[key]) or nil
+    return key and (w.mock.cvars[key] or default(key)) or nil
   end
   local function getBool(name)
     return get(name) == "1"

@@ -88,6 +88,20 @@ local function test_unset_cvar_reads_its_client_default() -- (G29)
   end)
 end
 
+-- Nameplates.lua:799 (Blizzard_SettingsDefinitions_Frame, tbc and forever) passes both nameplate class colour defaults to
+-- bit.bor; unknown, they were nil and the bor raised at load. The default differs between classic and mainline. (G70)
+local function test_nameplate_class_colour_defaults_follow_the_game_type()
+  for flavor, want in pairs({ tbc = "0", vanilla = "0", mists = "0", retail = "1", forever = "1" }) do
+    G.withGame(flavor, function()
+      A.same({
+        _G.GetCVarDefault("nameplateShowClassColor"),
+        _G.GetCVarDefault("nameplateShowFriendlyClassColor"),
+        _G.GetCVar("nameplateShowClassColor"),
+      }, { want, want, want }, flavor)
+    end)
+  end
+end
+
 local function test_namespaced_cvars_share_the_store() -- (G3)
   G.withGame("retail", function()
     _G.C_CVar.SetCVar("Bar", "7")
@@ -202,6 +216,7 @@ return function()
   test_set_cvar_stores_the_string_form()
   test_namespaced_cvars_share_the_store()
   test_unset_cvar_reads_its_client_default()
+  test_nameplate_class_colour_defaults_follow_the_game_type()
   test_logged_in_flips_at_player_login_assumed()
   test_logged_in_is_nil_without_a_login()
   test_server_time_follows_the_world_clock()
