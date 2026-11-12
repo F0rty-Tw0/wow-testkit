@@ -91,6 +91,16 @@ local function constantTables(luaEnum)
   return out
 end
 
+-- Ketho's CVars.lua returns { CVars, PTR }; CVars.var maps each name to { default, category, account, character,
+-- secure, help }. Keys are lowercased because CVar names are case-insensitive (game/session.lua). PTR-only CVars stay out.
+local function cvarDefaults(cvars)
+  local out = {}
+  for name, info in pairs(cvars[1].var) do
+    out[name:lower()] = info[1]
+  end
+  return out
+end
+
 local function buildGlobals(ketho, functions)
   local events = {}
   for _, names in pairs(ketho.Events) do
@@ -107,6 +117,7 @@ local function buildGlobals(ketho, functions)
     widgets = ketho.WidgetAPI,
     legacy = numberGlobals(ketho.LuaEnum),
     constants = constantTables(ketho.LuaEnum),
+    cvars = cvarDefaults(ketho.CVars),
   }
 end
 
