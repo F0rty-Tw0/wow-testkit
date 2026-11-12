@@ -292,6 +292,19 @@ local function test_combo_points_are_zero_assumed()
   end
 end
 
+-- tbc SkillFrame_UpdateSkills (skillframe.lua:290-294) compares GetNumSkillLines() with a list index, and
+-- SkillDetailFrame_SetStatusBar (:183-185) adds GetSkillLineInfo's rank and temp points before testing the name; bare
+-- globals with no signature, they answered nothing and both raised at load. (G66)
+local function test_skill_lines_are_none_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetNumSkillLines(), 0, flavor)
+      local name, _, _, rank, temp = _G.GetSkillLineInfo(1)
+      A.same({ name, rank + temp }, { "", 0 }, flavor)
+    end)
+  end
+end
+
 -- tbc TabardFrame_OnLoad (tabardframe.lua:5) and the mail frame's cost (mailframe.xml:631) pass these to
 -- MoneyFrame_Update; bare globals with no signature, they answered nothing and the copper split raised ×2 at load. (G62)
 local function test_mail_postage_and_tabard_cost_are_copper_assumed()
@@ -400,6 +413,7 @@ return function()
   test_num_quest_watches_is_zero_assumed()
   test_mirror_timers_are_idle_assumed()
   test_combo_points_are_zero_assumed()
+  test_skill_lines_are_none_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
   test_product_choices_are_an_empty_list_assumed()

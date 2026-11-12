@@ -239,6 +239,16 @@ function M.install(w)
   define(w, "GetComboPoints", function()
     return 0
   end)
+  -- source: confirmed (row G66) a count: tbc skillframe.lua:290-294 compares GetNumSkillLines() with a list index; no API
+  -- doc types it. assumed: 0, as the kit models no skill lines.
+  define(w, "GetNumSkillLines", function()
+    return 0
+  end)
+  -- source: confirmed (row G66) the 13 returns: tbc skillframe.lua:183-185 adds rank and temp points before :196 tests the
+  -- name for nil or "", so an empty slot answers numbers. assumed: every slot empty, name and description "", numbers 0.
+  define(w, "GetSkillLineInfo", function()
+    return "", nil, nil, 0, 0, 0, 0, nil, nil, 0, 0, 0, ""
+  end)
   -- source: confirmed (row G62) copper amounts: tbc tabardframe.lua:5 and mailframe.xml:631 pass them to MoneyFrame_Update;
   -- no API doc types them. assumed: a letter's 30 copper postage and the 10 gold tabard (from memory).
   define(w, "GetSendMailPrice", function()
