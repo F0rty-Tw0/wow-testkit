@@ -318,6 +318,19 @@ local function test_player_is_unranked_assumed()
   end
 end
 
+-- tbc PVPHonor_Update (pvpframe.lua:33-34) indexes GetCurrencyInfo(CLASSIC_HONOR_CURRENCY_ID) unguarded; the signature
+-- may return nothing, so it answered nil and the index raised at load. (G68)
+local function test_named_currencies_exist_with_none_held_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      local id = _G.Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID
+      local info = _G.C_CurrencyInfo.GetCurrencyInfo(id)
+      A.same({ info.currencyID, info.quantity, info.maxQuantity }, { id, 0, 0 }, flavor)
+      A.eq(_G.C_CurrencyInfo.GetCurrencyInfo(987654), nil, flavor)
+    end)
+  end
+end
+
 -- tbc TabardFrame_OnLoad (tabardframe.lua:5) and the mail frame's cost (mailframe.xml:631) pass these to
 -- MoneyFrame_Update; bare globals with no signature, they answered nothing and the copper split raised ×2 at load. (G62)
 local function test_mail_postage_and_tabard_cost_are_copper_assumed()
@@ -428,6 +441,7 @@ return function()
   test_combo_points_are_zero_assumed()
   test_skill_lines_are_none_assumed()
   test_player_is_unranked_assumed()
+  test_named_currencies_exist_with_none_held_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
   test_product_choices_are_an_empty_list_assumed()

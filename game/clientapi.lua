@@ -261,6 +261,27 @@ function M.install(w)
   define(w, "GetPVPRankProgress", function()
     return 0
   end)
+  -- source: confirmed (row G68) the CurrencyInfo fields (api/<flavor>/CurrencyInfo.lua); tbc pvpframe.lua:33-34 indexes the
+  -- answer for Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID unguarded. assumed: a currency the flavor's constants
+  -- name exists with none held (no name, icon or cap: the kit models no currencies); any other id answers nothing.
+  define(w, "C_CurrencyInfo.GetCurrencyInfo", function(id)
+    local constants = rawget(_G, "Constants")
+    local named = false
+    for _, value in pairs(constants and constants.CurrencyConsts or {}) do
+      named = named or value == id
+    end
+    if not named then
+      return nil
+    end
+    -- stylua: ignore
+    return {
+      name = "", description = "", currencyID = id, isHeader = false, isHeaderExpanded = false, currencyListDepth = 0,
+      isTypeUnused = false, isShowInBackpack = false, quantity = 0, trackedQuantity = 0, iconFileID = 0, maxQuantity = 0,
+      canEarnPerWeek = false, quantityEarnedThisWeek = 0, isTradeable = false, quality = 0, maxWeeklyQuantity = 0,
+      totalEarned = 0, discovered = false, useTotalEarnedForMaxQty = false, isAccountWide = false,
+      isAccountTransferable = false, rechargingCycleDurationMS = 0, rechargingAmountPerCycle = 0, categoryName = "",
+    }
+  end)
   -- source: confirmed (row G62) copper amounts: tbc tabardframe.lua:5 and mailframe.xml:631 pass them to MoneyFrame_Update;
   -- no API doc types them. assumed: a letter's 30 copper postage and the 10 gold tabard (from memory).
   define(w, "GetSendMailPrice", function()
