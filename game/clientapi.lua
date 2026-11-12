@@ -88,6 +88,9 @@ local EXPANSIONS = {
   LE_EXPANSION_MISTS_OF_PANDARIA = 4,
 }
 local EXPANSION_LEVEL = { vanilla = 0, tbc = 1, mists = 4 }
+-- source: confirmed (row G58) the caps 60/70/80/85 by LE_EXPANSION_* (tbc 70577 blizzard_framexmlbase/cata/constants.lua:10-14,
+-- which comments out mists' 90); assumed 90 for mists, and that each classic client's latest expansion is its own.
+local MAX_LEVEL_BY_EXPANSION = { [0] = 60, 70, 80, 85, 90 }
 
 -- source: confirmed (row G21) paperdollframe.lua:617 reads _G["SPELL_STAT" .. statIndex .. "_NAME"] with statIndex =
 -- LE_UNIT_STAT_*; the strings name SPELL_STAT1..5 Strength, Agility, Stamina, Intellect, Spirit.
@@ -184,6 +187,12 @@ function M.install(w)
     define(w, "ClassicExpansionAtLeast", function(expansionLevel)
       return level >= expansionLevel
     end)
+    -- GameRulesUtil.GetEffectiveMaxLevelForPlayer (tbc gamerulesutil.lua:189-193) takes math.min of these.
+    for _, name in ipairs({ "GetMaxPlayerLevel", "GetMaxLevelForPlayerExpansion", "GetMaxLevelForLatestExpansion" }) do
+      define(w, name, function()
+        return MAX_LEVEL_BY_EXPANSION[level]
+      end)
+    end
   end
   -- source: assumed (row G21) Kiosk is an engine table; Blizzard_MicroMenu asks Kiosk.IsEnabled() on every open, false is a normal client
   define(w, "Kiosk.IsEnabled", function()

@@ -156,6 +156,16 @@ local function test_classic_expansion_level_and_constants_answer_per_flavor_assu
   end)
 end
 
+-- tbc GameRulesUtil.GetEffectiveMaxLevelForPlayer (gamerulesutil.lua:192) takes math.min(GetMaxLevelForPlayerExpansion(),
+-- GetMaxPlayerLevel()); GetMaxPlayerLevel is a bare global with no signature, so it answered nothing and min raised. (G58)
+local function test_classic_max_level_answers_the_expansion_cap_assumed()
+  for flavor, cap in pairs({ vanilla = 60, tbc = 70, mists = 90 }) do
+    G.withGame(flavor, function()
+      A.same({ _G.GetMaxPlayerLevel(), _G.GetMaxLevelForPlayerExpansion(), _G.GetMaxLevelForLatestExpansion() }, { cap, cap, cap }, flavor)
+    end)
+  end
+end
+
 -- The classic UIParent (tbc uiparent.lua:24-28) builds ITEM_QUALITY_COLORS for 0 .. NUM_LE_ITEM_QUALITYS - 1 and the auction
 -- list (Blizzard_AuctionUI.lua:1013) indexes it by quality; with the names nil the table stayed empty.
 local function test_legacy_item_quality_names_alias_enum_item_quality_assumed() -- (G26)
@@ -349,6 +359,7 @@ return function()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
+  test_classic_max_level_answers_the_expansion_cap_assumed()
   test_inventory_slot_names_answer_their_ids_assumed()
   test_inventory_slot_names_ignore_case()
   test_classic_global_inventory_slot_lookup_answers_the_slot_ids_assumed()
