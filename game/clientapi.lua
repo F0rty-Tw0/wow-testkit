@@ -285,6 +285,21 @@ function M.install(w)
   define(w, "C_PetJournal.GetNumPets", function()
     return 0, 0
   end)
+  -- source: assumed (row G82) the store's secure namespace, which only Blizzard_StoreUI's secure environment sees in the
+  -- client (Blizzard_EnvironmentCleanup sets it nil for everyone else); the kit has one environment, so addons see it
+  -- too. No doc or wiki page lists it. Only the calls the store makes at load, as an unavailable store: StoreFrame's
+  -- OnLoad (forever shared storeuisecure.lua:1120) requests the purchase list, which answers nothing;
+  -- StoreFrame_CurrencyInfo (:451) reads no currency info (nil, which :453 allows); StoreFrame_UpdateActivePanel
+  -- (:1620, :1631) finds no purchase in progress and the store not available, so it shows that alert; the end of OnLoad
+  -- (:1161) finds no failure waiting (nil errorID, which :1162 allows).
+  for _, name in ipairs({ "GetPurchaseList", "GetCurrencyInfo", "GetFailureInfo" }) do
+    define(w, "C_StoreSecure." .. name, function() end, { "retail", "forever" })
+  end
+  for _, name in ipairs({ "HasPurchaseInProgress", "IsAvailable" }) do
+    define(w, "C_StoreSecure." .. name, function()
+      return false
+    end, { "retail", "forever" })
+  end
   -- source: confirmed (row G69) 12 returns, rating first, rank 11th, teamSize 12th: tbc pvpframebase.lua:124-133 compares
   -- rating and seasonPlayed with 0 and passes rank to ArenaUtil.GetArenaBannerInfo (arenautil.lua:11 `rank <= 100`). No API
   -- doc types it. assumed: an unrated player, every return 0, as the kit models no arena.

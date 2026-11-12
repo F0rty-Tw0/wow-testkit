@@ -421,6 +421,21 @@ local function test_pet_journal_counts_no_pets_assumed()
   end
 end
 
+-- forever Blizzard_StoreUI's StoreFrame OnLoad (shared storeuisecure.lua:1120, :451, :1620, :1631, :1161) called the
+-- secure store namespace, which the kit lacked. The classic flavors' store code does not load it. (G82)
+local function test_store_secure_answers_an_unavailable_store_assumed()
+  for _, flavor in ipairs({ "retail", "forever" }) do
+    G.withGame(flavor, function()
+      local store = _G.C_StoreSecure
+      A.same({ store.GetPurchaseList(), store.GetCurrencyInfo(), store.GetFailureInfo() }, {}, flavor)
+      A.same({ store.HasPurchaseInProgress(), store.IsAvailable() }, { false, false }, flavor)
+    end)
+  end
+  G.withGame("tbc", function()
+    A.eq(rawget(_G, "C_StoreSecure"), nil)
+  end)
+end
+
 local function test_available_locales_list_every_client_locale()
   for _, flavor in ipairs({ "tbc", "forever" }) do
     G.withGame(flavor, function()
@@ -531,6 +546,7 @@ return function()
   test_available_locales_list_every_client_locale()
   test_pets_needing_fanfare_count_zero_assumed()
   test_pet_journal_counts_no_pets_assumed()
+  test_store_secure_answers_an_unavailable_store_assumed()
   test_product_choices_are_an_empty_list_assumed()
   test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()
