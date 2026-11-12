@@ -302,6 +302,16 @@ local function test_mail_postage_and_tabard_cost_are_copper_assumed()
   end
 end
 
+-- tbc TextSizeManagerBase:BuildFonts (textsizemanager.lua:22-24) walks GetFonts() with ipairs; a bare global with no
+-- signature, it answered nothing and ipairs raised ×2 at load. (G63)
+local function test_font_list_is_an_empty_list_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same(_G.GetFonts(), {}, flavor)
+    end)
+  end
+end
+
 -- tbc UIErrorsFrame.lua:50-53 keys THROTTLED_MESSAGE_TYPES by LE_GAME_ERR_*; nil keys raised "table index is nil".
 local function test_game_error_numbers_are_set_and_distinct_assumed()
   for _, flavor in ipairs({ "tbc", "forever" }) do
@@ -383,6 +393,7 @@ return function()
   test_mirror_timers_are_idle_assumed()
   test_combo_points_are_zero_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
+  test_font_list_is_an_empty_list_assumed()
   test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()
   test_resistances_are_zero_and_the_spellbook_has_two_empty_tabs_assumed()

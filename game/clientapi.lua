@@ -247,6 +247,12 @@ function M.install(w)
   define(w, "GetTabardCreationCost", function()
     return 100000
   end)
+  -- source: confirmed (row G63) a list of font object names (api/forever/Font.lua GetFonts; tbc textsizemanager.lua:22-24
+  -- walks it with ipairs). assumed: empty, as retail and forever's default, so no font is user-scaled.
+  -- grug: empty list; list the named font objects when a scenario needs user font scaling.
+  define(w, "GetFonts", function()
+    return {}
+  end)
   -- source: confirmed (row G44) the returns base, total, bonus, minus: tbc paperdollframe.lua:486 and wiki API_UnitResistance;
   -- no API doc types it. assumed: all 0, as the kit models no gear or auras that resist.
   define(w, "UnitResistance", function()
