@@ -83,6 +83,14 @@ local UI_COLORS = {
   { baseTag = "GAINING_THREAT_COLOR", color = { r = 248 / 255, g = 181 / 255, b = 0, a = 1 } }, -- fff8b500
   { baseTag = "HIGH_THREAT_COLOR", color = { r = 1, g = 69 / 255, b = 11 / 255, a = 1 } }, -- ffff450b
   { baseTag = "PLAYER_NAMEPLATE_ALTERNATE_HEALTH_COLOR", color = { r = 0, g = 173 / 255, b = 240 / 255, a = 1 } }, -- ff00adf0
+  -- source: row W91 (confirmed) GlobalColor rows 365-370 (ARGB in each comment); forever's AuraUtil builds its dispel type
+  -- table from them at load (blizzard_framexmlutil/aurautil.lua:4-10); no extract Lua defines them.
+  { baseTag = "DEBUFF_TYPE_MAGIC_COLOR", color = { r = 0, g = 129 / 255, b = 1, a = 1 } }, -- ff0081ff
+  { baseTag = "DEBUFF_TYPE_POISON_COLOR", color = { r = 123 / 255, g = 199 / 255, b = 0, a = 1 } }, -- ff7bc700
+  { baseTag = "DEBUFF_TYPE_CURSE_COLOR", color = { r = 159 / 255, g = 6 / 255, b = 228 / 255, a = 1 } }, -- ff9f06e4
+  { baseTag = "DEBUFF_TYPE_BLEED_COLOR", color = { r = 184 / 255, g = 0, b = 15 / 255, a = 1 } }, -- ffb8000f
+  { baseTag = "DEBUFF_TYPE_DISEASE_COLOR", color = { r = 241 / 255, g = 106 / 255, b = 9 / 255, a = 1 } }, -- fff16a09
+  { baseTag = "DEBUFF_TYPE_NONE_COLOR", color = { r = 204 / 255, g = 0, b = 0, a = 1 } }, -- ffcc0000
 }
 
 local function byte(channel)

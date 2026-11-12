@@ -147,6 +147,20 @@ local function test_compact_unit_frame_colours_come_from_the_ui_colour_table() -
   end
 end
 
+-- forever AuraUtil's DEBUFF_DISPLAY_INFO (blizzard_framexmlutil/aurautil.lua:4-10) takes each dispel type's colour from
+-- these at load; AuraUtil.SetAuraBorderColor (:615) then called GetRGBA on nil during play. (W91)
+local function test_debuff_type_colours_come_from_the_ui_colour_table() -- W91
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      local hex = {}
+      for i, kind in ipairs({ "MAGIC", "POISON", "CURSE", "BLEED", "DISEASE", "NONE" }) do
+        hex[i] = _G["DEBUFF_TYPE_" .. kind .. "_COLOR"]:GenerateHexColor()
+      end
+      A.same(hex, { "ff0081ff", "ff7bc700", "ff9f06e4", "ffb8000f", "fff16a09", "ffcc0000" }, flavor)
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -263,6 +277,7 @@ return function()
   test_the_font_colours_exist_on_every_flavor()
   test_unit_frame_prediction_colours_come_from_the_ui_colour_table()
   test_compact_unit_frame_colours_come_from_the_ui_colour_table()
+  test_debuff_type_colours_come_from_the_ui_colour_table()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
   test_a_hex_string_of_the_wrong_length_asserts_and_returns_nil()
