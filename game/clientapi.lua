@@ -229,6 +229,11 @@ function M.install(w)
   define(w, "GetNumQuestWatches", function()
     return 0
   end)
+  -- source: confirmed (row G60) an idle timer's name is "UNKNOWN": tbc mirrortimer.lua:80-81 hides on it and otherwise
+  -- shows the timer, arithmetic on its startValue (:45). assumed: every timer idle, the numbers 0, the label empty.
+  define(w, "GetMirrorTimerInfo", function()
+    return "UNKNOWN", 0, 0, 0, 0, "", 0
+  end)
   -- source: confirmed (row G44) the returns base, total, bonus, minus: tbc paperdollframe.lua:486 and wiki API_UnitResistance;
   -- no API doc types it. assumed: all 0, as the kit models no gear or auras that resist.
   define(w, "UnitResistance", function()
