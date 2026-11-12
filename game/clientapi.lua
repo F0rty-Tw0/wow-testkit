@@ -239,6 +239,14 @@ function M.install(w)
   define(w, "GetComboPoints", function()
     return 0
   end)
+  -- source: confirmed (row G62) copper amounts: tbc tabardframe.lua:5 and mailframe.xml:631 pass them to MoneyFrame_Update;
+  -- no API doc types them. assumed: a letter's 30 copper postage and the 10 gold tabard (from memory).
+  define(w, "GetSendMailPrice", function()
+    return 30
+  end)
+  define(w, "GetTabardCreationCost", function()
+    return 100000
+  end)
   -- source: confirmed (row G44) the returns base, total, bonus, minus: tbc paperdollframe.lua:486 and wiki API_UnitResistance;
   -- no API doc types it. assumed: all 0, as the kit models no gear or auras that resist.
   define(w, "UnitResistance", function()
