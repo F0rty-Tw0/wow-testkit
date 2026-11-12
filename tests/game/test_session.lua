@@ -102,6 +102,16 @@ local function test_nameplate_class_colour_defaults_follow_the_game_type()
   end
 end
 
+-- Graphics.lua (Blizzard_SettingsDefinitions_Shared; tbc :510, forever :755) asserts the gxMonitor default is 0 at load;
+-- unknown, it was nil and the assert raised. (G79)
+local function test_monitor_default_is_the_primary_monitor()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.GetCVarDefault("gxMonitor"), _G.C_CVar.GetCVarDefault("gxMonitor") }, { "0", "0" }, flavor)
+    end)
+  end
+end
+
 local function test_namespaced_cvars_share_the_store() -- (G3)
   G.withGame("retail", function()
     _G.C_CVar.SetCVar("Bar", "7")
@@ -217,6 +227,7 @@ return function()
   test_namespaced_cvars_share_the_store()
   test_unset_cvar_reads_its_client_default()
   test_nameplate_class_colour_defaults_follow_the_game_type()
+  test_monitor_default_is_the_primary_monitor()
   test_logged_in_flips_at_player_login_assumed()
   test_logged_in_is_nil_without_a_login()
   test_server_time_follows_the_world_clock()

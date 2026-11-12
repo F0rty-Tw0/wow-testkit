@@ -30,9 +30,10 @@ end
 -- source: confirmed (row G29) the client's default for each CVar Blizzard's UI reads before anything sets it, from
 -- Ketho's CVars dump; keys lowercase like the store. A table value splits the default by game type: `classic` for the
 -- classic flavors (the dump's classic and classic_era branches), `mainline` for the others (its live branch).
--- source: confirmed (row G70) the nameplate class colour defaults per branch.
+-- source: confirmed (row G70) the nameplate class colour defaults per branch; (row G79) gxMonitor.
 local CVAR_DEFAULTS = {
   userfontscale = "1.000000",
+  gxmonitor = "0",
   nameplateshowclasscolor = { mainline = "1", classic = "0" },
   nameplateshowfriendlyclasscolor = { mainline = "1", classic = "0" },
 }
