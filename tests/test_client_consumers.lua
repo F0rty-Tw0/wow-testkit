@@ -55,6 +55,18 @@ local function test_no_extract_changes_nothing() -- Review Focus 5
   end)
 end
 
+-- forever UnitFrameManaBar_UpdateType (blizzard_unitframe/mainline/unitframe.lua:431, :539) passes an atlas name to
+-- SetStatusBarTexture; the kit set it as a file path and the viewer drew a placeholder for the rage bar. (W92)
+local function test_status_bar_texture_takes_an_atlas_name()
+  withClient({ ["atlas.lua"] = ATLAS }, function()
+    local bar = _G.CreateFrame("StatusBar")
+    bar:SetStatusBarTexture("Mini-Atlas")
+    A.eq(bar:GetStatusBarTexture():GetAtlas(), "Mini-Atlas")
+    bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    A.eq(bar:GetStatusBarTexture():GetAtlas(), nil)
+  end)
+end
+
 local function test_atlas_info_answers_the_extract_entry()
   withClient({ ["atlas.lua"] = ATLAS }, function()
     local info = _G.C_Texture.GetAtlasInfo("Mini-Atlas") -- lookup is case-insensitive
@@ -179,5 +191,6 @@ return function()
   test_extract_without_strings_or_atlas_leaves_the_kit_values()
   test_no_extract_changes_nothing()
   test_atlas_info_answers_the_extract_entry()
+  test_status_bar_texture_takes_an_atlas_name()
   test_glyph_tables_measure_text_through_the_world()
 end
