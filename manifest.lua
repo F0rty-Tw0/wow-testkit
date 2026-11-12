@@ -12,7 +12,27 @@ local cache = {}
 -- source: row G23, blizzard_moneyframe/mainline/moneyframe.lua:49; row G25 for tbc, blizzard_moneyframe/classic/moneyframe.lua:17;
 -- row G31 for forever, blizzard_moneyframe/mainline/moneyframe.lua:36; row G49 PLAYTIME_CHANGED, blizzard_unitframe's
 -- playerframe.lua (tbc classic/:56, forever mainline/); row G56 the shop, kiosk, expansion and glue events (SHOP_EVENTS,
--- e.g. forever mainline/mainmenubarmicrobuttons.lua:1859, tbc classic/productchoice.lua:6).
+-- e.g. forever mainline/mainmenubarmicrobuttons.lua:1859, tbc classic/productchoice.lua:6); row G74 the store window's
+-- events on forever (STORE_UI_EVENTS, blizzard_storeui/blizzard_shared_storeuisecure.lua:1093-1111, :1894, :2223-2230).
+local STORE_UI_EVENTS = {
+  AUTH_CHALLENGE_FINISHED = {},
+  DYNAMIC_BUNDLE_PRICE_UPDATED = {},
+  LOGIN_STATE_CHANGED = {},
+  PRODUCT_DISTRIBUTIONS_UPDATED = {},
+  STORE_BOOST_AUTO_CONSUMED = {},
+  STORE_CHARACTER_LIST_RECEIVED = {},
+  STORE_CONFIRM_PURCHASE = {},
+  STORE_GUILD_FOLLOW_INFO_RECEIVED = {},
+  STORE_GUILD_MASTER_INFO_RECEIVED = {},
+  STORE_ORDER_INITIATION_FAILED = {},
+  STORE_PURCHASE_LIST_UPDATED = {},
+  STORE_REFRESH = {},
+  STORE_VAS_PURCHASE_COMPLETE = {},
+  STORE_VAS_PURCHASE_ERROR = {},
+  SUBSCRIPTION_CHANGED_KICK_IMMINENT = {},
+  VAS_QUEUE_STATUS_UPDATE = {},
+  VAS_TRANSFER_VALIDATION_UPDATE = {},
+}
 local SHOP_EVENTS = {
   KIOSK_SESSION_EXPIRED = {},
   STORE_OPEN_SIMPLE_CHECKOUT = {},
@@ -22,9 +42,11 @@ local SHOP_EVENTS = {
   UPDATE_EXPANSION_LEVEL = {},
   FRAMES_LOADED = {},
 }
-local function withShopEvents(events)
-  for event, payload in pairs(SHOP_EVENTS) do
-    events[event] = payload
+local function withShopEvents(events, more)
+  for _, set in ipairs({ SHOP_EVENTS, more or {} }) do
+    for event, payload in pairs(set) do
+      events[event] = payload
+    end
   end
   return events
 end
@@ -37,7 +59,7 @@ local EXTRA_EVENTS = {
     PRODUCT_ASSIGN_TO_TARGET_FAILED = {},
     STORE_PRODUCT_DELIVERED = {},
   }),
-  forever = withShopEvents({ TRIAL_STATUS_UPDATE = {}, PLAYTIME_CHANGED = {} }),
+  forever = withShopEvents({ TRIAL_STATUS_UPDATE = {}, PLAYTIME_CHANGED = {} }, STORE_UI_EVENTS),
 }
 
 -- The generated build versions replace the defaults in tools/flavors.lua (GetBuildInfo, TOC interface checks).

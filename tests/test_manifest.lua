@@ -118,8 +118,20 @@ local function test_shop_and_kiosk_events_are_known() -- G56
   end
 end
 
+-- Blizzard_Shared_StoreUISecure.lua (forever 70862) registers these in three OnLoads; none is documented, so the first
+-- unknown one raised and stopped each OnLoad. (G74)
+local function test_forever_knows_the_store_window_events()
+  local events = Manifest.load("forever").events
+  -- stylua: ignore
+  for _, event in ipairs({ "STORE_PURCHASE_LIST_UPDATED", "PRODUCT_DISTRIBUTIONS_UPDATED", "STORE_CONFIRM_PURCHASE",
+    "STORE_CHARACTER_LIST_RECEIVED", "STORE_GUILD_MASTER_INFO_RECEIVED", "DYNAMIC_BUNDLE_PRICE_UPDATED" }) do
+    A.same(events[event], {}, event)
+  end
+end
+
 return function()
   test_shop_and_kiosk_events_are_known()
+  test_forever_knows_the_store_window_events()
   test_player_frame_playtime_event_is_known()
   test_load_merges_functions_from_every_file()
   test_load_merges_other_sections()
