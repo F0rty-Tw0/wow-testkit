@@ -132,6 +132,15 @@ local function test_server_time_counts_whole_seconds_from_the_world_start() -- (
   end)
 end
 
+-- tbc GameTimeFrame_Update (gametime_nocalendar.lua:17-18) computes (hour * 60) + minute from GetGameTime(); a bare
+-- global with no signature, it answered nothing and the arithmetic raised at load. (G65)
+local function test_game_time_is_the_server_clock_hour_and_minute_assumed()
+  G.withGame("tbc", function(w)
+    w:setMock({ serverTime = 2 * 86400 + 13 * 3600 + 7 * 60 + 59 })
+    A.same({ _G.GetGameTime() }, { 13, 7 })
+  end)
+end
+
 local function test_kit_values_and_client_flags_assumed() -- (G5)
   G.withGame("retail", function(w)
     A.same({ _G.GetFramerate(), _G.GetNetStats() }, { 60, 0.5, 0.5, 30, 40 })
@@ -198,6 +207,7 @@ return function()
   test_server_time_follows_the_world_clock()
   test_server_time_counts_whole_seconds_from_the_world_start()
   test_kit_values_and_client_flags_assumed()
+  test_game_time_is_the_server_clock_hour_and_minute_assumed()
   test_net_stats_keep_four_values_in_an_addon_call()
   test_scenario_mock_patches_the_world()
   test_names_the_flavor_lacks_stay_absent()

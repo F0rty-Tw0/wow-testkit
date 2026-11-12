@@ -113,6 +113,12 @@ function M.install(w)
   define(w, "GetServerTime", function()
     return w.mock.serverTime + floor(w.now - start)
   end)
+  -- source: confirmed (row G65) the returns hour, minute: tbc gametime_nocalendar.lua:17-18 `(hour * 60) + minute`; no API
+  -- doc types it. assumed: the realm clock is GetServerTime's, read as UTC.
+  define(w, "GetGameTime", function()
+    local minutes = floor(_G.GetServerTime() / 60)
+    return floor(minutes / 60) % 24, minutes % 60
+  end)
   installRealm(w)
   installCvars(w)
   installClient(w)
