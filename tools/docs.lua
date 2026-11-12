@@ -130,6 +130,7 @@ local function eachTable(entries, kind, fn)
   end
 end
 
+-- { Enum = { <Name> = fields, <Name>Meta = meta }, Constants = { <Name> = values } } from loaded doc entries.
 local function collect(entries)
   local values = { Enum = {}, Constants = {} }
   eachTable(entries, "Enumeration", function(t)
@@ -140,6 +141,7 @@ local function collect(entries)
   end)
   return values
 end
+M.collect = collect
 
 local function addChanged(changed, seen, root, a, b)
   for groupName, fields in pairs(a) do

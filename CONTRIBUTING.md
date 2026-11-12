@@ -49,7 +49,7 @@ python tools/run51.py --script tools/generate.lua vanilla
 `python -m tools.client extract` reads the installed client and writes a per-build extract under
 `$TESTKIT_HOME/client/<flavor>/<build>`; extracts are local and never committed (no Blizzard bytes in the repo). If
 the CASC store cannot be read, run `exportInterfaceFiles code` and `exportInterfaceFiles art` at the login screen
-(game started with `-console`), then `extract --from-export` (code, strings and art only).
+(game started with `-console`), then `extract --from-export` (code, strings, art and api only).
 `python -m tools.client.selftest [area]` runs the client-tool self-tests (needs Pillow, fontTools and lupa; not part
 of `scripts/test.sh`).
 

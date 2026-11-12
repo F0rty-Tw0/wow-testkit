@@ -18,8 +18,8 @@ FLAVOR_DIRS = {
 SOURCE_NAME = "exportInterfaceFiles"
 CODE_DIR = "BlizzardInterfaceCode"
 ART_DIR = "BlizzardInterfaceArt"
-KINDS = ("code", "strings", "art")  # strings come from an exported GlobalStrings.lua
-COMMAND = {"code": "code", "strings": "code", "art": "art"}  # kind -> the exportInterfaceFiles argument
+KINDS = ("code", "strings", "art", "api")  # strings come from an exported GlobalStrings.lua; api from the code written
+COMMAND = {"code": "code", "strings": "code", "art": "art", "api": "code"}  # kind -> the exportInterfaceFiles argument
 
 
 class FallbackError(Exception):

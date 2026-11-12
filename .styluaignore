@@ -3,3 +3,6 @@ tests/fixtures/docs_bad/
 
 # Generated API manifests (tools/generate.lua).
 api/
+
+# Copies of Ketho's Resources files in their upstream layout (tools/generate.lua fixtures).
+tests/fixtures/ketho/
