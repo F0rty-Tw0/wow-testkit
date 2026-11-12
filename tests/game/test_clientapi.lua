@@ -400,6 +400,17 @@ end
 
 -- forever CommunitiesGetCurrentLocale (communitieslanguage.lua:3-9) falls back to GetAvailableLocaleInfo()[1] and :42
 -- indexes it; the documented default answered {} and the index raised at load. (G76)
+-- forever CollectionMicroButtonMixin:EvaluateAlertVisibility (mainmenubarmicrobuttons.lua:1553) compares the count with
+-- a number on PLAYER_ENTERING_WORLD (tbc classic/mainmenubarmicrobuttons.lua:751 too); a bare name with no signature,
+-- it answered nothing and the compare raised. (G78)
+local function test_pets_needing_fanfare_count_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.C_PetJournal.GetNumPetsNeedingFanfare(), 0, flavor)
+    end)
+  end
+end
+
 local function test_available_locales_list_every_client_locale()
   for _, flavor in ipairs({ "tbc", "forever" }) do
     G.withGame(flavor, function()
@@ -508,6 +519,7 @@ return function()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
   test_available_locales_list_every_client_locale()
+  test_pets_needing_fanfare_count_zero_assumed()
   test_product_choices_are_an_empty_list_assumed()
   test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()

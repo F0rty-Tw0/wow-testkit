@@ -274,6 +274,12 @@ function M.install(w)
       return 0
     end)
   end
+  -- source: confirmed (row G78) a count: forever mainmenubarmicrobuttons.lua:1550-1553 compares
+  -- C_PetJournal.GetNumPetsNeedingFanfare() with a number on PLAYER_ENTERING_WORLD; no API doc types it. assumed: 0, as
+  -- the kit models no battle pets.
+  define(w, "C_PetJournal.GetNumPetsNeedingFanfare", function()
+    return 0
+  end)
   -- source: confirmed (row G69) 12 returns, rating first, rank 11th, teamSize 12th: tbc pvpframebase.lua:124-133 compares
   -- rating and seasonPlayed with 0 and passes rank to ArenaUtil.GetArenaBannerInfo (arenautil.lua:11 `rank <= 100`). No API
   -- doc types it. assumed: an unrated player, every return 0, as the kit models no arena.
