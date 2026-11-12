@@ -45,6 +45,19 @@ local function test_template_names_ignore_case()
   end)
 end
 
+-- tbc ModelControlButtonTemplate (classic/modelframes.xml:15) marks its icon texture virtual="true", and the zoom buttons'
+-- OnLoad (:114) index self.icon; the kit registered the texture as a template instead and the index raised ×5. (X37)
+local function test_a_virtual_region_inside_a_frame_is_built()
+  local tpl = '<Ui><Button name="IconT" virtual="true"><Layers><Layer level="ARTWORK">'
+    .. '<Texture name="$parentIcon" virtual="true" parentKey="icon"/></Layer></Layers></Button></Ui>'
+  H.withXml({ ["Ui.xml"] = tpl }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local b = _G.CreateFrame("Button", "IconB", _G.UIParent, "IconT")
+    A.same({ b.icon and b.icon:GetObjectType(), _G.IconBIcon == b.icon }, { "Texture", true })
+    A.eq(w.ui.virtuals["$parentIcon"], nil)
+  end)
+end
+
 -- Blizzard's action bars pass the slot as CreateFrame's id and read it in OnLoad (actionbar.lua:31 with
 -- SecureActionButtonMixin:CalculateAction), so the id is set before the template's scripts run.
 local function test_createframe_id_is_set_before_the_template_on_load_assumed()
@@ -303,6 +316,7 @@ return function()
   test_template_parent_attribute_parents_the_inheriting_frame()
   test_createframe_id_is_set_before_the_template_on_load_assumed()
   test_template_names_ignore_case()
+  test_a_virtual_region_inside_a_frame_is_built()
   test_template_root_parent_key_and_array_reach_the_inheriting_widgets_parent()
   test_hidden_false_shows_what_a_template_hid()
   test_create_texture_applies_its_xml_template_and_counts_an_unknown_one()

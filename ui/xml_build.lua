@@ -334,14 +334,18 @@ function M.frame(w, node, parent, session)
 end
 
 -- Builds the region `node` describes in frame, in draw layer `layer` (default ARTWORK) at sublevel `sub` (default 0).
--- Nil when the tag is no region type on this flavor (reported) or the element is virtual (registered as a template).
+-- Nil when the tag is no region type on this flavor (reported) or the element is a root virtual one (frame nil:
+-- registered as a template).
+-- source: confirmed (row X37) a region inside a frame is built even when it says virtual="true": tbc 70577
+-- blizzard_sharedxml/classic/modelframes.xml:15 `<Texture name="$parentIcon" virtual="true" parentKey="icon">` in
+-- ModelControlButtonTemplate, and the inheriting buttons' OnLoad (:114) index self.icon.
 function M.region(w, node, frame, session, layer, sub)
   local typeName = REGION_TYPES[node.tag]
   if not (typeName and w.globals.widgets[typeName]) then
     unsupportedTag(session, node)
     return nil
   end
-  if node.attrs.virtual == "true" then
+  if node.attrs.virtual == "true" and frame == nil then
     declareVirtual(w, node, session)
     return nil
   end
