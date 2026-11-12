@@ -282,6 +282,16 @@ local function test_mirror_timers_are_idle_assumed()
   end)
 end
 
+-- tbc ComboFrame_Update (comboframe.lua:72-75) compares GetComboPoints(unit, "target") with 0; a bare global with no
+-- signature, it answered nothing and the compare raised ×3 at load. (G61)
+local function test_combo_points_are_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetComboPoints("player", "target"), 0, flavor)
+    end)
+  end
+end
+
 -- tbc UIErrorsFrame.lua:50-53 keys THROTTLED_MESSAGE_TYPES by LE_GAME_ERR_*; nil keys raised "table index is nil".
 local function test_game_error_numbers_are_set_and_distinct_assumed()
   for _, flavor in ipairs({ "tbc", "forever" }) do
@@ -361,6 +371,7 @@ return function()
   test_max_battlefield_id_is_three_queue_slots_assumed()
   test_num_quest_watches_is_zero_assumed()
   test_mirror_timers_are_idle_assumed()
+  test_combo_points_are_zero_assumed()
   test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()
   test_resistances_are_zero_and_the_spellbook_has_two_empty_tabs_assumed()

@@ -234,6 +234,11 @@ function M.install(w)
   define(w, "GetMirrorTimerInfo", function()
     return "UNKNOWN", 0, 0, 0, 0, "", 0
   end)
+  -- source: confirmed (row G61) a count: tbc comboframe.lua:72-75 compares GetComboPoints(unit, "target") with 0; no API
+  -- doc types it. assumed: 0, as the kit models no combo points.
+  define(w, "GetComboPoints", function()
+    return 0
+  end)
   -- source: confirmed (row G44) the returns base, total, bonus, minus: tbc paperdollframe.lua:486 and wiki API_UnitResistance;
   -- no API doc types it. assumed: all 0, as the kit models no gear or auras that resist.
   define(w, "UnitResistance", function()
