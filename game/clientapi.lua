@@ -285,6 +285,12 @@ function M.install(w)
   define(w, "C_PetJournal.GetNumPets", function()
     return 0, 0
   end)
+  -- source: confirmed (row G83) a count: tbc shared stancebar.lua:30-36 and forever mainline assistedcombatmanager.lua:42
+  -- compare GetNumShapeshiftForms() with 0 during play; no API doc types it. assumed: 0, as the kit models no stances or
+  -- shapeshift forms.
+  define(w, "GetNumShapeshiftForms", function()
+    return 0
+  end)
   -- source: assumed (row G82) the store's secure namespace, which only Blizzard_StoreUI's secure environment sees in the
   -- client (Blizzard_EnvironmentCleanup sets it nil for everyone else); the kit has one environment, so addons see it
   -- too. No doc or wiki page lists it. Only the calls the store makes at load, as an unavailable store: StoreFrame's

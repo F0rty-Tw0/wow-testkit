@@ -436,6 +436,16 @@ local function test_store_secure_answers_an_unavailable_store_assumed()
   end)
 end
 
+-- During play, tbc StanceBarMixin:Update (shared stancebar.lua:30, :36) and forever AssistedCombatManager (mainline
+-- assistedcombatmanager.lua:42) compare GetNumShapeshiftForms() with 0; the bare name answered nothing. (G83)
+local function test_shapeshift_form_count_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetNumShapeshiftForms(), 0, flavor)
+    end)
+  end
+end
+
 local function test_available_locales_list_every_client_locale()
   for _, flavor in ipairs({ "tbc", "forever" }) do
     G.withGame(flavor, function()
@@ -547,6 +557,7 @@ return function()
   test_pets_needing_fanfare_count_zero_assumed()
   test_pet_journal_counts_no_pets_assumed()
   test_store_secure_answers_an_unavailable_store_assumed()
+  test_shapeshift_form_count_zero_assumed()
   test_product_choices_are_an_empty_list_assumed()
   test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()
