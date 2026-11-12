@@ -21,6 +21,17 @@ local function test_unsupported_handler_error_names_the_caller_line()
   end)
 end
 
+-- forever inputaxisbinding.lua:31 sets "OnGamepadStick" for the listed OnGamePadStick at load; it raised. (X38)
+local function test_script_names_match_in_any_case_assumed()
+  withWidgets("forever", function()
+    local f = _G.CreateFrame("Frame")
+    local stick, shown = function() end, function() end
+    f:SetScript("OnGamepadStick", stick)
+    f:HookScript("onshow", shown)
+    A.same({ f:HasScript("ONGAMEPADSTICK"), f:GetScript("OnGamePadStick"), f:GetScript("OnShow") }, { true, stick, shown })
+  end)
+end
+
 local function test_tooltip_set_unit_script_errors_on_retail()
   withWidgets("retail", function()
     local tip = _G.CreateFrame("GameTooltip")
@@ -157,6 +168,7 @@ end
 
 return function()
   test_unsupported_handler_error_names_the_caller_line()
+  test_script_names_match_in_any_case_assumed()
   test_tooltip_set_unit_script_errors_on_retail()
   test_tooltip_set_unit_script_works_on_vanilla()
   test_hook_script_rejects_unsupported_handler()
