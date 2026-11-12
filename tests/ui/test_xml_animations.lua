@@ -58,14 +58,11 @@ end
 local function test_flipbook_attributes_reach_their_setters()
   local xml = '<Ui><Frame name="Fb"><Animations><AnimationGroup parentKey="G"><FlipBook parentKey="Flip" flipBookRows="6"'
     .. ' flipBookColumns="5" flipBookFrames="30" flipBookFrameWidth="0" flipBookFrameHeight="0"/></AnimationGroup>'
-    .. '</Animations></Frame></Ui>'
+    .. "</Animations></Frame></Ui>"
   H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
     local flip = _G.Fb.G.Flip
-    A.same(
-      { flip:GetFlipBookRows(), flip:GetFlipBookColumns(), flip:GetFlipBookFrames(), flip:GetFlipBookFrameWidth() },
-      { 6, 5, 30, 0 }
-    )
+    A.same({ flip:GetFlipBookRows(), flip:GetFlipBookColumns(), flip:GetFlipBookFrames(), flip:GetFlipBookFrameWidth() }, { 6, 5, 30, 0 })
     A.eq(reportText(ctx):find("ignored", 1, true), nil)
   end)
 end

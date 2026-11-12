@@ -56,15 +56,12 @@ end
 -- no Lua defines the four, GlobalColor rows 395-398 hold them.
 local function test_classic_cast_bar_colours_come_from_the_ui_colour_table() -- W83
   withFrameXML("tbc", function()
-    A.same(
-      {
-        _G.CASTBAR_CLASSIC_YELLOW:GenerateHexColor(),
-        _G.CASTBAR_CLASSIC_GREEN:GenerateHexColor(),
-        _G.CASTBAR_CLASSIC_GRAY:GenerateHexColor(),
-        _G.CASTBAR_CLASSIC_RED:GenerateHexColor(),
-      },
-      { "ffffb300", "ff00ff00", "ffb3b3b3", "ffff0000" }
-    )
+    A.same({
+      _G.CASTBAR_CLASSIC_YELLOW:GenerateHexColor(),
+      _G.CASTBAR_CLASSIC_GREEN:GenerateHexColor(),
+      _G.CASTBAR_CLASSIC_GRAY:GenerateHexColor(),
+      _G.CASTBAR_CLASSIC_RED:GenerateHexColor(),
+    }, { "ffffb300", "ff00ff00", "ffb3b3b3", "ffff0000" })
   end)
 end
 
@@ -94,16 +91,12 @@ end
 local function test_faction_bnet_and_level_colours_come_from_the_ui_colour_table() -- W87
   for _, flavor in ipairs({ "forever", "tbc" }) do
     withFrameXML(flavor, function()
-      A.same(
-        {
-          _G.FRIENDS_BNET_NAME_COLOR:GenerateHexColor(),
-          _G.PLAYER_FACTION_COLOR_HORDE:GenerateHexColor(),
-          _G.PLAYER_FACTION_COLOR_ALLIANCE:GenerateHexColor(),
-          _G.UNIT_LEVEL_NON_ATTACKABLE:GenerateHexColor(),
-        },
-        { "ff82c5ff", "ffff2934", "ff00adf0", "ffffd100" },
-        flavor
-      )
+      A.same({
+        _G.FRIENDS_BNET_NAME_COLOR:GenerateHexColor(),
+        _G.PLAYER_FACTION_COLOR_HORDE:GenerateHexColor(),
+        _G.PLAYER_FACTION_COLOR_ALLIANCE:GenerateHexColor(),
+        _G.UNIT_LEVEL_NON_ATTACKABLE:GenerateHexColor(),
+      }, { "ff82c5ff", "ffff2934", "ff00adf0", "ffffd100" }, flavor)
     end)
   end
 end
@@ -114,16 +107,12 @@ end
 local function test_unit_frame_prediction_colours_come_from_the_ui_colour_table() -- W88
   for _, flavor in ipairs({ "forever", "tbc" }) do
     withFrameXML(flavor, function()
-      A.same(
-        {
-          _G.HEALTHBAR_MY_HEAL_PREDICTION_COLOR:GenerateHexColor(),
-          _G.HEALTHBAR_TOTAL_ABSORB_COLOR:GenerateHexColor(),
-          _G.POWERBAR_PREDICTION_COLOR_MANA:GenerateHexColor(),
-          _G.POWERBAR_PREDICTION_COLOR_PAIN:GenerateHexColor(),
-        },
-        { "ff00d3c3", "ffffffff", "ff002d68", "ff663f00" },
-        flavor
-      )
+      A.same({
+        _G.HEALTHBAR_MY_HEAL_PREDICTION_COLOR:GenerateHexColor(),
+        _G.HEALTHBAR_TOTAL_ABSORB_COLOR:GenerateHexColor(),
+        _G.POWERBAR_PREDICTION_COLOR_MANA:GenerateHexColor(),
+        _G.POWERBAR_PREDICTION_COLOR_PAIN:GenerateHexColor(),
+      }, { "ff00d3c3", "ffffffff", "ff002d68", "ff663f00" }, flavor)
     end)
   end
 end
@@ -131,18 +120,14 @@ end
 local function test_compact_unit_frame_colours_come_from_the_ui_colour_table() -- W89
   for _, flavor in ipairs({ "forever", "tbc" }) do
     withFrameXML(flavor, function()
-      A.same(
-        {
-          _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR:GenerateHexColor(),
-          _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR_BG:GenerateHexColor(),
-          _G.NO_THREAT_COLOR:GenerateHexColor(),
-          _G.GAINING_THREAT_COLOR:GenerateHexColor(),
-          _G.HIGH_THREAT_COLOR:GenerateHexColor(),
-          _G.PLAYER_NAMEPLATE_ALTERNATE_HEALTH_COLOR:GenerateHexColor(),
-        },
-        { "ff2b9305", "ff141414", "ffb0b0b0", "fff8b500", "ffff450b", "ff00adf0" },
-        flavor
-      )
+      A.same({
+        _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR:GenerateHexColor(),
+        _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR_BG:GenerateHexColor(),
+        _G.NO_THREAT_COLOR:GenerateHexColor(),
+        _G.GAINING_THREAT_COLOR:GenerateHexColor(),
+        _G.HIGH_THREAT_COLOR:GenerateHexColor(),
+        _G.PLAYER_NAMEPLATE_ALTERNATE_HEALTH_COLOR:GenerateHexColor(),
+      }, { "ff2b9305", "ff141414", "ffb0b0b0", "fff8b500", "ffff450b", "ff00adf0" }, flavor)
     end)
   end
 end

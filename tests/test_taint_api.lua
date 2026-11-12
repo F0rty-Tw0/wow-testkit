@@ -123,7 +123,9 @@ local function test_create_secure_delegate_returns_a_securecall_closure_assumed(
       return a + b, "ok"
     end)
     A.same({ delegate(1, 2) }, { 3, "ok" })
-    A.same({ _G.CreateSecureDelegate(function() error("boom") end)() }, {})
+    A.same({ _G.CreateSecureDelegate(function()
+      error("boom")
+    end)() }, {})
     A.eq(#w.errors, 1)
   end)
 end

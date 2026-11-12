@@ -38,9 +38,15 @@ function M.install(w)
     return true
   end, privateFlavors)
   for _, name in ipairs({
-    "GetAuraDataByAuraInstanceIDPrivate", "GetPrivateAuraCasterGUID", "AddPrivateAuraUpdateCallback",
-    "RemovePrivateAuraUpdateCallback", "AnchorPrivateAura", "SetPrivateAuraAnchorAddedCallback",
-    "SetPrivateAuraAnchorRemovedCallback", "SetPrivateRaidBossMessageCallback", "SetPrivateWarningTextFrame",
+    "GetAuraDataByAuraInstanceIDPrivate",
+    "GetPrivateAuraCasterGUID",
+    "AddPrivateAuraUpdateCallback",
+    "RemovePrivateAuraUpdateCallback",
+    "AnchorPrivateAura",
+    "SetPrivateAuraAnchorAddedCallback",
+    "SetPrivateAuraAnchorRemovedCallback",
+    "SetPrivateRaidBossMessageCallback",
+    "SetPrivateWarningTextFrame",
   }) do
     define(w, "C_UnitAurasPrivate." .. name, none, privateFlavors)
   end

@@ -60,11 +60,23 @@ end
 local function test_rating_and_chance_getters_answer_zero_assumed()
   G.withGame("tbc", function()
     local answers = {
-      _G.GetCombatRating(1), _G.GetCombatRatingBonus(1), _G.GetArmorPenetration(), _G.GetSpellPenetration(),
-      _G.GetCritChance(), _G.GetRangedCritChance(), _G.GetSpellCritChance(2), _G.GetSpellBonusDamage(2),
-      _G.GetSpellBonusHealing(), _G.GetDodgeChance(), _G.GetParryChance(), _G.GetBlockChance(), _G.GetShieldBlock(),
-      _G.GetAttackPowerForStat(1, 20), _G.GetCritChanceFromAgility("player"),
-      _G.GetSpellCritChanceFromIntellect("player"), _G.GetUnitHealthRegenRateFromSpirit("player"),
+      _G.GetCombatRating(1),
+      _G.GetCombatRatingBonus(1),
+      _G.GetArmorPenetration(),
+      _G.GetSpellPenetration(),
+      _G.GetCritChance(),
+      _G.GetRangedCritChance(),
+      _G.GetSpellCritChance(2),
+      _G.GetSpellBonusDamage(2),
+      _G.GetSpellBonusHealing(),
+      _G.GetDodgeChance(),
+      _G.GetParryChance(),
+      _G.GetBlockChance(),
+      _G.GetShieldBlock(),
+      _G.GetAttackPowerForStat(1, 20),
+      _G.GetCritChanceFromAgility("player"),
+      _G.GetSpellCritChanceFromIntellect("player"),
+      _G.GetUnitHealthRegenRateFromSpirit("player"),
       _G.GetUnitManaRegenRateFromSpirit("player"),
     }
     A.same(answers, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })

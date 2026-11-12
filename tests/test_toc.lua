@@ -160,8 +160,9 @@ end
 -- source: confirmed (row L8) wiki TOC_format [ExcludeLoadGameType]; forever 70862 blizzard_playerspells.toc pairs
 -- `[Family]/X [ExcludeLoadGameType camelot]` with `[Game]/X [AllowLoadGameType camelot]`.
 local function test_exclude_game_type_drops_the_line_on_those_game_types()
-  local parsed = Toc.parse("Mainline.lua [ExcludeLoadGameType camelot]\nOld.lua [ExcludeLoadGameType vanilla tbc]\n"
-    .. "## Dep: A [ExcludeLoadGameType classic]\n")
+  local parsed = Toc.parse(
+    "Mainline.lua [ExcludeLoadGameType camelot]\nOld.lua [ExcludeLoadGameType vanilla tbc]\n" .. "## Dep: A [ExcludeLoadGameType classic]\n"
+  )
   local expected = {
     retail = { "Mainline.lua", "Old.lua" },
     forever = { "Old.lua" },
@@ -172,8 +173,7 @@ local function test_exclude_game_type_drops_the_line_on_those_game_types()
   for _, flavor in ipairs(Flavors.list) do
     local files, report = Toc.filesFor(parsed, flavor)
     A.same({ files, report }, { expected[flavor], {} }, flavor)
-    A.same(Toc.dependencies(parsed.meta, flavor).required, flavor == "retail" and { "A" } or flavor == "forever"
-      and { "A" } or {}, flavor)
+    A.same(Toc.dependencies(parsed.meta, flavor).required, flavor == "retail" and { "A" } or flavor == "forever" and { "A" } or {}, flavor)
   end
 end
 

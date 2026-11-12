@@ -289,9 +289,20 @@ end
 -- setting that Get<P> / Can<P> / Evaluate<P> read back, Reset clears them. Assumed: Format and FormatZero answer whole
 -- seconds as "<n>s" (the engine's unit and abbreviation rules have no source the kit can read).
 local FORMATTER_SETTINGS = {
-  "ApproximationSeconds", "CanRoundUpIntervals", "CanRoundUpLastUnit", "ConvertToLower", "DefaultAbbreviation",
-  "DesiredUnitCount", "DesiredUnitCountCurve", "MaxInterval", "MaxIntervalCurve", "MillisecondsThreshold",
-  "MinInterval", "MinIntervalCurve", "Rounding", "StripIntervalWhitespace",
+  "ApproximationSeconds",
+  "CanRoundUpIntervals",
+  "CanRoundUpLastUnit",
+  "ConvertToLower",
+  "DefaultAbbreviation",
+  "DesiredUnitCount",
+  "DesiredUnitCountCurve",
+  "MaxInterval",
+  "MaxIntervalCurve",
+  "MillisecondsThreshold",
+  "MinInterval",
+  "MinIntervalCurve",
+  "Rounding",
+  "StripIntervalWhitespace",
 }
 
 local function newSecondsFormatter()
@@ -355,9 +366,12 @@ local function installTimers(w)
       return AddonModules.import(w, path)
     end)
     w:install("C_Timer.NewTimedSignalMap", function(callback)
-      return newTimedSignalMap(w, Taint.adopt(w, function(key)
-        callback(key)
-      end, callback))
+      return newTimedSignalMap(
+        w,
+        Taint.adopt(w, function(key)
+          callback(key)
+        end, callback)
+      )
     end)
   end
   w:install("C_Timer.After", function(seconds, callback)

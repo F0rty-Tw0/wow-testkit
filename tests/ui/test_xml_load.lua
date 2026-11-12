@@ -136,8 +136,7 @@ end
 -- client's, which the Blizzard layer leaves unbuilt (rows BU17, BU21).
 local function test_a_root_frame_named_uiparent_keeps_the_kits_assumed()
   H.withXml({
-    ["Ui.xml"] = '<Ui><ScopedModifier><Frame name="UIParent"><Scripts><OnLoad>error("built")</OnLoad></Scripts></Frame>'
-      .. '</ScopedModifier></Ui>',
+    ["Ui.xml"] = '<Ui><ScopedModifier><Frame name="UIParent"><Scripts><OnLoad>error("built")</OnLoad></Scripts></Frame>' .. "</ScopedModifier></Ui>",
   }, function(w, ctx)
     local kits = _G.UIParent
     H.load(w, ctx, "Ui.xml")
