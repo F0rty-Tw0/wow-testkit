@@ -38,6 +38,7 @@ local function knownTypes(entries)
   end
   return known
 end
+M.knownTypes = knownTypes
 
 -- Drops empty sections; returns nil when nothing is left.
 local function prune(part)
