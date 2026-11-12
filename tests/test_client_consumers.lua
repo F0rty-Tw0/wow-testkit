@@ -117,6 +117,9 @@ local function test_api_overlay_stubs_documented_functions_the_kit_lacks() -- G7
     A.eq(_G.C_ExternalEventURL.SecureFn, nil)
     A.eq(_G.ApiOnlyGlobal, nil)
     A.eq(_G.C_ExternalEventURL.Bad, nil)
+    w:stub("C_ExternalEventURL.ApiOnlyFn", { returns = { true } }) -- a scenario can fake it like a kit-data function
+    A.eq(_G.C_ExternalEventURL.ApiOnlyFn(), true)
+    A.eq(pcall(w.stub, w, "C_NoSuchNamespace.Fn", { returns = { true } }), false)
   end)
   withClient({}, function()
     A.eq(_G.C_ExternalEventURL.ApiOnlyFn, nil)

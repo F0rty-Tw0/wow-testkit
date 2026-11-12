@@ -75,12 +75,15 @@ end
 -- Row G75: a documented function the kit's data lacks becomes a signature stub, as installBase makes for its own.
 -- Only in a namespace the flavor's data has: a classic client's docs list systems it does not ship (C_AuctionHouse on
 -- Classic Era). Globals and secure-only functions are left out for the same reason.
+-- They are kept in w.clientFunctions, so w:stub and the kit's api-gated installs treat them as API functions.
 local function installFunctions(w, functions)
   local namespaces = flavorNamespaces(w)
+  w.clientFunctions = {}
   for name, signature in pairs(functions) do
     local namespace = namespaceOf(name)
     local known = w.manifest.functions[name] or w.globals.api[name]
     if namespace and namespaces[namespace] and not known and type(signature) == "table" and not signature.secureOnly then
+      w.clientFunctions[name] = signature
       w:installStub(name, signature)
     end
   end

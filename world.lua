@@ -250,12 +250,23 @@ function World:knowsEvent(event)
   return (self.manifest.events[event] or self.globals.events[event] or (self.clientEvents or {})[event]) ~= nil
 end
 
+-- The signature of an API function: the flavor's data, else the client extract's own API docs (self.clientFunctions,
+-- set by framexml/fakes/client.lua, row G75); nil for a permissive-tier name or a non-API one.
+function World:signatureOf(name)
+  return self.manifest.functions[name] or (self.clientFunctions or {})[name]
+end
+
+-- A WoW API function on this world: documented (signatureOf) or listed in the flavor's globals.api.
+function World:isApi(name)
+  return self:signatureOf(name) ~= nil or self.globals.api[name] ~= nil
+end
+
 function World:passesGate(name, opts)
   local gate = opts and opts.gate or "none"
   if gate == "none" then
     return true
   elseif gate == "api" then
-    return self.manifest.functions[name] ~= nil or self.globals.api[name] ~= nil
+    return self:isApi(name)
   elseif gate == "framexml" then
     return self.globals.framexml[name] ~= nil or contains(opts.flavors or Flavors.list, self.flavor)
   end
@@ -267,8 +278,8 @@ function World:install(name, value, opts)
   if not self:passesGate(name, opts) then
     return false
   end
-  local signature = self.manifest.functions[name]
-  if type(value) == "function" and (signature or self.globals.api[name]) then
+  local signature = self:signatureOf(name)
+  if type(value) == "function" and self:isApi(name) then
     value = WorldApi.wrap(self, name, signature, value)
   end
   self:set(name, value)
@@ -284,7 +295,7 @@ end
 -- impl: function | { returns = {...} } | { byArgs = { ["arg1|arg2"] = {...} }, default = {...} }.
 -- On retail a stub gets the value a secret argument hides, as a kit implementation does (row C16).
 function World:stub(name, impl)
-  if not (self.manifest.functions[name] or self.globals.api[name]) then
+  if not self:isApi(name) then
     error("cannot stub '" .. tostring(name) .. "': not a WoW API function on " .. self.flavor, 2)
   end
   self.stubs[name] = impl
