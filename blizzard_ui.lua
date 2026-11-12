@@ -301,6 +301,19 @@ local function runBootstraps(w, extract, report)
   end
 end
 
+-- source: confirmed (row BU34) the flavor's data marks some functions secureOnly (forever and retail C_PingSecure,
+-- C_CombatLogSecure) and world.lua leaves them out for addon code; Blizzard_PingUI's OnLoads call C_PingSecure setters.
+-- assumed: the layer's code runs secure, so it gets them as signature stubs; a name something already defines is kept.
+-- The kit has one environment, so addon code sees them too once the layer loads.
+local function installSecureOnly(w)
+  for name, signature in pairs(w.manifest.functions) do
+    local tbl, key = w:parentOf(name, true)
+    if signature.secureOnly and not (tbl and rawget(tbl, key) ~= nil) then
+      w:installStub(name, signature)
+    end
+  end
+end
+
 -- Loads opts.targets (default M.TARGETS) and their dependencies from extract into w, in M.order, after the flavor's
 -- default bindings file; opts.fire(event, ...) fires ADDON_LOADED (default w:fire). Returns the report, also stored as
 -- w.blizzard: { loaded = { name... }, errors = { { addon, message } }, skipped = { { name, reason } }, notes,
@@ -324,6 +337,7 @@ function M.load(w, extract, opts)
     secure[entry.name] = true
   end
   report.handler = keepErrors(w, report)
+  installSecureOnly(w)
   loadDefaultBindings(w, extract, report)
   -- source: assumed (row B3) nothing reloads: an ADDON_LOADED handler may have loaded an entry through LoadAddOn.
   for _, entry in ipairs(entries) do

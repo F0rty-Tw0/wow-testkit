@@ -249,6 +249,17 @@ local function test_blizzard_code_runs_secure() -- R6: the folder name never tai
   end)
 end
 
+-- Blizzard_PingUI.lua:24,72 (forever 70862) calls C_PingSecure setters in its OnLoads; the data marks them secureOnly, so
+-- the kit left them out and indexing the nil namespace raised at load. The layer's secure code gets them. (BU34)
+local function test_secure_only_functions_exist_once_the_layer_loads_assumed()
+  SessionH.withSession(nil, function()
+    A.eq(rawget(_G, "C_PingSecure"), nil, "addon-only session")
+  end)
+  B.run(B.mini(), { targets = { "Blizzard_MiniBase" } }, function()
+    A.eq(type(_G.C_PingSecure.SetPingRadialWheelCreatedCallback), "function")
+  end)
+end
+
 local function test_tainted_caller_keeps_taint_in_blizzard_code() -- TS15: Blizzard code never launders taint
   B.run(B.mini(), { targets = { "Blizzard_MiniBase" }, lua = "securecall(MiniCheck)" }, function()
     A.eq(_G.MiniSeen, false)
@@ -318,6 +329,7 @@ return function()
   test_default_bindings_xml_loads_with_the_layer_assumed()
   test_default_bindings_files_cover_tbc_and_vanilla_assumed()
   test_blizzard_code_runs_secure()
+  test_secure_only_functions_exist_once_the_layer_loads_assumed()
   test_tainted_caller_keeps_taint_in_blizzard_code()
   test_session_snapshot_reports_the_layer()
 end
