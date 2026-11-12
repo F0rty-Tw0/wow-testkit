@@ -241,7 +241,21 @@ local function test_geometry_getters_are_not_counted_as_unscripted()
   end)
 end
 
+-- (LY17) a numeric string size reads as its number: an untyped XML KeyValue is a string, and forever
+-- blizzard_playerspells/blizzard_playerspellsframe.lua:438 passes one to SetHeight.
+local function test_a_numeric_string_size_reads_as_a_number()
+  HF.withFrameXML("forever", function()
+    local p = panel()
+    p:SetWidth("320")
+    p:SetHeight("210.5")
+    A.same({ p:GetRect() }, { 100, 100, 320, 210.5 })
+    p:SetSize("40", "30")
+    A.same({ p:GetSize() }, { 40, 30 })
+  end)
+end
+
 return function()
+  test_a_numeric_string_size_reads_as_a_number()
   test_edges_center_and_rect_come_from_the_anchors()
   test_a_region_with_no_rect_returns_nothing()
   test_size_comes_from_two_anchors_and_ignore_rect_reads_the_set_size()

@@ -1,5 +1,5 @@
--- Animation playback in the render snapshot, geometry: translation, scale and rotation show through the item's rect
--- and rotation. Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
+-- Animation playback in the render snapshot, geometry: translation, scale, rotation and FlipBook frames show through the
+-- item's rect, rotation and texCoord. Rule tags W<n> name rows of docs/client-sources.md `## Widgets`.
 local A = require("assert")
 local AG = require("tests.helpers.anim_group")
 local H = require("tests.helpers.render")
@@ -117,7 +117,51 @@ local function test_rotation_animations_on_one_texture_add_up_assumed() -- W63
   end)
 end
 
+-- A texture under a fresh frame with a FlipBook of rows x columns (frames of them) over 1 second; returns its group.
+local function flipping(name, rows, columns, frames)
+  local host = S.anchored("Frame", name)
+  local tex = host:CreateTexture(name .. "Tex")
+  tex:SetAllPoints()
+  local animGroup = tex:CreateAnimationGroup()
+  local flip = animGroup:CreateAnimation("FlipBook")
+  flip:SetFlipBookRows(rows)
+  flip:SetFlipBookColumns(columns)
+  flip:SetFlipBookFrames(frames)
+  flip:SetDuration(1)
+
+  return animGroup, tex
+end
+
+-- source: W82 ActionButtonSpellAlerts.xml:20-26 plays 30 frames of a 6 x 5 sheet; frame n shows at progress n / frames.
+local function test_flipbook_crops_the_texture_to_the_current_frame() -- W82
+  H.withRender(function(w)
+    local animGroup = flipping("Proc", 6, 5, 30)
+    animGroup:Play()
+    -- 0.25 s of 30 frames: frame 7, column 2 and row 1 (from 0) of 5 columns and 6 rows
+    w:advance(0.25)
+    local coords = S.snap(w, "ProcTex").texCoord
+    local want = { 0.4, 1 / 6, 0.4, 2 / 6, 0.6, 1 / 6, 0.6, 2 / 6 }
+    for i = 1, 8 do
+      A.eq(math.abs(coords[i] - want[i]) < 1e-9, true, "corner value " .. i)
+    end
+  end)
+end
+
+local function test_flipbook_frames_inside_a_cropped_texture_and_ends_assumed() -- W82
+  H.withRender(function(w)
+    local animGroup, tex = flipping("Strip", 1, 2, 0)
+    tex:SetTexCoord(0.5, 1, 0, 0.5)
+    animGroup:Play()
+    w:advance(0.75)
+    A.same(S.snap(w, "StripTex").texCoord, { 0.75, 0, 0.75, 0.5, 1, 0, 1, 0.5 })
+    w:advance(0.5)
+    A.same(S.snap(w, "StripTex").texCoord, { 0.5, 0, 0.5, 0.5, 1, 0, 1, 0.5 })
+  end)
+end
+
 return function()
+  test_flipbook_crops_the_texture_to_the_current_frame()
+  test_flipbook_frames_inside_a_cropped_texture_and_ends_assumed()
   test_translation_moves_the_rect_and_children_follow_assumed()
   test_a_finished_translation_returns_to_the_anchor_assumed()
   test_scale_animation_scales_about_the_centre_assumed()

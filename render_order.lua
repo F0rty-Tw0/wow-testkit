@@ -25,14 +25,15 @@ end
 
 -- source: row V6, wiki API:Frame_CreateFontString: "FontStrings do not support sublayers, and will always be drawn
 -- above textures sharing the same layer." So a FontString ranks after the textures of its layer and its stored
--- sublevel never sorts. Equal layer and sublevel: the later-created region draws above (row V7, assumed).
+-- sublevel never sorts. Equal layer and sublevel: the earlier-created region draws above (row V7: ActionButtonTemplate's
+-- icon shows over the opaque SlotArt created after it in its layer and sublevel).
 local function regionKey(frameKeys, st, kind)
   local layer, sublevel = layerOf(st)
   local rank, sortLevel = TEXTURE_RANK, sublevel
   if kind == "fontstring" then
     rank, sortLevel = FONT_STRING_RANK, DEFAULT_SUBLEVEL
   end
-  return { frameKeys[1], frameKeys[2], frameKeys[3], REGION_PART, LAYERS[layer] or DEFAULT_LAYER, rank, sortLevel, st.seq }
+  return { frameKeys[1], frameKeys[2], frameKeys[3], REGION_PART, LAYERS[layer] or DEFAULT_LAYER, rank, sortLevel, -st.seq }
 end
 
 local function precedes(a, b)
@@ -98,7 +99,7 @@ local function backdropEntries(obj, st, frameKeys)
   end
   for _, part in ipairs(BACKDROP_PIECES) do
     if st.backdrop.info[part.file] then
-      local key = { frameKeys[1], frameKeys[2], frameKeys[3], REGION_PART, LAYERS[part.layer], TEXTURE_RANK, DEFAULT_SUBLEVEL, st.seq }
+      local key = { frameKeys[1], frameKeys[2], frameKeys[3], REGION_PART, LAYERS[part.layer], TEXTURE_RANK, DEFAULT_SUBLEVEL, -math.huge }
       entries[#entries + 1] = { obj = obj, st = st, kind = "backdrop", piece = part.piece, layer = part.layer, key = key }
     end
   end
