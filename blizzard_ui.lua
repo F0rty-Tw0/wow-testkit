@@ -39,6 +39,9 @@ local debugTraceback = debug.traceback
 -- Blizzard_SettingsDefinitions_Frame, whose Blizzard_Settings_Shared calls RegisterUIPanel at load
 -- (blizzard_registration.lua:10). So it goes before every other target. grug: only FrameXML; the other LoadFirst addons
 -- keep their place, as their order among themselves is unknown (all of them first raised more errors, not fewer).
+-- source: row BU36 (confirmed) Blizzard_ActionBarController defines ActionBarBusy, which tbc's stance bar calls during play
+-- (blizzard_actionbar/shared/stancebar.lua:43); on tbc no TOC depends on it, it loads at login (AllowLoad Game). After
+-- its dependencies, the action bar and the override bar.
 M.TARGETS = {
   "Blizzard_FrameXML",
   "Blizzard_AutoComplete",
@@ -47,6 +50,7 @@ M.TARGETS = {
   "Blizzard_UnitFrame",
   "Blizzard_EditMode",
   "Blizzard_OverrideActionBar",
+  "Blizzard_ActionBarController",
   "Blizzard_ChatFrame",
   "Blizzard_CompactRaidFrames",
   "Blizzard_QueueStatusFrame",

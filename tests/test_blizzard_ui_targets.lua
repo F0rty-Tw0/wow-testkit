@@ -112,7 +112,18 @@ local function test_default_targets_load_frame_xml_and_its_dependencies_first()
   end)
 end
 
+-- source: BU36 tbc StanceBarMixin:Update calls ActionBarBusy() during play (blizzard_actionbar/shared/stancebar.lua:43),
+-- which Blizzard_ActionBarController defines; on tbc no TOC depends on it (forever's Blizzard_ZoneAbility does).
+local function test_default_targets_load_the_action_bar_controller()
+  local controller = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "function ActionBarBusy() end\n" } }
+  B.run(B.mini({ blizzard_actionbarcontroller = controller }), {}, function(s)
+    A.contains(s.w.blizzard.loaded, "Blizzard_ActionBarController")
+    A.eq(type(_G.ActionBarBusy), "function")
+  end)
+end
+
 return function()
+  test_default_targets_load_the_action_bar_controller()
   test_default_targets_load_frame_xml_and_its_dependencies_first()
   test_default_targets_load_auto_complete_before_the_action_bar()
   test_default_targets_load_the_aura_container_before_the_unit_frames()
