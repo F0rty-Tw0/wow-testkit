@@ -146,7 +146,7 @@ local function test_find_client_supplies_the_extract_when_none_is_given()
   assert(ok, err)
   A.same(asked, { "retail" })
   A.eq(client, ex) -- the world reads the same extract (art, strings)
-  A.same(loaded, { "Blizzard_MiniBase", "Blizzard_ActionBar" })
+  A.same(loaded, { "Blizzard_FrameXML", "Blizzard_MiniBase", "Blizzard_ActionBar" }) -- FrameXML first (row BU35)
 end
 
 local function test_missing_target_is_skipped_not_raised()

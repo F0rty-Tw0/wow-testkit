@@ -98,7 +98,22 @@ local function test_default_targets_load_auto_complete_before_the_action_bar()
   end)
 end
 
+-- source: BU35 forever Blizzard_Settings_Shared calls RegisterUIPanel at load (blizzard_registration.lua:10), which
+-- Blizzard_UIParentPanelManager defines; Blizzard_FrameXML (LoadFirst) depends on the panel manager, and the action bar's
+-- dependencies reached the settings addon first.
+local function test_default_targets_load_frame_xml_and_its_dependencies_first()
+  local framexml = { toc = "## Interface: 120100\n## LoadFirst: 1\n## Dep: Blizzard_UIParentPanelManager\n" }
+  local panels = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "function RegisterUIPanel() end\n" } }
+  local auto = { toc = "## Interface: 120100\nmain.lua\n", files = { ["main.lua"] = "SawPanels = RegisterUIPanel ~= nil\n" } }
+  local addons = B.mini({ blizzard_framexml = framexml, blizzard_uiparentpanelmanager = panels, blizzard_autocomplete = auto })
+  B.run(addons, {}, function(s)
+    A.eq(s.w.blizzard.loaded[1], "Blizzard_UIParentPanelManager")
+    A.eq(_G.SawPanels, true)
+  end)
+end
+
 return function()
+  test_default_targets_load_frame_xml_and_its_dependencies_first()
   test_default_targets_load_auto_complete_before_the_action_bar()
   test_default_targets_load_the_aura_container_before_the_unit_frames()
   test_default_targets_load_the_character_subframe_addons()

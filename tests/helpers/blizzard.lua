@@ -212,7 +212,7 @@ f:SetScript("OnEvent", function(self) ShowUIPanel(self) end)
 ]],
     },
   },
-  blizzard_framexml = { -- not a target: holds the default bindings file only
+  blizzard_framexml = { -- the first target (row BU35); holds the default bindings file and lists no file
     toc = "## Interface: 120100\n",
     files = {
       ["bindings_standard.xml"] = '<Bindings><Binding name="MINI_DEFAULT">MiniLog = MiniLog or {}; MiniLog[#MiniLog + 1] = "default"</Binding></Bindings>',

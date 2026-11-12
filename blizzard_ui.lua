@@ -35,7 +35,12 @@ local debugTraceback = debug.traceback
 -- source: row BU33 (confirmed) Blizzard_AutoComplete defines AUTOCOMPLETE_LIST, which tbc Blizzard_UIPanels_Game's XML
 -- OnLoads index (classic/mailframe.xml:584, friendsframe.xml:4373); the action bar's dependencies load UIPanels_Game and
 -- only the chat and popup addons depend on AutoComplete, so it loaded after. First too (assumed: the client's order agrees).
+-- source: row BU35 (confirmed) Blizzard_FrameXML's TOC says `LoadFirst: 1` and lists Blizzard_UIParentPanelManager before
+-- Blizzard_SettingsDefinitions_Frame, whose Blizzard_Settings_Shared calls RegisterUIPanel at load
+-- (blizzard_registration.lua:10). So it goes before every other target. grug: only FrameXML; the other LoadFirst addons
+-- keep their place, as their order among themselves is unknown (all of them first raised more errors, not fewer).
 M.TARGETS = {
+  "Blizzard_FrameXML",
   "Blizzard_AutoComplete",
   "Blizzard_AuraContainer",
   "Blizzard_ActionBar",
