@@ -398,6 +398,19 @@ local function test_font_list_is_an_empty_list_assumed()
   end
 end
 
+-- forever CommunitiesGetCurrentLocale (communitieslanguage.lua:3-9) falls back to GetAvailableLocaleInfo()[1] and :42
+-- indexes it; the documented default answered {} and the index raised at load. (G76)
+local function test_available_locales_list_every_client_locale()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      local infos = _G.GetAvailableLocaleInfo()
+      A.eq(#infos, 11, flavor)
+      A.same(infos[1], { localeId = 1, localeName = "enUS" }, flavor)
+      A.same(infos[10], { localeId = 10, localeName = "ptBR" }, flavor)
+    end)
+  end
+end
+
 -- tbc ProductChoiceFrame_ShowAlerts (productchoice.lua:63) takes #C_ProductChoice.GetChoices(); a bare name with no
 -- signature, it answered nothing and the length raised ×2 at load. (G64)
 local function test_product_choices_are_an_empty_list_assumed()
@@ -494,6 +507,7 @@ return function()
   test_secure_store_enums_have_distinct_members_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
+  test_available_locales_list_every_client_locale()
   test_product_choices_are_an_empty_list_assumed()
   test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()

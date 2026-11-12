@@ -312,6 +312,17 @@ function M.install(w)
   define(w, "GetFonts", function()
     return {}
   end)
+  -- source: confirmed (row G76) a list of LocaleInfo { localeId, localeName } (forever localedocumentation.lua:21, :75-81);
+  -- the ids are warcraft.wiki.gg API:GetAvailableLocaleInfo's Values table (read 2026-11-12). forever
+  -- communitieslanguage.lua:3-9 falls back to the first entry and :42 indexes it unguarded. assumed: every locale with
+  -- or without ignoreLocaleRestrictions (which locales a region restricts is not documented).
+  define(w, "GetAvailableLocaleInfo", function()
+    local infos = {}
+    for id, name in ipairs({ "enUS", "koKR", "frFR", "deDE", "zhCN", "esES", "zhTW", "esMX", "ruRU", "ptBR", "itIT" }) do
+      infos[id] = { localeId = id, localeName = name }
+    end
+    return infos
+  end)
   -- source: confirmed (row G64) a list of choice ids: tbc productchoice.lua:63 takes its length, :138-147 passes an entry to
   -- C_ProductChoice.GetProducts; no API doc types it. assumed: empty, as the kit has no shop product to choose.
   define(w, "C_ProductChoice.GetChoices", function()
