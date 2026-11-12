@@ -411,6 +411,16 @@ local function test_pets_needing_fanfare_count_zero_assumed()
   end
 end
 
+-- forever CollectionsUtil.IsJournalDisabled (collectionsutil.lua:555), reached once onlyShowCollectedItemsInJournal
+-- defaults on (row G80), compares select(2, GetNumPets()) with 0; the bare name answered nothing. (G81)
+local function test_pet_journal_counts_no_pets_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.C_PetJournal.GetNumPets() }, { 0, 0 }, flavor)
+    end)
+  end
+end
+
 local function test_available_locales_list_every_client_locale()
   for _, flavor in ipairs({ "tbc", "forever" }) do
     G.withGame(flavor, function()
@@ -520,6 +530,7 @@ return function()
   test_font_list_is_an_empty_list_assumed()
   test_available_locales_list_every_client_locale()
   test_pets_needing_fanfare_count_zero_assumed()
+  test_pet_journal_counts_no_pets_assumed()
   test_product_choices_are_an_empty_list_assumed()
   test_mainline_bag_slots_sit_after_the_container_offset()
   test_game_rule_frame_strata_is_unknown_assumed()

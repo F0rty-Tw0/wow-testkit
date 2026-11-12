@@ -280,6 +280,11 @@ function M.install(w)
   define(w, "C_PetJournal.GetNumPetsNeedingFanfare", function()
     return 0
   end)
+  -- source: confirmed (row G81) returns numPets, numOwned (warcraft.wiki.gg API:C_PetJournal.GetNumPets); forever
+  -- collectionsutil.lua:555 compares the second with 0. No API doc types it. assumed: 0, 0, as the kit models no pets.
+  define(w, "C_PetJournal.GetNumPets", function()
+    return 0, 0
+  end)
   -- source: confirmed (row G69) 12 returns, rating first, rank 11th, teamSize 12th: tbc pvpframebase.lua:124-133 compares
   -- rating and seasonPlayed with 0 and passes rank to ArenaUtil.GetArenaBannerInfo (arenautil.lua:11 `rank <= 100`). No API
   -- doc types it. assumed: an unrated player, every return 0, as the kit models no arena.
