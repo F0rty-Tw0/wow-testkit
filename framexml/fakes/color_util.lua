@@ -75,6 +75,14 @@ local UI_COLORS = {
   { baseTag = "POWERBAR_PREDICTION_COLOR_INSANITY", color = { r = 51 / 255, g = 0, b = 102 / 255, a = 1 } }, -- ff330066
   { baseTag = "POWERBAR_PREDICTION_COLOR_FURY", color = { r = 72 / 255, g = 2 / 255, b = 100 / 255, a = 1 } }, -- ff480264
   { baseTag = "POWERBAR_PREDICTION_COLOR_PAIN", color = { r = 102 / 255, g = 63 / 255, b = 0, a = 1 } }, -- ff663f00
+  -- source: row W89 (confirmed) GlobalColor rows 363, 379, 108, 393, 394, 272 (ARGB in each comment); shared
+  -- compactunitframe.lua reads them (the background colour at forever :709, tbc :705); no extract Lua defines them.
+  { baseTag = "COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR", color = { r = 43 / 255, g = 147 / 255, b = 5 / 255, a = 1 } }, -- ff2b9305
+  { baseTag = "COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR_BG", color = { r = 20 / 255, g = 20 / 255, b = 20 / 255, a = 1 } }, -- ff141414
+  { baseTag = "NO_THREAT_COLOR", color = { r = 176 / 255, g = 176 / 255, b = 176 / 255, a = 1 } }, -- ffb0b0b0
+  { baseTag = "GAINING_THREAT_COLOR", color = { r = 248 / 255, g = 181 / 255, b = 0, a = 1 } }, -- fff8b500
+  { baseTag = "HIGH_THREAT_COLOR", color = { r = 1, g = 69 / 255, b = 11 / 255, a = 1 } }, -- ffff450b
+  { baseTag = "PLAYER_NAMEPLATE_ALTERNATE_HEALTH_COLOR", color = { r = 0, g = 173 / 255, b = 240 / 255, a = 1 } }, -- ff00adf0
 }
 
 local function byte(channel)

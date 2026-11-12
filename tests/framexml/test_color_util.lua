@@ -128,6 +128,25 @@ local function test_unit_frame_prediction_colours_come_from_the_ui_colour_table(
   end
 end
 
+local function test_compact_unit_frame_colours_come_from_the_ui_colour_table() -- W89
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.same(
+        {
+          _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR:GenerateHexColor(),
+          _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR_BG:GenerateHexColor(),
+          _G.NO_THREAT_COLOR:GenerateHexColor(),
+          _G.GAINING_THREAT_COLOR:GenerateHexColor(),
+          _G.HIGH_THREAT_COLOR:GenerateHexColor(),
+          _G.PLAYER_NAMEPLATE_ALTERNATE_HEALTH_COLOR:GenerateHexColor(),
+        },
+        { "ff2b9305", "ff141414", "ffb0b0b0", "fff8b500", "ffff450b", "ff00adf0" },
+        flavor
+      )
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -243,6 +262,7 @@ return function()
   test_classic_cast_bar_colours_come_from_the_ui_colour_table()
   test_the_font_colours_exist_on_every_flavor()
   test_unit_frame_prediction_colours_come_from_the_ui_colour_table()
+  test_compact_unit_frame_colours_come_from_the_ui_colour_table()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
   test_a_hex_string_of_the_wrong_length_asserts_and_returns_nil()
