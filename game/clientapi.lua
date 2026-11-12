@@ -264,6 +264,12 @@ function M.install(w)
   -- source: confirmed (row G68) the CurrencyInfo fields (api/<flavor>/CurrencyInfo.lua); tbc pvpframe.lua:33-34 indexes the
   -- answer for Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID unguarded. assumed: a currency the flavor's constants
   -- name exists with none held (no name, icon or cap: the kit models no currencies); any other id answers nothing.
+  -- source: confirmed (row G69) 12 returns, rating first, rank 11th, teamSize 12th: tbc pvpframebase.lua:124-133 compares
+  -- rating and seasonPlayed with 0 and passes rank to ArenaUtil.GetArenaBannerInfo (arenautil.lua:11 `rank <= 100`). No API
+  -- doc types it. assumed: an unrated player, every return 0, as the kit models no arena.
+  define(w, "GetPersonalRatedInfo", function()
+    return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  end)
   define(w, "C_CurrencyInfo.GetCurrencyInfo", function(id)
     local constants = rawget(_G, "Constants")
     local named = false

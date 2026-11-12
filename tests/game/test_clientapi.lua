@@ -331,6 +331,17 @@ local function test_named_currencies_exist_with_none_held_assumed()
   end
 end
 
+-- tbc PVPTeam_SoloUpdate (pvpframebase.lua:124-133) passes GetPersonalRatedInfo's rank to ArenaUtil.GetArenaBannerInfo,
+-- which compares it with 100; a bare global with no signature, it answered nothing and the compare raised at load. (G69)
+local function test_player_is_unrated_assumed()
+  for _, flavor in ipairs({ "tbc", "mists" }) do
+    G.withGame(flavor, function()
+      local returns = { _G.GetPersonalRatedInfo(1) }
+      A.same({ #returns, returns[1], returns[11] }, { 12, 0, 0 }, flavor)
+    end)
+  end
+end
+
 -- tbc TabardFrame_OnLoad (tabardframe.lua:5) and the mail frame's cost (mailframe.xml:631) pass these to
 -- MoneyFrame_Update; bare globals with no signature, they answered nothing and the copper split raised ×2 at load. (G62)
 local function test_mail_postage_and_tabard_cost_are_copper_assumed()
@@ -442,6 +453,7 @@ return function()
   test_skill_lines_are_none_assumed()
   test_player_is_unranked_assumed()
   test_named_currencies_exist_with_none_held_assumed()
+  test_player_is_unrated_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
   test_product_choices_are_an_empty_list_assumed()
