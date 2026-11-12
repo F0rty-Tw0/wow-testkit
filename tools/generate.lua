@@ -38,6 +38,7 @@ local function knownTypes(entries)
   end
   return known
 end
+M.knownTypes = knownTypes
 
 -- Drops empty sections; returns nil when nothing is left.
 local function prune(part)
@@ -62,6 +63,44 @@ local function toSet(list, skip)
   return set
 end
 
+-- The number globals LuaEnum.lua assigns (LE_*, NUM_LE_*): the engine injects them and no Blizzard Lua defines them.
+local function numberGlobals(luaEnum)
+  local legacy = {}
+  for name, value in pairs(luaEnum) do
+    if type(value) == "number" then
+      legacy[name] = value
+    end
+  end
+  return legacy
+end
+
+-- LuaEnum.lua's Constants tables (a live-client dump), their scalar members only: the engine's values for members no API
+-- doc lists (row G40).
+local function constantTables(luaEnum)
+  local out = {}
+  for name, members in pairs(luaEnum.Constants or {}) do
+    if type(members) == "table" then
+      out[name] = {}
+      for key, value in pairs(members) do
+        if type(value) ~= "table" and type(value) ~= "function" then
+          out[name][key] = value
+        end
+      end
+    end
+  end
+  return out
+end
+
+-- Ketho's CVars.lua returns { CVars, PTR }; CVars.var maps each name to { default, category, account, character,
+-- secure, help }. Keys are lowercased because CVar names are case-insensitive (game/session.lua). PTR-only CVars stay out.
+local function cvarDefaults(cvars)
+  local out = {}
+  for name, info in pairs(cvars[1].var) do
+    out[name:lower()] = info[1]
+  end
+  return out
+end
+
 local function buildGlobals(ketho, functions)
   local events = {}
   for _, names in pairs(ketho.Events) do
@@ -76,6 +115,9 @@ local function buildGlobals(ketho, functions)
     framexml = toSet(ketho.FrameXML[1]),
     events = events,
     widgets = ketho.WidgetAPI,
+    legacy = numberGlobals(ketho.LuaEnum),
+    constants = constantTables(ketho.LuaEnum),
+    cvars = cvarDefaults(ketho.CVars),
   }
 end
 

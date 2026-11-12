@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from tools.client import art, buildinfo, code, db2_export, fallback, fonts, listfile, manifest, paths, strings
+from tools.client import api, art, buildinfo, code, db2_export, fallback, fonts, listfile, manifest, paths, strings
 from tools.client import casc
 from tools.client.casc import CascError
 from tools.client.casc_index import CascIndexError
@@ -16,6 +16,7 @@ from tools.client.source import CascSource
 # kind -> writer(source, out_dir, ctx) -> file count
 WRITERS = {
     "code": code.write,
+    "api": api.write,  # reads the API docs the code writer wrote, so it runs after code
     "strings": strings.write,
     "art": art.write,
     "db2": db2_export.write,
@@ -119,7 +120,7 @@ def run(
     from_export=False,
 ):
     """Extracts the kinds in `what` and returns the manifest. Raises ExtractError. With `from_export` the source is
-    the exportInterfaceFiles folders: only code, strings and art can be written; the other kinds get a note."""
+    the exportInterfaceFiles folders: only code, strings, art and api can be written; the other kinds get a note."""
     writers = WRITERS if writers is None else writers
     check_kinds(what, writers)
     row = build_row(flavor, install)
