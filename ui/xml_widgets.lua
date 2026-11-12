@@ -57,10 +57,16 @@ function handlers.scrollchild(w, scrollFrame, _, node, session)
   end
 end
 
+-- source: assumed (row X39) a text the element's `text` attribute set before its <ButtonText> moves to the new
+-- FontString when that one has none (forever 70862 navigationbar.xml:297 sets both).
 function handlers.buttontext(w, button, _, node, session)
+  local previous = button:GetFontString() and button:GetText()
   local text = XmlBuild.region(w, asTag(node, "fontstring", "FontString"), button, session)
   if text then
     button:SetFontString(text)
+    if previous ~= nil and previous ~= "" and (text:GetText() or "") == "" then
+      button:SetText(previous)
+    end
   end
 end
 

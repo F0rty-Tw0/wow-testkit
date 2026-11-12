@@ -68,6 +68,13 @@ local function setAllPoints(_, obj, _, value)
   return value ~= "true" or callIfPresent(obj, "SetAllPoints")
 end
 
+-- row X19, assumed: a global string's name gives that string, anything else is the text itself. Row X39: a Button's
+-- `text` sets its text the same way.
+local function text(_, obj, _, value)
+  local global = rawget(_G, value)
+  return callIfPresent(obj, "SetText", type(global) == "string" and global or value)
+end
+
 -- source: wiki XML/LayoutFrame, `mixin` / `secureMixin` "Inherits a comma-separated list of Lua mixins". secureMixin is
 -- copied the same way (its secure wrapping is not modelled); a name is recorded as templates record theirs, found or not.
 local function mixin(w, frame, st, value, _, session)
@@ -107,6 +114,7 @@ M.frame = {
   autofocus = boolSetter("SetAutoFocus"),
   historylines = numberSetter("SetHistoryLines"),
   password = boolSetter("SetPassword"),
+  text = text,
   mixin = mixin,
   securemixin = mixin,
   inherits = function(w, frame, _, value)
@@ -132,11 +140,7 @@ M.region = {
   end,
   useatlassize = skip, -- read by atlas
   alphamode = stringSetter("SetBlendMode"), -- row X17, assumed
-  -- row X19, assumed: a global string's name gives that string, anything else is the text itself
-  text = function(_, region, _, value)
-    local global = rawget(_G, value)
-    return callIfPresent(region, "SetText", type(global) == "string" and global or value)
-  end,
+  text = text,
   justifyh = stringSetter("SetJustifyH"),
   justifyv = stringSetter("SetJustifyV"),
   -- row X19, assumed: a font object's name
