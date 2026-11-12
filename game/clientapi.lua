@@ -253,6 +253,11 @@ function M.install(w)
   define(w, "GetFonts", function()
     return {}
   end)
+  -- source: confirmed (row G64) a list of choice ids: tbc productchoice.lua:63 takes its length, :138-147 passes an entry to
+  -- C_ProductChoice.GetProducts; no API doc types it. assumed: empty, as the kit has no shop product to choose.
+  define(w, "C_ProductChoice.GetChoices", function()
+    return {}
+  end)
   -- source: confirmed (row G44) the returns base, total, bonus, minus: tbc paperdollframe.lua:486 and wiki API_UnitResistance;
   -- no API doc types it. assumed: all 0, as the kit models no gear or auras that resist.
   define(w, "UnitResistance", function()
