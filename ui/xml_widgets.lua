@@ -46,6 +46,24 @@ for tag, setter in pairs(STATE_TEXTURES) do
   handlers[tag] = stateTexture(setter)
 end
 
+-- source: confirmed (row X40) forever 70862 ui.xsd:394-396, :959-961: <NormalFont>, <HighlightFont> and <DisabledFont>
+-- carry one required `style`, a font object's name; assumed it is the Set<State>FontObject of that name.
+local STATE_FONTS = {
+  normalfont = "SetNormalFontObject",
+  highlightfont = "SetHighlightFontObject",
+  disabledfont = "SetDisabledFontObject",
+}
+
+for tag, setter in pairs(STATE_FONTS) do
+  handlers[tag] = function(_, button, _, node, session)
+    if not button[setter] then
+      session.reportAt(node.line, button:GetObjectType() .. " has no " .. setter .. "; <" .. node.rawTag .. "> ignored")
+    elseif node.attrs.style then
+      button[setter](button, node.attrs.style)
+    end
+  end
+end
+
 -- source: wiki API_ScrollFrame_SetScrollChild "Sets the scroll child for the scroll frame."; the xsd ScrollChild holds one
 -- frame, which is built under the scroll frame and becomes its child.
 function handlers.scrollchild(w, scrollFrame, _, node, session)

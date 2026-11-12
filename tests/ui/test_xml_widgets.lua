@@ -65,6 +65,23 @@ local function test_button_text_attribute_sets_the_text_assumed()
   end)
 end
 
+-- forever CRFManagerMarkerTabTemplate (blizzard_compactraidframemanager.xml:102-103) gives its tabs <NormalFont> and
+-- <HighlightFont>; the kit reported them unsupported and the tabs kept no font objects. (X40)
+local function test_state_font_elements_set_the_font_objects()
+  local xml = [[
+<Ui><Button name="TkFonts"><NormalFont style="TkNormal"/><HighlightFont style="TkHigh"/><DisabledFont style="TkOff"/></Button></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    local fonts = {}
+    for _, name in ipairs({ "TkNormal", "TkHigh", "TkOff" }) do
+      fonts[name] = _G.CreateFont(name)
+    end
+    H.load(w, ctx, "Ui.xml")
+    local b = _G.TkFonts
+    A.same({ b:GetNormalFontObject(), b:GetHighlightFontObject(), b:GetDisabledFontObject() }, { fonts.TkNormal, fonts.TkHigh, fonts.TkOff })
+    A.eq(reportText(ctx):find("Font>"), nil)
+  end)
+end
+
 -- source: tbc 70577 blizzard_uipanels_game/classic/friendsframe.xml:183 declares a <Button> that inherits the
 -- <CheckButton> ActionButtonTemplate (actionbuttontemplate.xml:149 has a <CheckedTexture>), and the live client loads
 -- the friends frame. assumed: the part a Button has no setter for is skipped and the rest of the template still applies.
@@ -174,6 +191,7 @@ return function()
   test_a_part_texture_the_widget_has_no_setter_for_is_skipped_assumed()
   test_button_text_is_the_buttons_font_string_with_height_and_shadow()
   test_button_text_attribute_sets_the_text_assumed()
+  test_state_font_elements_set_the_font_objects()
   test_legacy_backdrop_fills_the_backdrop_info()
   test_legacy_backdrop_needs_the_backdrop_template()
 end
