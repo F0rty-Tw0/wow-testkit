@@ -305,6 +305,19 @@ local function test_skill_lines_are_none_assumed()
   end
 end
 
+-- tbc HonorFrame_Update (honorframe_shared.lua:70-92) concatenates GetPVPRankInfo's number, compares it with 0 and
+-- passes GetPVPRankProgress() to SetValue; bare globals with no signature, they answered nothing and the concat raised
+-- at load. (G67)
+local function test_player_is_unranked_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.UnitPVPRank("player"), 0, flavor)
+      A.same({ _G.GetPVPRankInfo(_G.UnitPVPRank("player")) }, { nil, 0 }, flavor)
+      A.eq(_G.GetPVPRankProgress(), 0, flavor)
+    end)
+  end
+end
+
 -- tbc TabardFrame_OnLoad (tabardframe.lua:5) and the mail frame's cost (mailframe.xml:631) pass these to
 -- MoneyFrame_Update; bare globals with no signature, they answered nothing and the copper split raised ×2 at load. (G62)
 local function test_mail_postage_and_tabard_cost_are_copper_assumed()
@@ -414,6 +427,7 @@ return function()
   test_mirror_timers_are_idle_assumed()
   test_combo_points_are_zero_assumed()
   test_skill_lines_are_none_assumed()
+  test_player_is_unranked_assumed()
   test_mail_postage_and_tabard_cost_are_copper_assumed()
   test_font_list_is_an_empty_list_assumed()
   test_product_choices_are_an_empty_list_assumed()

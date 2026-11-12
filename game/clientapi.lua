@@ -249,6 +249,18 @@ function M.install(w)
   define(w, "GetSkillLineInfo", function()
     return "", nil, nil, 0, 0, 0, 0, nil, nil, 0, 0, 0, ""
   end)
+  -- source: confirmed (row G67) GetPVPRankInfo returns name, number: tbc honorframe_shared.lua:70-78 reads a nil name as
+  -- NONE, concatenates the number and compares it with 0 for the badge; :92 passes GetPVPRankProgress() to SetValue. No
+  -- API doc types them. assumed: an unranked player (rank 0, no name, number 0, no progress), as the kit models no PvP.
+  define(w, "UnitPVPRank", function()
+    return 0
+  end)
+  define(w, "GetPVPRankInfo", function()
+    return nil, 0
+  end)
+  define(w, "GetPVPRankProgress", function()
+    return 0
+  end)
   -- source: confirmed (row G62) copper amounts: tbc tabardframe.lua:5 and mailframe.xml:631 pass them to MoneyFrame_Update;
   -- no API doc types them. assumed: a letter's 30 copper postage and the 10 gold tabard (from memory).
   define(w, "GetSendMailPrice", function()
