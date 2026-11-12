@@ -76,11 +76,18 @@ local function unsupportedTag(session, node)
   session.report("tag:" .. node.tag, "unsupported XML <" .. node.rawTag .. "> ignored")
 end
 
--- `name` with each `$parent` replaced by the parent's name; an anonymous or missing parent gives "". A function
--- replacement keeps a "%" in the parent's name literal.
--- source: wiki XML/LayoutFrame, name: "substituting `$parent` with a parent's name"; row X2 (the "" is assumed).
+-- `name` with each `$parent` replaced by the name of the parent, else of its nearest named ancestor; "" when none has
+-- one. A function replacement keeps a "%" in the name literal.
+-- source: wiki XML/LayoutFrame, name: "substituting `$parent` with a parent's name"; row X2: confirmed (forever 70862
+-- blizzard_compactraidframemanager.xml:391-394 `$parentLeavePartyButton` under an anonymous frame of
+-- CompactRaidFrameManager, read as CompactRaidFrameManagerLeavePartyButton) for one anonymous level; deeper and "" assumed.
 function M.substituteParent(name, parent)
-  local parentName = parent and parent:GetName() or ""
+  local parentName = parent and parent:GetName()
+  while parent and not parentName do
+    parent = parent:GetParent()
+    parentName = parent and parent:GetName()
+  end
+  parentName = parentName or ""
   return (name:gsub("%$parent", function()
     return parentName
   end))

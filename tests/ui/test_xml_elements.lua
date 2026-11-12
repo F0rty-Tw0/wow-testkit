@@ -43,6 +43,22 @@ local function test_frame_attributes_and_nested_frames()
   end)
 end
 
+-- source: row X2, forever 70862 blizzard_compactraidframemanager.xml:391-406 names `$parentLeavePartyButton` under the
+-- anonymous BottomButtons frame of CompactRaidFrameManager, and its Lua (:434, :505, :721) reads the global
+-- CompactRaidFrameManagerLeavePartyButton; a sibling anchors relativeTo="$parentLeavePartyButton".
+local function test_dollar_parent_under_an_anonymous_parent_is_the_nearest_named_ancestor()
+  local xml = [[
+<Ui><Frame name="Mgr"><Frames><Frame parentKey="Bottom"><Frames>
+  <Button name="$parentLeave"/>
+  <Button name="$parentStay"><Anchors><Anchor point="TOP" relativeTo="$parentLeave" relativePoint="BOTTOM"/></Anchors></Button>
+</Frames></Frame></Frames></Frame></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.eq(_G.MgrLeave:GetParent(), _G.Mgr.Bottom)
+    A.eq(select(2, _G.MgrStay:GetPoint(1)), _G.MgrLeave)
+  end)
+end
+
 local function test_top_level_frame_without_parent_is_parentless_assumed()
   H.withXml({ ["Ui.xml"] = '<Ui><Frame name="Lone"/></Ui>' }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -285,6 +301,7 @@ end
 return function()
   test_inherited_key_values_exist_at_a_base_template_child_on_load()
   test_frame_attributes_and_nested_frames()
+  test_dollar_parent_under_an_anonymous_parent_is_the_nearest_named_ancestor()
   test_top_level_frame_without_parent_is_parentless_assumed()
   test_parent_attribute_names_the_global_parent()
   test_parent_array_collects_children_in_document_order_assumed()
