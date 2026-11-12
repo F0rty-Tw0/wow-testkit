@@ -15,7 +15,8 @@ M.PLAYING, M.PAUSED, M.DONE, M.STOPPED = PLAYING, PAUSED, DONE, STOPPED
 -- agree on every default.
 -- source: W57 `order` default 1 (xsd:1583); W58 `looping` default NONE (xsd:1735); W60 `setToFinalAlpha` default false
 -- (xsd:1736); W61 `fromAlpha` 0.0 and `toAlpha` 1.0 (xsd:1641-1642); W62 `offsetX` default 0 (xsd:1593); W63 Origin
--- `point` default CENTER (xsd:1553-1557); W64 smoothing default NONE (xsd:1584)
+-- `point` default CENTER (xsd:1553-1557); W64 smoothing default NONE (xsd:1584); W82 flipBookRows, flipBookColumns and
+-- flipBookFrames default 0 (xsd:1696-1698)
 -- source: assumed (the rest): zero duration and delays, scale from and to 1, no rotation, origin offsets 0
 local DEFAULTS = {
   Duration = { 0 },
@@ -32,6 +33,9 @@ local DEFAULTS = {
   Radians = { 0 },
   Looping = { "NONE" },
   ToFinalAlpha = { false },
+  FlipBookRows = { 0 },
+  FlipBookColumns = { 0 },
+  FlipBookFrames = { 0 },
 }
 
 -- Origin point -> { fraction of the width from the left, fraction of the height from the top }.

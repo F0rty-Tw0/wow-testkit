@@ -6,6 +6,7 @@
 local M = {}
 
 local BehaviourText = require("ui.behaviour_text")
+local Client = require("client")
 local Slot = require("ui.role_slot")
 local Typed = require("ui.typed")
 
@@ -123,7 +124,13 @@ local function setPart(part)
     if not old then
       Slot.claim(w, opts, part, obj:CreateTexture(nil, ARTWORK), true, KEYS)
     end
-    opts[part]:SetTexture(asset)
+    -- source: confirmed (row W92) the asset is a TextureAsset and Blizzard passes atlas names here (forever
+    -- unitframe.lua:431, :539); assumed: a name the extract's atlas table holds is an atlas, anything else a path or id.
+    if type(asset) == "string" and w.client and Client.atlas(w.client, asset) then
+      opts[part]:SetAtlas(asset)
+    else
+      opts[part]:SetTexture(asset)
+    end
   end
 end
 

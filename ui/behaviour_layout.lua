@@ -133,16 +133,22 @@ end
 
 -- Size --------------------------------------------------------------------------------------------------------
 
+-- source: assumed (row LY17) the C setter reads its number as Lua does, so a numeric string is that number: Blizzard
+-- passes untyped XML KeyValues (strings) to SetHeight (forever blizzard_playerspellsframe.lua:438).
+local function sizeArg(value)
+  return type(value) == "string" and tonumber(value) or value
+end
+
 function methods.SetSize(_, _, st, width, height)
-  st.width, st.height = width, height
+  st.width, st.height = sizeArg(width), sizeArg(height)
 end
 
 function methods.SetWidth(_, _, st, width)
-  st.width = width
+  st.width = sizeArg(width)
 end
 
 function methods.SetHeight(_, _, st, height)
-  st.height = height
+  st.height = sizeArg(height)
 end
 
 -- The getters read the size (ui/layout_size.lua) first, then let a frame holding OnSizeChanged hear a change the

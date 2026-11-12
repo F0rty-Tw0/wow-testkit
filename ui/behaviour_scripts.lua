@@ -9,35 +9,42 @@ local Scripts = require("ui.scripts")
 local methods = {}
 M.methods = methods
 
--- Errors at the widget method's caller.
+-- source: assumed (row X38) script names match in any case, as XML tags do (row X16): forever 70862 Blizzard code calls
+-- SetScript("OnGamepadStick") at load for the listed OnGamePadStick. The listed spelling, or nil.
+local function canonical(w, st, script)
+  return type(script) == "string" and Scripts.canonical(st.plan.type, script, w.flavor) or nil
+end
+
+-- The listed spelling of script; errors at the widget method's caller when the type lacks it.
 local function checkHandler(w, st, script)
-  if not Scripts.supports(st.plan.type, script, w.flavor) then
+  local name = canonical(w, st, script)
+  if not name then
     local message = string.format("%s has no script handler '%s' on %s", st.plan.type, tostring(script), w.flavor)
     error(message, Callsite.level())
   end
+  return name
 end
 
 function methods.SetScript(w, obj, st, script, fn)
-  checkHandler(w, st, script)
-  w:setScript(obj, script, fn)
+  w:setScript(obj, checkHandler(w, st, script), fn)
 end
 
 -- source: api/retail/SimpleScriptRegionAPI.lua:410-423 (script not nilable); assumed: a script that is no function
 -- raises at the caller and hooks nothing.
 function methods.HookScript(w, obj, st, script, fn)
-  checkHandler(w, st, script)
+  local name = checkHandler(w, st, script)
   if type(fn) ~= "function" then
     error("HookScript: script must be a function", Callsite.level())
   end
-  w:hookScript(obj, script, fn)
+  w:hookScript(obj, name, fn)
 end
 
-function methods.GetScript(w, obj, _, script)
-  return w:getScript(obj, script)
+function methods.GetScript(w, obj, st, script)
+  return w:getScript(obj, canonical(w, st, script) or script)
 end
 
 function methods.HasScript(w, _, st, script)
-  return Scripts.supports(st.plan.type, script, w.flavor)
+  return canonical(w, st, script) ~= nil
 end
 
 -- Events ------------------------------------------------------------------------------------------------------
