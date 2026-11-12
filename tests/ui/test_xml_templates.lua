@@ -33,6 +33,18 @@ local function test_virtual_template_builds_through_createframe() -- (X14)
   end)
 end
 
+-- tbc ScrollFrame_OnLoad (secureuipaneltemplates.lua:44-45) creates its bar from "WoWClassicScrollBar", defined as
+-- WowClassicScrollBar; with the lookup case-sensitive the bar had no template and SetHideIfUnscrollable was nil. (X36)
+local function test_template_names_ignore_case()
+  H.withXml({ ["Ui.xml"] = TPL }, function(w, ctx)
+    logTo(w)
+    H.load(w, ctx, "Ui.xml")
+    local f = _G.CreateFrame("Frame", nil, _G.UIParent, "boxt")
+    A.same({ f:GetSize() }, { 120, 40 })
+    A.eq(w.ui.virtuals.BOXT, w.ui.virtuals.BoxT)
+  end)
+end
+
 -- Blizzard's action bars pass the slot as CreateFrame's id and read it in OnLoad (actionbar.lua:31 with
 -- SecureActionButtonMixin:CalculateAction), so the id is set before the template's scripts run.
 local function test_createframe_id_is_set_before_the_template_on_load_assumed()
@@ -290,6 +302,7 @@ end
 return function()
   test_template_parent_attribute_parents_the_inheriting_frame()
   test_createframe_id_is_set_before_the_template_on_load_assumed()
+  test_template_names_ignore_case()
   test_template_root_parent_key_and_array_reach_the_inheriting_widgets_parent()
   test_hidden_false_shows_what_a_template_hid()
   test_create_texture_applies_its_xml_template_and_counts_an_unknown_one()

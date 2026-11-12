@@ -22,6 +22,20 @@ local NO_VALUES = { n = 0 }
 local GETTER_PATTERNS = { "^Get(%u.*)$", "^Is(%u.*)$" }
 local SETTER_PATTERN = "^Set(%u.*)$"
 
+-- A table whose string keys ignore case: they are stored, and looked up, lowercased.
+local function lowerKey(key)
+  return type(key) == "string" and key:lower() or key
+end
+local CASELESS = {
+  __index = function(t, key)
+    local lower = lowerKey(key)
+    return lower ~= key and rawget(t, lower) or nil
+  end,
+  __newindex = function(t, key, value)
+    rawset(t, lowerKey(key), value)
+  end,
+}
+
 -- Per Ketho widget table (one per flavor): lowercase type -> type, and type -> plan. Plans are pure data.
 local catalogs = setmetatable({}, { __mode = "k" })
 
@@ -283,8 +297,10 @@ function M.install(w)
     classes = {},
     classMethods = setmetatable({}, { __mode = "k" }),
     intrinsics = {},
-    -- name -> { type, node, size(), apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
-    virtuals = {},
+    -- name -> { type, node, size(), apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them).
+    -- source: confirmed (row X36) names ignore case: tbc 70577 blizzard_sharedxml/classic/scrolldefine.lua:1 names
+    -- "WoWClassicScrollBar", classic/scroll/trimscrollbar.xml:5 defines WowClassicScrollBar. Keys are stored lowercased.
+    virtuals = setmetatable({}, CASELESS),
     seq = 0,
     -- seq -> widget, weak-valued: EnumerateFrames walks it in creation order
     bySeq = setmetatable({}, { __mode = "v" }),
