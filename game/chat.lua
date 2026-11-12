@@ -36,12 +36,12 @@ local function installSend(w)
   -- source: confirmed (row G1) the bare name is Blizzard's deprecation fallback, present on every flavor.
   define(w, "SendChatMessage", send, State.ALL)
   define(w, "GetChatWindowInfo", function(id)
-    local window = w.mock.chatWindows[id]
-    if not window then
+    local info = w.mock.chatWindows[id]
+    if not info then
       WorldApi.markUnscripted(w, "GetChatWindowInfo")
       return
     end
-    return window.name, window.fontSize, window.r, window.g, window.b, window.alpha, window.shown, window.locked, window.docked, window.uninteractable
+    return info.name, info.fontSize, info.r, info.g, info.b, info.alpha, info.shown, info.locked, info.docked, info.uninteractable
   end)
 end
 
