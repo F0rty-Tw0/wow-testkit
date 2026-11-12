@@ -85,10 +85,42 @@ local function buildAnimation(w, group, frame, node, session)
   XmlBuild.children(w, animation, node, session)
 end
 
-local function buildGroup(w, frame, node, session)
+-- name -> node of each root virtual <AnimationGroup>, kept apart from w.ui.virtuals (frame and region templates, which
+-- CreateFrame applies); made on first use.
+local function groupTemplates(w)
+  w.ui.groupTemplates = w.ui.groupTemplates or {}
+  return w.ui.groupTemplates
+end
+
+-- Registers a root <AnimationGroup virtual="true"> as a group template; a non-virtual root group has no frame to belong
+-- to and is reported.
+function M.declare(w, node, session)
+  if node.attrs.virtual == "true" and node.attrs.name then
+    groupTemplates(w)[node.attrs.name] = node
+  else
+    session.reportAt(node.line, '<AnimationGroup> outside <Animations> needs virtual="true" and a name; ignored')
+  end
+end
+
+-- The templates node inherits (depth first, in inherits order), then node's own attributes and children, on group.
+-- source: row X35, forever 70862 blizzard_buffframe/buffframetemplates.xml:64-66 and :82, buffframe.lua:66 (the
+-- template's mixin reaches the inheriting group). Assumed: a template applies as a frame template does (its parentKey
+-- when the group has none, then attributes and children before the group's own).
+local function groupBody(w, group, frame, node, session, seen)
   local attrs = node.attrs
-  local group = frame:CreateAnimationGroup(XmlBuild.fullName(node, frame))
-  XmlBuild.attach(frame, group, attrs)
+  for name in (attrs.inherits or ""):gmatch("[^,%s]+") do
+    local template = groupTemplates(w)[name]
+    if not template then
+      session.report("grouptemplate:" .. name, "animation group template '" .. name .. "' not found")
+    elseif not seen[name] then
+      seen[name] = true
+      XmlBuild.attach(frame, group, template.attrs, w.ui.state[group])
+      groupBody(w, group, frame, template, session, seen)
+    end
+  end
+  if attrs.mixin then
+    XmlAttrs.frame.mixin(w, group, w.ui.state[group], attrs.mixin, node, session)
+  end
   if attrs.looping then
     group:SetLooping(attrs.looping)
   end
@@ -102,6 +134,12 @@ local function buildGroup(w, frame, node, session)
       buildAnimation(w, group, frame, child, session)
     end
   end
+end
+
+local function buildGroup(w, frame, node, session)
+  local group = frame:CreateAnimationGroup(XmlBuild.fullName(node, frame))
+  XmlBuild.attach(frame, group, node.attrs, w.ui.state[group])
+  groupBody(w, group, frame, node, session, {})
 end
 
 function handlers.animations(w, frame, _, node, session)

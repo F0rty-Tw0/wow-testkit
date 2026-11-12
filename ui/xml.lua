@@ -9,7 +9,7 @@ local XmlParse = require("ui.xml_parse")
 -- Element modules register their handlers and finishers in XmlBuild when required; the order fixes the finishers'.
 require("ui.xml_layout")
 require("ui.xml_widgets")
-require("ui.xml_animations")
+local XmlAnimations = require("ui.xml_animations")
 require("ui.xml_scripts")
 
 -- Path with "\" turned into "/" and "." and ".." segments resolved, so one file never has two spellings.
@@ -58,6 +58,8 @@ function M.element(w, node, session)
     XmlFonts.font(w, node, session)
   elseif node.tag == "fontfamily" then
     XmlFonts.family(w, node, session)
+  elseif node.tag == "animationgroup" then
+    XmlAnimations.declare(w, node, session)
   elseif XmlBuild.isRegion(node) and node.attrs.virtual == "true" then
     XmlBuild.region(w, node, nil, session)
   else
