@@ -3,6 +3,7 @@
 local A = require("assert")
 local AddonEnv = require("addon_env")
 local G = require("tests.helpers.game")
+local H = require("tests.helpers.world")
 
 -- Color.lua (Blizzard_SharedXMLBase) writes global names through GetCurrentEnvironment(): the one _G addon code sees.
 local function test_get_current_environment_is_the_addon_global_table_assumed()
@@ -202,6 +203,20 @@ local function test_account_store_constants_name_two_store_fronts_assumed()
   end
 end
 
+-- The values come from the flavor's Ketho dump (world.lua installs it); the game fakes must not replace them.
+local function test_account_store_constants_keep_the_dumped_values()
+  for _, flavor in ipairs({ "retail", "tbc" }) do
+    local dumped
+    H.withWorld(flavor, function()
+      dumped = _G.Constants.AccountStoreConsts
+    end)
+    A.eq(type(dumped), "table", flavor)
+    G.withGame(flavor, function()
+      A.same(_G.Constants.AccountStoreConsts, dumped, flavor)
+    end)
+  end
+end
+
 -- ActionButton.lua (Blizzard_ActionBar) compares C_GameRules.GetActiveGameMode() with Enum.GameMode.Plunderstorm on
 -- every button update, and tbc's GameRulesUtil.lua indexes it at file scope; source: row G28, the member values of
 -- Ketho's retail LuaEnum dump (assumed the same off retail).
@@ -230,6 +245,7 @@ end
 return function()
   test_game_mode_enum_has_the_client_members()
   test_account_store_constants_name_two_store_fronts_assumed()
+  test_account_store_constants_keep_the_dumped_values()
   test_event_is_valid_when_the_flavor_knows_the_event_assumed()
   test_legacy_item_quality_names_alias_enum_item_quality_assumed()
   test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()

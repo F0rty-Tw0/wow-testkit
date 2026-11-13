@@ -175,11 +175,6 @@ function M.install(w)
   if w.manifest.enums.GameMode == nil then
     define(w, "Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 }, State.ALL)
   end
-  -- source: assumed (row G30) two distinct store front ids: an engine constant no API doc or dump lists, read only as
-  -- table keys and C_AccountStore arguments (retail gamerulesutil.lua:41-44, blizzard_accountstore.lua:4).
-  if w.manifest.constants.AccountStoreConsts == nil then
-    define(w, "Constants.AccountStoreConsts", { PlunderstormStoreFrontID = 1, WowhackStoreFrontID = 2 }, State.ALL)
-  end
   -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
   -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
   define(w, "C_EventUtils.IsEventValid", function(event)
