@@ -28,7 +28,8 @@ for _ in $(seq 600); do
   sleep 0.2
 done
 curl -sf -H "X-Session-Token: $TOKEN" "http://127.0.0.1:$PORT/snapshot" > /dev/null || { echo "FAIL server: no session on port $PORT"; cat "$LOG"; exit 1; }
-URL="http://127.0.0.1:$PORT/viewer/index.html?live=1&stream=0&token=$TOKEN"
+# zoom=fit: at 100% the 1080p stage sits below the toolbar and the window crops its bottom rows (the action bar).
+URL="http://127.0.0.1:$PORT/viewer/index.html?live=1&stream=0&zoom=fit&token=$TOKEN"
 
 call() {
   curl -sf -H "X-Session-Token: $TOKEN" -H "Content-Type: application/json" -d "$2" "http://127.0.0.1:$PORT/call/$1"
@@ -52,6 +53,24 @@ dummy() {
 # Blizzard UI, its own /run takes the line and prints to its chat frame, not the session console.
 glowed() {
   sim '{"action":"world"}' | python -c "import json,sys; sys.exit(0 if json.load(sys.stdin)['world']['overlays'] else 1)"
+}
+# Whether the viewer's snapshot draws that glow: a proc atlas texture (Blizzard's ActionButtonSpellAlerts, forever and
+# tbc) with effective alpha > 0 inside an ActionButton<n>. Prints the button names; the sim's overlays alone do not prove
+# the action bar shows it.
+glowDrawn() {
+  curl -sf -H "X-Session-Token: $TOKEN" "http://127.0.0.1:$PORT/snapshot" | python -c "
+import json, re, sys
+items = json.load(sys.stdin)['items']
+byId = {i['id']: i for i in items}
+def button(i):
+    while i:
+        if re.fullmatch(r'ActionButton\d+', i.get('name') or ''):
+            return i['name']
+        i = byId.get(i.get('parent'))
+lit = sorted({button(i) for i in items
+              if str(i.get('atlas', '')).startswith('atlas:ui-hud-actionbar-proc-') and i.get('alpha', 0) > 0} - {None})
+print(' '.join(lit))
+sys.exit(0 if lit else 1)"
 }
 # The open page steps the sim itself (a step every 100 ms), so the time budget is how far the sim runs before the shot.
 shot() {
@@ -83,5 +102,6 @@ if ! glowed; then
   call console '{"since":0}' | python -c "import json,sys; [print(json.dumps(l)) for l in json.load(sys.stdin)['lines'][-8:]]"
   exit 1
 fi
+LIT="$(glowDrawn)" || { echo "FAIL the sim has a proc overlay but the snapshot draws no proc glow on an ActionButton"; exit 1; }
 shot "spell-$FLAVOR-warrior.png" 1000
-echo "PASS spell_png $FLAVOR: $OUT/spell-$FLAVOR-mage.png $OUT/spell-$FLAVOR-warrior.png"
+echo "PASS spell_png $FLAVOR (glow on $LIT): $OUT/spell-$FLAVOR-mage.png $OUT/spell-$FLAVOR-warrior.png"

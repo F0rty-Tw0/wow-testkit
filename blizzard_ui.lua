@@ -18,7 +18,47 @@ local fs = require("fs")
 local debugTraceback = debug.traceback
 
 -- The client's spelling: Blizzard Lua compares addon names exactly.
-M.TARGETS = { "Blizzard_ActionBar", "Blizzard_UnitFrame", "Blizzard_EditMode", "Blizzard_OverrideActionBar" }
+-- source: row BU25 (confirmed) Blizzard_ChatFrame makes ChatFrame1 and Blizzard_CompactRaidFrames makes CompactPartyFrame,
+-- which the classic frame position manager (uiparentpanelmanageroverrides.lua:73, :100) and Edit Mode
+-- (EditModeSystemTemplates.lua:1517) index; the client loads both at login, so neither may be nil.
+-- source: row BU27 (confirmed) Blizzard_QueueStatusFrame makes QueueStatusButton, which Edit Mode indexes
+-- (EditModeSystemTemplates.lua:2467); it loads at login, and on forever no other target's dependency names it.
+-- source: row BU28 (confirmed) Blizzard_GameMenu makes GameMenuFrame, which the panel manager's IsOptionFrameOpen indexes
+-- unguarded (tbc uiparentpanelmanager.lua:1140, reached from ToggleAllBags); it loads at login.
+-- source: row BU29 (confirmed) Blizzard_MainMenuBarBagButtons makes MainMenuBarBackpackButton, which the classic bag frame
+-- checks on open (tbc containerframe_shared.lua:270); it loads at login.
+-- source: row BU31 (confirmed) Blizzard_TokenUI and Blizzard_Statistics make TokenFrame and StatisticsFrame, which the
+-- camelot character frame hides unguarded (forever camelot/characterframe.lua:113); both load at login.
+-- source: row BU32 (confirmed) Blizzard_AuraContainer defines ManagedAuraContainerSharedMixin, which forever's
+-- Blizzard_UnitFrame reads at load (shared/targetframeauracontainer.lua:15); no TOC depends on it, it loads at login
+-- (no LoadOnDemand, AllowLoad game). First, so it loads before the unit frames (assumed: the client's order agrees).
+-- source: row BU33 (confirmed) Blizzard_AutoComplete defines AUTOCOMPLETE_LIST, which tbc Blizzard_UIPanels_Game's XML
+-- OnLoads index (classic/mailframe.xml:584, friendsframe.xml:4373); the action bar's dependencies load UIPanels_Game and
+-- only the chat and popup addons depend on AutoComplete, so it loaded after. First too (assumed: the client's order agrees).
+-- source: row BU35 (confirmed) Blizzard_FrameXML's TOC says `LoadFirst: 1` and lists Blizzard_UIParentPanelManager before
+-- Blizzard_SettingsDefinitions_Frame, whose Blizzard_Settings_Shared calls RegisterUIPanel at load
+-- (blizzard_registration.lua:10). So it goes before every other target. grug: only FrameXML; the other LoadFirst addons
+-- keep their place, as their order among themselves is unknown (all of them first raised more errors, not fewer).
+-- source: row BU36 (confirmed) Blizzard_ActionBarController defines ActionBarBusy, which tbc's stance bar calls during play
+-- (blizzard_actionbar/shared/stancebar.lua:43); on tbc no TOC depends on it, it loads at login (AllowLoad Game). After
+-- its dependencies, the action bar and the override bar.
+M.TARGETS = {
+  "Blizzard_FrameXML",
+  "Blizzard_AutoComplete",
+  "Blizzard_AuraContainer",
+  "Blizzard_ActionBar",
+  "Blizzard_UnitFrame",
+  "Blizzard_EditMode",
+  "Blizzard_OverrideActionBar",
+  "Blizzard_ActionBarController",
+  "Blizzard_ChatFrame",
+  "Blizzard_CompactRaidFrames",
+  "Blizzard_QueueStatusFrame",
+  "Blizzard_GameMenu",
+  "Blizzard_MainMenuBarBagButtons",
+  "Blizzard_TokenUI",
+  "Blizzard_Statistics",
+}
 -- source: assumed (row BU1) the default key bindings per flavor, under <extract.dir>/code/. The extract has no
 -- bindings.xml: Blizzard_FrameXML holds one unlisted file per game type.
 M.BINDINGS_FILES = {
@@ -49,13 +89,59 @@ local function tocOf(root, name, flavor)
   return fs.exists(path) and path or nil
 end
 
+-- The addon's name for its lowercase folder dir: the TOC Title when it spells dir, else the start of a file line that
+-- does ("Blizzard_PlayerSpells_Bootstrap.lua"), else dir. Assumed (row BU30): Blizzard file names begin with the addon's.
+local function spelling(dir, parsed)
+  local title = parsed.meta.Title
+  if title and title:lower() == dir then
+    return title
+  end
+  for _, file in ipairs(parsed.files) do
+    local start = file.path:match("[^/]*$"):sub(1, #dir)
+    if start:lower() == dir then
+      return start
+    end
+  end
+  return dir
+end
+
+-- { { name, root, parsed }, ... }: the extract's addons that load on flavor, in folder order (name per spelling).
+local function extractAddons(extract, flavor)
+  local addons, base = {}, extract.dir .. "/code/addons"
+  for _, dir in ipairs(fs.isdir(base) and fs.list(base) or {}) do
+    local root = base .. "/" .. dir
+    local toc = tocOf(root, dir, flavor)
+    local parsed = toc and Toc.parse(fs.readFile(toc) or "")
+    if parsed and TocHeader.loadsOn(parsed.meta, flavor) then
+      addons[#addons + 1] = { name = spelling(dir, parsed), root = root, parsed = parsed }
+    end
+  end
+  return addons
+end
+
+-- { [lowercase trigger] = { name, ... } }: the extract's addons that load on flavor and whose LoadWith names the trigger,
+-- in folder order.
+local function loadWithIndex(extract, flavor)
+  local index = {}
+  for _, addon in ipairs(extractAddons(extract, flavor)) do
+    for _, trigger in ipairs(Toc.loadWith(addon.parsed.meta, flavor)) do
+      local key = trigger:lower()
+      index[key] = index[key] or {}
+      index[key][#index[key] + 1] = addon.name
+    end
+  end
+  return index
+end
+
 -- Returns entries, skipped, notes: entries = { { name, root, parsed }, ... } with each addon's required dependencies
--- first, then its optional ones (depth first, each once), then the addon; skipped = { { name, reason = "not in
--- extract" } } for each target or dependency the extract lacks (the others still load). A dependency the flavor does not load is
--- left out (Toc.dependencies); a cycle is cut and noted. name keeps the spelling of the target or of the TOC line that
--- named it; root, file reads and the once-only check use name:lower().
+-- first, then its optional ones (depth first, each once), then the addon, then the addons whose LoadWith names it
+-- (row G37); skipped = { { name, reason = "not in extract" } } for each target or dependency the extract lacks (the
+-- others still load). A dependency the flavor does not load is left out (Toc.dependencies); a cycle is cut and noted.
+-- name keeps the spelling of the target or of the TOC line that named it; root, file reads and the once-only check use
+-- name:lower().
 function M.order(extract, targets, flavor)
   local entries, skipped, notes, done, visiting = {}, {}, {}, {}, {}
+  local loadWith = loadWithIndex(extract, flavor)
   local function visit(name)
     local key = name:lower()
     if visiting[key] then
@@ -72,8 +158,9 @@ function M.order(extract, targets, flavor)
       return
     end
     local parsed = Toc.parse(fs.readFile(toc) or "")
-    if not TocHeader.loadsOn(parsed.meta, flavor) then
-      skipped[#skipped + 1] = { name = name, reason = "game type" }
+    local loads, reason = TocHeader.loadsOn(parsed.meta, flavor)
+    if not loads then
+      skipped[#skipped + 1] = { name = name, reason = reason }
       return
     end
     visiting[key] = true
@@ -85,6 +172,9 @@ function M.order(extract, targets, flavor)
     end
     visiting[key] = nil
     entries[#entries + 1] = { name = name, root = root, parsed = parsed }
+    for _, follower in ipairs(loadWith[key] or {}) do
+      visit(follower)
+    end
   end
   for _, name in ipairs(targets) do
     visit(name)
@@ -156,21 +246,26 @@ local function lowerReader(root, name, notes)
   end
 end
 
--- Runs entry's TOC files for w's flavor ([Family] and [Game] expanded by Toc.filesFor, row BU3), registers its
--- bindings.xml, records it as loaded and fires ADDON_LOADED.
-local function loadEntry(w, entry, report, fire)
+-- Runs files (TOC paths) of entry in a load context of its own.
+local function runFiles(w, entry, files, report)
   local ctx = Addon.context(w, entry.name, entry.root)
   ctx.readFile = lowerReader(entry.root, entry.name, report.notes)
   function ctx.exists(relative)
     return fs.exists(entry.root .. "/" .. lowerPath(relative))
   end
-  for _, path in ipairs((Toc.filesFor(entry.parsed, w.flavor))) do
+  for _, path in ipairs(files) do
     if path:lower():match("%.xml$") then
       Xml.loadFile(w, path, ctx)
     else
       Addon.runFile(w, ctx, path)
     end
   end
+end
+
+-- Runs entry's TOC files for w's flavor ([Family] and [Game] expanded by Toc.filesFor, row BU3), registers its
+-- bindings.xml, records it as loaded and fires ADDON_LOADED.
+local function loadEntry(w, entry, report, fire)
+  runFiles(w, entry, (Toc.filesFor(entry.parsed, w.flavor)), report)
   local bindings = fs.readFile(entry.root .. "/bindings.xml")
   if bindings then
     Bindings.loadXml(w, bindings, entry.name)
@@ -202,6 +297,32 @@ local function isLoaded(report, name)
   return false
 end
 
+-- source: row BU30, Toc.bootstrapFiles: after the targets, each LoadOnDemand addon of the extract not loaded yet runs its
+-- [Bootstrap] lines (folder order, assumed); its code is Blizzard's, so it runs secure and its errors are the layer's.
+local function runBootstraps(w, extract, report)
+  for _, addon in ipairs(extractAddons(extract, w.flavor)) do
+    local files = Toc.bootstrapFiles(addon.parsed, w.flavor)
+    if #files > 0 and not isLoaded(report, addon.name) then
+      w.taint.secureAddons[addon.name] = true
+      runFiles(w, addon, files, report)
+      w.errorHandler = report.handler
+    end
+  end
+end
+
+-- source: confirmed (row BU34) the flavor's data marks some functions secureOnly (forever and retail C_PingSecure,
+-- C_CombatLogSecure) and world.lua leaves them out for addon code; Blizzard_PingUI's OnLoads call C_PingSecure setters.
+-- assumed: the layer's code runs secure, so it gets them as signature stubs; a name something already defines is kept.
+-- The kit has one environment, so addon code sees them too once the layer loads.
+local function installSecureOnly(w)
+  for name, signature in pairs(w.manifest.functions) do
+    local tbl, key = w:parentOf(name, true)
+    if signature.secureOnly and not (tbl and rawget(tbl, key) ~= nil) then
+      w:installStub(name, signature)
+    end
+  end
+end
+
 -- Loads opts.targets (default M.TARGETS) and their dependencies from extract into w, in M.order, after the flavor's
 -- default bindings file; opts.fire(event, ...) fires ADDON_LOADED (default w:fire). Returns the report, also stored as
 -- w.blizzard: { loaded = { name... }, errors = { { addon, message } }, skipped = { { name, reason } }, notes,
@@ -225,6 +346,7 @@ function M.load(w, extract, opts)
     secure[entry.name] = true
   end
   report.handler = keepErrors(w, report)
+  installSecureOnly(w)
   loadDefaultBindings(w, extract, report)
   -- source: assumed (row B3) nothing reloads: an ADDON_LOADED handler may have loaded an entry through LoadAddOn.
   for _, entry in ipairs(entries) do
@@ -233,7 +355,18 @@ function M.load(w, extract, opts)
       w.errorHandler = report.handler
     end
   end
+  runBootstraps(w, extract, report)
   return report
+end
+
+-- Whether entries holds name. Not only the last entry: M.order puts the addons whose LoadWith names it after it.
+local function hasEntry(entries, name)
+  for _, entry in ipairs(entries) do
+    if entry.name == name then
+      return true
+    end
+  end
+  return false
 end
 
 local function append(target, list)
@@ -255,8 +388,7 @@ function M.loadOne(w, name)
     return true
   end
   local entries, skipped, notes = M.order(extract, { name }, w.flavor)
-  local last = entries[#entries]
-  if not (last and last.name == name) then
+  if not hasEntry(entries, name) then
     return nil, "MISSING"
   end
   append(report.skipped, skipped)

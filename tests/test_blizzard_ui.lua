@@ -146,7 +146,7 @@ local function test_find_client_supplies_the_extract_when_none_is_given()
   assert(ok, err)
   A.same(asked, { "retail" })
   A.eq(client, ex) -- the world reads the same extract (art, strings)
-  A.same(loaded, { "Blizzard_MiniBase", "Blizzard_ActionBar" })
+  A.same(loaded, { "Blizzard_FrameXML", "Blizzard_MiniBase", "Blizzard_ActionBar" }) -- FrameXML first (row BU35)
 end
 
 local function test_missing_target_is_skipped_not_raised()
@@ -161,6 +161,38 @@ local function test_dependencies_of_other_game_types_are_dropped_assumed()
   B.run(B.mini(), { targets = { "Blizzard_MiniBar" } }, function(s)
     A.same(s.w.blizzard.loaded, { "Blizzard_MiniBase", "Blizzard_MiniBar" })
     A.same(s.w.blizzard.skipped, {}) -- Blizzard_Gone is classic-only: neither loaded nor skipped
+  end)
+end
+
+-- source: confirmed (row G37) an addon whose LoadWith names a loaded addon loads with it, before the target that pulled
+-- that addon in (tbc Blizzard_UIParentPanelManager LoadWith Blizzard_UIParent, before Blizzard_ActionBar), and a
+-- repeated LoadWith line appends. Order right after the trigger: assumed (the wiki gives no timing).
+local function test_load_with_addons_load_right_after_their_trigger()
+  local addons = B.mini({
+    blizzard_minipanel = {
+      toc = "## Title: Blizzard_MiniPanel\n## LoadWith: Blizzard_MiniBase\n## LoadWith: Blizzard_Nothing\nMiniPanel.lua\n",
+      files = { ["minipanel.lua"] = 'MiniLog[#MiniLog + 1] = "panel"\n' },
+    },
+    blizzard_miniclassic = { toc = "## AllowLoadGameType: classic\n## LoadWith: Blizzard_MiniBase\n" },
+  })
+  B.run(addons, { targets = { "Blizzard_MiniBar" } }, function(s)
+    A.same(s.w.blizzard.loaded, { "Blizzard_MiniBase", "Blizzard_MiniPanel", "Blizzard_MiniBar" })
+    A.same(s.w.blizzard.skipped, {}) -- the classic-only LoadWith addon is neither loaded nor skipped
+  end)
+end
+
+-- LoadAddOn on a trigger loads its LoadWith followers after it (row G37); it answered MISSING when a follower came last.
+local function test_load_addon_loads_the_trigger_and_its_load_with_followers()
+  local addons = B.mini({
+    blizzard_miniwindowext = {
+      toc = "## Title: Blizzard_MiniWindowExt\n## LoadOnDemand: 1\n## LoadWith: Blizzard_MiniWindow\nExt.lua\n",
+      files = { ["ext.lua"] = "MiniExtLoaded = true\n" },
+    },
+  })
+  B.run(addons, { targets = { "Blizzard_MiniBase" } }, function()
+    A.eq(_G.MiniExtLoaded, nil)
+    A.eq((_G.C_AddOns.LoadAddOn("Blizzard_MiniWindow")), true)
+    A.eq(_G.MiniExtLoaded, true)
   end)
 end
 
@@ -232,6 +264,29 @@ local function test_blizzard_code_runs_secure() -- R6: the folder name never tai
   end)
 end
 
+-- Blizzard_PingUI.lua:24,72 (forever 70862) calls C_PingSecure setters in its OnLoads; the data marks them secureOnly, so
+-- the kit left them out and indexing the nil namespace raised at load. The layer's secure code gets them. (BU34)
+local function test_secure_only_functions_exist_once_the_layer_loads_assumed()
+  SessionH.withSession(nil, function()
+    A.eq(rawget(_G, "C_PingSecure"), nil, "addon-only session")
+  end)
+  B.run(B.mini(), { targets = { "Blizzard_MiniBase" } }, function()
+    A.eq(type(_G.C_PingSecure.SetPingRadialWheelCreatedCallback), "function")
+  end)
+end
+
+-- assumed (row BU34) a name something already defines is kept, not replaced by the signature stub.
+local function test_secure_only_stub_keeps_an_existing_definition_assumed()
+  local before = function(s)
+    s.w:install("C_PingSecure.SetPingRadialWheelCreatedCallback", function()
+      return "kept"
+    end)
+  end
+  B.run(B.mini(), { targets = { "Blizzard_MiniBase" }, before = before }, function()
+    A.eq(_G.C_PingSecure.SetPingRadialWheelCreatedCallback(), "kept")
+  end)
+end
+
 local function test_tainted_caller_keeps_taint_in_blizzard_code() -- TS15: Blizzard code never launders taint
   B.run(B.mini(), { targets = { "Blizzard_MiniBase" }, lua = "securecall(MiniCheck)" }, function()
     A.eq(_G.MiniSeen, false)
@@ -293,6 +348,8 @@ return function()
   test_find_client_supplies_the_extract_when_none_is_given()
   test_missing_target_is_skipped_not_raised()
   test_dependencies_of_other_game_types_are_dropped_assumed()
+  test_load_with_addons_load_right_after_their_trigger()
+  test_load_addon_loads_the_trigger_and_its_load_with_followers()
   test_flavor_suffixed_toc_is_found_in_lowercase()
   test_family_and_game_path_tokens_resolve()
   test_loaded_blizzard_addons_count_as_loaded()
@@ -300,6 +357,8 @@ return function()
   test_default_bindings_xml_loads_with_the_layer_assumed()
   test_default_bindings_files_cover_tbc_and_vanilla_assumed()
   test_blizzard_code_runs_secure()
+  test_secure_only_functions_exist_once_the_layer_loads_assumed()
+  test_secure_only_stub_keeps_an_existing_definition_assumed()
   test_tainted_caller_keeps_taint_in_blizzard_code()
   test_session_snapshot_reports_the_layer()
 end

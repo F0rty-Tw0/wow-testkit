@@ -34,7 +34,7 @@ local CLASSIC_AUCTION = {
 }
 local function test_classic_auction_opens_through_its_show_global_assumed()
   for _, flavor in ipairs({ "tbc", "vanilla" }) do
-    B.run(B.mini(CLASSIC_AUCTION), { flavor = flavor, header = "Interface-TBC: 20506", targets = { "Blizzard_MiniBase" } }, function(s)
+    B.run(B.mini(CLASSIC_AUCTION), { flavor = flavor, targets = { "Blizzard_MiniBase" } }, function(s)
       s:openWindow("auction", {})
       A.eq(_G.AuctionShownBy, "show-global", flavor)
     end)

@@ -4,6 +4,7 @@ local A = require("assert")
 local B = require("tests.helpers.blizzard")
 local Layout = require("ui.layout")
 local Scenario = require("scenario")
+local Tmp = require("tests.helpers.tmp")
 
 local function layout(name, point, x, y)
   local anchor = { point = point, relativeTo = "UIParent", relativePoint = point, offsetX = x, offsetY = y }
@@ -96,6 +97,27 @@ local function test_without_the_layer_login_fires_nothing_assumed()
   A.eq(report.status, "pass")
 end
 
+-- source: assumed, the client still logs in when an addon is out of date or not declared for the flavor, so the Blizzard
+-- frames get their layout whatever happens to the addon under test.
+local function test_a_skipped_addon_still_lays_out_the_blizzard_frames_assumed()
+  local rect
+  local opts = {
+    addon = "Probe",
+    root = B.probe(), -- declared for retail only: skipped on tbc
+    blizzardUi = { targets = TARGETS },
+    client = B.extract(Tmp.dir("bzx"), B.mini(), "tbc"),
+    findClient = function() end,
+    screen = { width = 1000, height = 800 },
+  }
+  local report = Scenario.matrix({ "tbc" }, function(s)
+    s.w:setMock({ editMode = { layouts = LAYOUTS, active = 4 } }) -- layout B, away from MiniBar's XML anchor
+    local _, err = pcall(s.login, s)
+    rect = Layout.rect(s.w, _G.MiniBar)
+    error(err, 0)
+  end, opts).tbc
+  A.same({ report.status, rect }, { "skipped", { left = 10, bottom = 740, width = 200, height = 40 } })
+end
+
 return function()
   test_active_layout_places_the_blizzard_frame_assumed()
   test_no_saved_layouts_still_fires_the_login_event_assumed()
@@ -103,4 +125,5 @@ return function()
   test_edit_mode_fires_once_with_the_layouts_assumed()
   test_a_patched_layouts_list_replaces_the_old_one_assumed()
   test_without_the_layer_login_fires_nothing_assumed()
+  test_a_skipped_addon_still_lays_out_the_blizzard_frames_assumed()
 end
