@@ -13,13 +13,13 @@ local function test_known_frame_name_resolves_to_frame_counted_unscripted()
   end)
 end
 
--- source: assumed (row F9) with the Blizzard layer loaded, the client has no frame under an unloaded addon's name; a
--- hidden frame is the closest inert stand-in, so `Frame and Frame:IsShown()` guards skip it as they skip nil.
-local function test_lazy_frame_starts_hidden_with_the_blizzard_layer_assumed()
+-- source: assumed (row F9) with the Blizzard layer loaded, the client has no frame under an unloaded addon's name, so
+-- Blizzard's `if Frame then Frame:Method() end` guards must see nil (a stand-in passed them and crashed).
+local function test_lazy_frame_is_nil_with_the_blizzard_layer_assumed()
   for _, flavor in ipairs({ "retail", "tbc" }) do
     B.run(B.mini(), { flavor = flavor }, function()
-      A.eq(_G.ChatConfigFrame:IsShown(), false, flavor)
-      A.eq(_G.ChatFrame1:IsShown(), false, flavor)
+      A.eq(_G.ChatConfigFrame, nil, flavor)
+      A.eq(_G.ChatFrame1, nil, flavor)
     end)
   end
 end
@@ -89,7 +89,7 @@ end
 
 return function()
   test_known_frame_name_resolves_to_frame_counted_unscripted()
-  test_lazy_frame_starts_hidden_with_the_blizzard_layer_assumed()
+  test_lazy_frame_is_nil_with_the_blizzard_layer_assumed()
   test_lazy_frame_stays_shown_without_the_blizzard_layer()
   test_unknown_name_stays_nil()
   test_existing_globals_metatable_index_still_answers()

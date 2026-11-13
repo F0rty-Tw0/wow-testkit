@@ -2,10 +2,10 @@
 -- creates an inert frame under that name, once, counted in w.unscripted["frame:<Name>"]. The widget type is a plain
 -- Frame unless LAZY_TYPES names another. Other missing names fall through to _G's previous __index. World snapshots
 -- _G's metatable, so destroy undoes this.
--- source: assumed (row F9) with the Blizzard UI layer loaded (w.blizzard) the frame starts hidden: a lazy name there is
--- an addon the layer did not load, the client has no frame at all under it, and hidden is the closest inert stand-in, so
--- Blizzard's `Frame and Frame:IsShown()` guards skip it as they skip nil. Without the layer every core frame (PlayerFrame,
--- ChatFrame1) is lazy, and the client always has and shows those, so the frame stays shown.
+-- source: assumed (row F9) with the Blizzard UI layer loaded (w.blizzard) no lazy frame is made: a lazy name there is an
+-- addon the layer did not load, the client has no frame at all under it, and Blizzard's `if Frame then Frame:Method()`
+-- guards must see nil (a stand-in passed them and crashed, e.g. FramerateFrame:UpdatePosition). Without the layer every
+-- core frame (PlayerFrame, ChatFrame1) is lazy, and the client always has and shows those, so the frame stays shown.
 local M = {}
 
 local WorldApi = require("world_api")
@@ -35,11 +35,8 @@ end
 
 local function lazyIndex(w, previous)
   return function(t, key)
-    if type(key) == "string" and w.globals.frames[key] then
+    if type(key) == "string" and w.globals.frames[key] and not w.blizzard then
       local frame = w.ui.create(lazyType(key), key, nil)
-      if w.blizzard then
-        frame:Hide()
-      end
       WorldApi.markUnscripted(w, "frame:" .. key)
 
       return frame
