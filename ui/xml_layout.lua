@@ -141,8 +141,9 @@ local function offsetOf(node)
 end
 
 -- An entry for session.anchors: try() applies the anchor once its target exists and answers whether it did.
--- source: assumed (row X41) SetPoint refusing the anchor (a self-anchor, a loop) goes to the load report, like the other
--- skipped anchors (X27), not to the error handler; any other SetPoint error is still reported as one.
+-- source: assumed (row X41) an anchor SetPoint would refuse (a self-anchor, a loop) goes to the load report, like the
+-- other skipped anchors (X27), not to the error handler. It is checked before SetPoint runs, so an error from the
+-- SetPoint call itself (a mixin override included) is still reported as one, with its traceback.
 local function anchorEntry(w, session, obj, node)
   local attrs = node.attrs
   local x, y = offsetOf(node)
@@ -153,12 +154,12 @@ local function anchorEntry(w, session, obj, node)
     if not found then
       return false
     end
-    local ok, err = pcall(obj.SetPoint, obj, attrs.point, target, attrs.relativepoint or attrs.point, x, y)
-    local reason = not ok and tostring(err):match("failed because%[(.-)%]")
-    if reason then
+    local allowed, refusal = pcall(Layout.checkAnchor, w, obj, { attrs.point, target })
+    if not allowed then
+      local reason = tostring(refusal):match("failed because%[(.-)%]") or tostring(refusal)
       session.reportAt(node.line, "<Anchor> refused (" .. reason .. "); anchor skipped")
-    elseif not ok then
-      XmlBuild.guard(w, session, node.line, error, err, 0)
+    else
+      XmlBuild.guard(w, session, node.line, obj.SetPoint, obj, attrs.point, target, attrs.relativepoint or attrs.point, x, y)
     end
     return true
   end

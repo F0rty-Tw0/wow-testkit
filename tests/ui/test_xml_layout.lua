@@ -153,6 +153,23 @@ local function test_refused_anchor_is_reported_not_raised_assumed()
   end)
 end
 
+-- Only the anchor's own refusal is a report: a refusal inside a mixin SetPoint the kit calls is the addon's Lua error.
+local function test_refusal_inside_a_mixin_set_point_stays_an_error()
+  local xml = '<Ui><Frame name="Mx" mixin="NxMixin"><Anchors><Anchor point="CENTER"/></Anchors></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    w:setGlobal("NxMixin", {
+      SetPoint = function()
+        local t = _G.UIParent:CreateTexture()
+        t:SetPoint("CENTER", t)
+      end,
+    })
+    H.load(w, ctx, "Ui.xml")
+    A.eq(#w.errors, 1)
+    A.contains(w.errors[1].message, "Cannot anchor to itself")
+    A.eq(reportText(ctx):find("refused", 1, true), nil)
+  end)
+end
+
 local function test_deferred_anchor_resolves_once_its_target_is_built_assumed()
   local xml = [[
 <Ui>
@@ -314,6 +331,7 @@ return function()
   test_relative_key_walks_two_levels_assumed()
   test_missing_anchor_target_is_reported_and_skipped_assumed()
   test_refused_anchor_is_reported_not_raised_assumed()
+  test_refusal_inside_a_mixin_set_point_stays_an_error()
   test_deferred_anchor_resolves_once_its_target_is_built_assumed()
   test_own_size_attributes_set_only_their_axis()
   test_rel_dimension_is_reported_and_ignored()
