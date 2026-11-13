@@ -26,12 +26,6 @@ local function cvarKey(name)
   return type(name) == "string" and name:lower() or nil
 end
 
--- source: confirmed (row G29) the client's default for each CVar Blizzard's UI reads before anything sets it, from
--- Ketho's CVars dump; keys lowercase like the store.
-local CVAR_DEFAULTS = {
-  userfontscale = "1.000000",
-}
-
 local function toCvarValue(value)
   if type(value) == "boolean" then
     return value and "1" or "0"
@@ -40,13 +34,16 @@ local function toCvarValue(value)
 end
 
 local function installCvars(w)
+  -- source: confirmed (rows G29, G80) the client's default for every CVar, from Ketho's CVars dump of the flavor's
+  -- branch (api/<flavor>/globals.lua `cvars`, keys lowercase like the store).
+  local defaults = w.globals.cvars
   local function default(name)
     local key = cvarKey(name)
-    return key and CVAR_DEFAULTS[key] or nil
+    return key and defaults[key] or nil
   end
   local function get(name)
     local key = cvarKey(name)
-    return key and (w.mock.cvars[key] or CVAR_DEFAULTS[key]) or nil
+    return key and (w.mock.cvars[key] or default(key)) or nil
   end
   local function getBool(name)
     return get(name) == "1"
@@ -112,6 +109,12 @@ function M.install(w)
   local start = w.now
   define(w, "GetServerTime", function()
     return w.mock.serverTime + floor(w.now - start)
+  end)
+  -- source: confirmed (row G65) the returns hour, minute: tbc gametime_nocalendar.lua:17-18 `(hour * 60) + minute`; no API
+  -- doc types it. assumed: the realm clock is GetServerTime's, read as UTC.
+  define(w, "GetGameTime", function()
+    local minutes = floor(_G.GetServerTime() / 60)
+    return floor(minutes / 60) % 24, minutes % 60
   end)
   installRealm(w)
   installCvars(w)

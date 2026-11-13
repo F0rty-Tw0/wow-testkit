@@ -15,8 +15,11 @@ local unpack = unpack
 
 -- source: assumed (row C14) the default plate size; the page names no value.
 local PLATE_WIDTH, PLATE_HEIGHT = 110, 45
--- source: confirmed (row C14) nameplateShowEnemies and nameplateMaxDistance defaults; assumed nameplateShowFriends.
-local CVAR_DEFAULTS = { nameplateshowenemies = "1", nameplateshowfriends = "0", nameplatemaxdistance = "60.000000" }
+-- source: confirmed (rows C14, G80) nameplateShowEnemies and nameplateMaxDistance default per flavor from its branch's
+-- CVar dump (api/<flavor>/globals.lua `cvars`); assumed nameplateShowFriends "0" (no dump lists it).
+local DATA_CVARS = { "nameplateshowenemies", "nameplatemaxdistance" }
+local FRIENDS_DEFAULT = "0"
+-- A nameplateMaxDistance set to no number reads as retail's default (assumed).
 local DEFAULT_DISTANCE = 60
 local PLAYER = "player"
 local ORIGIN = { x = 0, y = 0 }
@@ -213,7 +216,11 @@ end
 function M.install(w)
   local c = w.combat
   c.plates, c.plateOf, c.platePool, c.plateCount = {}, {}, {}, 0
-  State.fill(w.mock.cvars, CVAR_DEFAULTS)
+  local defaults = { nameplateshowfriends = FRIENDS_DEFAULT }
+  for _, key in ipairs(DATA_CVARS) do
+    defaults[key] = w.globals.cvars[key]
+  end
+  State.fill(w.mock.cvars, defaults)
   local function sync()
     M.sync(w)
   end

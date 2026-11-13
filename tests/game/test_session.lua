@@ -88,6 +88,44 @@ local function test_unset_cvar_reads_its_client_default() -- (G29)
   end)
 end
 
+-- Nameplates.lua:799 (Blizzard_SettingsDefinitions_Frame, tbc and forever) passes both nameplate class colour defaults to
+-- bit.bor; unknown, they were nil and the bor raised at load. Only retail's live branch defaults them on. (G70, G80)
+local function test_nameplate_class_colour_defaults_follow_the_branch()
+  for flavor, want in pairs({ tbc = "0", vanilla = "0", mists = "0", retail = "1", forever = "0" }) do
+    G.withGame(flavor, function()
+      A.same({
+        _G.GetCVarDefault("nameplateShowClassColor"),
+        _G.GetCVarDefault("nameplateShowFriendlyClassColor"),
+        _G.GetCVar("nameplateShowClassColor"),
+      }, { want, want, want }, flavor)
+    end)
+  end
+end
+
+-- Graphics.lua (Blizzard_SettingsDefinitions_Shared; tbc :510, forever :755) asserts the gxMonitor default is 0 at load;
+-- unknown, it was nil and the assert raised. (G79)
+local function test_monitor_default_is_the_primary_monitor()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.GetCVarDefault("gxMonitor"), _G.C_CVar.GetCVarDefault("gxMonitor") }, { "0", "0" }, flavor)
+    end)
+  end
+end
+
+-- Graphics.lua Register (tbc :1299, forever :1555) subtracts tonumber(GetCVarDefault("ResampleSharpness")) from the
+-- slider's max; unknown, it was nil and the arithmetic raised at load. Every CVar the dump lists has its default. (G80)
+local function test_every_dumped_cvar_reads_its_branch_default()
+  for flavor, want in pairs({ tbc = "1", forever = "1.000000" }) do
+    G.withGame(flavor, function()
+      A.same({
+        _G.GetCVarDefault("ResampleSharpness"),
+        _G.C_CVar.GetCVarDefault("resampleSharpness"),
+        _G.GetCVar("userFontScale"),
+      }, { "0.2", "0.2", want }, flavor)
+    end)
+  end
+end
+
 local function test_namespaced_cvars_share_the_store() -- (G3)
   G.withGame("retail", function()
     _G.C_CVar.SetCVar("Bar", "7")
@@ -129,6 +167,15 @@ local function test_server_time_counts_whole_seconds_from_the_world_start() -- (
     local start = _G.GetServerTime()
     w:advance(2.75)
     A.eq(_G.GetServerTime(), start + 2)
+  end)
+end
+
+-- tbc GameTimeFrame_Update (gametime_nocalendar.lua:17-18) computes (hour * 60) + minute from GetGameTime(); a bare
+-- global with no signature, it answered nothing and the arithmetic raised at load. (G65)
+local function test_game_time_is_the_server_clock_hour_and_minute_assumed()
+  G.withGame("tbc", function(w)
+    w:setMock({ serverTime = 2 * 86400 + 13 * 3600 + 7 * 60 + 59 })
+    A.same({ _G.GetGameTime() }, { 13, 7 })
   end)
 end
 
@@ -193,11 +240,15 @@ return function()
   test_set_cvar_stores_the_string_form()
   test_namespaced_cvars_share_the_store()
   test_unset_cvar_reads_its_client_default()
+  test_nameplate_class_colour_defaults_follow_the_branch()
+  test_monitor_default_is_the_primary_monitor()
+  test_every_dumped_cvar_reads_its_branch_default()
   test_logged_in_flips_at_player_login_assumed()
   test_logged_in_is_nil_without_a_login()
   test_server_time_follows_the_world_clock()
   test_server_time_counts_whole_seconds_from_the_world_start()
   test_kit_values_and_client_flags_assumed()
+  test_game_time_is_the_server_clock_hour_and_minute_assumed()
   test_net_stats_keep_four_values_in_an_addon_call()
   test_scenario_mock_patches_the_world()
   test_names_the_flavor_lacks_stay_absent()

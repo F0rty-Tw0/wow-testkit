@@ -42,7 +42,26 @@ local function test_vehicle_and_tap_defaults_assumed()
   end)
 end
 
+-- source: row G54, the forever and tbc extracts call C_UnitAurasPrivate at load (privateaurainit.lua, AuraContainer.lua:8);
+-- the kit models no private auras, so lists are empty, lookups nil and registrations accepted.
+local function test_private_auras_answer_none_on_the_flavors_that_call_them_assumed()
+  G.withGame("forever", function()
+    local P = _G.C_UnitAurasPrivate
+    A.same({ P.GetAllPrivateAuras("player"), P.GetAllPrivateAuraInstanceIDs("player"), P.GetPrivateAuraAnchors() }, { {}, {}, {} })
+    A.same({ P.GetAuraDataByAuraInstanceIDPrivate("player", 1), P.GetPrivateAuraCasterGUID("player", 1) }, {})
+    A.eq(P.IsPrivateAuraFilteredOutByInstanceID("player", 1, "HELPFUL"), true)
+    A.eq(P.AddPrivateAuraUpdateCallback("player", {}), nil)
+  end)
+  G.withGame("tbc", function()
+    A.same(_G.C_UnitAurasPrivate.GetPrivateAuraAnchors(), {})
+  end)
+  G.withGame("retail", function()
+    A.eq(rawget(_G, "C_UnitAurasPrivate"), nil)
+  end)
+end
+
 return function()
+  test_private_auras_answer_none_on_the_flavors_that_call_them_assumed()
   test_portrait_is_a_labelled_stand_in_assumed()
   test_role_and_raid_target_follow_the_fixture_assumed()
   test_roleless_flavors_answer_none_assumed()

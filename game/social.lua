@@ -6,6 +6,7 @@
 -- info }. Use false to clear the club id a patch set earlier.
 local M = {}
 
+local SecretValue = require("combat_secret_value")
 local State = require("game.state")
 local WorldApi = require("world_api")
 local define = State.define
@@ -172,6 +173,20 @@ function M.install(w)
   -- source: confirmed (row G18) false for any ordinary value; w.isSecret (Task 8.9) names the secret ones.
   define(w, "issecretvalue", function(value)
     return w.isSecret ~= nil and w.isSecret(value) == true
+  end)
+  -- source: assumed (row G33) the kit never makes a wrapped value secret, so secretwrap hands its values back.
+  define(w, "secretwrap", function(...)
+    return ...
+  end)
+  -- source: confirmed (row G84, api/<flavor>/FrameScript.lua) one value back per value; forever
+  -- blizzard_auracontainergroups.lua:207-210 keys a table by the result. assumed: a kit secret (retail) comes back as the
+  -- value it hides, anything else as given.
+  define(w, "secretunwrap", function(...)
+    local values = { n = select("#", ...), ... }
+    for i = 1, values.n do
+      values[i] = SecretValue.reveal(values[i])
+    end
+    return unpack(values, 1, values.n)
   end)
   define(w, "C_HouseEditor.IsHouseEditorActive", function()
     return false

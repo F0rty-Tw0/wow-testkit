@@ -17,6 +17,7 @@ local Keys = require("game.keys")
 local Macros = require("game.macros")
 local Mail = require("game.mail")
 local Merchant = require("game.merchant")
+local PaperDoll = require("game.paperdoll")
 local Requests = require("game.requests")
 local Session = require("game.session")
 local Social = require("game.social")
@@ -53,6 +54,7 @@ local AREAS = {
   UnitFrame,
   EditMode,
   ClientApi,
+  PaperDoll,
   Requests,
   TalentsClassic,
   TalentsSpecInfo,

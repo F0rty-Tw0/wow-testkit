@@ -108,6 +108,15 @@ local function test_cvar_defaults_are_filled_in_the_cvar_store() -- (C14)
   end, true)
 end
 
+-- The classic branches' dumps default enemy plates off and the range to 41; the store had retail's 1 and 60. (C14, G80)
+local function test_classic_cvar_defaults_come_from_the_flavor_dump()
+  H.withCombat("tbc", function(w)
+    A.same({ _G.GetCVar("nameplateShowEnemies"), _G.GetCVar("nameplateMaxDistance") }, { "0", "41.000000" })
+    H.pair(w)
+    A.eq(_G.C_NamePlate.GetNamePlateForUnit("nameplate1"), nil)
+  end, true)
+end
+
 local function test_set_cvar_emits_the_cvar_hook_with_the_lowercase_name()
   H.withCombat("retail", function(w)
     local names = {}
@@ -316,6 +325,7 @@ return function()
   test_removed_fires_while_the_token_still_maps()
   test_range_and_cvars_gate_plates()
   test_cvar_defaults_are_filled_in_the_cvar_store()
+  test_classic_cvar_defaults_come_from_the_flavor_dump()
   test_set_cvar_emits_the_cvar_hook_with_the_lowercase_name()
   test_forbidden_plates_in_instances_assumed()
   test_get_name_plates_lists_plates_by_index()
