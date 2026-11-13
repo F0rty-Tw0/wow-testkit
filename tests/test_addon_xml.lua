@@ -60,8 +60,9 @@ end
 
 local function test_a_frame_anchored_to_itself_is_reported_and_the_load_goes_on()
   local xml = '<Ui>\n<Frame name="SelfA"><Anchors><Anchor point="TOP" relativeTo="SelfA"/></Anchors></Frame>\n<Frame name="After"/></Ui>'
-  withBrokenXml(xml, function(w, ns)
-    A.eq(reportedAt(w, 2), 1)
+  withBrokenXml(xml, function(w, ns, info)
+    A.contains(table.concat(info.report, "\n"), "Ui.xml:2: <Anchor> refused (Cannot anchor to itself); anchor skipped")
+    A.eq(#w.errors, 0, "row X41: a refused XML anchor is a load report, not a Lua error")
     A.eq(_G.After ~= nil, true)
     A.eq(ns.late, true)
   end)
@@ -72,9 +73,11 @@ local function test_an_anchor_cycle_between_two_frames_is_reported_and_the_load_
 <Frame name="CycA"><Anchors><Anchor point="TOP" relativeTo="CycB"/></Anchors></Frame>
 <Frame name="CycB"><Anchors><Anchor point="TOP" relativeTo="CycA"/></Anchors></Frame>
 <Frame name="After"/></Ui>]]
-  withBrokenXml(xml, function(w, ns)
-    A.eq(#w.errors, 1)
-    A.eq(reportedAt(w, 2), 1) -- CycA's anchor is the one that closes the loop, when it settles
+  withBrokenXml(xml, function(w, ns, info)
+    -- CycA's anchor is the one that closes the loop, when it settles (row X41)
+    local report = table.concat(info.report, "\n")
+    A.contains(report, "Ui.xml:2: <Anchor> refused (Cannot anchor to a region dependent on it); anchor skipped")
+    A.eq(#w.errors, 0)
     A.eq(_G.After ~= nil, true)
     A.eq(ns.late, true)
   end)
