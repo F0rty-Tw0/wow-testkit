@@ -280,7 +280,59 @@ local function test_math_extensions_leave_with_the_world()
   A.eq(_G.math.clamp, nil)
 end
 
+-- forever 70862 strings/enUS.lua writes the same achievement date as "%1$d/%2$02d/20%3$02d" and "%2$02d/%1$d/20%3$02d".
+local function test_format_takes_positional_specs()
+  local hostFormat = string.format
+  withWorld("tbc", function()
+    A.eq(_G.format("%2$02d/%1$d/20%3$02d", 7, 3, 26), "03/7/2026")
+    A.eq(_G.string.format("%1$s 100%% %1$s", "a"), "a 100% a")
+    A.eq(("%2$s-%1$s"):format("x", "y"), "y-x")
+    A.eq(_G.format("%s=%d", "n", 5), "n=5")
+    A.eq(_G.format, _G.string.format)
+    -- tbc paperdollframe CharacterDamageFrame_OnEnter formats "%.2F"; Lua 5.1 has no %F.
+    A.eq(_G.format("%.2F|%1$.1F|100%%F", 1.5), "1.50|1.5|100%F")
+  end)
+  A.eq(string.format, hostFormat, "the host format comes back with the world")
+end
+
+-- source: G51 forever's TimerUtil.CreateTimedSignalCallbackMap adds a method to the map C_Timer.NewTimedSignalMap
+-- returns (blizzard_sharedxmlbase/timerutil.lua:15-17); timedsignalmapapidocumentation.lua gives the methods.
+local function test_timed_signal_map_signals_due_keys_once() -- G51
+  withWorld("forever", function(w)
+    local fired = {}
+    local map = _G.C_Timer.NewTimedSignalMap(function(key)
+      fired[#fired + 1] = key
+    end)
+    map:SignalAfter(1, 2)
+    map:SignalAt(2, w.now + 1)
+    map:SignalAfter(3, 1)
+    map:CancelSignal(3)
+    A.same({ map:GetSignalCount(), map:HasSignal(1), map:HasSignal(3), map:GetNextSignal() }, { 2, true, false, 2, w.now + 1 })
+    w:advance(2)
+    A.same(fired, { 2, 1 })
+    A.same({ map:GetSignalCount(), map:GetSignalTime(1) }, { 0, nil })
+  end)
+  withWorld("tbc", function()
+    A.eq(_G.C_Timer.NewTimedSignalMap, nil)
+  end)
+end
+
+-- source: G52 forever's aura buttons configure C_StringUtil.CreateSecondsFormatter()'s object at load
+-- (blizzard_auracontainer/blizzard_auracontainershared.lua:75-93).
+local function test_seconds_formatter_keeps_its_settings_assumed() -- G52
+  withWorld("forever", function()
+    local formatter = _G.C_StringUtil.CreateSecondsFormatter()
+    formatter:SetDesiredUnitCount(2)
+    formatter:SetCanRoundUpLastUnit(true)
+    A.same({ formatter:GetDesiredUnitCount(), formatter:CanRoundUpLastUnit(), formatter:Format(61.6) }, { 2, true, "62s" })
+    formatter:Reset()
+    A.eq(formatter:GetDesiredUnitCount(), nil)
+  end)
+end
+
 return function()
+  test_seconds_formatter_keeps_its_settings_assumed()
+  test_timed_signal_map_signals_due_keys_once()
   test_strsplit_returns_each_piece()
   test_strsplit_separator_is_a_set_of_chars()
   test_strsplit_pieces_keeps_rest_in_last()
@@ -309,4 +361,5 @@ return function()
   test_c_timer_counted_and_validated_in_addon_context()
   test_math_extensions_have_the_usual_meanings_assumed()
   test_math_extensions_leave_with_the_world()
+  test_format_takes_positional_specs()
 end

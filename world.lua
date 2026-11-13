@@ -143,6 +143,16 @@ local function installBase(w, row)
   for name, values in pairs(w.manifest.constants) do
     constants[name] = shallowCopy(values)
   end
+  -- source: row G40 (confirmed) the client's Constants carry members no API doc lists (forever
+  -- InventoryConstants.NumBagSlots); the dump fills those, and a documented value wins.
+  for name, values in pairs(w.globals.constants) do
+    constants[name] = constants[name] or {}
+    for key, value in pairs(values) do
+      if constants[name][key] == nil then
+        constants[name][key] = value
+      end
+    end
+  end
   w:set("Enum", enum)
   w:set("Constants", constants)
   for name, id in pairs(Flavors.WOW_PROJECT) do
@@ -153,6 +163,13 @@ local function installBase(w, row)
   Luaext.install(w)
   LuaApi.install(w)
   Taint.install(w)
+  -- source: row G35 (confirmed) the engine injects these LE_* / NUM_LE_* numbers and no Blizzard Lua defines them; a value
+  -- already set keeps it, and the kit's own definitions installed later (game/clientapi.lua) replace these.
+  for name, value in pairs(w.globals.legacy) do
+    if rawget(_G, name) == nil then
+      w:set(name, value)
+    end
+  end
 end
 
 -- opts.flavor: one of Flavors.list. opts.screen: { width, height, useUiScale, uiScale }, see ui/screen.lua. opts.client:
@@ -227,12 +244,29 @@ function World:destroy()
   active = nil
 end
 
+-- An event the flavor's data lists, or the client extract's own API docs do (self.clientEvents, set by
+-- framexml/fakes/client.lua): the set RegisterEvent accepts and C_EventUtils.IsEventValid answers.
+function World:knowsEvent(event)
+  return (self.manifest.events[event] or self.globals.events[event] or (self.clientEvents or {})[event]) ~= nil
+end
+
+-- The signature of an API function: the flavor's data, else the client extract's own API docs (self.clientFunctions,
+-- set by framexml/fakes/client.lua, row G75); nil for a permissive-tier name or a non-API one.
+function World:signatureOf(name)
+  return self.manifest.functions[name] or (self.clientFunctions or {})[name]
+end
+
+-- A WoW API function on this world: documented (signatureOf) or listed in the flavor's globals.api.
+function World:isApi(name)
+  return self:signatureOf(name) ~= nil or self.globals.api[name] ~= nil
+end
+
 function World:passesGate(name, opts)
   local gate = opts and opts.gate or "none"
   if gate == "none" then
     return true
   elseif gate == "api" then
-    return self.manifest.functions[name] ~= nil or self.globals.api[name] ~= nil
+    return self:isApi(name)
   elseif gate == "framexml" then
     return self.globals.framexml[name] ~= nil or contains(opts.flavors or Flavors.list, self.flavor)
   end
@@ -244,8 +278,8 @@ function World:install(name, value, opts)
   if not self:passesGate(name, opts) then
     return false
   end
-  local signature = self.manifest.functions[name]
-  if type(value) == "function" and (signature or self.globals.api[name]) then
+  local signature = self:signatureOf(name)
+  if type(value) == "function" and self:isApi(name) then
     value = WorldApi.wrap(self, name, signature, value)
   end
   self:set(name, value)
@@ -261,7 +295,7 @@ end
 -- impl: function | { returns = {...} } | { byArgs = { ["arg1|arg2"] = {...} }, default = {...} }.
 -- On retail a stub gets the value a secret argument hides, as a kit implementation does (row C16).
 function World:stub(name, impl)
-  if not (self.manifest.functions[name] or self.globals.api[name]) then
+  if not self:isApi(name) then
     error("cannot stub '" .. tostring(name) .. "': not a WoW API function on " .. self.flavor, 2)
   end
   self.stubs[name] = impl

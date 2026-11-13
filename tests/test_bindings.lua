@@ -109,6 +109,18 @@ local function test_blocked_click_binding_does_nothing()
   end)
 end
 
+-- tbc MicroButtonTooltipText (mainmenubarmicrobuttons.lua:43) concatenates GetBindingText(GetBindingKey(action)); the
+-- kit had no GetBindingText, so the concat raised at load. (G71)
+local function test_binding_text_reads_each_part_as_its_display_string_assumed()
+  H.withSession(nil, function()
+    _G.KEY_ESCAPE, _G.SHIFT_KEY_TEXT = "Escape", "SHIFT"
+    A.same(
+      { _G.GetBindingText("ESCAPE"), _G.GetBindingText("SHIFT-ESCAPE"), _G.GetBindingText("F13"), _G.GetBindingText(nil) },
+      { "Escape", "SHIFT-Escape", "F13", "" }
+    )
+  end)
+end
+
 return function()
   test_wtf_lines_bind_keys()
   test_wtf_ignores_other_lines_and_lists_every_key()
@@ -119,4 +131,5 @@ return function()
   test_override_binding_wins_and_clears()
   test_a_priority_override_beats_a_plain_override()
   test_blocked_click_binding_does_nothing()
+  test_binding_text_reads_each_part_as_its_display_string_assumed()
 end

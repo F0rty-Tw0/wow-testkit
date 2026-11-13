@@ -157,6 +157,26 @@ local function test_forever_game_type_file_loads_on_forever_only()
   end
 end
 
+-- source: confirmed (row L8) wiki TOC_format [ExcludeLoadGameType]; forever 70862 blizzard_playerspells.toc pairs
+-- `[Family]/X [ExcludeLoadGameType camelot]` with `[Game]/X [AllowLoadGameType camelot]`.
+local function test_exclude_game_type_drops_the_line_on_those_game_types()
+  local parsed = Toc.parse(
+    "Mainline.lua [ExcludeLoadGameType camelot]\nOld.lua [ExcludeLoadGameType vanilla tbc]\n" .. "## Dep: A [ExcludeLoadGameType classic]\n"
+  )
+  local expected = {
+    retail = { "Mainline.lua", "Old.lua" },
+    forever = { "Old.lua" },
+    mists = { "Mainline.lua", "Old.lua" },
+    tbc = { "Mainline.lua" },
+    vanilla = { "Mainline.lua" },
+  }
+  for _, flavor in ipairs(Flavors.list) do
+    local files, report = Toc.filesFor(parsed, flavor)
+    A.same({ files, report }, { expected[flavor], {} }, flavor)
+    A.same(Toc.dependencies(parsed.meta, flavor).required, flavor == "retail" and { "A" } or flavor == "forever" and { "A" } or {}, flavor)
+  end
+end
+
 -- An addon root holding one empty TOC per suffix given.
 local function tocRoot(name, suffixes)
   local root = Tmp.dir("toc") .. "/" .. name
@@ -281,6 +301,7 @@ return function()
   test_wrath_or_cata_only_file_loads_on_no_flavor_assumed()
   test_plunderstorm_or_wowhack_only_file_loads_on_no_flavor_assumed()
   test_forever_game_type_file_loads_on_forever_only()
+  test_exclude_game_type_drops_the_line_on_those_game_types()
   test_forever_suffixed_toc_wins_over_mainline_on_forever()
   test_camelot_suffixed_toc_wins_over_forever_assumed()
   test_xml_file_is_listed_in_place()

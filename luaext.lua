@@ -3,6 +3,7 @@
 -- (issecure, securecall, forceinsecure, ...) are taint_api.lua.
 -- Installed into every world by world.lua (gate "none"; C_Timer through gate "api").
 local AddonEnv = require("addon_env")
+local AddonModules = require("addon_modules")
 local Names = require("addon_env_names")
 local Taint = require("taint")
 
@@ -15,12 +16,60 @@ local osClock = os.clock
 
 local DEFAULT_TRIM = " \t\r\n"
 local MS_PER_SECOND = 1000
+local hostFormat = string.format
+local POSITIONAL = "%%%d+%$"
+local POSITIONAL_SPEC = "^(%d+)%$([-+ #0]*%d*%.?%d*%a)()"
+local SEQUENTIAL_SPEC = "^([-+ #0]*%d*%.?%d*%a)()"
+
+-- C99's %F is %f with upper-case INF/NAN; Lua 5.1's format lacks it (row W84).
+local function hostSpec(spec)
+  return (spec:gsub("F$", "f"))
+end
 
 local function pack(...)
   return { n = select("#", ...), ... }
 end
 
--- WoW's aliases match the host library functions exactly, so the host function is installed as is.
+-- WoW's format: the host's, plus positional specs `%<n>$<spec>` taking argument n (row W84: the client's own strings
+-- reorder arguments, forever 70862 strings/enUS.lua "%2$02d/%1$d/20%3$02d"). A spec without n takes the next argument.
+-- %F formats as %f (tbc paperdollframe.lua CharacterDamageFrame_OnEnter "%.2F").
+function M.format(fmt, ...)
+  if type(fmt) ~= "string" or not (fmt:find(POSITIONAL) or fmt:find("F", 1, true)) then
+    return hostFormat(fmt, ...)
+  end
+  local args, parts, picked, nextArg, at = pack(...), {}, {}, 0, 1
+  while true do
+    local start = fmt:find("%", at, true)
+    if not start then
+      parts[#parts + 1] = fmt:sub(at)
+      break
+    end
+    parts[#parts + 1] = fmt:sub(at, start - 1)
+    local index, spec, stop = fmt:match(POSITIONAL_SPEC, start + 1)
+    if fmt:sub(start + 1, start + 1) == "%" then
+      parts[#parts + 1], at = "%%", start + 2
+    elseif index then
+      picked[#picked + 1] = tonumber(index)
+      parts[#parts + 1], at = "%" .. hostSpec(spec), stop
+    else
+      local plain, after = fmt:match(SEQUENTIAL_SPEC, start + 1)
+      nextArg = nextArg + 1
+      picked[#picked + 1] = nextArg
+      if plain then
+        parts[#parts + 1], at = "%" .. hostSpec(plain), after
+      else
+        parts[#parts + 1], at = "%", start + 1
+      end
+    end
+  end
+  local values = {}
+  for i, index in ipairs(picked) do
+    values[i] = args[index]
+  end
+  return hostFormat(table.concat(parts), unpack(values, 1, #picked))
+end
+
+-- WoW's aliases match the host library functions exactly, so the host function is installed as is (format: WoW's, above).
 -- unpack: Lua 5.1 already has it with WoW's semantics; installed only when the host lacks it.
 local ALIASES = {
   strmatch = string.match,
@@ -29,7 +78,8 @@ local ALIASES = {
   strlen = string.len,
   strlower = string.lower,
   strupper = string.upper,
-  format = string.format,
+  format = M.format,
+  ["string.format"] = M.format,
   tinsert = table.insert,
   tremove = table.remove,
   floor = math.floor,
@@ -180,7 +230,150 @@ local function installErrorHandler(w)
   end)
 end
 
+-- source: confirmed (row G51) forever 70862 blizzard_apidocumentationgenerated/timedsignalmapapidocumentation.lua: a map
+-- of integer keys, each due at an absolute GetTime() time; a due key leaves the map and goes to the callback; SignalAt and
+-- SignalAfter replace a key's schedule. Assumed: a plain table (timerutil.lua:17 adds a method to it), no secret values.
+local function newTimedSignalMap(w, callback)
+  local timers = {}
+  local map = {}
+  local function cancel(key)
+    if timers[key] then
+      timers[key]:Cancel()
+      timers[key] = nil
+    end
+  end
+  function map:SignalAt(key, time)
+    cancel(key)
+    timers[key] = w:schedule(time - w.now, function()
+      timers[key] = nil
+      callback(key)
+    end, 1)
+  end
+  function map:SignalAfter(key, seconds)
+    self:SignalAt(key, w.now + seconds)
+  end
+  function map:CancelSignal(key)
+    cancel(key)
+  end
+  function map:CancelAllSignals()
+    for key in pairs(timers) do
+      cancel(key)
+    end
+  end
+  function map:HasSignal(key)
+    return timers[key] ~= nil
+  end
+  function map:GetSignalTime(key)
+    return timers[key] and timers[key].due
+  end
+  function map:GetSignalCount()
+    local count = 0
+    for _ in pairs(timers) do
+      count = count + 1
+    end
+    return count
+  end
+  function map:GetNextSignal()
+    local nextKey, nextTime
+    for key, timer in pairs(timers) do
+      if nextTime == nil or timer.due < nextTime then
+        nextKey, nextTime = key, timer.due
+      end
+    end
+    return nextKey, nextTime
+  end
+  return map
+end
+
+-- source: confirmed (row G52) the method names, forever 70862 secondsformatterapidocumentation.lua: Set<P> stores a
+-- setting that Get<P> / Can<P> / Evaluate<P> read back, Reset clears them. Assumed: Format and FormatZero answer whole
+-- seconds as "<n>s" (the engine's unit and abbreviation rules have no source the kit can read).
+local FORMATTER_SETTINGS = {
+  "ApproximationSeconds",
+  "CanRoundUpIntervals",
+  "CanRoundUpLastUnit",
+  "ConvertToLower",
+  "DefaultAbbreviation",
+  "DesiredUnitCount",
+  "DesiredUnitCountCurve",
+  "MaxInterval",
+  "MaxIntervalCurve",
+  "MillisecondsThreshold",
+  "MinInterval",
+  "MinIntervalCurve",
+  "Rounding",
+  "StripIntervalWhitespace",
+}
+
+local function newSecondsFormatter()
+  local settings = {}
+  local formatter = {}
+  for _, name in ipairs(FORMATTER_SETTINGS) do
+    local bare = name:gsub("^Can", "")
+    formatter["Set" .. name] = function(_, value)
+      settings[name] = value
+    end
+    formatter[(name:find("^Can") and "" or "Get") .. name] = function()
+      return settings[name]
+    end
+    formatter["Evaluate" .. bare] = function()
+      return settings[name]
+    end
+  end
+  formatter.CanApproximate = function()
+    return settings.ApproximationSeconds ~= nil
+  end
+  formatter.Reset = function()
+    settings = {}
+  end
+  formatter.Format = function(_, seconds)
+    return math.floor(seconds + 0.5) .. "s"
+  end
+  formatter.FormatZero = function()
+    return "0s"
+  end
+  return formatter
+end
+
+-- source: assumed (row G53) securecopy(value) answers a deep copy of a table (keys and values copied, cycles kept) and
+-- any other value as is; the options argument is ignored.
+local function secureCopy(value, seen)
+  if type(value) ~= "table" then
+    return value
+  end
+  seen = seen or {}
+  if seen[value] then
+    return seen[value]
+  end
+  local copy = {}
+  seen[value] = copy
+  for key, item in pairs(value) do
+    copy[secureCopy(key, seen)] = secureCopy(item, seen)
+  end
+  return copy
+end
+
 local function installTimers(w)
+  w:install("C_StringUtil.CreateSecondsFormatter", newSecondsFormatter, { gate = "api" })
+  w:install("securecopy", function(value)
+    return secureCopy(value)
+  end, { gate = "api" })
+  -- grug: forever only by name, as G48: api/forever predates the doc set that lists it.
+  if w.flavor == "forever" then
+    -- source: row L9 (confirmed) forever's Gamepad addons call import at load (blizzard_gamepadsmartnavigation/
+    -- utility.lua:3); no doc lists it and the tbc extract never calls it.
+    w:install("import", function(path)
+      return AddonModules.import(w, path)
+    end)
+    w:install("C_Timer.NewTimedSignalMap", function(callback)
+      return newTimedSignalMap(
+        w,
+        Taint.adopt(w, function(key)
+          callback(key)
+        end, callback)
+      )
+    end)
+  end
   w:install("C_Timer.After", function(seconds, callback)
     -- The wrapper drops the timer argument; it runs with the callback's owner.
     local wrapper = function()

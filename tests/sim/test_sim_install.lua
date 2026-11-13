@@ -34,6 +34,13 @@ local function test_default_class_is_a_warrior_with_rage_assumed()
   end)
 end
 
+-- tbc paperdollframe.lua:201 formats UnitRace("player") into "Level %s %s %s"; a nil race raised in format.
+local function test_player_is_a_human_assumed()
+  H.each({}, function()
+    A.same({ _G.UnitRace("player") }, { "Human", "Human" })
+  end)
+end
+
 local function test_world_state_fields_assumed()
   H.each({}, function(w)
     A.same(w.sim.bounds, { minX = -50, maxX = 50, minY = -50, maxY = 50 })
@@ -120,6 +127,7 @@ end
 return function()
   test_install_places_the_player()
   test_default_class_is_a_warrior_with_rage_assumed()
+  test_player_is_a_human_assumed()
   test_world_state_fields_assumed()
   test_mage_at_level_20_assumed()
   test_no_sim_leaves_the_kit_unchanged()

@@ -74,7 +74,13 @@ local FIELD_ANSWERS = {
   UnitGetIncomingHeals = { "incomingHeals" },
   GetRaidTargetIndex = { "raidTarget" },
   UnitIsTapDenied = { "tapDenied" },
+  UnitXP = { "xp" },
+  UnitXPMax = { "xpMax" },
 }
+
+-- source: confirmed (row G59) both return one number (api/retail/Unit.lua UnitXP, UnitXPMax); the classic flavors list
+-- them as bare names with no signature, so they get the same default as retail: 0.
+local UNTYPED_DEFAULTS = { UnitXP = { n = 1, 0 }, UnitXPMax = { n = 1, 0 } }
 
 -- source: assumed (row G11) a fixture unit is connected and visible unless its fixture says otherwise, (row G20) and
 -- not tap denied. Applied before the manifest default and not counted as unscripted.
@@ -156,7 +162,7 @@ end
 
 local function fieldAnswer(w, name, fields)
   local signature = w.manifest.functions[name]
-  local defaults = signature and WorldApi.defaults(signature) or { n = 0 }
+  local defaults = signature and WorldApi.defaults(signature) or UNTYPED_DEFAULTS[name] or { n = 0 }
   return function(unit)
     local data = fixture(w.unitState, unit)
     if not data then

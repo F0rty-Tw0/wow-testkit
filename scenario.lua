@@ -109,29 +109,42 @@ function Scenario:fireIfKnown(event, ...)
   w:run(ENGINE, w.fire, w, event, ...)
 end
 
+-- The login events, PLAYER_LOGIN through PLAYER_ENTERING_WORLD.
+local function fireLogin(self, reloading)
+  for _, event in ipairs(LOGIN_EVENTS) do
+    if event == "PLAYER_LOGIN" then
+      self.w.mock.loggedIn = true
+    end
+    self:fireIfKnown(event)
+  end
+  self:fireEditMode()
+  -- source: row G36 (assumed: the place in the order) Blizzard's chat frames read their window settings
+  -- (GetChatWindowInfo: colour, alpha, docking) only on this event (FloatingChatFrame_Update).
+  self:fireIfKnown("UPDATE_CHAT_WINDOWS")
+  self:fireIfKnown("PLAYER_ENTERING_WORLD", not reloading, reloading)
+end
+
 -- Loads the addon and its dependencies (each with its saved variables and ADDON_LOADED) and fires the login events.
 -- opts.saved overrides s.saved; opts.reloading fires PLAYER_ENTERING_WORLD(isInitialLogin = false, isReloadingUi =
 -- true) instead of (true, false). When the addon is skipped (not declared on the flavor, a dependency missing or not
--- loadable), raises SKIPPED so the rest of the run does not execute.
+-- loadable), raises SKIPPED so the rest of the run does not execute; a loaded Blizzard UI layer still gets the login
+-- events first.
+-- source: assumed, the client still logs in when an addon is out of date or not declared for the flavor, so Blizzard's
+-- own frames get their Edit Mode layout either way.
 function Scenario:login(opts)
   local reloading = opts ~= nil and opts.reloading == true
   if opts and opts.saved ~= nil then
     self.saved = opts.saved
   end
-  local w = self.w
   self:loadBlizzard()
   self.ns, self.info = ScenarioAddons.load(self)
   if self.info.status == "skipped" then
+    if self.blizzardLoaded then
+      fireLogin(self, reloading)
+    end
     error(SKIPPED, 0)
   end
-  for _, event in ipairs(LOGIN_EVENTS) do
-    if event == "PLAYER_LOGIN" then
-      w.mock.loggedIn = true
-    end
-    self:fireIfKnown(event)
-  end
-  self:fireEditMode()
-  self:fireIfKnown("PLAYER_ENTERING_WORLD", not reloading, reloading)
+  fireLogin(self, reloading)
 end
 
 function Scenario:unit(token, data)

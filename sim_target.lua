@@ -108,8 +108,8 @@ function M.nearestEnemy(w)
 end
 
 -- Fires UI_ERROR_MESSAGE(errorType, message) for the global string name.
--- source: assumed (spec 5.1) the extract's UIErrorsFrame reads LE_GAME_ERR_* it never defines, so errorType is 0 unless a
--- scenario sets the constant.
+-- source: assumed (spec 5.1, row G41) errorType is the LE_GAME_ERR_<suffix> number game/clientapi.lua sets, or 0 for a
+-- name it does not list.
 function M.uiError(w, name)
   local suffix = name:gsub("^ERR_", "")
   local errorType = _G["LE_GAME_ERR_" .. suffix] or 0

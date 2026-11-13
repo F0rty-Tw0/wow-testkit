@@ -4,6 +4,7 @@
 local M = {}
 
 local AddonEnv = require("addon_env")
+local AddonModules = require("addon_modules")
 local Flavors = require("tools.flavors")
 local Toc = require("toc")
 local Xml = require("ui.xml")
@@ -47,12 +48,12 @@ local function compile(w, ctx, source, chunkName)
   return setfenv(chunk, ctx.env)
 end
 
--- Compiles source as chunkName and runs it as the addon, in the addon's environment.
+-- Compiles source as chunkName and runs it as the addon, in the addon's environment. Returns the chunk's first result
+-- (nil when it did not compile, raised or returned nothing).
 local function runChunk(w, ctx, source, chunkName)
   local chunk = compile(w, ctx, source, chunkName)
-  if chunk then
-    w:callAsAddon(chunk, ctx.name, ctx.ns)
-  end
+  local results = chunk and w:callAsAddon(chunk, ctx.name, ctx.ns)
+  return results and results[1] and results[2] or nil
 end
 
 -- Runs a TOC- or XML-listed Lua file, relative to the addon root, read through ctx.readFile (listedBy: the XML file
@@ -64,7 +65,7 @@ function M.runFile(w, ctx, relative, listedBy)
     return
   end
   source = (source:gsub(UTF8_BOM, ""))
-  runChunk(w, ctx, source, "addon:" .. ctx.name .. "/" .. relative)
+  AddonModules.record(w, ctx.name, relative, runChunk(w, ctx, source, "addon:" .. ctx.name .. "/" .. relative))
 end
 
 -- Source that sits at `line` of its file: the padding makes an error name that line, not line 1.
