@@ -35,6 +35,16 @@ local function test_lazy_frame_stays_shown_without_the_blizzard_layer()
   end
 end
 
+-- `tk catalog --blizzard-ui` on a flavor with no extract sets w.blizzard (blizzard_ui.lua M.load) but loads nothing;
+-- the core frames must still be there.
+local function test_lazy_frame_stays_shown_when_the_layer_has_no_extract()
+  withFrameXML("retail", function(w)
+    require("blizzard_ui").load(w, nil)
+    A.eq(w.blizzard ~= nil and w.client == nil, true)
+    A.eq(_G.ChatFrame1:IsShown(), true)
+  end)
+end
+
 local function test_unknown_name_stays_nil()
   withFrameXML("retail", function()
     A.eq(_G.NotAFrameName, nil)
@@ -91,6 +101,7 @@ return function()
   test_known_frame_name_resolves_to_frame_counted_unscripted()
   test_lazy_frame_is_nil_with_the_blizzard_layer_assumed()
   test_lazy_frame_stays_shown_without_the_blizzard_layer()
+  test_lazy_frame_stays_shown_when_the_layer_has_no_extract()
   test_unknown_name_stays_nil()
   test_existing_globals_metatable_index_still_answers()
   test_chat_frame_edit_box_names_resolve_to_edit_boxes()
