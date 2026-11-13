@@ -50,6 +50,60 @@ local function test_button_text_is_the_buttons_font_string_with_height_and_shado
   end)
 end
 
+-- forever blizzard_compactraidframemanager.xml:354 gives its tabs text="GROUPMANAGER_UNIT_MARKER" and the parent's OnLoad
+-- (.lua:1339) reads tab:GetFontString():GetStringWidth(); the attribute was ignored on frames. (X39)
+local function test_button_text_attribute_sets_the_text_assumed()
+  local xml = [[
+<Ui><Button name="TxA" text="TK_LABEL"/>
+  <Button name="TxB" text="Plain"><ButtonText name="$parentText"/></Button></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    _G.TK_LABEL = "Label"
+    H.load(w, ctx, "Ui.xml")
+    A.same({ _G.TxA:GetText(), _G.TxA:GetFontString():GetText() }, { "Label", "Label" })
+    A.same({ _G.TxB:GetFontString() == _G.TxBText, _G.TxB:GetText() }, { true, "Plain" })
+    local shown = 0
+    for _, region in ipairs({ _G.TxB:GetRegions() }) do
+      shown = shown + ((region:GetObjectType() == "FontString" and region:IsShown()) and 1 or 0)
+    end
+    A.eq(shown, 1, "the attribute's FontString steps aside for <ButtonText>'s")
+    A.eq(reportText(ctx):find("'text'"), nil)
+  end)
+end
+
+-- forever CRFManagerMarkerTabTemplate (blizzard_compactraidframemanager.xml:102-103) gives its tabs <NormalFont> and
+-- <HighlightFont>; the kit reported them unsupported and the tabs kept no font objects. (X40)
+local function test_state_font_elements_set_the_font_objects()
+  local xml = [[
+<Ui><Button name="TkFonts"><NormalFont style="TkNormal"/><HighlightFont style="TkHigh"/><DisabledFont style="TkOff"/></Button></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    local fonts = {}
+    for _, name in ipairs({ "TkNormal", "TkHigh", "TkOff" }) do
+      fonts[name] = _G.CreateFont(name)
+    end
+    H.load(w, ctx, "Ui.xml")
+    local b = _G.TkFonts
+    A.same({ b:GetNormalFontObject(), b:GetHighlightFontObject(), b:GetDisabledFontObject() }, { fonts.TkNormal, fonts.TkHigh, fonts.TkOff })
+    A.eq(reportText(ctx):find("Font>"), nil)
+  end)
+end
+
+-- source: tbc 70577 blizzard_uipanels_game/classic/friendsframe.xml:183 declares a <Button> that inherits the
+-- <CheckButton> ActionButtonTemplate (actionbuttontemplate.xml:149 has a <CheckedTexture>), and the live client loads
+-- the friends frame. assumed: the part a Button has no setter for is skipped and the rest of the template still applies.
+local MIXED = [[
+<Ui><CheckButton name="CbTemplate" virtual="true"><NormalTexture file="Interface\N"/>
+  <CheckedTexture file="Interface\C"/></CheckButton>
+<Button name="Mixed" inherits="CbTemplate"/></Ui>]]
+
+local function test_a_part_texture_the_widget_has_no_setter_for_is_skipped_assumed()
+  H.withXml({ ["Ui.xml"] = MIXED }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local btn = _G.Mixed
+    A.same({ btn:GetObjectType(), btn:GetNormalTexture():GetTexture() }, { "Button", "Interface\\N" })
+    A.contains(reportText(ctx), "Ui.xml:2: Button has no SetCheckedTexture; <CheckedTexture> ignored")
+  end)
+end
+
 local BACKDROP = [[
 <Ui><Frame name="Bd" inherits="BackdropTemplate"><Backdrop bgFile="Interface\Bg" edgeFile="Interface\Edge" tile="true">
   <BackgroundInsets><AbsInset left="4" right="3" top="2" bottom="1"/></BackgroundInsets><TileSize><AbsValue val="16"/></TileSize>
@@ -139,7 +193,10 @@ return function()
   test_button_state_textures_belong_to_the_button()
   test_state_texture_alpha_mode_sets_the_blend_mode_assumed()
   test_state_texture_runs_its_own_children()
+  test_a_part_texture_the_widget_has_no_setter_for_is_skipped_assumed()
   test_button_text_is_the_buttons_font_string_with_height_and_shadow()
+  test_button_text_attribute_sets_the_text_assumed()
+  test_state_font_elements_set_the_font_objects()
   test_legacy_backdrop_fills_the_backdrop_info()
   test_legacy_backdrop_needs_the_backdrop_template()
 end

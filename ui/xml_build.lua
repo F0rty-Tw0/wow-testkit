@@ -76,11 +76,18 @@ local function unsupportedTag(session, node)
   session.report("tag:" .. node.tag, "unsupported XML <" .. node.rawTag .. "> ignored")
 end
 
--- `name` with each `$parent` replaced by the parent's name; an anonymous or missing parent gives "". A function
--- replacement keeps a "%" in the parent's name literal.
--- source: wiki XML/LayoutFrame, name: "substituting `$parent` with a parent's name"; row X2 (the "" is assumed).
+-- `name` with each `$parent` replaced by the name of the parent, else of its nearest named ancestor; "" when none has
+-- one. A function replacement keeps a "%" in the name literal.
+-- source: wiki XML/LayoutFrame, name: "substituting `$parent` with a parent's name"; row X2: confirmed (forever 70862
+-- blizzard_compactraidframemanager.xml:391-394 `$parentLeavePartyButton` under an anonymous frame of
+-- CompactRaidFrameManager, read as CompactRaidFrameManagerLeavePartyButton) for one anonymous level; deeper and "" assumed.
 function M.substituteParent(name, parent)
-  local parentName = parent and parent:GetName() or ""
+  local parentName = parent and parent:GetName()
+  while parent and not parentName do
+    parent = parent:GetParent()
+    parentName = parent and parent:GetName()
+  end
+  parentName = parentName or ""
   return (name:gsub("%$parent", function()
     return parentName
   end))
@@ -118,8 +125,26 @@ local attach = M.attach
 -- source: wiki XML, example `<Frame parent="UIParent">`: parent names a global frame. With no parent attribute a
 -- top-level frame is parentless, not UIParent's child (row X1, assumed); a nested one keeps its enclosing frame, as does
 -- one whose parent global is missing or no widget (a string, a plain table: reported, assumed).
+-- The parent= of the nearest XML template node inherits (depth first, in inherits order), or nil.
+-- source: confirmed (row X29) forever containerframe.xml:229 gives ContainerFrameTemplate parent="ContainerFrameContainer"
+-- parentArray="ContainerFrames", :299-301 declare `<Frame name="ContainerFrame2" inherits="ContainerFrameTemplate"/>`
+-- with no parent, and containerframe.lua:2339 reads ContainerFrameContainer.ContainerFrames[i].
+local function inheritedParent(w, node, seen)
+  for name in (node.attrs.inherits or ""):gmatch("[^,%s]+") do
+    local virtual = w.ui.virtuals[name]
+    if virtual and not seen[name] then
+      seen[name] = true
+      local named = virtual.node.attrs.parent or inheritedParent(w, virtual.node, seen)
+      if named then
+        return named
+      end
+    end
+  end
+  return nil
+end
+
 local function parentOf(w, node, enclosing, session)
-  local named = node.attrs.parent
+  local named = node.attrs.parent or inheritedParent(w, node, {})
   local parent = named and AddonEnv.global(w, named, true)
   if named and not w.ui.state[parent or false] then
     session.report("parent:" .. named, "parent '" .. named .. (parent == nil and "' not found" or "' is not a frame"))
@@ -138,17 +163,54 @@ function M.child(w, obj, child, session)
   end
 end
 
--- Runs each child element of obj in document order, except that KeyValues come first (row X11: set before OnLoad; the
--- order against mixins and children is assumed).
+-- Runs each child element of obj in document order, except that Mixins and then KeyValues come first (row X11:
+-- KeyValues are set before OnLoad; row X32: a <Mixins> element applies where the mixin attribute does, before them; the
+-- order against children is assumed).
+local FIRST = { "mixins", "keyvalues" }
 function M.children(w, obj, node, session)
-  for _, child in ipairs(node.children) do
-    if child.tag == "keyvalues" then
-      M.child(w, obj, child, session)
+  for _, tag in ipairs(FIRST) do
+    for _, child in ipairs(node.children) do
+      if child.tag == tag then
+        M.child(w, obj, child, session)
+      end
     end
   end
   for _, child in ipairs(node.children) do
-    if child.tag ~= "keyvalues" then
+    if child.tag ~= "keyvalues" and child.tag ~= "mixins" then
       M.child(w, obj, child, session)
+    end
+  end
+end
+
+-- source: forever 70862 ui.xsd:352-366, `<Mixins>` holds `<Mixin key=...>` (row X32): each key is copied as a mixin=
+-- name is; source, targetPartition, inboundPartition and secureDelegates are ignored (one environment, assumed).
+function M.handlers.mixins(w, obj, st, node, session)
+  for _, child in ipairs(node.children) do
+    if child.tag == "mixin" and child.attrs.key then
+      XmlAttrs.frame.mixin(w, obj, st, child.attrs.key, child, session)
+    end
+  end
+end
+
+-- Sets the KeyValues of node's whole inherits chain (depth first, in inherits order, so a deriving template's win),
+-- then node's own, on obj before any of its content is built. The build applies them again in place (and reports a
+-- bad type there), so the final values and the KeyValues-over-mixin order (row X32) do not change.
+-- source: row X33, forever 70862 blizzard_sharedxml/shared/button/threeslicebuttontemplate.xml: the base template's
+-- Controller child's OnLoad (shareduipaneltemplates.lua:1075-1078) calls the parent's InitButton, which reads
+-- atlasName that only the inheriting template's KeyValues set (:67-69). Assumed: a child's OnLoad can change the key
+-- and the build's own pass sets it back; mixins are not applied early.
+function M.keyValuesFirst(w, obj, node, seen)
+  seen = seen or {}
+  for name in (node.attrs.inherits or ""):gmatch("[^,%s]+") do
+    local virtual = w.ui.virtuals[name]
+    if virtual and not seen[name] then
+      seen[name] = true
+      M.keyValuesFirst(w, obj, virtual.node, seen)
+    end
+  end
+  for _, child in ipairs(node.children) do
+    if child.tag == "keyvalues" then
+      M.handlers.keyvalues(w, obj, nil, child, { report = function() end })
     end
   end
 end
@@ -260,7 +322,10 @@ function M.frame(w, node, parent, session)
   local frame = Widgets.newFrame(w, node.rawTag, fullName(node, parent), parent)
   local st = w.ui.state[frame]
   attach(parent, frame, node.attrs, st)
+  M.keyValuesFirst(w, frame, node)
+  st.keyValuesSet = true -- TemplateApply.applyList skips its own pass
   M.body(w, frame, node, session)
+  st.keyValuesSet = nil
   for _, finish in ipairs(M.finishers) do
     finish(w, frame, st, node, session)
   end
@@ -269,14 +334,18 @@ function M.frame(w, node, parent, session)
 end
 
 -- Builds the region `node` describes in frame, in draw layer `layer` (default ARTWORK) at sublevel `sub` (default 0).
--- Nil when the tag is no region type on this flavor (reported) or the element is virtual (registered as a template).
+-- Nil when the tag is no region type on this flavor (reported) or the element is a root virtual one (frame nil:
+-- registered as a template).
+-- source: confirmed (row X37) a region inside a frame is built even when it says virtual="true": tbc 70577
+-- blizzard_sharedxml/classic/modelframes.xml:15 `<Texture name="$parentIcon" virtual="true" parentKey="icon">` in
+-- ModelControlButtonTemplate, and the inheriting buttons' OnLoad (:114) index self.icon.
 function M.region(w, node, frame, session, layer, sub)
   local typeName = REGION_TYPES[node.tag]
   if not (typeName and w.globals.widgets[typeName]) then
     unsupportedTag(session, node)
     return nil
   end
-  if node.attrs.virtual == "true" then
+  if node.attrs.virtual == "true" and frame == nil then
     declareVirtual(w, node, session)
     return nil
   end

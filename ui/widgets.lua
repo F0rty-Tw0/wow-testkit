@@ -22,6 +22,20 @@ local NO_VALUES = { n = 0 }
 local GETTER_PATTERNS = { "^Get(%u.*)$", "^Is(%u.*)$" }
 local SETTER_PATTERN = "^Set(%u.*)$"
 
+-- A table whose string keys ignore case: they are stored, and looked up, lowercased.
+local function lowerKey(key)
+  return type(key) == "string" and key:lower() or key
+end
+local CASELESS = {
+  __index = function(t, key)
+    local lower = lowerKey(key)
+    return lower ~= key and rawget(t, lower) or nil
+  end,
+  __newindex = function(t, key, value)
+    rawset(t, lowerKey(key), value)
+  end,
+}
+
 -- Per Ketho widget table (one per flavor): lowercase type -> type, and type -> plan. Plans are pure data.
 local catalogs = setmetatable({}, { __mode = "k" })
 
@@ -227,8 +241,12 @@ function M.newFrame(w, frameType, name, parent)
 end
 
 local function createFrame(w)
-  return function(frameType, name, parent, template)
+  -- source: assumed (row W81) id is CreateFrame's 5th argument, set before the template's OnLoad runs.
+  return function(frameType, name, parent, template, id)
     local frame = M.newFrame(w, frameType, name, parent)
+    if id ~= nil then
+      frame:SetID(id)
+    end
     M.applyTemplates(w, frame, template)
     return frame
   end
@@ -279,8 +297,10 @@ function M.install(w)
     classes = {},
     classMethods = setmetatable({}, { __mode = "k" }),
     intrinsics = {},
-    -- name -> { type, node, size(), apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them)
-    virtuals = {},
+    -- name -> { type, node, size(), apply(w, obj, st) }, the XML virtual templates (ui/xml_build.lua registers them).
+    -- source: confirmed (row X36) names ignore case: tbc 70577 blizzard_sharedxml/classic/scrolldefine.lua:1 names
+    -- "WoWClassicScrollBar", classic/scroll/trimscrollbar.xml:5 defines WowClassicScrollBar. Keys are stored lowercased.
+    virtuals = setmetatable({}, CASELESS),
     seq = 0,
     -- seq -> widget, weak-valued: EnumerateFrames walks it in creation order
     bySeq = setmetatable({}, { __mode = "v" }),

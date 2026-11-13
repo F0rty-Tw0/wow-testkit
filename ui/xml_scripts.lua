@@ -79,18 +79,19 @@ local function inlineBody(w, node, session)
 end
 
 -- source: wiki XML/Scripts, `inherit` "Hooks (prepend, append) other scripts inherited through an XML virtual
--- template" (row X4); which order each gives is assumed: prepend runs the new handler first, append last. (row X22,
--- assumed) an error in the first handler is recorded and the second still runs.
+-- template" (row X4). The order is confirmed from Blizzard code: prepend runs the inherited handler first, append runs
+-- it last (the chat edit box's append OnLoad sets self.chatFrame before ChatFrameEditBoxMixin:OnLoad reads it). (row
+-- X22, assumed) an error in the first handler is recorded and the second still runs.
 local function combine(w, new, inherited, mode)
   if mode == "prepend" then
     return function(self, ...)
-      w:callAsAddon(new, self, ...)
-      return inherited(self, ...)
+      w:callAsAddon(inherited, self, ...)
+      return new(self, ...)
     end
   elseif mode == "append" then
     return function(self, ...)
-      w:callAsAddon(inherited, self, ...)
-      return new(self, ...)
+      w:callAsAddon(new, self, ...)
+      return inherited(self, ...)
     end
   end
   return new

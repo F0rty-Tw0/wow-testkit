@@ -222,6 +222,23 @@ local function test_color_calls_the_setter_of_its_region_assumed()
   end)
 end
 
+-- source: X30 forever's HelpPlateTooltip BG (blizzard_helpplate/blizzard_helpplate.xml:129-138) is a white <Color> under a
+-- dark VERTICAL <Gradient>; ui.xsd:326-333 gives MinColor/MaxColor children and orientation default HORIZONTAL.
+local function test_gradient_element_sets_the_texture_gradient() -- X30
+  local xml = [[
+<Ui><Frame name="Grad"><Layers><Layer level="BACKGROUND">
+  <Texture parentKey="BG"><Color r="1" g="1" b="1"/>
+    <Gradient orientation="VERTICAL"><MinColor r="0.23" g="0.19" b="0"/><MaxColor r="0" g="0" b="0"/></Gradient>
+  </Texture>
+  <Texture parentKey="Flat"><Gradient><MinColor r="1" g="0" b="0" a="0.5"/><MaxColor r="0" g="0" b="1"/></Gradient></Texture>
+</Layer></Layers></Frame></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same(w.ui.state[_G.Grad.BG].tex.gradient, { orientation = "VERTICAL", min = { 0.23, 0.19, 0, 1 }, max = { 0, 0, 0, 1 } })
+    A.same(w.ui.state[_G.Grad.Flat].tex.gradient, { orientation = "HORIZONTAL", min = { 1, 0, 0, 0.5 }, max = { 0, 0, 1, 1 } })
+  end)
+end
+
 local function test_keyvalues_set_string_number_and_boolean()
   local xml = [[
 <Ui><Frame name="Kv"><KeyValues>
@@ -287,6 +304,7 @@ return function()
   test_second_anchors_element_drops_the_first_ones_waiting_anchors_assumed()
   test_layers_give_regions_their_draw_layer_and_texcoords()
   test_color_calls_the_setter_of_its_region_assumed()
+  test_gradient_element_sets_the_texture_gradient()
   test_keyvalues_set_string_number_and_boolean()
   test_global_keyvalue_stores_the_global_assumed()
   test_keyvalue_types_follow_the_schema_conversions()
