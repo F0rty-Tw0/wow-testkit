@@ -104,6 +104,26 @@ local UI_COLORS = {
   { baseTag = "ERROR_COLOR", color = { r = 1, g = 32 / 255, b = 32 / 255, a = 1 } }, -- ffff2020
   { baseTag = "DEFAULT_MATERIAL_TEXT_COLOR", color = { r = 46 / 255, g = 31 / 255, b = 15 / 255, a = 1 } }, -- ff2e1f0f
   { baseTag = "GAMEPAD_SMARTNAV_CURSOR_COLOR", color = { r = 1, g = 230 / 255, b = 0, a = 1 } }, -- ffffe600
+  -- source: row W94 (confirmed) GlobalColor rows 157-171 (ARGB in each comment);
+  -- blizzard_colors/shared/colorconstants.lua builds MATERIAL_TEXT_COLOR_TABLE (:3-9) and
+  -- MATERIAL_TITLETEXT_COLOR_TABLE (:12-21) from them at load (forever adds Progenitor at
+  -- mainline/colorconstants.lua:166-167), and GetMaterialTextColors indexes both (materialcolors.lua:1-8); no extract
+  -- Lua defines them.
+  { baseTag = "STONE_MATERIAL_TEXT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } }, -- ffffffff
+  { baseTag = "PARCHMENT_MATERIAL_TEXT_COLOR", color = { r = 46 / 255, g = 31 / 255, b = 15 / 255, a = 1 } }, -- ff2e1f0f
+  { baseTag = "MARBLE_MATERIAL_TEXT_COLOR", color = { r = 0, g = 0, b = 0, a = 1 } }, -- ff000000
+  { baseTag = "SILVER_MATERIAL_TEXT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } }, -- ffffffff
+  { baseTag = "BRONZE_MATERIAL_TEXT_COLOR", color = { r = 46 / 255, g = 31 / 255, b = 15 / 255, a = 1 } }, -- ff2e1f0f
+  { baseTag = "PARCHMENTLARGE_MATERIAL_TEXT_COLOR", color = { r = 36 / 255, g = 0, b = 0, a = 1 } }, -- ff240000
+  { baseTag = "PROGENITOR_MATERIAL_TEXT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } }, -- ffffffff
+  { baseTag = "DEFAULT_MATERIAL_TITLETEXT_COLOR", color = { r = 0, g = 0, b = 0, a = 1 } }, -- ff000000
+  { baseTag = "STONE_MATERIAL_TITLETEXT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } }, -- ffffffff
+  { baseTag = "PARCHMENT_MATERIAL_TITLETEXT_COLOR", color = { r = 0, g = 0, b = 0, a = 1 } }, -- ff000000
+  { baseTag = "MARBLE_MATERIAL_TITLETEXT_COLOR", color = { r = 237 / 255, g = 209 / 255, b = 0, a = 1 } }, -- ffedd100
+  { baseTag = "SILVER_MATERIAL_TITLETEXT_COLOR", color = { r = 237 / 255, g = 209 / 255, b = 0, a = 1 } }, -- ffedd100
+  { baseTag = "BRONZE_MATERIAL_TITLETEXT_COLOR", color = { r = 237 / 255, g = 209 / 255, b = 0, a = 1 } }, -- ffedd100
+  { baseTag = "PARCHMENTLARGE_MATERIAL_TITLETEXT_COLOR", color = { r = 53 / 255, g = 0, b = 0, a = 1 } }, -- ff350000
+  { baseTag = "PROGENITOR_MATERIAL_TITLETEXT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } }, -- ffffffff
 }
 
 local function byte(channel)

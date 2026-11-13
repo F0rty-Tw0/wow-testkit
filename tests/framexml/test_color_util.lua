@@ -185,6 +185,51 @@ local function test_xml_named_colours_come_from_the_ui_colour_table() -- W93
   end
 end
 
+local function test_material_text_colours_come_from_the_ui_colour_table() -- W94
+  local names = {
+    "STONE_MATERIAL_TEXT_COLOR",
+    "PARCHMENT_MATERIAL_TEXT_COLOR",
+    "MARBLE_MATERIAL_TEXT_COLOR",
+    "SILVER_MATERIAL_TEXT_COLOR",
+    "BRONZE_MATERIAL_TEXT_COLOR",
+    "PARCHMENTLARGE_MATERIAL_TEXT_COLOR",
+    "PROGENITOR_MATERIAL_TEXT_COLOR",
+    "DEFAULT_MATERIAL_TITLETEXT_COLOR",
+    "STONE_MATERIAL_TITLETEXT_COLOR",
+    "PARCHMENT_MATERIAL_TITLETEXT_COLOR",
+    "MARBLE_MATERIAL_TITLETEXT_COLOR",
+    "SILVER_MATERIAL_TITLETEXT_COLOR",
+    "BRONZE_MATERIAL_TITLETEXT_COLOR",
+    "PARCHMENTLARGE_MATERIAL_TITLETEXT_COLOR",
+    "PROGENITOR_MATERIAL_TITLETEXT_COLOR",
+  }
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      local hex = {}
+      for i, name in ipairs(names) do
+        hex[i] = _G[name] and _G[name]:GenerateHexColor() or name .. " missing"
+      end
+      A.same(hex, {
+        "ffffffff",
+        "ff2e1f0f",
+        "ff000000",
+        "ffffffff",
+        "ff2e1f0f",
+        "ff240000",
+        "ffffffff",
+        "ff000000",
+        "ffffffff",
+        "ff000000",
+        "ffedd100",
+        "ffedd100",
+        "ffedd100",
+        "ff350000",
+        "ffffffff",
+      }, flavor)
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -303,6 +348,7 @@ return function()
   test_compact_unit_frame_colours_come_from_the_ui_colour_table()
   test_debuff_type_colours_come_from_the_ui_colour_table()
   test_xml_named_colours_come_from_the_ui_colour_table()
+  test_material_text_colours_come_from_the_ui_colour_table()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
   test_a_hex_string_of_the_wrong_length_asserts_and_returns_nil()
