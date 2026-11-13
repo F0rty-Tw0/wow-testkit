@@ -14,7 +14,14 @@ window.TK = window.TK || {};
   'use strict';
 
   const calls = [];
-  const marks = { beforeSnapshot2: 0, statesBeforeStep: 0 };
+  const marks = { beforeSnapshot2: 0, statesBeforeStep: 0, sceneDetached: 0 };
+  // A WebGL canvas taken out of the page and put back shows nothing until its next frame, so a redraw must leave the
+  // scene node in place, not only end with it first (W103).
+  new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.removedNodes) if (node.id === 'background') marks.sceneDetached += 1;
+    }
+  }).observe(document.getElementById('stage'), { childList: true });
   const attached = [];
   const attachedDeps = {};
   const server = { boot: 'a', seq: 5, snapshotFailures: 1, infoFailures: 2, eventsFailures: 1, mock: { combat: false, group: 'none' } };
@@ -116,6 +123,11 @@ window.TK = window.TK || {};
     check(out, 'a long errors list scrolls within a fifth of the window', errorsHeight <= window.innerHeight / 5, true);
     const column = (id) => getComputedStyle(document.getElementById(id)).gridColumnStart;
     check(out, 'the hover outline keeps half the stage width after a zoom in', marks.hoverRatio, 0.5);
+    // The scene canvas stays the stage's first child through redraws, so an ADD item's plus-lighter blends with the 3D
+    // world: the scaled stage is its own blend group and a sibling canvas is outside it (W103).
+    const stageKids = Array.from(document.getElementById('stage').children, (node) => node.id || node.dataset.id);
+    check(out, 'the scene canvas stays first in the stage after each draw', stageKids, ['background', 'f1']);
+    check(out, 'no draw takes the scene canvas out of the stage', marks.sceneDetached, 0);
     check(out, "the combat log sits beside the inspector, not under it, so it leaves the inspector's details room", column('combatlog'), '2');
     const pointerSimDeps = ['world', 'claim', 'afterWheel'].map((key) => typeof attachedDeps.pointer[key]);
     const allFunctions = ['function', 'function', 'function'];

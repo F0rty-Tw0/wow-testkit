@@ -115,7 +115,10 @@
     const assets = snapshot.assets || {};
     const ctx = { assets, baseUrl, families: await V.loadFonts(assets, baseUrl) };
     const problems = (snapshot.errors || []).map((err) => err.message);
-    stage.replaceChildren();
+    // The scene canvas (#background) lives in the stage, under every item: the scaled stage is its own blend group, so an
+    // ADD item's plus-lighter reaches the 3D world only from inside it (W103). It stays attached: only the items go.
+    const scene = document.getElementById('background');
+    for (const node of [...stage.children]) if (node !== scene) node.remove();
     stage.style.width = screen.width + 'px';
     stage.style.height = screen.height + 'px';
     const stacker = V.stacker();
