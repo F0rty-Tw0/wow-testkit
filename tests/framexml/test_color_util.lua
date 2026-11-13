@@ -52,6 +52,100 @@ local function test_tooltip_and_hotkey_colours_are_colour_objects_from_the_ui_co
   end
 end
 
+-- source: W83 the classic cast bar fills with CASTBAR_CLASSIC_YELLOW:GetRGB() (tbc 70577 castingbarframe.lua:628-630);
+-- no Lua defines the four, GlobalColor rows 395-398 hold them.
+local function test_classic_cast_bar_colours_come_from_the_ui_colour_table() -- W83
+  withFrameXML("tbc", function()
+    A.same({
+      _G.CASTBAR_CLASSIC_YELLOW:GenerateHexColor(),
+      _G.CASTBAR_CLASSIC_GREEN:GenerateHexColor(),
+      _G.CASTBAR_CLASSIC_GRAY:GenerateHexColor(),
+      _G.CASTBAR_CLASSIC_RED:GenerateHexColor(),
+    }, { "ffffb300", "ff00ff00", "ffb3b3b3", "ffff0000" })
+  end)
+end
+
+-- source: W85 forever's tab system greys a disabled tab with DISABLED_FONT_COLOR (blizzard_sharedxml/shared/tabsystem/
+-- tabsystemtemplates.lua:194); no extract Lua defines it.
+local function test_disabled_font_colour_comes_from_the_ui_colour_table() -- W85
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.eq(_G.DISABLED_FONT_COLOR:GenerateHexColor(), "ff808080", flavor)
+      A.eq(_G.DISABLED_FONT_COLOR_CODE, "|cff808080", flavor)
+    end)
+  end
+end
+
+-- source: W86 forever's bag frame paints its backdrop with PANEL_BACKGROUND_COLOR (blizzard_sharedxml/portraitframe.lua:123,
+-- blizzard_uipanels_game/mainline/containerframe.lua:929); no extract Lua defines it, GlobalColor row 191 holds it.
+local function test_panel_background_colour_comes_from_the_ui_colour_table() -- W86
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.eq(_G.PANEL_BACKGROUND_COLOR:GenerateHexColor(), "cc1f1e21", flavor)
+    end)
+  end
+end
+
+-- source: W87 forever's SharedColorConstants.lua:23-24 hexes the faction colours at load; tbc's FriendsFrame.lua:302 and
+-- PlayerFrame.lua:99 read the BNet name and non-attackable level colours. GlobalColor rows 63, 76, 77, 406 hold them.
+local function test_faction_bnet_and_level_colours_come_from_the_ui_colour_table() -- W87
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.same({
+        _G.FRIENDS_BNET_NAME_COLOR:GenerateHexColor(),
+        _G.PLAYER_FACTION_COLOR_HORDE:GenerateHexColor(),
+        _G.PLAYER_FACTION_COLOR_ALLIANCE:GenerateHexColor(),
+        _G.UNIT_LEVEL_NON_ATTACKABLE:GenerateHexColor(),
+      }, { "ff82c5ff", "ffff2934", "ff00adf0", "ffffd100" }, flavor)
+    end)
+  end
+end
+
+-- source: W88 forever's UnitFrame_Initialize sets the mana cost prediction bar to POWERBAR_PREDICTION_COLOR_MANA
+-- (mainline/unitframe.lua:597-600); nil there stopped PlayerFrame's OnLoad before it registered its events (sign-off W27).
+-- GlobalColor rows 242-255 hold the heal, absorb and power prediction colours.
+local function test_unit_frame_prediction_colours_come_from_the_ui_colour_table() -- W88
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.same({
+        _G.HEALTHBAR_MY_HEAL_PREDICTION_COLOR:GenerateHexColor(),
+        _G.HEALTHBAR_TOTAL_ABSORB_COLOR:GenerateHexColor(),
+        _G.POWERBAR_PREDICTION_COLOR_MANA:GenerateHexColor(),
+        _G.POWERBAR_PREDICTION_COLOR_PAIN:GenerateHexColor(),
+      }, { "ff00d3c3", "ffffffff", "ff002d68", "ff663f00" }, flavor)
+    end)
+  end
+end
+
+local function test_compact_unit_frame_colours_come_from_the_ui_colour_table() -- W89
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      A.same({
+        _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR:GenerateHexColor(),
+        _G.COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR_BG:GenerateHexColor(),
+        _G.NO_THREAT_COLOR:GenerateHexColor(),
+        _G.GAINING_THREAT_COLOR:GenerateHexColor(),
+        _G.HIGH_THREAT_COLOR:GenerateHexColor(),
+        _G.PLAYER_NAMEPLATE_ALTERNATE_HEALTH_COLOR:GenerateHexColor(),
+      }, { "ff2b9305", "ff141414", "ffb0b0b0", "fff8b500", "ffff450b", "ff00adf0" }, flavor)
+    end)
+  end
+end
+
+-- forever AuraUtil's DEBUFF_DISPLAY_INFO (blizzard_framexmlutil/aurautil.lua:4-10) takes each dispel type's colour from
+-- these at load; AuraUtil.SetAuraBorderColor (:615) then called GetRGBA on nil during play. (W91)
+local function test_debuff_type_colours_come_from_the_ui_colour_table() -- W91
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      local hex = {}
+      for i, kind in ipairs({ "MAGIC", "POISON", "CURSE", "BLEED", "DISEASE", "NONE" }) do
+        hex[i] = _G["DEBUFF_TYPE_" .. kind .. "_COLOR"]:GenerateHexColor()
+      end
+      A.same(hex, { "ff0081ff", "ff7bc700", "ff9f06e4", "ffb8000f", "fff16a09", "ffcc0000" }, flavor)
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -156,12 +250,19 @@ local function test_color_util_wraps_text_in_color_markup_assumed() -- W76
 end
 
 return function()
+  test_faction_bnet_and_level_colours_come_from_the_ui_colour_table()
+  test_panel_background_colour_comes_from_the_ui_colour_table()
+  test_disabled_font_colour_comes_from_the_ui_colour_table()
   test_color_util_wraps_text_in_color_markup_assumed()
   test_font_colour_globals_have_the_recorded_values()
   test_font_colour_hex_and_code_globals_match_the_literals()
   test_the_font_colours_come_from_the_ui_colour_table()
   test_tooltip_and_hotkey_colours_are_colour_objects_from_the_ui_colour_table()
+  test_classic_cast_bar_colours_come_from_the_ui_colour_table()
   test_the_font_colours_exist_on_every_flavor()
+  test_unit_frame_prediction_colours_come_from_the_ui_colour_table()
+  test_compact_unit_frame_colours_come_from_the_ui_colour_table()
+  test_debuff_type_colours_come_from_the_ui_colour_table()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
   test_a_hex_string_of_the_wrong_length_asserts_and_returns_nil()

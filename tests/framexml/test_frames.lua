@@ -13,13 +13,13 @@ local function test_known_frame_name_resolves_to_frame_counted_unscripted()
   end)
 end
 
--- source: assumed (row F9) with the Blizzard layer loaded, the client has no frame under an unloaded addon's name; a
--- hidden frame is the closest inert stand-in, so `Frame and Frame:IsShown()` guards skip it as they skip nil.
-local function test_lazy_frame_starts_hidden_with_the_blizzard_layer_assumed()
+-- source: assumed (row F9) with the Blizzard layer loaded, the client has no frame under an unloaded addon's name, so
+-- Blizzard's `if Frame then Frame:Method() end` guards must see nil (a stand-in passed them and crashed).
+local function test_lazy_frame_is_nil_with_the_blizzard_layer_assumed()
   for _, flavor in ipairs({ "retail", "tbc" }) do
     B.run(B.mini(), { flavor = flavor }, function()
-      A.eq(_G.ChatConfigFrame:IsShown(), false, flavor)
-      A.eq(_G.ChatFrame1:IsShown(), false, flavor)
+      A.eq(_G.ChatConfigFrame, nil, flavor)
+      A.eq(_G.ChatFrame1, nil, flavor)
     end)
   end
 end
@@ -33,6 +33,16 @@ local function test_lazy_frame_stays_shown_without_the_blizzard_layer()
       A.same({ _G.PlayerFrame:IsShown(), _G.ChatFrame1:IsShown(), child:IsVisible() }, { true, true, true }, flavor)
     end)
   end
+end
+
+-- `tk catalog --blizzard-ui` on a flavor with no extract sets w.blizzard (blizzard_ui.lua M.load) but loads nothing;
+-- the core frames must still be there.
+local function test_lazy_frame_stays_shown_when_the_layer_has_no_extract()
+  withFrameXML("retail", function(w)
+    require("blizzard_ui").load(w, nil)
+    A.eq(w.blizzard ~= nil and w.client == nil, true)
+    A.eq(_G.ChatFrame1:IsShown(), true)
+  end)
 end
 
 local function test_unknown_name_stays_nil()
@@ -89,8 +99,9 @@ end
 
 return function()
   test_known_frame_name_resolves_to_frame_counted_unscripted()
-  test_lazy_frame_starts_hidden_with_the_blizzard_layer_assumed()
+  test_lazy_frame_is_nil_with_the_blizzard_layer_assumed()
   test_lazy_frame_stays_shown_without_the_blizzard_layer()
+  test_lazy_frame_stays_shown_when_the_layer_has_no_extract()
   test_unknown_name_stays_nil()
   test_existing_globals_metatable_index_still_answers()
   test_chat_frame_edit_box_names_resolve_to_edit_boxes()
