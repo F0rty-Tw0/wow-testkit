@@ -246,7 +246,9 @@
   });
 
   T.push({
-    name: 'background_sits_under_the_stage',
+    // The background is the stage's first layer: inside the stage's blend group, so additive items mix with it, and
+    // before every item, so it draws under them.
+    name: 'background_is_the_first_layer_of_the_stage',
     fn: async () => {
       const ctl = await demo();
       try {
@@ -256,11 +258,7 @@
         const stage = document.getElementById('stage');
         A.eq(getComputedStyle(background).backgroundColor, 'rgb(26, 26, 26)');
         A.eq(getComputedStyle(stage).backgroundColor, 'rgba(0, 0, 0, 0)', 'the stage lets the slot show through');
-        const box = document.getElementById('viewport').getBoundingClientRect();
-        const hits = document.elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-        const onStage = hits.findIndex((el) => stage.contains(el));
-        const names = hits.map((el) => el.id || el.className || el.tagName).join(',');
-        A.eq(onStage >= 0 && onStage < hits.indexOf(background), true, names);
+        A.eq(stage.firstElementChild && stage.firstElementChild.id, 'background');
       } finally {
         ctl.stop();
       }

@@ -4,8 +4,9 @@
     python tests/wasm/check_markup.py
 
 Every <script src="X"> of viewer/index.html must appear in host/index.html as ../viewer/X, in the same order (the
-host's own scripts may sit between them), and every element id of viewer/index.html must exist in host/index.html.
-Prints "PASS markup" or "FAIL markup: <what is missing>" and exits 0 or 1.
+host's own scripts may sit between them), every element id of viewer/index.html must exist in host/index.html, and in
+both pages #background must sit inside #stage (so additive items blend with the scene). Prints "PASS markup" or
+"FAIL markup: <what is missing>" and exits 0 or 1.
 """
 
 import os
@@ -13,6 +14,7 @@ import sys
 from html.parser import HTMLParser
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 
 
 class Markup(HTMLParser):
@@ -20,13 +22,22 @@ class Markup(HTMLParser):
         super().__init__()
         self.scripts = []
         self.ids = set()
+        self.parents = {}
+        self.open = []
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         if attrs.get("id"):
             self.ids.add(attrs["id"])
+            self.parents[attrs["id"]] = self.open[-1][1] if self.open else None
         if tag == "script" and attrs.get("src"):
             self.scripts.append(attrs["src"])
+        if tag not in VOID_TAGS:
+            self.open.append((tag, attrs.get("id")))
+
+    def handle_endtag(self, tag):
+        while self.open and self.open.pop()[0] != tag:
+            pass
 
 
 def parse(rel):
@@ -45,6 +56,9 @@ def missing_parts(viewer, host):
     found = iter(host.scripts)
     out = ["script " + src for src in wanted if src not in found]
     out += ["id " + name for name in sorted(viewer.ids - host.ids)]
+    for page, markup in (("viewer", viewer), ("host", host)):
+        if markup.parents.get("background") != "stage":
+            out.append(page + " #background outside #stage")
     return out
 
 
