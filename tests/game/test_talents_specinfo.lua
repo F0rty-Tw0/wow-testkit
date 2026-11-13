@@ -105,7 +105,20 @@ local function test_retail_talent_ui_is_usable_assumed()
   end)
 end
 
+-- (G47, assumed) one spec group by default; forever's talents frame compares the count with 1
+-- (camelot/classtalents/blizzard_classtalentsframe.lua:124).
+local function test_spec_group_count_reads_the_store_assumed()
+  for _, flavor in ipairs({ "retail", "forever", "tbc" }) do
+    G.withGame(flavor, function(w)
+      A.eq(_G.GetNumSpecGroups(), 1, flavor)
+      w:setMock({ talents = { groups = 2 } })
+      A.eq(_G.GetNumSpecGroups(false, false), 2, flavor)
+    end)
+  end
+end
+
 return function()
+  test_spec_group_count_reads_the_store_assumed()
   test_retail_talent_ui_is_usable_assumed()
   test_legacy_wrappers_return_the_specialization_readers_fields()
   test_talent_info_query_by_tier_and_column_in_a_tab_assumed()
