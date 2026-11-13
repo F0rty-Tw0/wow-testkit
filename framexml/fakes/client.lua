@@ -33,11 +33,86 @@ local function atlasInfo(extract, name)
   }
 end
 
+-- Fills root (the Enum or Constants table the world installed) from the extract's tables: a missing table is copied,
+-- an existing one gets only its missing fields, so the kit's values win. Non-table entries are skipped.
+local function fillMissing(w, root, tables)
+  for name, fields in pairs(tables) do
+    if type(fields) == "table" then
+      local target = rawget(root, name)
+      if target == nil then
+        target = {}
+        w:rawWrite(root, name, target)
+      end
+      if type(target) == "table" then
+        for key, value in pairs(fields) do
+          if rawget(target, key) == nil then
+            target[key] = value
+          end
+        end
+      end
+    end
+  end
+end
+
+local function namespaceOf(name)
+  return name:match("^(.+)%.[^.]+$")
+end
+
+-- Every namespace the flavor's own data has a function in.
+local function flavorNamespaces(w)
+  local namespaces = {}
+  for _, names in ipairs({ w.manifest.functions, w.globals.api }) do
+    for name in pairs(names) do
+      local namespace = namespaceOf(name)
+      if namespace then
+        namespaces[namespace] = true
+      end
+    end
+  end
+  return namespaces
+end
+
+-- Row G75: a documented function the kit's data lacks becomes a signature stub, as installBase makes for its own.
+-- Only in a namespace the flavor's data has: a classic client's docs list systems it does not ship (C_AuctionHouse on
+-- Classic Era). Globals and secure-only functions are left out for the same reason.
+-- They are kept in w.clientFunctions, so w:stub and the kit's api-gated installs treat them as API functions.
+local function installFunctions(w, functions)
+  local namespaces = flavorNamespaces(w)
+  w.clientFunctions = {}
+  for name, signature in pairs(functions) do
+    local namespace = namespaceOf(name)
+    local known = w.manifest.functions[name] or w.globals.api[name]
+    if namespace and namespaces[namespace] and not known and type(signature) == "table" and not signature.secureOnly then
+      w.clientFunctions[name] = signature
+      w:installStub(name, signature)
+    end
+  end
+end
+
+-- source: the client build's own API docs (Blizzard_APIDocumentationGenerated in the extract) list the enums and
+-- constants its UI code reads, the events it registers (row G57) and the functions it calls (row G75); the kit's
+-- pinned api/<flavor> data can be older than the extract.
+local function installApi(w)
+  local api = Client.api(w.client)
+  if not api then
+    return
+  end
+  w.clientEvents = api.events -- read by World:knowsEvent
+  installFunctions(w, api.functions)
+  for root, tables in pairs({ Enum = api.enums, Constants = api.constants }) do
+    local installed = rawget(_G, root) -- world.lua installBase sets both
+    if type(installed) == "table" then
+      fillMissing(w, installed, tables)
+    end
+  end
+end
+
 function M.install(w)
   if not w.client then
     return
   end
   installStrings(w)
+  installApi(w)
   Measure.useGlyphs(w, Client.glyphs(w.client))
   w:install("C_Texture.GetAtlasInfo", function(name)
     return atlasInfo(w.client, name)
