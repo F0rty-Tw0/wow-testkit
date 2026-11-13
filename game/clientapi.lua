@@ -246,10 +246,10 @@ function M.install(w)
     end
   end)
   -- source: confirmed (row G34) the classic flavors fill LOCALIZED_CLASS_NAMES_MALE/FEMALE with it (tbc constants.lua:43-46);
-  -- assumed it fills every class token the kit names, and the enUS female names equal the male ones.
+  -- assumed it fills the flavor's class tokens (Roster.CLASSES), and the enUS female names equal the male ones.
   define(w, "FillLocalizedClassList", function(classTable)
-    for classFile, name in pairs(Roster.CLASS_NAMES) do
-      classTable[classFile] = name
+    for _, classFile in ipairs(Roster.CLASSES[w.flavor]) do
+      classTable[classFile] = Roster.CLASS_NAMES[classFile]
     end
     return classTable
   end)
