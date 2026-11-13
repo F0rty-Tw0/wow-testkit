@@ -210,6 +210,19 @@ local function test_ignored_directives_are_reported()
   A.eq(text:find("<Frame>", 1, true), nil)
 end
 
+-- source: row BU30.
+local function test_bootstrap_lines_split_off_only_for_a_load_on_demand_addon()
+  local lines = "Main.lua\nBoot.lua [Bootstrap]\n"
+  local atLogin = Toc.parse(lines)
+  A.same((Toc.filesFor(atLogin, "retail")), { "Main.lua", "Boot.lua" })
+  A.same(Toc.bootstrapFiles(atLogin, "retail"), {})
+  local lod = Toc.parse("## LoadOnDemand: 1\n" .. lines)
+  local files, report = Toc.filesFor(lod, "retail")
+  A.same(files, { "Main.lua" })
+  A.same(report, {})
+  A.same(Toc.bootstrapFiles(lod, "retail"), { "Boot.lua" })
+end
+
 local function test_addon_name_from_folder()
   A.eq(Toc.addonName(ADDONS_DIR .. "/Multi"), "Multi")
 end
@@ -306,6 +319,7 @@ return function()
   test_camelot_suffixed_toc_wins_over_forever_assumed()
   test_xml_file_is_listed_in_place()
   test_ignored_directives_are_reported()
+  test_bootstrap_lines_split_off_only_for_a_load_on_demand_addon()
   test_addon_name_from_folder()
   test_addon_name_ambiguous()
   test_addon_name_of_dot_works_while_the_global_os_is_cleared()
