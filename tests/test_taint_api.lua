@@ -115,7 +115,7 @@ local function test_securecall_by_name_and_securecallfunction_pass_arguments_and
   end)
 end
 
--- row TS6: forever UnitFrameUtil.lua:475-482 stores CreateSecureDelegate(fn) results that PlayerFrame calls at load; the
+-- row TS21: forever UnitFrameUtil.lua:475-482 stores CreateSecureDelegate(fn) results that PlayerFrame calls at load; the
 -- doc's stub answered nil, so PlayerFrame's OnLoad stopped before it registered its events (W27).
 local function test_create_secure_delegate_returns_a_securecall_closure_assumed()
   H.withTaint("forever", function(w)
