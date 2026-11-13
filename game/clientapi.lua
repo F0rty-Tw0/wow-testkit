@@ -4,6 +4,7 @@ local M = {}
 
 local AddonEnv = require("addon_env")
 local Curve = require("game.curve")
+local Duration = require("game.duration")
 local Items = require("game.items")
 local Roster = require("combat_roster_data")
 local State = require("game.state")
@@ -49,6 +50,66 @@ local INVENTORY_SLOTS = {
   TabardSlot = { 19, 136527 },
 }
 
+-- source: row G41. The engine's LE_GAME_ERR_<X> message types (UI_ERROR_MESSAGE's first payload), for every name the
+-- tbc and forever extracts' Lua reads. No API doc or client dump lists them; the numbers are the idx column of
+-- warcraft.wiki.gg Event:UI_ERROR_MESSAGE ("up to date as of Patch 9.2.5 (43971)", and the page warns they shift each
+-- patch), so assumed for the kit's builds. Names the table's verbatim part lacks get kit numbers from 100001 (assumed).
+local GAME_ERRORS = {
+  SYSTEM = 1,
+  SPELL_FAILED_S = 53,
+  ITEM_COOLDOWN = 54,
+  SPELL_COOLDOWN = 57,
+  ABILITY_COOLDOWN = 58,
+  SPELL_ALREADY_KNOWN_S = 59,
+  OUT_OF_RANGE = 154,
+  CANT_USE_ITEM = 191,
+  SPELL_FAILED_TOTEMS = 252,
+  SPELL_FAILED_REAGENTS = 253,
+  SPELL_FAILED_REAGENTS_GENERIC = 254,
+  SPELL_FAILED_EQUIPPED_ITEM = 257,
+  SPELL_FAILED_EQUIPPED_ITEM_CLASS_S = 258,
+  SPELL_FAILED_SHAPESHIFT_FORM_S = 259,
+  SPELL_FAILED_ANOTHER_IN_PROGRESS = 260,
+  SPELL_FAILED_EQUIPPED_SPECIFIC_ITEM = 328,
+  OUT_OF_MANA = 336,
+  OUT_OF_RAGE = 337,
+  OUT_OF_FOCUS = 338,
+  OUT_OF_ENERGY = 339,
+  OUT_OF_CHI = 340,
+  OUT_OF_HEALTH = 341,
+  OUT_OF_RUNES = 342,
+  OUT_OF_RUNIC_POWER = 343,
+  OUT_OF_SOUL_SHARDS = 344,
+  OUT_OF_LUNAR_POWER = 345,
+  OUT_OF_HOLY_POWER = 346,
+  OUT_OF_MAELSTROM = 347,
+  OUT_OF_COMBO_POINTS = 348,
+  OUT_OF_INSANITY = 349,
+  OUT_OF_ARCANE_CHARGES = 350,
+  OUT_OF_FURY = 351,
+  OUT_OF_PAIN = 352,
+  OUT_OF_POWER_DISPLAY = 353,
+  SPELL_OUT_OF_RANGE = 369,
+  SPELL_FAILED_NOTUNSHEATHED = 385,
+  SPELL_UNLEARNED_S = 400,
+  SPELL_FAILED_ALREADY_AT_FULL_HEALTH = 499,
+  SPELL_FAILED_ALREADY_AT_FULL_MANA = 500,
+  SPELL_FAILED_ALREADY_AT_FULL_POWER_S = 501,
+  GENERIC_NO_VALID_TARGETS = 690,
+  OUT_OF_ESSENCE = 100001,
+  SPELL_FAILED_CANT_FLY_HERE = 100002,
+  VOICE_CHAT_GENERIC_UNABLE_TO_CONNECT = 100003,
+  VOICE_CHAT_SERVICE_LOST = 100004,
+  VOICE_CHAT_CHANNEL_NAME_TOO_SHORT = 100005,
+  VOICE_CHAT_CHANNEL_NAME_TOO_LONG = 100006,
+  VOICE_CHAT_CHANNEL_ALREADY_EXISTS = 100007,
+  VOICE_CHAT_TARGET_NOT_FOUND = 100008,
+  VOICE_CHAT_TOO_MANY_REQUESTS = 100009,
+  VOICE_CHAT_PLAYER_SILENCED = 100010,
+  VOICE_CHAT_PARENTAL_DISABLE_ALL = 100011,
+  VOICE_CHAT_DISABLED = 100012,
+}
+
 -- source: confirmed (rows G21) Blizzard passes the same slot as "HEADSLOT" (blizzard_transmogshared.lua) and "MainHandSlot"
 -- (securetemplates.lua:464) to C_PaperDollInfo.GetInventorySlotInfo, so the lookup ignores case.
 local INVENTORY_SLOT_INFO = {}
@@ -57,7 +118,7 @@ for name, info in pairs(INVENTORY_SLOTS) do
 end
 
 -- source: assumed (row G21) the engine's LE_EXPANSION_* values (classic 0 up to mists 4) and the expansion level each classic
--- flavor runs at; retail and forever are not modelled.
+-- flavor runs at; retail and forever are not modelled here (their LE_EXPANSION_* come from the client dump, row G35).
 local EXPANSIONS = {
   LE_EXPANSION_CLASSIC = 0,
   LE_EXPANSION_BURNING_CRUSADE = 1,
@@ -66,6 +127,9 @@ local EXPANSIONS = {
   LE_EXPANSION_MISTS_OF_PANDARIA = 4,
 }
 local EXPANSION_LEVEL = { vanilla = 0, tbc = 1, mists = 4 }
+-- source: confirmed (row G58) the caps 60/70/80/85 by LE_EXPANSION_* (tbc 70577 blizzard_framexmlbase/cata/constants.lua:10-14,
+-- which comments out mists' 90); assumed 90 for mists, and that each classic client's latest expansion is its own.
+local MAX_LEVEL_BY_EXPANSION = { [0] = 60, 70, 80, 85, 90 }
 
 -- source: confirmed (row G21) paperdollframe.lua:617 reads _G["SPELL_STAT" .. statIndex .. "_NAME"] with statIndex =
 -- LE_UNIT_STAT_*; the strings name SPELL_STAT1..5 Strength, Agility, Stamina, Intellect, Spirit.
@@ -98,9 +162,19 @@ local CLASSIC_FAMILY = { "vanilla", "tbc", "mists" }
 -- invSlot, slotTexture, checkRelic of a slot name; nothing for an unknown name.
 -- source: confirmed (row G21) the three returns (api/retail/PaperDollInfo.lua; the classic paperdollframe.lua:1292
 -- reads `id, textureName, checkRelic` from the global); assumed checkRelic false (no relic slot is modelled).
-local function inventorySlotInfo(slotName)
+-- source: confirmed (row G46) the mainline family's bag slots: forever 70862 constants.lua:173 CONTAINER_BAG_OFFSET = 30
+-- ("Used for PutItemInBag"; equipmentmanager.lua:183 PutItemInBag(bag + CONTAINER_BAG_OFFSET)), so containers 1-4 and the
+-- reagent bag 5 are slots 31-35. assumed: retail the same, no empty-slot texture. The classic flavors keep no bag slots.
+local MAINLINE_BAG_SLOTS = { bag0slot = 31, bag1slot = 32, bag2slot = 33, bag3slot = 34, reagentbag0slot = 35 }
+local MAINLINE = { retail = true, forever = true }
+
+local function inventorySlotInfo(w, slotName)
   if type(slotName) ~= "string" then
     return
+  end
+  local bagSlot = MAINLINE[w.flavor] and MAINLINE_BAG_SLOTS[slotName:lower()]
+  if bagSlot then
+    return bagSlot, nil, false
   end
   local info = INVENTORY_SLOT_INFO[slotName:lower()]
   if not info then
@@ -116,6 +190,8 @@ local METATABLES = {
   GetButtonMetatable = "Button",
   GetEditBoxMetatable = "EditBox",
   GetFontStringMetatable = "FontString",
+  -- row G55: forever's api lists it (UnitFrameUtil.lua:129 copies its __index at load).
+  GetTextureMetatable = "Texture",
 }
 
 function M.install(w)
@@ -132,7 +208,9 @@ function M.install(w)
   -- source: confirmed (row G21) the classic flavors list the global (api/<flavor>/globals.lua) and call it where retail
   -- calls C_PaperDollInfo's (tbc securetemplates.lua:457-460); define installs each name only where the flavor has it.
   for _, name in ipairs({ "C_PaperDollInfo.GetInventorySlotInfo", "GetInventorySlotInfo" }) do
-    define(w, name, inventorySlotInfo)
+    define(w, name, function(slotName)
+      return inventorySlotInfo(w, slotName)
+    end)
   end
   for name, value in pairs(UNIT_STATS) do
     define(w, name, value, State.ALL)
@@ -148,6 +226,12 @@ function M.install(w)
     define(w, "ClassicExpansionAtLeast", function(expansionLevel)
       return level >= expansionLevel
     end)
+    -- GameRulesUtil.GetEffectiveMaxLevelForPlayer (tbc gamerulesutil.lua:189-193) takes math.min of these.
+    for _, name in ipairs({ "GetMaxPlayerLevel", "GetMaxLevelForPlayerExpansion", "GetMaxLevelForLatestExpansion" }) do
+      define(w, name, function()
+        return MAX_LEVEL_BY_EXPANSION[level]
+      end)
+    end
   end
   -- source: assumed (row G21) Kiosk is an engine table; Blizzard_MicroMenu asks Kiosk.IsEnabled() on every open, false is a normal client
   define(w, "Kiosk.IsEnabled", function()
@@ -161,6 +245,182 @@ function M.install(w)
       return { className = Roster.CLASS_NAMES[classFile], classFile = classFile, classID = classID }
     end
   end)
+  -- source: confirmed (row G34) the classic flavors fill LOCALIZED_CLASS_NAMES_MALE/FEMALE with it (tbc constants.lua:43-46);
+  -- assumed it fills every class token the kit names, and the enUS female names equal the male ones.
+  define(w, "FillLocalizedClassList", function(classTable)
+    for classFile, name in pairs(Roster.CLASS_NAMES) do
+      classTable[classFile] = name
+    end
+    return classTable
+  end)
+  -- source: confirmed (row G38) an array of application ids: tbc QueueStatusFrame.lua:119-121 takes its length and passes
+  -- each entry to GetApplicationInfo; no API doc types it. assumed: empty, since the kit lists no groups.
+  define(w, "C_LFGList.GetApplications", function()
+    return {}
+  end)
+  -- source: confirmed (row G39) it replaces MAX_BATTLEFIELD_QUEUES (wiki), which tbc minimap.lua:13 sets to 3 and :376
+  -- falls back to; assumed 3 on every flavor.
+  define(w, "GetMaxBattlefieldID", function()
+    return 3
+  end)
+  -- source: confirmed (row G42) a count: tbc QuestLogFrame.lua:671 loops to it and :549 compares it with
+  -- MAX_WATCHABLE_QUESTS; no API doc types it. assumed: 0, since the kit tracks no quests.
+  define(w, "GetNumQuestWatches", function()
+    return 0
+  end)
+  -- source: confirmed (row G60) an idle timer's name is "UNKNOWN": tbc mirrortimer.lua:80-81 hides on it and otherwise
+  -- shows the timer, arithmetic on its startValue (:45). assumed: every timer idle, the numbers 0, the label empty.
+  define(w, "GetMirrorTimerInfo", function()
+    return "UNKNOWN", 0, 0, 0, 0, "", 0
+  end)
+  -- source: confirmed (row G61) a count: tbc comboframe.lua:72-75 compares GetComboPoints(unit, "target") with 0; no API
+  -- doc types it. assumed: 0, as the kit models no combo points.
+  define(w, "GetComboPoints", function()
+    return 0
+  end)
+  -- source: confirmed (row G66) a count: tbc skillframe.lua:290-294 compares GetNumSkillLines() with a list index; no API
+  -- doc types it. assumed: 0, as the kit models no skill lines.
+  define(w, "GetNumSkillLines", function()
+    return 0
+  end)
+  -- source: confirmed (row G66) the 13 returns: tbc skillframe.lua:183-185 adds rank and temp points before :196 tests the
+  -- name for nil or "", so an empty slot answers numbers. assumed: every slot empty, name and description "", numbers 0.
+  define(w, "GetSkillLineInfo", function()
+    return "", nil, nil, 0, 0, 0, 0, nil, nil, 0, 0, 0, ""
+  end)
+  -- source: confirmed (row G67) GetPVPRankInfo returns name, number: tbc honorframe_shared.lua:70-78 reads a nil name as
+  -- NONE, concatenates the number and compares it with 0 for the badge; :92 passes GetPVPRankProgress() to SetValue. No
+  -- API doc types them. assumed: an unranked player (rank 0, no name, number 0, no progress), as the kit models no PvP.
+  define(w, "UnitPVPRank", function()
+    return 0
+  end)
+  define(w, "GetPVPRankInfo", function()
+    return nil, 0
+  end)
+  define(w, "GetPVPRankProgress", function()
+    return 0
+  end)
+  -- source: confirmed (row G68) the CurrencyInfo fields (api/<flavor>/CurrencyInfo.lua); tbc pvpframe.lua:33-34 indexes the
+  -- answer for Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID unguarded. assumed: a currency the flavor's constants
+  -- name exists with none held (no name, icon or cap: the kit models no currencies); any other id answers nothing.
+  -- source: confirmed (row G72) counts: tbc and forever keybindings.lua:24 `for bindingIndex = 1, GetNumBindings()`,
+  -- friendsframe.lua:2726 and blizzard_guildcontrolui.lua:507-509 loop to GuildControlGetNumRanks(), tbc loothistory.lua:55
+  -- to C_LootHistory.GetNumItems(), forever chatframemenubutton.lua:120 to GetNumLanguages(); no API doc types them.
+  -- assumed: 0 each, as the kit lists no binding commands, guild, loot rolls or languages.
+  -- grug: GetNumBindings 0; count Bindings.xml commands once GetBinding(index) answers them.
+  for _, name in ipairs({ "GetNumBindings", "GuildControlGetNumRanks", "C_LootHistory.GetNumItems", "GetNumLanguages" }) do
+    define(w, name, function()
+      return 0
+    end)
+  end
+  -- source: confirmed (row G78) a count: forever mainmenubarmicrobuttons.lua:1550-1553 compares
+  -- C_PetJournal.GetNumPetsNeedingFanfare() with a number on PLAYER_ENTERING_WORLD; no API doc types it. assumed: 0, as
+  -- the kit models no battle pets.
+  define(w, "C_PetJournal.GetNumPetsNeedingFanfare", function()
+    return 0
+  end)
+  -- source: confirmed (row G81) returns numPets, numOwned (warcraft.wiki.gg API:C_PetJournal.GetNumPets); forever
+  -- collectionsutil.lua:555 compares the second with 0. No API doc types it. assumed: 0, 0, as the kit models no pets.
+  define(w, "C_PetJournal.GetNumPets", function()
+    return 0, 0
+  end)
+  -- source: confirmed (row G83) a count: tbc shared stancebar.lua:30-36 and forever mainline assistedcombatmanager.lua:42
+  -- compare GetNumShapeshiftForms() with 0 during play; no API doc types it. assumed: 0, as the kit models no stances or
+  -- shapeshift forms.
+  define(w, "GetNumShapeshiftForms", function()
+    return 0
+  end)
+  -- source: assumed (row G82) the store's secure namespace, which only Blizzard_StoreUI's secure environment sees in the
+  -- client (Blizzard_EnvironmentCleanup sets it nil for everyone else); the kit has one environment, so addons see it
+  -- too. No doc or wiki page lists it. Only the calls the store makes at load, as an unavailable store: StoreFrame's
+  -- OnLoad (forever shared storeuisecure.lua:1120) requests the purchase list, which answers nothing;
+  -- StoreFrame_CurrencyInfo (:451) reads no currency info (nil, which :453 allows); StoreFrame_UpdateActivePanel
+  -- (:1620, :1631) finds no purchase in progress and the store not available, so it shows that alert; the end of OnLoad
+  -- (:1161) finds no failure waiting (nil errorID, which :1162 allows).
+  for _, name in ipairs({ "GetPurchaseList", "GetCurrencyInfo", "GetFailureInfo" }) do
+    define(w, "C_StoreSecure." .. name, function() end, { "retail", "forever" })
+  end
+  for _, name in ipairs({ "HasPurchaseInProgress", "IsAvailable" }) do
+    define(w, "C_StoreSecure." .. name, function()
+      return false
+    end, { "retail", "forever" })
+  end
+  -- source: confirmed (row G69) 12 returns, rating first, rank 11th, teamSize 12th: tbc pvpframebase.lua:124-133 compares
+  -- rating and seasonPlayed with 0 and passes rank to ArenaUtil.GetArenaBannerInfo (arenautil.lua:11 `rank <= 100`). No API
+  -- doc types it. assumed: an unrated player, every return 0, as the kit models no arena.
+  define(w, "GetPersonalRatedInfo", function()
+    return 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  end)
+  define(w, "C_CurrencyInfo.GetCurrencyInfo", function(id)
+    local constants = rawget(_G, "Constants")
+    local named = false
+    for _, value in pairs(constants and constants.CurrencyConsts or {}) do
+      named = named or value == id
+    end
+    if not named then
+      return nil
+    end
+    -- stylua: ignore
+    return {
+      name = "", description = "", currencyID = id, isHeader = false, isHeaderExpanded = false, currencyListDepth = 0,
+      isTypeUnused = false, isShowInBackpack = false, quantity = 0, trackedQuantity = 0, iconFileID = 0, maxQuantity = 0,
+      canEarnPerWeek = false, quantityEarnedThisWeek = 0, isTradeable = false, quality = 0, maxWeeklyQuantity = 0,
+      totalEarned = 0, discovered = false, useTotalEarnedForMaxQty = false, isAccountWide = false,
+      isAccountTransferable = false, rechargingCycleDurationMS = 0, rechargingAmountPerCycle = 0, categoryName = "",
+    }
+  end)
+  -- source: confirmed (row G62) copper amounts: tbc tabardframe.lua:5 and mailframe.xml:631 pass them to MoneyFrame_Update;
+  -- no API doc types them. assumed: a letter's 30 copper postage and the 10 gold tabard (from memory).
+  define(w, "GetSendMailPrice", function()
+    return 30
+  end)
+  define(w, "GetTabardCreationCost", function()
+    return 100000
+  end)
+  -- source: confirmed (row G63) a list of font object names (api/forever/Font.lua GetFonts; tbc textsizemanager.lua:22-24
+  -- walks it with ipairs). assumed: empty, as retail and forever's default, so no font is user-scaled.
+  -- grug: empty list; list the named font objects when a scenario needs user font scaling.
+  define(w, "GetFonts", function()
+    return {}
+  end)
+  -- source: confirmed (row G76) a list of LocaleInfo { localeId, localeName } (forever localedocumentation.lua:21, :75-81);
+  -- the ids are warcraft.wiki.gg API:GetAvailableLocaleInfo's Values table (read 2026-11-12). forever
+  -- communitieslanguage.lua:3-9 falls back to the first entry and :42 indexes it unguarded. assumed: every locale with
+  -- or without ignoreLocaleRestrictions (which locales a region restricts is not documented).
+  define(w, "GetAvailableLocaleInfo", function()
+    local infos = {}
+    for id, name in ipairs({ "enUS", "koKR", "frFR", "deDE", "zhCN", "esES", "zhTW", "esMX", "ruRU", "ptBR", "itIT" }) do
+      infos[id] = { localeId = id, localeName = name }
+    end
+    return infos
+  end)
+  -- source: confirmed (row G64) a list of choice ids: tbc productchoice.lua:63 takes its length, :138-147 passes an entry to
+  -- C_ProductChoice.GetProducts; no API doc types it. assumed: empty, as the kit has no shop product to choose.
+  define(w, "C_ProductChoice.GetChoices", function()
+    return {}
+  end)
+  -- source: confirmed (row G44) the returns base, total, bonus, minus: tbc paperdollframe.lua:486 and wiki API_UnitResistance;
+  -- no API doc types it. assumed: all 0, as the kit models no gear or auras that resist.
+  define(w, "UnitResistance", function()
+    return 0, 0, 0, 0
+  end)
+  -- source: confirmed (row G44) the returns name, texture, offset, numSlots, isGuild, offSpecID, shouldHide, specID: tbc
+  -- spellbookframe.lua:473, :513 and wiki API_GetSpellTabInfo. assumed: two empty tabs, General then the player's class,
+  -- since the classic spellbook opens on tab 2 (:414) and the kit models no spellbook.
+  define(w, "GetNumSpellTabs", function()
+    return 2
+  end)
+  define(w, "GetSpellTabInfo", function(tabIndex)
+    local name
+    if tabIndex == 1 then
+      name = rawget(_G, "GENERAL") or "General"
+    elseif tabIndex == 2 then
+      name = _G.UnitClass("player")
+    else
+      return nil
+    end
+    return name, nil, 0, 0, false, 0, false, 0
+  end)
   define(w, "IsCommunitiesUIDisabledByTrialAccount", function()
     return false
   end, State.ALL)
@@ -170,15 +430,39 @@ function M.install(w)
   if w.manifest.enums.GameRule == nil then
     define(w, "Enum.GameRule", {}, State.ALL)
   end
+  -- source: confirmed (row G43) forever blizzard_worldmap.lua:376-378 reads "UNKNOWN" (or nil) as "the rule sets no strata"
+  -- and passes any other answer to SetFrameStrata; assumed "UNKNOWN" for every rule, as no rule is active (BU10).
+  define(w, "C_GameRules.GetGameRuleAsFrameStrata", function()
+    return "UNKNOWN"
+  end)
   -- source: confirmed (row G28) the members of Ketho's retail LuaEnum dump; no API doc lists Enum.GameMode, but every
   -- flavor's GameRules doc types values as GameMode; assumed the same members off retail.
   if w.manifest.enums.GameMode == nil then
     define(w, "Enum.GameMode", { Standard = 1, Plunderstorm = 2, WoWHack = 3 }, State.ALL)
   end
+  -- source: confirmed (row G73) the members tbc 70577 and forever 70862 read (vaserrorlookup.lua:281-287,
+  -- securecurrencyutil.lua:79 key tables by them); Blizzard_EnvironmentCleanup sets both to nil after load, so they are
+  -- secure-only and no API doc or Ketho dump lists them. assumed: the values (distinct, in the order of the old
+  -- LE_STORE_ERROR_* and VAS service lists, from memory; the callers only use them as keys).
+  if w.manifest.enums.StoreError == nil then
+    -- stylua: ignore
+    define(w, "Enum.StoreError", {
+      InvalidPaymentMethod = 0, PaymentFailed = 1, WrongCurrency = 2, BattlepayDisabled = 3, InsufficientBalance = 4,
+      Other = 5, AlreadyOwned = 6, ParentalControlsNoPurchase = 7, PurchaseDenied = 8, ConsumableTokenOwned = 9,
+      TooManyTokens = 10, ItemUnavailable = 11, ClientRestricted = 12,
+    }, State.ALL)
+  end
+  if w.manifest.enums.VasServiceType == nil then
+    -- stylua: ignore
+    define(w, "Enum.VasServiceType", {
+      FactionChange = 0, RaceChange = 1, AppearanceChange = 2, NameChange = 3, CharacterTransfer = 4,
+      GuildNameChange = 5, GuildFactionChange = 6, GuildTransfer = 7, FactionTransfer = 8, GuildFactionTransfer = 9,
+    }, State.ALL)
+  end
   -- source: confirmed (row G27) eventutil.lua:12 asserts it on every event ContinueAfterAllEvents waits for; assumed
   -- valid means an event the flavor's data lists, the set RegisterEvent accepts (world_events.lua checkEvent).
   define(w, "C_EventUtils.IsEventValid", function(event)
-    return (w.manifest.events[event] or w.globals.events[event]) ~= nil
+    return w:knowsEvent(event)
   end)
   local qualities, meta = w.manifest.enums.ItemQuality or {}, w.manifest.enums.ItemQualityMeta or {}
   for name, member in pairs(LEGACY_QUALITIES) do
@@ -189,7 +473,20 @@ function M.install(w)
   if meta.NumValues then
     define(w, "NUM_LE_ITEM_QUALITYS", meta.NumValues, CLASSIC_FAMILY)
   end
+  for suffix, value in pairs(GAME_ERRORS) do
+    local name = "LE_GAME_ERR_" .. suffix
+    if rawget(_G, name) == nil then
+      w:set(name, value)
+    end
+  end
   define(w, "C_CurveUtil.CreateCurve", Curve.new)
+  -- source: confirmed (row G85) one LuaDurationObject per call (api/<flavor>/DurationUtil.lua); forever
+  -- blizzard_aurabutton.lua:75 keeps one per aura button and sets it at :167-169.
+  define(w, "C_DurationUtil.CreateDuration", function()
+    return Duration.new(function()
+      return w.now
+    end)
+  end)
   -- source: assumed (row G21) the default colour is the colour: the kit keeps no colour overrides.
   for _, name in ipairs({ "C_ColorOverrides.GetColorForQuality", "C_ColorOverrides.GetDefaultColorForQuality" }) do
     define(w, name, qualityColor)
