@@ -237,6 +237,11 @@ local function test_fill_localized_class_list_names_every_class_assumed()
     _G.FillLocalizedClassList(male, false)
     _G.FillLocalizedClassList(female, true)
     A.same({ male.WARRIOR, male.DRUID, female.MAGE }, { "Warrior", "Druid", "Mage" })
+    A.same({ male.DEATHKNIGHT, male.EVOKER, male.MONK }, {}, "only the flavor's classes")
+  end)
+  G.withGame("mists", function()
+    local classes = _G.FillLocalizedClassList({}, false)
+    A.same({ classes.MONK, classes.DEATHKNIGHT, classes.EVOKER }, { "Monk", "Death Knight" })
   end)
 end
 
