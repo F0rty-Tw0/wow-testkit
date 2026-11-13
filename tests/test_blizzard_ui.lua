@@ -181,6 +181,21 @@ local function test_load_with_addons_load_right_after_their_trigger()
   end)
 end
 
+-- LoadAddOn on a trigger loads its LoadWith followers after it (row G37); it answered MISSING when a follower came last.
+local function test_load_addon_loads_the_trigger_and_its_load_with_followers()
+  local addons = B.mini({
+    blizzard_miniwindowext = {
+      toc = "## Title: Blizzard_MiniWindowExt\n## LoadOnDemand: 1\n## LoadWith: Blizzard_MiniWindow\nExt.lua\n",
+      files = { ["ext.lua"] = "MiniExtLoaded = true\n" },
+    },
+  })
+  B.run(addons, { targets = { "Blizzard_MiniBase" } }, function()
+    A.eq(_G.MiniExtLoaded, nil)
+    A.eq((_G.C_AddOns.LoadAddOn("Blizzard_MiniWindow")), true)
+    A.eq(_G.MiniExtLoaded, true)
+  end)
+end
+
 local function test_flavor_suffixed_toc_is_found_in_lowercase()
   local addons = B.mini({
     blizzard_minisuffix = { toc = "Suffix.lua\n", tocFile = "blizzard_minisuffix_mainline.toc", files = { ["suffix.lua"] = "MiniSuffix = true" } },
@@ -260,6 +275,18 @@ local function test_secure_only_functions_exist_once_the_layer_loads_assumed()
   end)
 end
 
+-- assumed (row BU34) a name something already defines is kept, not replaced by the signature stub.
+local function test_secure_only_stub_keeps_an_existing_definition_assumed()
+  local before = function(s)
+    s.w:install("C_PingSecure.SetPingRadialWheelCreatedCallback", function()
+      return "kept"
+    end)
+  end
+  B.run(B.mini(), { targets = { "Blizzard_MiniBase" }, before = before }, function()
+    A.eq(_G.C_PingSecure.SetPingRadialWheelCreatedCallback(), "kept")
+  end)
+end
+
 local function test_tainted_caller_keeps_taint_in_blizzard_code() -- TS15: Blizzard code never launders taint
   B.run(B.mini(), { targets = { "Blizzard_MiniBase" }, lua = "securecall(MiniCheck)" }, function()
     A.eq(_G.MiniSeen, false)
@@ -322,6 +349,7 @@ return function()
   test_missing_target_is_skipped_not_raised()
   test_dependencies_of_other_game_types_are_dropped_assumed()
   test_load_with_addons_load_right_after_their_trigger()
+  test_load_addon_loads_the_trigger_and_its_load_with_followers()
   test_flavor_suffixed_toc_is_found_in_lowercase()
   test_family_and_game_path_tokens_resolve()
   test_loaded_blizzard_addons_count_as_loaded()
@@ -330,6 +358,7 @@ return function()
   test_default_bindings_files_cover_tbc_and_vanilla_assumed()
   test_blizzard_code_runs_secure()
   test_secure_only_functions_exist_once_the_layer_loads_assumed()
+  test_secure_only_stub_keeps_an_existing_definition_assumed()
   test_tainted_caller_keeps_taint_in_blizzard_code()
   test_session_snapshot_reports_the_layer()
 end

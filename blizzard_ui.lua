@@ -359,6 +359,16 @@ function M.load(w, extract, opts)
   return report
 end
 
+-- Whether entries holds name. Not only the last entry: M.order puts the addons whose LoadWith names it after it.
+local function hasEntry(entries, name)
+  for _, entry in ipairs(entries) do
+    if entry.name == name then
+      return true
+    end
+  end
+  return false
+end
+
 local function append(target, list)
   for _, item in ipairs(list) do
     target[#target + 1] = item
@@ -378,8 +388,7 @@ function M.loadOne(w, name)
     return true
   end
   local entries, skipped, notes = M.order(extract, { name }, w.flavor)
-  local last = entries[#entries]
-  if not (last and last.name == name) then
+  if not hasEntry(entries, name) then
     return nil, "MISSING"
   end
   append(report.skipped, skipped)
