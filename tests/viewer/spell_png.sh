@@ -78,11 +78,16 @@ shot() {
     --window-size=1920,1080 --virtual-time-budget="$2" --screenshot="$OUT/$1" "$URL"
 }
 
-# Mage: target the dummy, Fireball from slot 1 (key 1); a short budget keeps the shot inside the cast.
+# Mage: target the dummy, Fireball from slot 1 (key 1), then 0.6 s of the 1.5 s cast here. With stream=0 the page draws
+# the UI once, from the snapshot it reads at load, so the bar shows what the sim reached before the shot (~40% filled);
+# a short budget keeps the page's own steps inside the cast.
 sim '{"action":"reset","class":"MAGE"}' > /dev/null
 MOB="$(dummy)"
 clickMob "$MOB" LeftButton
 key 1
+for _ in 1 2 3; do
+  sim '{"action":"step","seconds":0.2}' > /dev/null
+done
 shot "spell-$FLAVOR-mage.png" 600
 
 # Warrior: Charge (slot 1) to the dummy, attack it, swing until the proc glows (at most 60 s of sim time).
