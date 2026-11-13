@@ -44,7 +44,40 @@ local function subgroupSize(mock)
   return 0
 end
 
+-- The unit tokens of the player's group, the player first: raid1..N in a raid, else the player and party1..N-1.
+local function groupUnits(mock)
+  if mock.group == "raid" then
+    local units = {}
+    for i = 1, groupSize(mock) do
+      units[i] = "raid" .. i
+    end
+    return units
+  end
+  local units = { "player" }
+  for i = 1, subgroupSize(mock) do
+    units[#units + 1] = "party" .. i
+  end
+  return units
+end
+
+-- source: confirmed (row G77) a table of TANK, HEALER, DAMAGER and NOROLE counts: forever partyutil.lua:111-114 adds
+-- NOROLE to DAMAGER, uipaneltemplates.lua:23-26 shows the three role counts. No API doc types it. assumed: the player
+-- counts, solo too, and each member counts under UnitGroupRolesAssigned (read at call time, so Combat's actors count).
+local function memberCounts(w)
+  local counts = { TANK = 0, HEALER = 0, DAMAGER = 0, NOROLE = 0 }
+  local roleOf = rawget(_G, "UnitGroupRolesAssigned")
+  for _, unit in ipairs(groupUnits(w.mock)) do
+    local role = type(roleOf) == "function" and roleOf(unit) or "NONE"
+    local key = counts[role] and role or "NOROLE"
+    counts[key] = counts[key] + 1
+  end
+  return counts
+end
+
 local function installGroup(w)
+  define(w, "GetGroupMemberCounts", function()
+    return memberCounts(w)
+  end)
   define(w, "IsInGroup", function()
     return w.mock.group ~= "none"
   end)

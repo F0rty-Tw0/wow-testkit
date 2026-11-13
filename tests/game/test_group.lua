@@ -67,7 +67,23 @@ local function test_group_state_answers_on_every_flavor() -- (G8)
   end
 end
 
+-- forever GetGroupMemberCountsForDisplay (partyutil.lua:111-114) adds data.NOROLE to data.DAMAGER; a bare name with no
+-- signature, it answered nothing and the index raised at load. (G77)
+local function test_member_counts_count_the_group_by_role_assumed()
+  G.withGame("retail", function(w)
+    A.same(_G.GetGroupMemberCounts(), { TANK = 0, HEALER = 0, DAMAGER = 0, NOROLE = 1 })
+    w:setMock({ group = "party" })
+    w:unit("player", { role = "HEALER" })
+    w:unit("party1", { role = "TANK" })
+    w:unit("party2", { role = "DAMAGER" })
+    A.same(_G.GetGroupMemberCounts(), { TANK = 1, HEALER = 1, DAMAGER = 1, NOROLE = 2 })
+    w:setMock({ group = "raid", groupSize = 3 })
+    A.same(_G.GetGroupMemberCounts(), { TANK = 0, HEALER = 0, DAMAGER = 0, NOROLE = 3 })
+  end)
+end
+
 return function()
+  test_member_counts_count_the_group_by_role_assumed()
   test_solo_defaults()
   test_party_and_raid_counts_assumed()
   test_combat_flag_and_unit_flag()
