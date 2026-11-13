@@ -265,6 +265,20 @@
     },
   });
 
+  T.push({
+    name: 'the_stage_draws_the_addon_frames',
+    fn: async () => {
+      const ctl = await demo();
+      try {
+        await TK.start();
+        const stage = document.getElementById('stage');
+        await until(() => stage.children.length > 1, 'an item on the stage after #background');
+      } finally {
+        ctl.stop();
+      }
+    },
+  });
+
   // The screenshot run: SessionDemo with its art, drawn to fit, left running.
   if (new URLSearchParams(location.search).get('shot') === '1') {
     T.length = 0;

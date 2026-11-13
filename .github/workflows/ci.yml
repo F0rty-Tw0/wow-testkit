@@ -45,3 +45,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
           args: --check .
+      - name: Page markup
+        run: python3 tests/wasm/check_markup.py
