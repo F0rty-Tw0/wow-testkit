@@ -261,6 +261,33 @@ local function test_enums_and_constants_installed()
   end)
 end
 
+local function test_legacy_number_globals_installed()
+  withWorld("tbc", function(w)
+    A.eq(w.globals.legacy.LE_LFG_CATEGORY_LFD, 1)
+    A.eq(_G.LE_LFG_CATEGORY_LFD, 1)
+    A.eq(_G.NUM_LE_LFG_CATEGORYS, w.globals.legacy.NUM_LE_LFG_CATEGORYS)
+  end)
+end
+
+-- forever Constants.lua:168-170 does arithmetic on Constants.InventoryConstants.NumBagSlots, which no API doc lists.
+local function test_dumped_constants_fill_what_the_docs_lack()
+  withWorld("forever", function(w)
+    A.eq(w.globals.constants.InventoryConstants.NumBagSlots, 4)
+    A.eq(_G.Constants.InventoryConstants.NumBagSlots, 4)
+    A.eq(_G.Constants.InventoryConstants.MAX_TRANSACTION_BANK_TABS, w.manifest.constants.InventoryConstants.MAX_TRANSACTION_BANK_TABS)
+    A.eq(type(_G.Constants.LootConsts), "table") -- a table only the dump has
+  end)
+end
+
+local function test_legacy_number_global_leaves_a_defined_value()
+  _G.LE_LFG_CATEGORY_LFD = "defined"
+  local ok, err = pcall(withWorld, "tbc", function()
+    A.eq(_G.LE_LFG_CATEGORY_LFD, "defined")
+  end)
+  _G.LE_LFG_CATEGORY_LFD = nil
+  assert(ok, err)
+end
+
 return function()
   test_retail_world_new_is_fast()
   test_vanilla_lacks_mythic_plus_summary_retail_has_it()
@@ -286,4 +313,7 @@ return function()
   test_build_info_and_project_on_retail()
   test_project_id_on_vanilla()
   test_enums_and_constants_installed()
+  test_legacy_number_globals_installed()
+  test_legacy_number_global_leaves_a_defined_value()
+  test_dumped_constants_fill_what_the_docs_lack()
 end

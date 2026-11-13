@@ -32,6 +32,16 @@ local function test_every_demo_window_opens_without_errors()
   end
 end
 
+-- A flavor without an id keeps the sim's mapID 1, which no classic-id UiMap has: forever 70862 opened a map with no
+-- mapID, so no tiles (GetFallbackWorldMapID finds no cosmic map there either).
+local function test_demo_map_names_a_zone_on_every_flavor_with_a_map_window()
+  for _, flavor in ipairs(sortedKeys(BlizzardWindows.WINDOWS)) do
+    if BlizzardWindows.WINDOWS[flavor].map then
+      A.eq(type(Demo.map.mapIDs[flavor]), "number", flavor)
+    end
+  end
+end
+
 -- Every value under a key `name`, at any depth, in out.
 local function names(t, out)
   for key, value in pairs(t) do
@@ -52,5 +62,6 @@ end
 
 return function()
   test_every_demo_window_opens_without_errors()
+  test_demo_map_names_a_zone_on_every_flavor_with_a_map_window()
   test_demo_data_has_no_blizzard_strings()
 end

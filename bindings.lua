@@ -65,6 +65,18 @@ function M.lookup(w, key)
   return overrideFor(w, key) or w.bindings.keys[key]
 end
 
+-- source: confirmed (row G71) the display strings: tbc 70577 strings/enUS.lua KEY_ESCAPE = "Escape", SHIFT_KEY_TEXT =
+-- "SHIFT". assumed: each "-"-separated part of key reads as its KEY_<part> string, else its <part>_KEY_TEXT string, else
+-- itself; nil reads as "".
+-- grug: the abbreviate argument is ignored (full text); read the *_ABBR strings when a scenario needs short labels.
+local function bindingText(key)
+  local parts = {}
+  for part in tostring(key or ""):gmatch("[^-]+") do
+    parts[#parts + 1] = rawget(_G, "KEY_" .. part) or rawget(_G, part .. "_KEY_TEXT") or part
+  end
+  return table.concat(parts, "-")
+end
+
 local function keysOf(w, command)
   local keys = {}
   for key, bound in pairs(w.bindings.keys) do
@@ -89,6 +101,7 @@ local function api(w)
     GetBindingKey = function(command)
       return unpack(keysOf(w, command))
     end,
+    GetBindingText = bindingText,
     GetBindingAction = function(key, checkOverride)
       local command = checkOverride and overrideFor(w, key:upper())
       return command or w.bindings.keys[key:upper()] or ""

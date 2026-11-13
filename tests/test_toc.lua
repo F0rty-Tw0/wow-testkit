@@ -157,6 +157,26 @@ local function test_forever_game_type_file_loads_on_forever_only()
   end
 end
 
+-- source: confirmed (row L8) wiki TOC_format [ExcludeLoadGameType]; forever 70862 blizzard_playerspells.toc pairs
+-- `[Family]/X [ExcludeLoadGameType camelot]` with `[Game]/X [AllowLoadGameType camelot]`.
+local function test_exclude_game_type_drops_the_line_on_those_game_types()
+  local parsed = Toc.parse(
+    "Mainline.lua [ExcludeLoadGameType camelot]\nOld.lua [ExcludeLoadGameType vanilla tbc]\n" .. "## Dep: A [ExcludeLoadGameType classic]\n"
+  )
+  local expected = {
+    retail = { "Mainline.lua", "Old.lua" },
+    forever = { "Old.lua" },
+    mists = { "Mainline.lua", "Old.lua" },
+    tbc = { "Mainline.lua" },
+    vanilla = { "Mainline.lua" },
+  }
+  for _, flavor in ipairs(Flavors.list) do
+    local files, report = Toc.filesFor(parsed, flavor)
+    A.same({ files, report }, { expected[flavor], {} }, flavor)
+    A.same(Toc.dependencies(parsed.meta, flavor).required, flavor == "retail" and { "A" } or flavor == "forever" and { "A" } or {}, flavor)
+  end
+end
+
 -- An addon root holding one empty TOC per suffix given.
 local function tocRoot(name, suffixes)
   local root = Tmp.dir("toc") .. "/" .. name
@@ -188,6 +208,19 @@ local function test_ignored_directives_are_reported()
   local text = table.concat(report, "\n")
   A.contains(text, "AllowLoad")
   A.eq(text:find("<Frame>", 1, true), nil)
+end
+
+-- source: row BU30.
+local function test_bootstrap_lines_split_off_only_for_a_load_on_demand_addon()
+  local lines = "Main.lua\nBoot.lua [Bootstrap]\n"
+  local atLogin = Toc.parse(lines)
+  A.same((Toc.filesFor(atLogin, "retail")), { "Main.lua", "Boot.lua" })
+  A.same(Toc.bootstrapFiles(atLogin, "retail"), {})
+  local lod = Toc.parse("## LoadOnDemand: 1\n" .. lines)
+  local files, report = Toc.filesFor(lod, "retail")
+  A.same(files, { "Main.lua" })
+  A.same(report, {})
+  A.same(Toc.bootstrapFiles(lod, "retail"), { "Boot.lua" })
 end
 
 local function test_addon_name_from_folder()
@@ -281,10 +314,12 @@ return function()
   test_wrath_or_cata_only_file_loads_on_no_flavor_assumed()
   test_plunderstorm_or_wowhack_only_file_loads_on_no_flavor_assumed()
   test_forever_game_type_file_loads_on_forever_only()
+  test_exclude_game_type_drops_the_line_on_those_game_types()
   test_forever_suffixed_toc_wins_over_mainline_on_forever()
   test_camelot_suffixed_toc_wins_over_forever_assumed()
   test_xml_file_is_listed_in_place()
   test_ignored_directives_are_reported()
+  test_bootstrap_lines_split_off_only_for_a_load_on_demand_addon()
   test_addon_name_from_folder()
   test_addon_name_ambiguous()
   test_addon_name_of_dot_works_while_the_global_os_is_cleared()

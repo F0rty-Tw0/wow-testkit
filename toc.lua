@@ -7,6 +7,10 @@ local fs = require("fs")
 
 local INTERFACE_KEY = "Interface"
 local GAME_TYPE_DIRECTIVE = "AllowLoadGameType"
+local EXCLUDE_GAME_TYPE_DIRECTIVE = "ExcludeLoadGameType"
+local BOOTSTRAP_DIRECTIVE = "Bootstrap"
+-- The inline directives the kit reads; any other is reported as ignored.
+local READ_DIRECTIVES = { [GAME_TYPE_DIRECTIVE] = true, [EXCLUDE_GAME_TYPE_DIRECTIVE] = true, [BOOTSTRAP_DIRECTIVE] = true }
 local UTF8_BOM = "^\239\187\191"
 -- Localized: addon code may assign a global named os.
 local osGetenv = os.getenv
@@ -114,8 +118,24 @@ local function parseFileLine(line)
   return { path = (line:gsub("\\", "/")), directives = directives }
 end
 
--- A game-type list loads the file when it shares a type with the flavor, or names no known type at all.
+-- source: confirmed (row L8) wiki TOC_format: [ExcludeLoadGameType x] keeps the line off game type x (added 12.0.0);
+-- forever 70862 `blizzard_playerspells.toc` pairs `[Family]/X [ExcludeLoadGameType camelot]` with
+-- `[Game]/X [AllowLoadGameType camelot]`.
+local function excludedOn(file, row)
+  for name in pairs(file.directives[EXCLUDE_GAME_TYPE_DIRECTIVE] or {}) do
+    if row.gameTypes[name] then
+      return true
+    end
+  end
+  return false
+end
+
+-- A game-type list loads the file when it shares a type with the flavor, or names no known type at all; an exclude
+-- list naming one of the flavor's types drops it first.
 local function allowedOn(file, row, report)
+  if excludedOn(file, row) then
+    return false
+  end
   local gameTypes = file.directives[GAME_TYPE_DIRECTIVE]
   if not gameTypes then
     return true
@@ -135,6 +155,7 @@ local function allowedOn(file, row, report)
   return true
 end
 M.allowedOn = allowedOn
+M.parseFileLine = parseFileLine
 
 -- source: assumed (row BU2) "A [AllowLoadGameType mainline], B [AllowLoad Glue]" -> "A" on retail: a name whose
 -- game-type list excludes row, or whose AllowLoad list lacks game (a glue-screen addon), is dropped.
@@ -158,9 +179,9 @@ local function isRequiredKey(key)
   return key:sub(1, 3) == "Dep" or key == "RequiredDeps" or key == "RequiredDep"
 end
 
--- source: confirmed (row G16) a dependency directive may repeat, and later instances append to the list.
+-- source: confirmed (rows G16, G37) a dependency or LoadWith directive may repeat, and later instances append to the list.
 local function isListKey(key)
-  return isRequiredKey(key) or key == "OptionalDeps"
+  return isRequiredKey(key) or key == "OptionalDeps" or key == "LoadWith"
 end
 
 function M.parse(text)
@@ -212,6 +233,15 @@ function M.dependencies(meta, flavor)
   local optional = meta.OptionalDeps or ""
   appendNames(deps.optional, seen, row and allowedNames(optional, row) or optional)
   return deps
+end
+
+-- The addons named by meta's LoadWith, whose load triggers this one's (row G37); with flavor, a name the flavor does
+-- not load is left out.
+function M.loadWith(meta, flavor)
+  local value = meta.LoadWith or ""
+  local out = {}
+  appendNames(out, {}, flavor and allowedNames(value, Flavors.get(flavor)) or value)
+  return out
 end
 
 local function interfaceValues(meta, row)
@@ -269,7 +299,7 @@ end
 
 local function reportIgnoredDirectives(file, report)
   for _, name in ipairs(sortedKeys(file.directives)) do
-    if name ~= GAME_TYPE_DIRECTIVE then
+    if not READ_DIRECTIVES[name] then
       report[#report + 1] = file.path .. ": ignored directive [" .. name .. "]"
     end
   end
@@ -284,17 +314,43 @@ local function addFile(path, files, report)
   end
 end
 
--- Ordered Lua and XML paths (relative to the addon root, [Family]/[Game] expanded) the flavor loads, and what was ignored.
-function M.filesFor(parsed, flavor)
+local function isLoadOnDemand(meta)
+  return meta.LoadOnDemand == "1"
+end
+
+local function isBootstrap(file)
+  return file.directives[BOOTSTRAP_DIRECTIVE] ~= nil
+end
+
+local function collect(parsed, flavor, keep)
   local row = Flavors.get(flavor)
   local files, report = {}, {}
   for _, file in ipairs(parsed.files) do
     reportIgnoredDirectives(file, report)
-    if allowedOn(file, row, report) then
+    if keep(file) and allowedOn(file, row, report) then
       addFile(Flavors.expandTocPath(flavor, file.path), files, report)
     end
   end
   return files, report
+end
+
+-- Ordered Lua and XML paths (relative to the addon root, [Family]/[Game] expanded) the flavor loads, and what was ignored.
+-- A LoadOnDemand addon's [Bootstrap] lines are left out: M.bootstrapFiles ran them at login (row BU30).
+function M.filesFor(parsed, flavor)
+  local lod = isLoadOnDemand(parsed.meta)
+  return collect(parsed, flavor, function(file)
+    return not (lod and isBootstrap(file))
+  end)
+end
+
+-- source: confirmed (row BU30) wiki TOC_format: [Bootstrap] "Restricts the addon directive or file to the bootstrap
+-- process for LoadOnDemand addons" (12.1.0); assumed: that process runs at login. The paths a LoadOnDemand addon runs
+-- then, in M.filesFor's form; {} for an addon that loads at login (its [Bootstrap] lines load with the rest).
+function M.bootstrapFiles(parsed, flavor)
+  if not isLoadOnDemand(parsed.meta) then
+    return {}
+  end
+  return (collect(parsed, flavor, isBootstrap))
 end
 
 return M

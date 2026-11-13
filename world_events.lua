@@ -228,7 +228,7 @@ local function addonLevel(fallback)
 end
 
 local function checkEvent(w, event)
-  if not (w.manifest.events[event] or w.globals.events[event]) then
+  if not w:knowsEvent(event) then
     error("unknown event '" .. tostring(event) .. "' on " .. w.flavor, addonLevel(3))
   end
 end

@@ -116,9 +116,10 @@ files["tests/fixtures/addons/Poly/*.lua"] = {
   read_globals = { "wipe" },
 }
 
--- Sandbox fixture: its global write through _G is the behavior under test.
+-- Sandbox fixture: its global write through _G is the behavior under test; it calls two WoW environment functions.
 files["tests/fixtures/addons/Sandbox/*.lua"] = {
   globals = { "SandboxFoo" },
+  read_globals = { "GetGlobalEnvironment", "securecopy" },
 }
 
 -- Smoke fixture addons: runaway loops through C_Timer and coroutines; Clobber's write to coroutine is the

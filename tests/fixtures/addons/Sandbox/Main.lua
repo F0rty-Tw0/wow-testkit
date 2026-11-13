@@ -17,6 +17,10 @@ ns.osExecute = type(os.execute)
 ns.loadstring = type(loadstring)
 ns.getfenv = type(getfenv)
 ns.fenvRequire = type(getfenv(0).require)
+ns.globalEnvIsG = GetGlobalEnvironment() == _G
+local original = { inner = { 1 } }
+local copy = securecopy(original)
+ns.secureCopy = { copy ~= original, copy.inner ~= original.inner, copy.inner[1] }
 ns.loadstringRequire = type(loadstring("return require")())
 ns.loadstringIo = type(loadstring("return io")())
 ns.rawRequire = type(rawget(_G, "require"))

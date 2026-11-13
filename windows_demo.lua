@@ -40,9 +40,11 @@ return {
       },
     },
   },
-  -- The zone the player stands in, by flavor (ids of the installed extracts' UiMap rows; the map art comes from the extract).
+  -- The zone the player stands in, by flavor: Elwynn Forest (ids of the installed extracts' UiMap rows; the map art comes
+  -- from the extract). Confirmed: tbc 70577 and forever 70862 db2/uimap.lua [1429]; assumed: vanilla shares tbc's classic
+  -- ids, mists retail's.
   map = {
-    mapIDs = { retail = 37, tbc = 1429 },
+    mapIDs = { retail = 37, mists = 37, tbc = 1429, vanilla = 1429, forever = 1429 },
     position = { x = 0.4, y = 0.6 },
   },
   -- Item ids only: the names and icons come from the extract's DB2 (a run with no extract calls them "Kit item <id>").

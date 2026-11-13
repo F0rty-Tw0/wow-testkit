@@ -100,6 +100,19 @@ local function test_fixture_fields_answer_their_apis()
   end)
 end
 
+-- tbc ExpBarMixin:Update (blizzard_actionbar/shared/expbar.lua:20, :37) passes UnitXPMax("player") to SetMinMaxValues;
+-- the classic flavors list it without a signature, so it answered nothing and the bar's clamp raised. (G59)
+local function test_xp_answers_the_fixture_and_defaults_to_zero_on_classic()
+  for _, flavor in ipairs({ "tbc", "retail" }) do
+    withUnits(flavor, function(w)
+      w:unit("player", { xp = 5, xpMax = 9 })
+      w:unit("target", {})
+      A.same({ _G.UnitXP("player"), _G.UnitXPMax("player") }, { 5, 9 }, flavor)
+      A.same({ _G.UnitXP("target"), _G.UnitXPMax("target"), _G.UnitXPMax("focus") }, { 0, 0, 0 }, flavor)
+    end)
+  end
+end
+
 local function test_race_and_faction_shapes()
   withUnits("vanilla", function(w)
     w:unit("target", { raceName = "Night Elf", raceFile = "NightElf", faction = "Alliance" })
@@ -295,4 +308,5 @@ return function()
   test_unit_apis_take_a_group_members_name()
   test_a_name_outside_the_group_is_not_a_unit()
   test_the_players_own_name_is_a_unit_assumed()
+  test_xp_answers_the_fixture_and_defaults_to_zero_on_classic()
 end

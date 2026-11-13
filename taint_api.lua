@@ -107,6 +107,14 @@ function M.install(w)
   w:install("securecallmethod", function(object, method, ...)
     return call(w, object[method], object, ...)
   end)
+  -- source: row TS6, forever 70862 framescriptdocumentation.lua:113-118 "Creates a secure delegate closure ... invokes the
+  -- original function in a protected call context with secure execution taint, and supports passing and returning values
+  -- directly." Assumed: that call is securecallfunction's (TS5: taint restored, an error reported and nothing returned).
+  w:install("CreateSecureDelegate", function(luaFunction)
+    return function(...)
+      return call(w, luaFunction, ...)
+    end
+  end, { gate = "api" })
   -- source: `blizzard_chatframebase/shared/chatframeutil.lua:790-811` (func(key, value, extra) per pair); an error in
   -- one pair does not stop the loop (assumed, row TS5).
   w:install("secureexecuterange", function(tbl, func, ...)

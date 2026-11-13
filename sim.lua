@@ -108,6 +108,8 @@ function M.install(w, sim)
   Combat.install(w)
   local player = Actors.get(w, PLAYER)
   M.applyClass(w, player, o.class)
+  -- source: assumed (row SM16) the sim's player is a Human (UnitRace), as the viewer's race selector starts.
+  player.raceName, player.raceFile = "Human", "Human"
   player.level = o.level
   player.pos = { x = M.SPAWN.x, y = M.SPAWN.y }
   player.facing = M.SPAWN.facing
