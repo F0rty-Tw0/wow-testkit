@@ -78,7 +78,18 @@ local function test_explored_overlays_and_fallback_map_assumed() -- (B8 fallback
   end)
 end
 
+-- source: G50 forever's map data provider loops `for flagIndex = 1, GetNumBattlefieldFlagPositions()`
+-- (blizzard_sharedmapdataproviders/battlefieldflagdataprovider.lua:24); every flavor's globals list it without a signature.
+local function test_battlefield_flag_count_is_zero_outside_a_battleground_assumed() -- G50
+  for _, flavor in ipairs(Flavors.list) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetNumBattlefieldFlagPositions(), 0, flavor)
+    end)
+  end
+end
+
 return function()
+  test_battlefield_flag_count_is_zero_outside_a_battleground_assumed()
   test_children_direct_and_all_descendants()
   test_art_layers_and_row_major_tiles()
   test_player_position_only_on_the_zone_map()

@@ -155,6 +155,11 @@ local function installPlayer(w)
     end
     return lowest
   end)
+  -- source: confirmed (row G50) a count: forever battlefieldflagdataprovider.lua:24 loops to it; assumed 0, as the kit
+  -- models no battleground. Every flavor's globals list it without a signature, so the stub answered nil.
+  define(w, "GetNumBattlefieldFlagPositions", function()
+    return 0
+  end)
 end
 
 function M.install(w)
