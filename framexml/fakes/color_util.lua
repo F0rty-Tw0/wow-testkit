@@ -40,6 +40,57 @@ local UI_COLORS = {
   { baseTag = "ACTIONBAR_HOTKEY_FONT_COLOR", color = { r = 0.8, g = 0.8, b = 0.8, a = 1 } },
   { baseTag = "TOOLTIP_DEFAULT_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } },
   { baseTag = "TOOLTIP_DEFAULT_BACKGROUND_COLOR", color = { r = 0.09, g = 0.09, b = 0.188, a = 1 } },
+  -- source: row W83 (confirmed) GlobalColor rows 395-398 (RGB ffb300, 00ff00, b3b3b3, ff0000); the classic cast bar
+  -- colours its fill with them (tbc 70577 blizzard_uipanels_game/shared/castingbarframe.lua:23-24, :628-630).
+  { baseTag = "CASTBAR_CLASSIC_YELLOW", color = { r = 1, g = 179 / 255, b = 0, a = 1 } },
+  { baseTag = "CASTBAR_CLASSIC_GREEN", color = { r = 0, g = 1, b = 0, a = 1 } },
+  { baseTag = "CASTBAR_CLASSIC_GRAY", color = { r = 179 / 255, g = 179 / 255, b = 179 / 255, a = 1 } },
+  { baseTag = "CASTBAR_CLASSIC_RED", color = { r = 1, g = 0, b = 0, a = 1 } },
+  -- source: row W85 (confirmed) GlobalColor row 17 `-8355712` (ARGB ff808080); 9.2.7 Lua had 7f7f7f, but no Lua in the
+  -- forever 70862 or tbc 70577 extract assigns it now.
+  { baseTag = "DISABLED_FONT_COLOR", color = { r = 128 / 255, g = 128 / 255, b = 128 / 255, a = 1 } },
+  -- source: row W86 (confirmed) GlobalColor row 191 `-870375903` (ARGB cc1f1e21); the bag frame's backdrop reads it
+  -- (forever 70862 blizzard_sharedxml/portraitframe.lua:123); no extract Lua defines it.
+  { baseTag = "PANEL_BACKGROUND_COLOR", color = { r = 31 / 255, g = 30 / 255, b = 33 / 255, a = 204 / 255 } },
+  -- source: row W87 (confirmed) GlobalColor rows 63, 76, 77 (ARGB ff82c5ff, ffff2934, ff00adf0) and 406 (RGB ffd100,
+  -- alpha assumed 1 as W83); no extract Lua defines them.
+  { baseTag = "FRIENDS_BNET_NAME_COLOR", color = { r = 130 / 255, g = 197 / 255, b = 1, a = 1 } },
+  { baseTag = "PLAYER_FACTION_COLOR_HORDE", color = { r = 1, g = 41 / 255, b = 52 / 255, a = 1 } },
+  { baseTag = "PLAYER_FACTION_COLOR_ALLIANCE", color = { r = 0, g = 173 / 255, b = 240 / 255, a = 1 } },
+  { baseTag = "UNIT_LEVEL_NON_ATTACKABLE", color = { r = 1, g = 209 / 255, b = 0, a = 1 } },
+  -- source: row W88 (confirmed) GlobalColor rows 242-255 (ARGB in each comment); forever's UnitFrame_Initialize fills the
+  -- mana cost prediction bar with POWERBAR_PREDICTION_COLOR_MANA (mainline/unitframe.lua:597-600) and unitframe.xml:5-15
+  -- names the heal and absorb ones; no extract Lua defines them.
+  { baseTag = "HEALTHBAR_MY_HEAL_PREDICTION_COLOR", color = { r = 0, g = 211 / 255, b = 195 / 255, a = 1 } }, -- ff00d3c3
+  { baseTag = "HEALTHBAR_OTHER_HEAL_PREDICTION_COLOR", color = { r = 0, g = 161 / 255, b = 142 / 255, a = 1 } }, -- ff00a18e
+  { baseTag = "HEALTHBAR_HEAL_ABSORB_COLOR", color = { r = 108 / 255, g = 166 / 255, b = 13 / 255, a = 1 } }, -- ff6ca60d
+  { baseTag = "HEALTHBAR_TOTAL_ABSORB_COLOR", color = { r = 1, g = 1, b = 1, a = 1 } }, -- ffffffff
+  { baseTag = "POWERBAR_PREDICTION_COLOR_MANA", color = { r = 0, g = 45 / 255, b = 104 / 255, a = 1 } }, -- ff002d68
+  { baseTag = "POWERBAR_PREDICTION_COLOR_RAGE", color = { r = 102 / 255, g = 0, b = 0, a = 1 } }, -- ff660000
+  { baseTag = "POWERBAR_PREDICTION_COLOR_FOCUS", color = { r = 102 / 255, g = 34 / 255, b = 0, a = 1 } }, -- ff662200
+  { baseTag = "POWERBAR_PREDICTION_COLOR_ENERGY", color = { r = 115 / 255, g = 102 / 255, b = 0, a = 1 } }, -- ff736600
+  { baseTag = "POWERBAR_PREDICTION_COLOR_RUNIC_POWER", color = { r = 0, g = 83 / 255, b = 102 / 255, a = 1 } }, -- ff005366
+  { baseTag = "POWERBAR_PREDICTION_COLOR_LUNAR_POWER", color = { r = 15 / 255, g = 47 / 255, b = 103 / 255, a = 1 } }, -- ff0f2f67
+  { baseTag = "POWERBAR_PREDICTION_COLOR_MAELSTROM", color = { r = 0, g = 51 / 255, b = 102 / 255, a = 1 } }, -- ff003366
+  { baseTag = "POWERBAR_PREDICTION_COLOR_INSANITY", color = { r = 51 / 255, g = 0, b = 102 / 255, a = 1 } }, -- ff330066
+  { baseTag = "POWERBAR_PREDICTION_COLOR_FURY", color = { r = 72 / 255, g = 2 / 255, b = 100 / 255, a = 1 } }, -- ff480264
+  { baseTag = "POWERBAR_PREDICTION_COLOR_PAIN", color = { r = 102 / 255, g = 63 / 255, b = 0, a = 1 } }, -- ff663f00
+  -- source: row W89 (confirmed) GlobalColor rows 363, 379, 108, 393, 394, 272 (ARGB in each comment); shared
+  -- compactunitframe.lua reads them (the background colour at forever :709, tbc :705); no extract Lua defines them.
+  { baseTag = "COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR", color = { r = 43 / 255, g = 147 / 255, b = 5 / 255, a = 1 } }, -- ff2b9305
+  { baseTag = "COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR_BG", color = { r = 20 / 255, g = 20 / 255, b = 20 / 255, a = 1 } }, -- ff141414
+  { baseTag = "NO_THREAT_COLOR", color = { r = 176 / 255, g = 176 / 255, b = 176 / 255, a = 1 } }, -- ffb0b0b0
+  { baseTag = "GAINING_THREAT_COLOR", color = { r = 248 / 255, g = 181 / 255, b = 0, a = 1 } }, -- fff8b500
+  { baseTag = "HIGH_THREAT_COLOR", color = { r = 1, g = 69 / 255, b = 11 / 255, a = 1 } }, -- ffff450b
+  { baseTag = "PLAYER_NAMEPLATE_ALTERNATE_HEALTH_COLOR", color = { r = 0, g = 173 / 255, b = 240 / 255, a = 1 } }, -- ff00adf0
+  -- source: row W91 (confirmed) GlobalColor rows 365-370 (ARGB in each comment); forever's AuraUtil builds its dispel type
+  -- table from them at load (blizzard_framexmlutil/aurautil.lua:4-10); no extract Lua defines them.
+  { baseTag = "DEBUFF_TYPE_MAGIC_COLOR", color = { r = 0, g = 129 / 255, b = 1, a = 1 } }, -- ff0081ff
+  { baseTag = "DEBUFF_TYPE_POISON_COLOR", color = { r = 123 / 255, g = 199 / 255, b = 0, a = 1 } }, -- ff7bc700
+  { baseTag = "DEBUFF_TYPE_CURSE_COLOR", color = { r = 159 / 255, g = 6 / 255, b = 228 / 255, a = 1 } }, -- ff9f06e4
+  { baseTag = "DEBUFF_TYPE_BLEED_COLOR", color = { r = 184 / 255, g = 0, b = 15 / 255, a = 1 } }, -- ffb8000f
+  { baseTag = "DEBUFF_TYPE_DISEASE_COLOR", color = { r = 241 / 255, g = 106 / 255, b = 9 / 255, a = 1 } }, -- fff16a09
+  { baseTag = "DEBUFF_TYPE_NONE_COLOR", color = { r = 204 / 255, g = 0, b = 0, a = 1 } }, -- ffcc0000
 }
 
 local function byte(channel)
