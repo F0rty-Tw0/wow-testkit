@@ -273,6 +273,38 @@ local function test_color_calls_the_setter_of_its_region_assumed()
   end)
 end
 
+-- source: X42 tbc's GameFontHighlight is `<Color color="WHITE_FONT_COLOR"/>` (blizzard_fonts_shared/shared/fontstyles.xml:62-64)
+-- and the classic cast bar's Text inherits it (blizzard_uipanels_game/classic/castingbarframe.xml:37).
+local function test_color_attribute_names_a_global_colour() -- X42
+  local xml = [[
+<Ui><Font name="KitHighlight" font="Fonts\FRIZQT__.TTF" height="12" virtual="true"><Color color="WHITE_FONT_COLOR"/>
+    <Shadow><Color color="NORMAL_FONT_COLOR"/></Shadow></Font>
+  <Frame name="Named"><Layers><Layer>
+    <FontString parentKey="Label" inherits="KitHighlight" text="Hi"/>
+    <Texture parentKey="Swatch"><Color color="RED_FONT_COLOR"/></Texture>
+  </Layer></Layers></Frame></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    local white, gold, red = _G.WHITE_FONT_COLOR, _G.NORMAL_FONT_COLOR, _G.RED_FONT_COLOR
+    A.same({ _G.Named.Label:GetTextColor() }, { white.r, white.g, white.b, 1 })
+    A.same({ _G.Named.Label:GetShadowColor() }, { gold.r, gold.g, gold.b, 1 })
+    A.same(w.ui.state[_G.Named.Swatch].tex.color, { red.r, red.g, red.b, 1 })
+    A.eq(reportText(ctx), "")
+  end)
+end
+
+local function test_unknown_colour_name_is_reported_and_falls_back_to_rgba() -- X42
+  local xml = [[
+<Ui><Frame name="Unnamed"><Layers><Layer>
+  <Texture parentKey="Swatch"><Color color="NO_SUCH_COLOR" r="0.5" g="0.25" b="0"/></Texture>
+</Layer></Layers></Frame></Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.same(w.ui.state[_G.Unnamed.Swatch].tex.color, { 0.5, 0.25, 0, 1 })
+    A.truthy(reportText(ctx):find("colour 'NO_SUCH_COLOR' not found", 1, true), reportText(ctx))
+  end)
+end
+
 -- source: X30 forever's HelpPlateTooltip BG (blizzard_helpplate/blizzard_helpplate.xml:129-138) is a white <Color> under a
 -- dark VERTICAL <Gradient>; ui.xsd:326-333 gives MinColor/MaxColor children and orientation default HORIZONTAL.
 local function test_gradient_element_sets_the_texture_gradient() -- X30
@@ -358,6 +390,8 @@ return function()
   test_second_anchors_element_drops_the_first_ones_waiting_anchors_assumed()
   test_layers_give_regions_their_draw_layer_and_texcoords()
   test_color_calls_the_setter_of_its_region_assumed()
+  test_color_attribute_names_a_global_colour()
+  test_unknown_colour_name_is_reported_and_falls_back_to_rgba()
   test_gradient_element_sets_the_texture_gradient()
   test_keyvalues_set_string_number_and_boolean()
   test_global_keyvalue_stores_the_global_assumed()

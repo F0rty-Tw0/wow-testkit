@@ -36,10 +36,19 @@ function M.absValue(node)
   return tonumber(source.attrs.val)
 end
 
--- r, g, b and a of a <Color>.
--- source: wiki XML/Color: `a` defaults to 1.0, `r`, `g`, `b` to 0.0 (row X18)
-function M.color(node)
+-- r, g, b and a of a <Color>: the global colour object its color attribute names, else the r, g, b and a attributes.
+-- source: wiki XML/Color: `a` defaults to 1.0, `r`, `g`, `b` to 0.0 (row X18). ColorType's `color` attribute is
+-- confirmed (row X42); that it names a global colour and wins over r, g, b and a is assumed. An unknown name is reported
+-- and the attributes stand.
+function M.color(w, node, session)
   local attrs = node.attrs
+  if attrs.color then
+    local named = AddonEnv.global(w, attrs.color, true)
+    if type(named) == "table" and type(named.r) == "number" then
+      return named.r, named.g, named.b, named.a or 1
+    end
+    session.reportAt(node.line, "colour '" .. attrs.color .. "' not found; its r, g, b and a used")
+  end
   return tonumber(attrs.r) or 0, tonumber(attrs.g) or 0, tonumber(attrs.b) or 0, tonumber(attrs.a) or 1
 end
 
@@ -290,11 +299,11 @@ function handlers.keyvalues(w, obj, _, node, session)
 end
 
 -- Which setter a <Color> calls is assumed (row X18): SetColorTexture on a Texture, SetTextColor on a FontString.
-function handlers.color(_, obj, _, node, session)
+function handlers.color(w, obj, _, node, session)
   if obj.SetColorTexture then
-    obj:SetColorTexture(M.color(node))
+    obj:SetColorTexture(M.color(w, node, session))
   elseif obj.SetTextColor then
-    obj:SetTextColor(M.color(node))
+    obj:SetTextColor(M.color(w, node, session))
   else
     session.reportAt(node.line, "<Color> needs a Texture or FontString; ignored")
   end
@@ -302,10 +311,10 @@ end
 
 -- source: confirmed (row X30) ui.xsd:326-333 (forever 70862 blizzard_sharedxml): MinColor and MaxColor children,
 -- orientation HORIZONTAL by default; assumed it calls SetGradient, and that a gradient missing either colour is skipped.
-function handlers.gradient(_, obj, _, node, session)
+function handlers.gradient(w, obj, _, node, session)
   local colors = {}
   for _, child in ipairs(node.children) do
-    local r, g, b, a = M.color(child)
+    local r, g, b, a = M.color(w, child, session)
     colors[child.tag] = { r = r, g = g, b = b, a = a }
   end
   if not (obj.SetGradient and colors.mincolor and colors.maxcolor) then
