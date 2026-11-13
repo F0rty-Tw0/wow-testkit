@@ -91,6 +91,19 @@ local UI_COLORS = {
   { baseTag = "DEBUFF_TYPE_BLEED_COLOR", color = { r = 184 / 255, g = 0, b = 15 / 255, a = 1 } }, -- ffb8000f
   { baseTag = "DEBUFF_TYPE_DISEASE_COLOR", color = { r = 241 / 255, g = 106 / 255, b = 9 / 255, a = 1 } }, -- fff16a09
   { baseTag = "DEBUFF_TYPE_NONE_COLOR", color = { r = 204 / 255, g = 0, b = 0, a = 1 } }, -- ffcc0000
+  -- source: row W93 (confirmed) GlobalColor rows 12, 35, 50, 100-104, 121, 156, 415 (ARGB in each comment); Blizzard's
+  -- XML names them in <Color color="..."/> (row X42); no extract Lua defines them.
+  { baseTag = "DARKYELLOW_FONT_COLOR", color = { r = 1, g = 209 / 255, b = 0, a = 1 } }, -- ffffd100
+  { baseTag = "BLACK_FONT_COLOR", color = { r = 0, g = 0, b = 0, a = 1 } }, -- ff000000
+  { baseTag = "NEW_FEATURE_SHADOW_COLOR", color = { r = 82 / 255, g = 128 / 255, b = 1, a = 1 } }, -- ff5280ff
+  { baseTag = "TRIVIAL_DIFFICULTY_COLOR", color = { r = 128 / 255, g = 128 / 255, b = 128 / 255, a = 1 } }, -- ff808080
+  { baseTag = "EASY_DIFFICULTY_COLOR", color = { r = 64 / 255, g = 192 / 255, b = 64 / 255, a = 1 } }, -- ff40c040
+  { baseTag = "FAIR_DIFFICULTY_COLOR", color = { r = 1, g = 1, b = 0, a = 1 } }, -- ffffff00
+  { baseTag = "DIFFICULT_DIFFICULTY_COLOR", color = { r = 1, g = 128 / 255, b = 64 / 255, a = 1 } }, -- ffff8040
+  { baseTag = "IMPOSSIBLE_DIFFICULTY_COLOR", color = { r = 1, g = 32 / 255, b = 32 / 255, a = 1 } }, -- ffff2020
+  { baseTag = "ERROR_COLOR", color = { r = 1, g = 32 / 255, b = 32 / 255, a = 1 } }, -- ffff2020
+  { baseTag = "DEFAULT_MATERIAL_TEXT_COLOR", color = { r = 46 / 255, g = 31 / 255, b = 15 / 255, a = 1 } }, -- ff2e1f0f
+  { baseTag = "GAMEPAD_SMARTNAV_CURSOR_COLOR", color = { r = 1, g = 230 / 255, b = 0, a = 1 } }, -- ffffe600
 }
 
 local function byte(channel)
