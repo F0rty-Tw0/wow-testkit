@@ -18,6 +18,14 @@ local function test_slot_reads_the_mock_assumed()
   end)
 end
 
+-- Blizzard's main bar maps button id to slot through the page (SecureActionButtonMixin:CalculateAction); page 0 would
+-- put buttons 1-12 on slots -11..0.
+local function test_action_bar_page_is_one_assumed()
+  G.withGame("retail", function()
+    A.eq(_G.C_ActionBar.GetActionBarPage(), 1)
+  end)
+end
+
 local function test_item_and_macro_slots_answer_their_type_assumed()
   G.withGame("retail", function(w)
     w:setMock({ actions = { [1] = { type = "item", id = 5 }, [2] = { type = "macro", id = 7, text = "Hello" } } })
@@ -74,6 +82,7 @@ end
 
 return function()
   test_slot_reads_the_mock_assumed()
+  test_action_bar_page_is_one_assumed()
   test_item_and_macro_slots_answer_their_type_assumed()
   test_false_empties_a_slot_assumed()
   test_cooldown_is_a_table_assumed()
