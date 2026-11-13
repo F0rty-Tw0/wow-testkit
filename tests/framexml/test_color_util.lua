@@ -146,6 +146,45 @@ local function test_debuff_type_colours_come_from_the_ui_colour_table() -- W91
   end
 end
 
+-- Blizzard's XML names these in <Color color="..."/> (row X42): BLACK_FONT_COLOR (forever, 62 elements),
+-- NEW_FEATURE_SHADOW_COLOR (tbc 34, forever 58), the quest difficulty fonts' five. (W93)
+local function test_xml_named_colours_come_from_the_ui_colour_table() -- W93
+  local names = {
+    "DARKYELLOW_FONT_COLOR",
+    "BLACK_FONT_COLOR",
+    "NEW_FEATURE_SHADOW_COLOR",
+    "TRIVIAL_DIFFICULTY_COLOR",
+    "EASY_DIFFICULTY_COLOR",
+    "FAIR_DIFFICULTY_COLOR",
+    "DIFFICULT_DIFFICULTY_COLOR",
+    "IMPOSSIBLE_DIFFICULTY_COLOR",
+    "ERROR_COLOR",
+    "DEFAULT_MATERIAL_TEXT_COLOR",
+    "GAMEPAD_SMARTNAV_CURSOR_COLOR",
+  }
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    withFrameXML(flavor, function()
+      local hex = {}
+      for i, name in ipairs(names) do
+        hex[i] = _G[name] and _G[name]:GenerateHexColor() or name .. " missing"
+      end
+      A.same(hex, {
+        "ffffd100",
+        "ff000000",
+        "ff5280ff",
+        "ff808080",
+        "ff40c040",
+        "ffffff00",
+        "ffff8040",
+        "ffff2020",
+        "ffff2020",
+        "ff2e1f0f",
+        "ffffe600",
+      }, flavor)
+    end)
+  end
+end
+
 local function test_the_font_colours_exist_on_every_flavor() -- W68
   for _, flavor in ipairs({ "vanilla", "tbc", "mists", "forever" }) do
     withFrameXML(flavor, function()
@@ -263,6 +302,7 @@ return function()
   test_unit_frame_prediction_colours_come_from_the_ui_colour_table()
   test_compact_unit_frame_colours_come_from_the_ui_colour_table()
   test_debuff_type_colours_come_from_the_ui_colour_table()
+  test_xml_named_colours_come_from_the_ui_colour_table()
   test_create_color_and_wrap_text()
   test_create_color_from_hex_string_reads_aarrggbb()
   test_a_hex_string_of_the_wrong_length_asserts_and_returns_nil()
