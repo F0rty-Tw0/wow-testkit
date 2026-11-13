@@ -16,3 +16,4 @@ tests/test_json.lua
 tests/test_json_decode.lua
 tests/ui/test_xml_parse.lua
 tests/test_toc_variables.lua
+tests/test_toc_header.lua
