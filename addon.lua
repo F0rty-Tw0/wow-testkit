@@ -165,7 +165,13 @@ function M.load(w, opts)
   end
   info.status = "loaded"
   local ctx = M.context(w, name, root)
+  -- source: row BU30; assumed: the kit loads the addon at login, when a LoadOnDemand addon's [Bootstrap] lines run, so
+  -- they go first (Toc.filesFor leaves them out of a LoadOnDemand addon's list).
   local files, report = Toc.filesFor(parsed, w.flavor)
+  local bootstrap = Toc.bootstrapFiles(parsed, w.flavor)
+  for i, path in ipairs(bootstrap) do
+    table.insert(files, i, path)
+  end
   info.report, ctx.report = report, report
   if info.declared ~= "load" then
     table.insert(report, 1, versionNote(info.declared, w.flavor))

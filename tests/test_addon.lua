@@ -110,6 +110,22 @@ local function test_ahead_interface_loads_with_a_report_line()
   A.eq(ns.loaded, true)
 end
 
+-- source: row BU30; assumed: the kit loads the addon under test at login, when a LoadOnDemand addon's bootstrap runs.
+local function test_a_load_on_demand_addon_runs_its_bootstrap_lines_first()
+  local root = Tmp.dir("addon")
+  fs.mkdirp(root)
+  local header = "## Interface: " .. Flavors.get("retail").tocVersion .. "\n## LoadOnDemand: 1\n\n"
+  fs.writeFile(root .. "/Temp.toc", header .. "Main.lua\nBoot.lua [Bootstrap]\n")
+  fs.writeFile(root .. "/Main.lua", "local _, ns = ...\nns.order = (ns.order or '') .. 'main'\n")
+  fs.writeFile(root .. "/Boot.lua", "local _, ns = ...\nns.order = (ns.order or '') .. 'boot,'\n")
+  withWorld("retail", function(w)
+    local ns, info = Addon.load(w, { name = "Temp", root = root })
+    A.eq(ns.order, "boot,main")
+    A.same(w.errors, {})
+    A.eq(reportText(info), "")
+  end)
+end
+
 local function test_missing_toc_file_is_an_error_and_later_files_load()
   withWorld("retail", function(w)
     local ns, info = load(w, "Missing")
@@ -293,6 +309,7 @@ return function()
   test_outdated_interface_loads_with_a_report_line()
   test_ahead_interface_loads_with_a_report_line()
   test_missing_toc_file_is_an_error_and_later_files_load()
+  test_a_load_on_demand_addon_runs_its_bootstrap_lines_first()
   test_the_gc_pauses_for_the_file_loop_only()
   test_a_raising_file_still_restarts_the_gc()
   test_a_nested_load_leaves_the_gc_stopped_until_the_outer_one_ends()
