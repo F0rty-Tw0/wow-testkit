@@ -38,8 +38,16 @@ local function test_chat_window_info_defaults_assumed() -- (G17)
   G.withGame("retail", function(w)
     A.eq((_G.GetChatWindowInfo(1)), "General")
     A.eq((_G.GetChatWindowInfo(2)), "Combat Log")
-    A.eq(_G.GetChatWindowInfo(9), nil)
+    A.eq(_G.GetChatWindowInfo(11), nil)
     A.eq(w.unscripted.GetChatWindowInfo, 1)
+  end)
+end
+
+local function test_chat_windows_default_to_a_hidden_black_background_docked_and_locked() -- (G36)
+  G.withGame("tbc", function()
+    A.same({ _G.GetChatWindowInfo(1) }, { "General", 12, 0, 0, 0, 0, true, true, 1, false })
+    A.same({ _G.GetChatWindowInfo(2) }, { "Combat Log", 12, 0, 0, 0, 0, false, true, 2, false })
+    A.same({ _G.GetChatWindowInfo(10) }, { "", 12, 0, 0, 0, 0, false, true, nil, false })
   end)
 end
 
@@ -63,5 +71,6 @@ return function()
   test_bare_send_chat_message_exists_on_every_flavor()
   test_send_reaches_the_session_console()
   test_chat_window_info_defaults_assumed()
+  test_chat_windows_default_to_a_hidden_black_background_docked_and_locked()
   test_sound_calls_are_recorded()
 end

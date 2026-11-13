@@ -7,14 +7,20 @@ local State = require("game.state")
 local WorldApi = require("world_api")
 local define = State.define
 
--- source: assumed (row G17) the two default windows and their look; no page lists the starting layout.
+-- source: confirmed (row G36) a real chat-cache.txt: size 12, COLOR 0 0 0 0 (black, alpha 0: the background shows only
+-- on hover), LOCKED 1, window 1 SHOWN 1 DOCKED 1, window 2 SHOWN 0 DOCKED 2 (a tab in the General dock), windows 3
+-- ("Voice") to 10 (no NAME line) SHOWN 0 DOCKED 0; assumed: DOCKED 0 reads back as nil (Blizzard tests `if docked`).
+local function window(name, shown, docked)
+  return { name = name, fontSize = 12, r = 0, g = 0, b = 0, alpha = 0, shown = shown, locked = true, docked = docked, uninteractable = false }
+end
+local chatWindows = { window("General", true, 1), window("Combat Log", false, 2), window("Voice", false) }
+for id = 4, 10 do
+  chatWindows[id] = window("", false)
+end
 M.DEFAULTS = {
   sent = {},
   played = {},
-  chatWindows = {
-    [1] = { name = "General", fontSize = 14, shown = true, locked = false },
-    [2] = { name = "Combat Log", fontSize = 14, shown = true, locked = false },
-  },
+  chatWindows = chatWindows,
 }
 
 local function installSend(w)
@@ -30,12 +36,12 @@ local function installSend(w)
   -- source: confirmed (row G1) the bare name is Blizzard's deprecation fallback, present on every flavor.
   define(w, "SendChatMessage", send, State.ALL)
   define(w, "GetChatWindowInfo", function(id)
-    local window = w.mock.chatWindows[id]
-    if not window then
+    local info = w.mock.chatWindows[id]
+    if not info then
       WorldApi.markUnscripted(w, "GetChatWindowInfo")
       return
     end
-    return window.name, window.fontSize, window.r, window.g, window.b, window.alpha, window.shown, window.locked, window.docked, window.uninteractable
+    return info.name, info.fontSize, info.r, info.g, info.b, info.alpha, info.shown, info.locked, info.docked, info.uninteractable
   end)
 end
 
