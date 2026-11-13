@@ -1,7 +1,8 @@
 // Static render-snapshot viewer. index.html?snapshot=<url>[&zoom=1|fit|<n>][&bare=1][&outline=1]. loadSnapshot(url)
-// fetches a snapshot; render(snapshot, baseUrl) replaces the content of #stage with its items in snapshot order
-// (already draw order) and resolves relative asset urls against baseUrl. <html data-ready="1"> is set once drawing is
-// done or has failed. With live=1 the snapshot comes from the session instead and live.js sets data-ready.
+// fetches a snapshot; render(snapshot, baseUrl) replaces the items in #stage (keeping #background, its first child)
+// with the snapshot's items in snapshot order (already draw order) and resolves relative asset urls against baseUrl.
+// <html data-ready="1"> is set once drawing is done or has failed. With live=1 the snapshot comes from the session
+// instead and live.js sets data-ready.
 (function (V) {
   'use strict';
 
