@@ -40,6 +40,32 @@ local function test_bootstrap_line_keeps_its_game_type_bracket()
   end)
 end
 
+local function bootAddon(lua)
+  return { toc = "## LoadOnDemand: 1\nBoot.lua [Bootstrap]\n", files = { ["boot.lua"] = lua } }
+end
+
+-- source: assumed (row BU30) bootstrap code is Blizzard's, so its errors are the layer's.
+local function test_a_bootstrap_error_goes_to_the_layer_report_assumed()
+  B.run(B.mini({ blizzard_minibooterr = bootAddon("error('boot boom')\n") }), { targets = { "Blizzard_MiniBase" } }, function(s)
+    local errors = s.w.blizzard.errors
+    A.eq(#errors, 1)
+    A.eq(tostring(errors[1].message):find("boot boom", 1, true) ~= nil, true)
+  end)
+end
+
+-- source: assumed (row BU30) a bootstrap's seterrorhandler does not take the next bootstrap's errors from the layer
+-- (folder order: minibooth runs before minibootz).
+local function test_a_bootstrap_error_handler_ends_with_its_bootstrap_assumed()
+  local addons = B.mini({
+    blizzard_minibooth = bootAddon("seterrorhandler(function() MiniBootCaught = true end)\n"),
+    blizzard_minibootz = bootAddon("error('boot boom')\n"),
+  })
+  B.run(addons, { targets = { "Blizzard_MiniBase" } }, function(s)
+    A.eq(_G.MiniBootCaught, nil)
+    A.eq(#s.w.blizzard.errors, 1)
+  end)
+end
+
 -- source: assumed (row BU30) an addon that loads at login runs its [Bootstrap] lines with the rest, in TOC order.
 local function test_bootstrap_lines_of_an_addon_that_loads_at_login_load_with_it_assumed()
   local parsed = Toc.parse("Boot.lua [Bootstrap]\nMain.lua\n")
@@ -54,5 +80,7 @@ end
 return function()
   test_bootstrap_line_runs_at_login_and_load_runs_the_rest_once()
   test_bootstrap_line_keeps_its_game_type_bracket()
+  test_a_bootstrap_error_goes_to_the_layer_report_assumed()
+  test_a_bootstrap_error_handler_ends_with_its_bootstrap_assumed()
   test_bootstrap_lines_of_an_addon_that_loads_at_login_load_with_it_assumed()
 end
