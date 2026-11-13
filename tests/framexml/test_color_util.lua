@@ -194,6 +194,14 @@ local function test_material_text_colours_come_from_the_ui_colour_table() -- W94
     "BRONZE_MATERIAL_TEXT_COLOR",
     "PARCHMENTLARGE_MATERIAL_TEXT_COLOR",
     "PROGENITOR_MATERIAL_TEXT_COLOR",
+    "DEFAULT_MATERIAL_TITLETEXT_COLOR",
+    "STONE_MATERIAL_TITLETEXT_COLOR",
+    "PARCHMENT_MATERIAL_TITLETEXT_COLOR",
+    "MARBLE_MATERIAL_TITLETEXT_COLOR",
+    "SILVER_MATERIAL_TITLETEXT_COLOR",
+    "BRONZE_MATERIAL_TITLETEXT_COLOR",
+    "PARCHMENTLARGE_MATERIAL_TITLETEXT_COLOR",
+    "PROGENITOR_MATERIAL_TITLETEXT_COLOR",
   }
   for _, flavor in ipairs({ "forever", "tbc" }) do
     withFrameXML(flavor, function()
@@ -201,7 +209,23 @@ local function test_material_text_colours_come_from_the_ui_colour_table() -- W94
       for i, name in ipairs(names) do
         hex[i] = _G[name] and _G[name]:GenerateHexColor() or name .. " missing"
       end
-      A.same(hex, { "ffffffff", "ff2e1f0f", "ff000000", "ffffffff", "ff2e1f0f", "ff240000", "ffffffff" }, flavor)
+      A.same(hex, {
+        "ffffffff",
+        "ff2e1f0f",
+        "ff000000",
+        "ffffffff",
+        "ff2e1f0f",
+        "ff240000",
+        "ffffffff",
+        "ff000000",
+        "ffffffff",
+        "ff000000",
+        "ffedd100",
+        "ffedd100",
+        "ffedd100",
+        "ff350000",
+        "ffffffff",
+      }, flavor)
     end)
   end
 end
