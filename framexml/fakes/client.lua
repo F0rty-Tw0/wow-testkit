@@ -33,12 +33,19 @@ local function atlasInfo(extract, name)
   }
 end
 
--- Whether every key target and fields share has the same value in both.
-local function agrees(target, fields)
+-- Whether every key target and fields share has the same value in both; strict: also every key of target is in fields.
+local function agrees(target, fields, strict)
   for key, value in pairs(fields) do
     local kit = rawget(target, key)
     if kit ~= nil and kit ~= value then
       return false
+    end
+  end
+  if strict then
+    for key in pairs(target) do
+      if fields[key] == nil then
+        return false
+      end
     end
   end
   return true
@@ -56,14 +63,16 @@ end
 -- copied in. A kit table that agrees with the extract on every shared key gets only its missing fields. A kit table that
 -- disagrees on any value (a renumbered member, a Meta MaxValue) is replaced by a copy of the extract's: the extract is
 -- that build's own docs, and a per-field mix gave two members one value (VasTransactionPurchaseResult) and Meta rows
--- that stop short of the added members (ChatChannelTypeMeta). Non-table entries and non-table kit values are skipped.
-local function overlay(w, root, tables)
+-- that stop short of the added members (ChatChannelTypeMeta). strict (Enum): a member only the kit has disagrees too,
+-- since a renamed member keeps its value (forever ForeverExperiencePreset Modern = 1 became Enhanced = 1); Constants
+-- keep their kit-only members (row G40). Non-table entries and non-table kit values are skipped.
+local function overlay(w, root, tables, strict)
   for name, fields in pairs(tables) do
     local target = rawget(root, name)
     if type(fields) == "table" and target == nil then
       w:rawWrite(root, name, copy(fields))
     elseif type(fields) == "table" and type(target) == "table" then
-      if agrees(target, fields) then
+      if agrees(target, fields, strict) then
         for key, value in pairs(fields) do
           if rawget(target, key) == nil then
             target[key] = value
@@ -124,7 +133,7 @@ local function installApi(w)
   for root, tables in pairs({ Enum = api.enums, Constants = api.constants }) do
     local installed = rawget(_G, root) -- world.lua installBase sets both
     if type(installed) == "table" then
-      overlay(w, installed, tables)
+      overlay(w, installed, tables, root == "Enum")
     end
   end
 end

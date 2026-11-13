@@ -93,8 +93,12 @@ local function test_glyph_tables_measure_text_through_the_world()
 end
 
 -- api.lua as tools/client_api.lua writes it: enums and constants from the extract's own API docs.
-local API = "return { enums = { ApiOnlyEnum = { A = 1 }, ItemQuality = { Poor = 0, ApiOnlyField = 42 }, Bad = 5 },"
-  .. " constants = { ApiOnlyConsts = { X = 7 } }, events = { API_ONLY_EVENT = true } }"
+-- ItemQuality is retail's own (api/retail/ItemQualities.lua) plus one field; AuctionConstants lacks the kit's
+-- DEFAULT_AUCTION_PRICE_MULTIPLIER (api/retail/AuctionHouseConstants.lua).
+local API = "return { enums = { ApiOnlyEnum = { A = 1 }, ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3,"
+  .. " Epic = 4, Legendary = 5, Artifact = 6, Heirloom = 7, WoWToken = 8, ApiOnlyField = 42 }, Bad = 5 },"
+  .. " constants = { ApiOnlyConsts = { X = 7 }, AuctionConstants = { ApiOnlyConst = 3 } },"
+  .. " events = { API_ONLY_EVENT = true } }"
 
 -- source: row G57, forever 70862 voicechatdocumentation.lua:919 documents VOICE_CHAT_ACTIVE_VOICE_PROVIDER_CHANGED,
 -- which api/forever (an older doc set) lacks; blizzard_chatframe/shared/voicechattranscriptionbutton.lua:4 registers it.
@@ -166,9 +170,21 @@ local function test_api_overlay_takes_the_extract_table_when_a_value_differs()
   end)
 end
 
+-- forever 70862 renamed ForeverExperiencePreset.Modern = 1 to Enhanced = 1; adding Enhanced beside the kit's Modern gave
+-- two members one value.
+local RENAMED_API = "return { enums = { ItemQuality = { Poor = 0, Renamed = 1 } } }"
+
+local function test_api_overlay_takes_the_extract_enum_when_the_kit_has_a_member_it_lacks()
+  withClient({ ["api.lua"] = RENAMED_API }, function()
+    A.same({ _G.Enum.ItemQuality.Renamed, _G.Enum.ItemQuality.Common }, { 1, nil })
+  end)
+end
+
 local function test_api_overlay_fills_constants_too()
   withClient({ ["api.lua"] = API }, function()
     A.eq(_G.Constants.ApiOnlyConsts.X, 7)
+    A.eq(_G.Constants.AuctionConstants.ApiOnlyConst, 3)
+    A.eq(_G.Constants.AuctionConstants.DEFAULT_AUCTION_PRICE_MULTIPLIER, 1.5) -- a kit-only constant stays (row G40)
   end)
 end
 
@@ -197,6 +213,7 @@ return function()
   test_api_overlay_adds_a_missing_enum_table()
   test_api_overlay_adds_missing_fields_to_a_table_that_agrees()
   test_api_overlay_takes_the_extract_table_when_a_value_differs()
+  test_api_overlay_takes_the_extract_enum_when_the_kit_has_a_member_it_lacks()
   test_api_overlay_fills_constants_too()
   test_api_overlay_skips_a_non_table_entry()
   test_extract_without_api_file_changes_no_enum()
