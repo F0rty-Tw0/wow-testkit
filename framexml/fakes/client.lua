@@ -33,22 +33,44 @@ local function atlasInfo(extract, name)
   }
 end
 
--- Fills root (the Enum or Constants table the world installed) from the extract's tables: a missing table is copied,
--- an existing one gets only its missing fields, so the kit's values win. Non-table entries are skipped.
-local function fillMissing(w, root, tables)
+-- Whether every key target and fields share has the same value in both.
+local function agrees(target, fields)
+  for key, value in pairs(fields) do
+    local kit = rawget(target, key)
+    if kit ~= nil and kit ~= value then
+      return false
+    end
+  end
+  return true
+end
+
+local function copy(fields)
+  local out = {}
+  for key, value in pairs(fields) do
+    out[key] = value
+  end
+  return out
+end
+
+-- Overlays root (the Enum or Constants table the world installed) with the extract's tables. A table the kit lacks is
+-- copied in. A kit table that agrees with the extract on every shared key gets only its missing fields. A kit table that
+-- disagrees on any value (a renumbered member, a Meta MaxValue) is replaced by a copy of the extract's: the extract is
+-- that build's own docs, and a per-field mix gave two members one value (VasTransactionPurchaseResult) and Meta rows
+-- that stop short of the added members (ChatChannelTypeMeta). Non-table entries and non-table kit values are skipped.
+local function overlay(w, root, tables)
   for name, fields in pairs(tables) do
-    if type(fields) == "table" then
-      local target = rawget(root, name)
-      if target == nil then
-        target = {}
-        w:rawWrite(root, name, target)
-      end
-      if type(target) == "table" then
+    local target = rawget(root, name)
+    if type(fields) == "table" and target == nil then
+      w:rawWrite(root, name, copy(fields))
+    elseif type(fields) == "table" and type(target) == "table" then
+      if agrees(target, fields) then
         for key, value in pairs(fields) do
           if rawget(target, key) == nil then
             target[key] = value
           end
         end
+      else
+        w:rawWrite(root, name, copy(fields))
       end
     end
   end
@@ -102,7 +124,7 @@ local function installApi(w)
   for root, tables in pairs({ Enum = api.enums, Constants = api.constants }) do
     local installed = rawget(_G, root) -- world.lua installBase sets both
     if type(installed) == "table" then
-      fillMissing(w, installed, tables)
+      overlay(w, installed, tables)
     end
   end
 end

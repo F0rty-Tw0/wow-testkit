@@ -93,7 +93,7 @@ local function test_glyph_tables_measure_text_through_the_world()
 end
 
 -- api.lua as tools/client_api.lua writes it: enums and constants from the extract's own API docs.
-local API = "return { enums = { ApiOnlyEnum = { A = 1 }, ItemQuality = { Poor = 99, ApiOnlyField = 42 }, Bad = 5 },"
+local API = "return { enums = { ApiOnlyEnum = { A = 1 }, ItemQuality = { Poor = 0, ApiOnlyField = 42 }, Bad = 5 },"
   .. " constants = { ApiOnlyConsts = { X = 7 } }, events = { API_ONLY_EVENT = true } }"
 
 -- source: row G57, forever 70862 voicechatdocumentation.lua:919 documents VOICE_CHAT_ACTIVE_VOICE_PROVIDER_CHANGED,
@@ -144,11 +144,25 @@ local function test_api_overlay_adds_a_missing_enum_table()
   end)
 end
 
-local function test_api_overlay_adds_missing_fields_and_keeps_kit_values()
+local function test_api_overlay_adds_missing_fields_to_a_table_that_agrees()
   withClient({ ["api.lua"] = API }, function(w)
     A.eq(w.manifest.enums.ItemQuality.ApiOnlyField, nil) -- the manifest stays the kit's
-    A.eq(_G.Enum.ItemQuality.Poor, 0) -- the kit value wins
+    A.eq(_G.Enum.ItemQuality.Poor, 0)
     A.eq(_G.Enum.ItemQuality.ApiOnlyField, 42)
+    A.eq(_G.Enum.ItemQuality.Common, w.manifest.enums.ItemQuality.Common) -- a kit-only field stays
+  end)
+end
+
+-- The forever 70862 docs number VasTransactionPurchaseResult.EndProxyErrors 57 where api/forever has 56, and add
+-- ProxyNoMixedAlliance = 56: a per-field mix gave both members 56. The extract's whole table wins on any disagreement.
+local RENUMBERED_API = "return { enums = { ItemQuality = { Poor = 0, Common = 99, ApiOnlyField = 98 } } }"
+
+local function test_api_overlay_takes_the_extract_table_when_a_value_differs()
+  withClient({ ["api.lua"] = RENUMBERED_API }, function(w)
+    A.eq(_G.Enum.ItemQuality.Common, 99)
+    A.eq(_G.Enum.ItemQuality.ApiOnlyField, 98)
+    A.eq(_G.Enum.ItemQuality.Rare, nil) -- the kit's own fields go with its table
+    A.eq(w.manifest.enums.ItemQuality.Common ~= 99, true) -- the manifest stays the kit's
   end)
 end
 
@@ -181,7 +195,8 @@ return function()
   test_api_overlay_makes_the_extract_events_known()
   test_api_overlay_stubs_documented_functions_the_kit_lacks()
   test_api_overlay_adds_a_missing_enum_table()
-  test_api_overlay_adds_missing_fields_and_keeps_kit_values()
+  test_api_overlay_adds_missing_fields_to_a_table_that_agrees()
+  test_api_overlay_takes_the_extract_table_when_a_value_differs()
   test_api_overlay_fills_constants_too()
   test_api_overlay_skips_a_non_table_entry()
   test_extract_without_api_file_changes_no_enum()
