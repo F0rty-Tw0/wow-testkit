@@ -6,6 +6,7 @@
 -- addon the layer did not load, the client has no frame at all under it, and Blizzard's `if Frame then Frame:Method()`
 -- guards must see nil (a stand-in passed them and crashed, e.g. FramerateFrame:UpdatePosition). Without the layer every
 -- core frame (PlayerFrame, ChatFrame1) is lazy, and the client always has and shows those, so the frame stays shown.
+-- The layer on with no extract (w.blizzard set, w.client nil) loads nothing, so it counts as no layer.
 local M = {}
 
 local WorldApi = require("world_api")
@@ -35,7 +36,7 @@ end
 
 local function lazyIndex(w, previous)
   return function(t, key)
-    if type(key) == "string" and w.globals.frames[key] and not w.blizzard then
+    if type(key) == "string" and w.globals.frames[key] and not (w.blizzard and w.client) then
       local frame = w.ui.create(lazyType(key), key, nil)
       WorldApi.markUnscripted(w, "frame:" .. key)
 
