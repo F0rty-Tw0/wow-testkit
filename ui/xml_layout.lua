@@ -36,16 +36,17 @@ function M.absValue(node)
   return tonumber(source.attrs.val)
 end
 
--- r, g, b and a of a <Color>: the global colour object its color attribute names, else the r, g, b and a attributes.
+-- r, g, b and a of a <Color>: the global colour object its color attribute names (its own `a` attribute, when given,
+-- over the colour's alpha), else the r, g, b and a attributes.
 -- source: wiki XML/Color: `a` defaults to 1.0, `r`, `g`, `b` to 0.0 (row X18). ColorType's `color` attribute is
--- confirmed (row X42); that it names a global colour and wins over r, g, b and a is assumed. An unknown name is reported
--- and the attributes stand.
+-- confirmed (row X42); that it names a global colour and that `a` overrides its alpha are assumed. An unknown name is
+-- reported and the attributes stand.
 function M.color(w, node, session)
   local attrs = node.attrs
   if attrs.color then
     local named = AddonEnv.global(w, attrs.color, true)
     if type(named) == "table" and type(named.r) == "number" then
-      return named.r, named.g, named.b, named.a or 1
+      return named.r, named.g, named.b, tonumber(attrs.a) or named.a or 1
     end
     session.reportAt(node.line, "colour '" .. attrs.color .. "' not found; its r, g, b and a used")
   end

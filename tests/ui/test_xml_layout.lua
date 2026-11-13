@@ -282,6 +282,8 @@ local function test_color_attribute_names_a_global_colour() -- X42
   <Frame name="Named"><Layers><Layer>
     <FontString parentKey="Label" inherits="KitHighlight" text="Hi"/>
     <Texture parentKey="Swatch"><Color color="RED_FONT_COLOR"/></Texture>
+    <Texture parentKey="Faded"><Color color="NORMAL_FONT_COLOR" a=".5"/></Texture>
+    <Texture parentKey="Ramp"><Gradient><MinColor color="RED_FONT_COLOR"/><MaxColor color="WHITE_FONT_COLOR" a="0.25"/></Gradient></Texture>
   </Layer></Layers></Frame></Ui>]]
   H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
     H.load(w, ctx, "Ui.xml")
@@ -289,6 +291,10 @@ local function test_color_attribute_names_a_global_colour() -- X42
     A.same({ _G.Named.Label:GetTextColor() }, { white.r, white.g, white.b, 1 })
     A.same({ _G.Named.Label:GetShadowColor() }, { gold.r, gold.g, gold.b, 1 })
     A.same(w.ui.state[_G.Named.Swatch].tex.color, { red.r, red.g, red.b, 1 })
+    -- the element's own `a` over the colour's alpha (forever blizzard_professionsrecipelist.xml:116)
+    A.same(w.ui.state[_G.Named.Faded].tex.color, { gold.r, gold.g, gold.b, 0.5 })
+    local ramp = w.ui.state[_G.Named.Ramp].tex.gradient
+    A.same({ ramp.min, ramp.max }, { { red.r, red.g, red.b, 1 }, { white.r, white.g, white.b, 0.25 } })
     A.eq(reportText(ctx), "")
   end)
 end
