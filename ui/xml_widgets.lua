@@ -101,12 +101,12 @@ function handlers.fontheight(_, text, _, node)
   end
 end
 
-function handlers.shadow(_, text, _, node)
+function handlers.shadow(w, text, _, node, session)
   for _, child in ipairs(node.children) do
     if child.tag == "offset" then
       text:SetShadowOffset(XmlLayout.dimension(child))
     elseif child.tag == "color" then
-      text:SetShadowColor(XmlLayout.color(child))
+      text:SetShadowColor(XmlLayout.color(w, child, session))
     end
   end
 end
