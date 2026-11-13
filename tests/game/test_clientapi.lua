@@ -27,6 +27,27 @@ local function test_curve_object_evaluates_its_points_assumed()
   end)
 end
 
+-- forever AuraButtonPrivateMixin (blizzard_aurabutton.lua:75, :163-169) sets the duration C_DurationUtil.CreateDuration
+-- handed out from an aura's expiration time, duration and time mod; the stub handed out nil. (G85)
+local function test_duration_object_spans_its_times_assumed()
+  G.withGame("forever", function(w)
+    local real, base = _G.Enum.DurationTimeModifier.RealTime, _G.Enum.DurationTimeModifier.BaseTime
+    local d = _G.C_DurationUtil.CreateDuration()
+    A.same({ d:IsZero(), d:HasExpired() }, { true, true })
+    w.now = 10
+    d:SetTimeFromEnd(14, 8, 2)
+    A.same({ d:GetStartTime(), d:GetEndTime(), d:GetTotalDuration(), d:GetTotalDuration(base) }, { 10, 14, 4, 8 })
+    w.now = 11
+    A.same({ d:GetRemainingDuration(real), d:GetElapsedDuration(), d:GetRemainingPercent() }, { 3, 1, 0.75 })
+    A.same({ d:IsZero(), d:HasExpired(), d:GetModRate() }, { false, false, 2 })
+    w.now = 15
+    A.same({ d:HasExpired(), d:GetRemainingDuration() }, { true, 0 })
+    local copy = d:Copy()
+    d:SetTimeSpan(0, 0)
+    A.same({ d:IsZero(), copy:GetEndTime() }, { true, 14 })
+  end)
+end
+
 -- ColorManager.lua (Blizzard_Colors) calls color:GenerateHexColorMarkup() on what C_ColorOverrides answers, so the
 -- answer carries Blizzard's ColorMixin when that is loaded.
 local function test_quality_colors_carry_the_color_mixin_assumed()
@@ -74,6 +95,12 @@ local function test_metatable_getters_answer_the_widget_class_metatable_assumed(
     A.truthy(getmetatable(frame:CreateFontString()) == _G.GetFontStringMetatable(), "FontString")
     A.eq(type(_G.GetFrameMetatable().__index.SetSize), "function")
   end)
+  -- row G55: forever lists GetTextureMetatable; UnitFrameUtil.lua:129 copies its __index at load.
+  G.withGame("forever", function()
+    local texture = _G.CreateFrame("Frame"):CreateTexture()
+    A.truthy(getmetatable(texture) == _G.GetTextureMetatable(), "Texture")
+    A.eq(_G.GetTextureMetatable().__index.IsObjectType(texture, "Texture"), true)
+  end)
 end
 
 -- SecureTemplates.lua (Blizzard_FrameXML) keys a table by the main hand and off-hand slot ids at load; a nil key
@@ -86,6 +113,20 @@ local function test_inventory_slot_names_answer_their_ids_assumed()
     A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo("TabardSlot"), 19)
     A.eq(_G.C_PaperDollInfo.GetInventorySlotInfo("NoSuchSlot"), nil)
   end)
+end
+
+-- forever constants.lua:173 CONTAINER_BAG_OFFSET = 30 (container n is inventory slot n + 30); forever
+-- camelot/paperdollframe.lua:1973 keys itemSlotButtons by CharacterBag0Slot's id ("table index is nil" without).
+local function test_mainline_bag_slots_sit_after_the_container_offset()
+  for _, flavor in ipairs({ "forever", "retail" }) do
+    G.withGame(flavor, function()
+      local ids = {}
+      for _, name in ipairs({ "Bag0Slot", "Bag1Slot", "Bag2Slot", "Bag3Slot", "ReagentBag0Slot" }) do
+        ids[#ids + 1] = _G.C_PaperDollInfo.GetInventorySlotInfo(name)
+      end
+      A.same(ids, { 31, 32, 33, 34, 35 }, flavor)
+    end)
+  end
 end
 
 -- Blizzard's transmog code passes "HEADSLOT" and "SHOULDERSLOT" (blizzard_transmog.lua, blizzard_transmogshared.lua) where
@@ -137,6 +178,16 @@ local function test_classic_expansion_level_and_constants_answer_per_flavor_assu
   end)
 end
 
+-- tbc GameRulesUtil.GetEffectiveMaxLevelForPlayer (gamerulesutil.lua:192) takes math.min(GetMaxLevelForPlayerExpansion(),
+-- GetMaxPlayerLevel()); GetMaxPlayerLevel is a bare global with no signature, so it answered nothing and min raised. (G58)
+local function test_classic_max_level_answers_the_expansion_cap_assumed()
+  for flavor, cap in pairs({ vanilla = 60, tbc = 70, mists = 90 }) do
+    G.withGame(flavor, function()
+      A.same({ _G.GetMaxPlayerLevel(), _G.GetMaxLevelForPlayerExpansion(), _G.GetMaxLevelForLatestExpansion() }, { cap, cap, cap }, flavor)
+    end)
+  end
+end
+
 -- The classic UIParent (tbc uiparent.lua:24-28) builds ITEM_QUALITY_COLORS for 0 .. NUM_LE_ITEM_QUALITYS - 1 and the auction
 -- list (Blizzard_AuctionUI.lua:1013) indexes it by quality; with the names nil the table stayed empty.
 local function test_legacy_item_quality_names_alias_enum_item_quality_assumed() -- (G26)
@@ -176,6 +227,286 @@ local function test_class_info_answers_the_class_list_assumed() -- Blizzard_Play
     A.same(_G.C_CreatureInfo.GetClassInfo(13), { className = "Evoker", classFile = "EVOKER", classID = 13 })
     A.eq(_G.C_CreatureInfo.GetClassInfo(99), nil)
   end)
+end
+
+-- tbc constants.lua:43-46 fills LOCALIZED_CLASS_NAMES_MALE/FEMALE with FillLocalizedClassList; chatconfigframe.xml:164
+-- formats LOCALIZED_CLASS_NAMES_MALE[class] for each CLASS_SORT_ORDER class, so an empty table stopped Blizzard_ChatFrame.
+local function test_fill_localized_class_list_names_every_class_assumed()
+  G.withGame("tbc", function()
+    local male, female = {}, {}
+    _G.FillLocalizedClassList(male, false)
+    _G.FillLocalizedClassList(female, true)
+    A.same({ male.WARRIOR, male.DRUID, female.MAGE }, { "Warrior", "Druid", "Mage" })
+    A.same({ male.DEATHKNIGHT, male.EVOKER, male.MONK }, {}, "only the flavor's classes")
+  end)
+  G.withGame("mists", function()
+    local classes = _G.FillLocalizedClassList({}, false)
+    A.same({ classes.MONK, classes.DEATHKNIGHT, classes.EVOKER }, { "Monk", "Death Knight" })
+  end)
+end
+
+-- tbc QueueStatusFrame.lua:119-121 takes #apps of C_LFGList.GetApplications() and passes apps[i] to GetApplicationInfo;
+-- the kit lists no groups, so it is an empty array, a new one per call (the caller may keep it).
+local function test_lfg_list_applications_are_an_empty_list_assumed()
+  for _, flavor in ipairs({ "tbc", "retail" }) do
+    G.withGame(flavor, function()
+      local apps = _G.C_LFGList.GetApplications()
+      A.same(apps, {}, flavor)
+      A.truthy(_G.C_LFGList.GetApplications() ~= apps, "a new table per call")
+    end)
+  end
+end
+
+-- forever QueueStatusFrame.lua:431 loops `for i=1, GetMaxBattlefieldID()`; tbc minimap.lua:13, :376 fall back from it
+-- to MAX_BATTLEFIELD_QUEUES = 3.
+local function test_max_battlefield_id_is_three_queue_slots_assumed()
+  for _, flavor in ipairs({ "forever", "tbc" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetMaxBattlefieldID(), 3, flavor)
+    end)
+  end
+end
+
+-- forever blizzard_worldmap.lua:376-378 calls SetFrameStrata with any answer but nil and "UNKNOWN"; the stub's "" raised
+-- there and stopped the map's OnShow before SetMapID. No game rule is active in the kit (BU10).
+local function test_game_rule_frame_strata_is_unknown_assumed()
+  for _, flavor in ipairs({ "forever", "tbc", "retail" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.C_GameRules.GetGameRuleAsFrameStrata(_G.Enum.GameRule.WorldMapFrameStrata), "UNKNOWN", flavor)
+    end)
+  end
+end
+
+-- tbc paperdollframe.lua:486-490 concatenates UnitResistance's total; spellbookframe.lua:455-456 does arithmetic on tab 2's
+-- numSlots (the book opens on tab 2, :414). The kit models no gear and no spellbook.
+local function test_resistances_are_zero_and_the_spellbook_has_two_empty_tabs_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.UnitResistance("player", 2) }, { 0, 0, 0, 0 }, flavor)
+      A.eq(_G.GetNumSpellTabs(), 2, flavor)
+      local _, _, offset, numSlots, isGuild, offSpecID = _G.GetSpellTabInfo(2)
+      A.same({ offset, numSlots, isGuild, offSpecID }, { 0, 0, false, 0 }, flavor)
+      A.eq(_G.GetSpellTabInfo(3), nil, flavor)
+    end)
+  end
+end
+
+-- tbc QuestLogFrame.lua:671, :690 loop `for i=1, GetNumQuestWatches()` and :549, :749 compare it with numbers; the kit
+-- tracks no quests, so none is watched.
+local function test_num_quest_watches_is_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetNumQuestWatches(), 0, flavor)
+    end)
+  end
+end
+
+-- tbc MirrorTimerFrame_OnEvent (mirrortimer.lua:80-85) hides a timer named "UNKNOWN" and shows any other; with no
+-- answer the name was nil and MirrorTimer_Show divided the nil start value (:45) ×3 at PLAYER_ENTERING_WORLD. (G60)
+local function test_mirror_timers_are_idle_assumed()
+  G.withGame("tbc", function()
+    A.same({ _G.GetMirrorTimerInfo(1) }, { "UNKNOWN", 0, 0, 0, 0, "", 0 })
+  end)
+end
+
+-- tbc ComboFrame_Update (comboframe.lua:72-75) compares GetComboPoints(unit, "target") with 0; a bare global with no
+-- signature, it answered nothing and the compare raised ×3 at load. (G61)
+local function test_combo_points_are_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetComboPoints("player", "target"), 0, flavor)
+    end)
+  end
+end
+
+-- tbc SkillFrame_UpdateSkills (skillframe.lua:290-294) compares GetNumSkillLines() with a list index, and
+-- SkillDetailFrame_SetStatusBar (:183-185) adds GetSkillLineInfo's rank and temp points before testing the name; bare
+-- globals with no signature, they answered nothing and both raised at load. (G66)
+local function test_skill_lines_are_none_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetNumSkillLines(), 0, flavor)
+      local name, _, _, rank, temp = _G.GetSkillLineInfo(1)
+      A.same({ name, rank + temp }, { "", 0 }, flavor)
+    end)
+  end
+end
+
+-- tbc HonorFrame_Update (honorframe_shared.lua:70-92) concatenates GetPVPRankInfo's number, compares it with 0 and
+-- passes GetPVPRankProgress() to SetValue; bare globals with no signature, they answered nothing and the concat raised
+-- at load. (G67)
+local function test_player_is_unranked_assumed()
+  for _, flavor in ipairs({ "tbc", "vanilla", "mists" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.UnitPVPRank("player"), 0, flavor)
+      A.same({ _G.GetPVPRankInfo(_G.UnitPVPRank("player")) }, { nil, 0 }, flavor)
+      A.eq(_G.GetPVPRankProgress(), 0, flavor)
+    end)
+  end
+end
+
+-- tbc PVPHonor_Update (pvpframe.lua:33-34) indexes GetCurrencyInfo(CLASSIC_HONOR_CURRENCY_ID) unguarded; the signature
+-- may return nothing, so it answered nil and the index raised at load. (G68)
+local function test_named_currencies_exist_with_none_held_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      local id = _G.Constants.CurrencyConsts.CLASSIC_HONOR_CURRENCY_ID
+      local info = _G.C_CurrencyInfo.GetCurrencyInfo(id)
+      A.same({ info.currencyID, info.quantity, info.maxQuantity }, { id, 0, 0 }, flavor)
+      A.eq(_G.C_CurrencyInfo.GetCurrencyInfo(987654), nil, flavor)
+    end)
+  end
+end
+
+-- tbc PVPTeam_SoloUpdate (pvpframebase.lua:124-133) passes GetPersonalRatedInfo's rank to ArenaUtil.GetArenaBannerInfo,
+-- which compares it with 100; a bare global with no signature, it answered nothing and the compare raised at load. (G69)
+local function test_player_is_unrated_assumed()
+  for _, flavor in ipairs({ "tbc", "mists" }) do
+    G.withGame(flavor, function()
+      local returns = { _G.GetPersonalRatedInfo(1) }
+      A.same({ #returns, returns[1], returns[11] }, { 12, 0, 0 }, flavor)
+    end)
+  end
+end
+
+-- Keybindings.lua:24, FriendsFrame.lua:2726, Blizzard_GuildControlUI.lua:509, LootHistory.lua:57 and
+-- ChatFrameMenuButton.lua:120 use these as `for` limits; bare globals with no signature, they answered nothing and each
+-- loop raised "'for' limit must be a number" at load on tbc or forever. (G72)
+local function test_unmodelled_list_counts_are_zero_assumed()
+  local names = { "GetNumBindings", "GuildControlGetNumRanks", "GetNumLanguages" }
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      for _, name in ipairs(names) do
+        A.eq(_G[name](), 0, flavor .. " " .. name)
+      end
+    end)
+  end
+  G.withGame("tbc", function()
+    A.eq(_G.C_LootHistory.GetNumItems(), 0)
+  end)
+end
+
+-- VASErrorLookup.lua:281-287 (Blizzard_SharedXML, tbc and forever) keys tables by Enum.StoreError and
+-- Enum.VasServiceType members; secure-only, no doc lists them, so indexing the nil enum raised at load. (G73)
+local function test_secure_store_enums_have_distinct_members_assumed()
+  for _, flavor in ipairs({ "tbc", "forever", "retail" }) do
+    G.withGame(flavor, function()
+      for _, name in ipairs({ "StoreError", "VasServiceType" }) do
+        local seen, count = {}, 0
+        for _, value in pairs(_G.Enum[name]) do
+          A.eq(seen[value], nil, flavor .. " " .. name .. " value " .. tostring(value))
+          seen[value], count = true, count + 1
+        end
+        A.eq(count > 0, true, flavor .. " " .. name)
+      end
+      A.eq(type(_G.Enum.StoreError.InvalidPaymentMethod), "number", flavor)
+      A.eq(type(_G.Enum.VasServiceType.FactionChange), "number", flavor)
+    end)
+  end
+end
+
+-- tbc TabardFrame_OnLoad (tabardframe.lua:5) and the mail frame's cost (mailframe.xml:631) pass these to
+-- MoneyFrame_Update; bare globals with no signature, they answered nothing and the copper split raised ×2 at load. (G62)
+local function test_mail_postage_and_tabard_cost_are_copper_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.GetSendMailPrice(), _G.GetTabardCreationCost() }, { 30, 100000 }, flavor)
+    end)
+  end
+end
+
+-- tbc TextSizeManagerBase:BuildFonts (textsizemanager.lua:22-24) walks GetFonts() with ipairs; a bare global with no
+-- signature, it answered nothing and ipairs raised ×2 at load. (G63)
+local function test_font_list_is_an_empty_list_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same(_G.GetFonts(), {}, flavor)
+    end)
+  end
+end
+
+-- forever CommunitiesGetCurrentLocale (communitieslanguage.lua:3-9) falls back to GetAvailableLocaleInfo()[1] and :42
+-- indexes it; the documented default answered {} and the index raised at load. (G76)
+-- forever CollectionMicroButtonMixin:EvaluateAlertVisibility (mainmenubarmicrobuttons.lua:1553) compares the count with
+-- a number on PLAYER_ENTERING_WORLD (tbc classic/mainmenubarmicrobuttons.lua:751 too); a bare name with no signature,
+-- it answered nothing and the compare raised. (G78)
+local function test_pets_needing_fanfare_count_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.C_PetJournal.GetNumPetsNeedingFanfare(), 0, flavor)
+    end)
+  end
+end
+
+-- forever CollectionsUtil.IsJournalDisabled (collectionsutil.lua:555), reached once onlyShowCollectedItemsInJournal
+-- defaults on (row G80), compares select(2, GetNumPets()) with 0; the bare name answered nothing. (G81)
+local function test_pet_journal_counts_no_pets_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.C_PetJournal.GetNumPets() }, { 0, 0 }, flavor)
+    end)
+  end
+end
+
+-- forever Blizzard_StoreUI's StoreFrame OnLoad (shared storeuisecure.lua:1120, :451, :1620, :1631, :1161) called the
+-- secure store namespace, which the kit lacked. The classic flavors' store code does not load it. (G82)
+local function test_store_secure_answers_an_unavailable_store_assumed()
+  for _, flavor in ipairs({ "retail", "forever" }) do
+    G.withGame(flavor, function()
+      local store = _G.C_StoreSecure
+      A.same({ store.GetPurchaseList(), store.GetCurrencyInfo(), store.GetFailureInfo() }, {}, flavor)
+      A.same({ store.HasPurchaseInProgress(), store.IsAvailable() }, { false, false }, flavor)
+    end)
+  end
+  G.withGame("tbc", function()
+    A.eq(rawget(_G, "C_StoreSecure"), nil)
+  end)
+end
+
+-- During play, tbc StanceBarMixin:Update (shared stancebar.lua:30, :36) and forever AssistedCombatManager (mainline
+-- assistedcombatmanager.lua:42) compare GetNumShapeshiftForms() with 0; the bare name answered nothing. (G83)
+local function test_shapeshift_form_count_zero_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.eq(_G.GetNumShapeshiftForms(), 0, flavor)
+    end)
+  end
+end
+
+local function test_available_locales_list_every_client_locale()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      local infos = _G.GetAvailableLocaleInfo()
+      A.eq(#infos, 11, flavor)
+      A.same(infos[1], { localeId = 1, localeName = "enUS" }, flavor)
+      A.same(infos[10], { localeId = 10, localeName = "ptBR" }, flavor)
+    end)
+  end
+end
+
+-- tbc ProductChoiceFrame_ShowAlerts (productchoice.lua:63) takes #C_ProductChoice.GetChoices(); a bare name with no
+-- signature, it answered nothing and the length raised ×2 at load. (G64)
+local function test_product_choices_are_an_empty_list_assumed()
+  G.withGame("tbc", function()
+    A.same(_G.C_ProductChoice.GetChoices(), {})
+  end)
+end
+
+-- tbc UIErrorsFrame.lua:50-53 keys THROTTLED_MESSAGE_TYPES by LE_GAME_ERR_*; nil keys raised "table index is nil".
+local function test_game_error_numbers_are_set_and_distinct_assumed()
+  for _, flavor in ipairs({ "tbc", "forever" }) do
+    G.withGame(flavor, function()
+      A.same({ _G.LE_GAME_ERR_SPELL_FAILED_TOTEMS, _G.LE_GAME_ERR_SYSTEM }, { 252, 1 }, flavor)
+      local seen = {}
+      for name, value in pairs(_G) do
+        if type(name) == "string" and name:match("^LE_GAME_ERR_") then
+          A.eq(seen[value], nil, name .. " shares " .. tostring(value))
+          seen[value] = name
+        end
+      end
+      A.truthy(_G.LE_GAME_ERR_OUT_OF_ESSENCE ~= nil, "an unlisted name still gets a number")
+    end)
+  end
 end
 
 -- Blizzard_WorldMap.lua:577 (ToggleWorldMap) indexes Enum.GameRule.WorldMapDisabled; no installed data lists the members, so
@@ -250,9 +581,34 @@ return function()
   test_legacy_item_quality_names_alias_enum_item_quality_assumed()
   test_game_rule_enum_is_empty_so_no_rule_is_active_assumed()
   test_class_info_answers_the_class_list_assumed()
+  test_fill_localized_class_list_names_every_class_assumed()
+  test_lfg_list_applications_are_an_empty_list_assumed()
+  test_max_battlefield_id_is_three_queue_slots_assumed()
+  test_num_quest_watches_is_zero_assumed()
+  test_mirror_timers_are_idle_assumed()
+  test_combo_points_are_zero_assumed()
+  test_skill_lines_are_none_assumed()
+  test_player_is_unranked_assumed()
+  test_named_currencies_exist_with_none_held_assumed()
+  test_player_is_unrated_assumed()
+  test_unmodelled_list_counts_are_zero_assumed()
+  test_secure_store_enums_have_distinct_members_assumed()
+  test_mail_postage_and_tabard_cost_are_copper_assumed()
+  test_font_list_is_an_empty_list_assumed()
+  test_available_locales_list_every_client_locale()
+  test_pets_needing_fanfare_count_zero_assumed()
+  test_pet_journal_counts_no_pets_assumed()
+  test_store_secure_answers_an_unavailable_store_assumed()
+  test_shapeshift_form_count_zero_assumed()
+  test_product_choices_are_an_empty_list_assumed()
+  test_mainline_bag_slots_sit_after_the_container_offset()
+  test_game_rule_frame_strata_is_unknown_assumed()
+  test_resistances_are_zero_and_the_spellbook_has_two_empty_tabs_assumed()
+  test_game_error_numbers_are_set_and_distinct_assumed()
   test_unit_stat_constants_index_the_stat_names()
   test_kiosk_mode_is_off_assumed()
   test_classic_expansion_level_and_constants_answer_per_flavor_assumed()
+  test_classic_max_level_answers_the_expansion_cap_assumed()
   test_inventory_slot_names_answer_their_ids_assumed()
   test_inventory_slot_names_ignore_case()
   test_classic_global_inventory_slot_lookup_answers_the_slot_ids_assumed()
@@ -262,5 +618,6 @@ return function()
   test_default_quality_colors_match_the_quality_colors_assumed()
   test_override_colors_equal_the_item_quality_colors_assumed()
   test_curve_object_evaluates_its_points_assumed()
+  test_duration_object_spans_its_times_assumed()
   test_get_current_environment_is_the_addon_global_table_assumed()
 end
