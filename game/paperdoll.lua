@@ -18,8 +18,10 @@ local SKILL_PER_LEVEL = 5
 -- by zero and the sheet's max(floor(min), 1) floors hold.
 local SWING_SPEED = 2.0
 local MIN_DAMAGE, MAX_DAMAGE = 1, 2
--- source: assumed (row G45) the classes whose ranged slot is a relic slot (libram, idol, totem).
+-- source: assumed (row G45) the classes whose ranged slot is a relic slot (libram, idol, totem), on the flavors that
+-- still have one: patch 5.0 removed the relic slot, so mists and the mainline flavors (retail, forever) answer false.
 local RELIC_CLASSES = { PALADIN = true, DRUID = true, SHAMAN = true }
+local RELIC_FLAVORS = { vanilla = true, tbc = true }
 
 -- source: confirmed (row G45) each answers one number the sheet formats, compares or adds (tbc paperdollframe.lua
 -- :437-438, :445, :455, :458, :578-595, :1004, :1041, :1051, :1061, :1070, :385, :401, :409, :422, :424); assumed 0:
@@ -126,10 +128,10 @@ function M.install(w)
     return false
   end)
   -- source: confirmed (row G45) a boolean the sheet tests (tbc paperdollframe.lua:105, :828, :876); assumed true for the
-  -- relic classes.
+  -- relic classes on the relic flavors.
   define(w, "UnitHasRelicSlot", function(unit)
     local _, classFile = _G.UnitClass(unit)
-    return RELIC_CLASSES[classFile] == true
+    return RELIC_FLAVORS[w.flavor] == true and RELIC_CLASSES[classFile] == true
   end)
 end
 

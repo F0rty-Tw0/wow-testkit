@@ -51,7 +51,18 @@ local function test_combat_getters_answer_numbers_in_the_sheet_shape_assumed()
       numbers(ranged, 6, flavor .. " UnitRangedDamage")
       A.same({ ranged[1] > 0, ranged[2] >= 1, ranged[6] }, { true, true, 1 }, flavor)
       A.eq(_G.HasWandEquipped(), false, flavor)
-      A.eq(type(_G.UnitHasRelicSlot("player")), "boolean", flavor)
+    end)
+  end
+end
+
+-- tbc paperdollframe.lua:105, :828, :876 test it to show the relic slot; patch 5.0 removed the slot.
+local function test_relic_slot_is_for_paladins_druids_and_shamans_on_classic_flavors_assumed()
+  for flavor, expected in pairs({ tbc = true, vanilla = true, mists = false, retail = false }) do
+    G.withGame(flavor, function(w)
+      w:unit("player", { classFile = "PALADIN", className = "Paladin", isPlayer = true })
+      A.eq(_G.UnitHasRelicSlot("player"), expected, flavor .. " PALADIN")
+      w:unit("player", { classFile = "WARRIOR", className = "Warrior", isPlayer = true })
+      A.eq(_G.UnitHasRelicSlot("player"), false, flavor .. " WARRIOR")
     end)
   end
 end
@@ -99,5 +110,6 @@ return function()
   test_forever_offhand_hit_modifier_is_zero_assumed()
   test_unit_stat_is_a_gearless_level_based_stat_assumed()
   test_combat_getters_answer_numbers_in_the_sheet_shape_assumed()
+  test_relic_slot_is_for_paladins_druids_and_shamans_on_classic_flavors_assumed()
   test_rating_and_chance_getters_answer_zero_assumed()
 end
