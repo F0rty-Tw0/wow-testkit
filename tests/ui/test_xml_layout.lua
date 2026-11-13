@@ -137,6 +137,57 @@ local function test_missing_anchor_target_is_reported_and_skipped_assumed()
   end)
 end
 
+-- tbc 70577 blizzard_actionbar/classic/stancebar.xml:63 and blizzard_uipanels_game/classic/productchoice.xml:69 anchor a
+-- texture to itself through relativeKey; the client loads both with no Lua error (row X41).
+local function test_refused_anchor_is_reported_not_raised_assumed()
+  local xml = [[
+<Ui>
+<Frame name="Self"><Size x="10" y="10"/><Layers><Layer><Texture parentKey="Icon"><Size x="4" y="4"/>
+<Anchors><Anchor point="CENTER" relativeKey="$parent.Icon"/></Anchors></Texture></Layer></Layers></Frame>
+</Ui>]]
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    H.load(w, ctx, "Ui.xml")
+    A.contains(reportText(ctx), "Ui.xml:3: <Anchor> refused (Cannot anchor to itself); anchor skipped")
+    A.eq(#w.errors, 0, "an XML anchor the client refuses is a load report, not a Lua error")
+    A.eq(_G.Self.Icon:GetNumPoints(), 0)
+  end)
+end
+
+-- Only the anchor's own refusal is a report: a refusal inside a mixin SetPoint the kit calls is the addon's Lua error.
+local function test_refusal_inside_a_mixin_set_point_stays_an_error()
+  local xml = '<Ui><Frame name="Mx" mixin="NxMixin"><Anchors><Anchor point="CENTER"/></Anchors></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    w:setGlobal("NxMixin", {
+      SetPoint = function()
+        local t = _G.UIParent:CreateTexture()
+        t:SetPoint("CENTER", t)
+      end,
+    })
+    H.load(w, ctx, "Ui.xml")
+    A.eq(#w.errors, 1)
+    A.contains(w.errors[1].message, "Cannot anchor to itself")
+    A.eq(reportText(ctx):find("refused", 1, true), nil)
+  end)
+end
+
+-- Any other error from the SetPoint call keeps the frames that raised it in its traceback.
+local function test_error_inside_a_mixin_set_point_keeps_its_traceback()
+  local xml = '<Ui><Frame name="Mt" mixin="MtMixin"><Anchors><Anchor point="CENTER"/></Anchors></Frame></Ui>'
+  H.withXml({ ["Ui.xml"] = xml }, function(w, ctx)
+    local function deepMixinFailure()
+      error("boom")
+    end
+    w:setGlobal("MtMixin", {
+      SetPoint = function()
+        deepMixinFailure()
+      end,
+    })
+    H.load(w, ctx, "Ui.xml")
+    A.eq(#w.errors, 1)
+    A.contains(w.errors[1].traceback, "deepMixinFailure")
+  end)
+end
+
 local function test_deferred_anchor_resolves_once_its_target_is_built_assumed()
   local xml = [[
 <Ui>
@@ -297,6 +348,9 @@ return function()
   test_relative_key_may_name_a_sibling_frame_built_later_assumed()
   test_relative_key_walks_two_levels_assumed()
   test_missing_anchor_target_is_reported_and_skipped_assumed()
+  test_refused_anchor_is_reported_not_raised_assumed()
+  test_refusal_inside_a_mixin_set_point_stays_an_error()
+  test_error_inside_a_mixin_set_point_keeps_its_traceback()
   test_deferred_anchor_resolves_once_its_target_is_built_assumed()
   test_own_size_attributes_set_only_their_axis()
   test_rel_dimension_is_reported_and_ignored()
